@@ -1,0 +1,136 @@
+{
+  "version": 3,
+  "lines": [
+    [
+      {
+        "id": "d56bd5ea-e6f8-453c-99f5-ad6842c6bea0",
+        "type": "custom-command",
+        "color": "white",
+        "commandPath": "pwd | sed \"s|$HOME|~|\""
+      },
+      {
+        "id": "569268e3-85ed-4bc7-bdc0-842a02212a7b",
+        "type": "separator"
+      },
+      {
+        "id": "a475d2fc-cd92-4e5a-8ef0-08b24b2a293e",
+        "type": "git-branch",
+        "color": "magenta"
+      },
+      {
+        "id": "ecea2373-bf7f-4a24-859c-2aed54c84f78",
+        "type": "separator",
+        "character": " "
+      },
+      {
+        "id": "3",
+        "type": "git-changes",
+        "color": "yellow"
+      }
+    ],
+    [
+      {
+        "id": "0bc1d259-76f5-46c9-bbc3-f5dc7c5d56bd",
+        "type": "model",
+        "color": "cyan",
+        "rawValue": true
+      },
+      {
+        "id": "sep-model-ctx",
+        "type": "separator"
+      },
+      {
+        "id": "ring-ctx",
+        "type": "custom-command",
+        "commandPath": "~/.config/ccstatusline/ring-ctx.sh",
+        "preserveColors": true
+      },
+      {
+        "id": "d7478d4f-39e5-4178-a5a3-8e5645440450",
+        "type": "separator"
+      },
+      {
+        "id": "5ea96580-afee-4684-b27d-9e30a8e2e6d4",
+        "type": "custom-text",
+        "color": "brightBlack",
+        "customText": "I,O,C: "
+      },
+      {
+        "id": "acce1555-7867-46ca-a75c-c96092cb0d9b",
+        "type": "tokens-input",
+        "color": "white",
+        "rawValue": true
+      },
+      {
+        "id": "ae231c46-59a3-4a4f-91a5-b486a445eddb",
+        "type": "custom-text",
+        "color": "brightBlack",
+        "customText": ","
+      },
+      {
+        "id": "f2b2321e-dab9-421d-be3f-0e1892763e29",
+        "type": "tokens-output",
+        "color": "white",
+        "rawValue": true
+      },
+      {
+        "id": "a53003a0-1a22-48a4-882b-6934daf3de3c",
+        "type": "custom-text",
+        "color": "brightBlack",
+        "character": "|",
+        "customText": ","
+      },
+      {
+        "id": "f08d514b-21f7-4229-9437-2b5c08015412",
+        "type": "tokens-cached",
+        "color": "white",
+        "rawValue": true
+      }
+    ],
+    [
+      {
+        "id": "ring-reset-5h",
+        "type": "custom-command",
+        "commandPath": "~/.config/ccstatusline/ring-reset.sh 5h",
+        "preserveColors": true
+      },
+      {
+        "id": "a1551ad1-6db4-4012-84d8-c5c4d42c3b3b",
+        "type": "separator"
+      },
+      {
+        "id": "braille-5h",
+        "type": "custom-command",
+        "commandPath": "~/.config/ccstatusline/braille-status.sh 5h",
+        "preserveColors": true
+      },
+      {
+        "id": "sep-5h-7d",
+        "type": "separator"
+      },
+      {
+        "id": "braille-7d",
+        "type": "custom-command",
+        "commandPath": "~/.config/ccstatusline/braille-status.sh 7d",
+        "preserveColors": true
+      }
+    ]
+  ],
+  "flexMode": "full-minus-40",
+  "compactThreshold": 60,
+  "colorLevel": 3,
+  "inheritSeparatorColors": false,
+  "globalBold": false,
+  "powerline": {
+    "enabled": false,
+    "separators": [
+      ""
+    ],
+    "separatorInvertBackground": [
+      false
+    ],
+    "startCaps": [],
+    "endCaps": [],
+    "autoAlign": false
+  }
+}

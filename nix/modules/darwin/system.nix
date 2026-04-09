@@ -105,6 +105,8 @@ in
     CustomUserPreferences."com.googlecode.iterm2" = {
       DimBackgroundWindows = false;
       DimInactiveSplitPanes = false;
+      NoSyncBrowserUpsell = true;
+      "NoSyncBrowserUpsell_selection" = 1;
     };
   };
 

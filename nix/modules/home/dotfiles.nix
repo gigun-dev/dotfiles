@@ -14,6 +14,7 @@ in
     "zeno".source = mkLink "zeno";
     "zsh/functions".source = mkLink "zsh/functions";
     "karabiner".source = mkLink "karabiner";
+    "ccstatusline".source = mkLink "ccstatusline";
   };
 
   # .zshrc は programs.zsh が管理するため home.file ではなく
