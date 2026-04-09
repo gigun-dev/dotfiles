@@ -98,6 +98,11 @@
             switch = mkApp "darwin-switch" ''
               sudo ${inputs.nix-darwin.packages.${system}.darwin-rebuild}/bin/darwin-rebuild \
                 switch --flake ".#${username}-${system}" "$@"
+              # cachix push in background
+              if command -v cachix &>/dev/null; then
+                echo "Pushing to cachix in background..."
+                nix path-info --all | cachix push gigun &>/dev/null &
+              fi
             '';
 
             build = mkApp "darwin-build" ''
@@ -109,6 +114,11 @@
               nix flake update
               sudo ${inputs.nix-darwin.packages.${system}.darwin-rebuild}/bin/darwin-rebuild \
                 switch --flake ".#${username}-${system}" "$@"
+              # cachix push in background
+              if command -v cachix &>/dev/null; then
+                echo "Pushing to cachix in background..."
+                nix path-info --all | cachix push gigun &>/dev/null &
+              fi
             '';
           };
         };

@@ -1,0 +1,68 @@
+name: 'CI: Nix build'
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      nix: ${{ steps.filter.outputs.nix }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            nix:
+              - 'flake.nix'
+              - 'flake.lock'
+              - 'nix/**'
+              - '.github/workflows/nix-build.yaml'
+              - '.github/actions/setup-nix/**'
+
+  # Intel Mac (x86_64-darwin) — self-hosted runner
+  build-x86:
+    needs: changes
+    if: needs.changes.outputs.nix == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: [self-hosted, macOS, X64]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build x86_64-darwin configuration
+        run: |
+          nix build .#darwinConfigurations.gigun-x86_64-darwin.system \
+            --print-build-logs \
+            --show-trace
+
+      - name: Push to Cachix
+        run: |
+          nix path-info --all | cachix push gigun
+
+  # Apple Silicon (aarch64-darwin) — self-hosted runner
+  build-aarch64:
+    needs: changes
+    if: needs.changes.outputs.nix == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build aarch64-darwin configuration
+        run: |
+          nix build .#darwinConfigurations.gigun-aarch64-darwin.system \
+            --print-build-logs \
+            --show-trace
+
+      - name: Push to Cachix
+        run: |
+          nix path-info --all | cachix push gigun
