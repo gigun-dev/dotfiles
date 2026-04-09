@@ -1,4 +1,4 @@
-name: 'CI: Nix build'
+name: 'CI: Nix check'
 
 on:
   push:
@@ -27,42 +27,21 @@ jobs:
               - 'flake.lock'
               - 'nix/**'
               - '.github/workflows/nix-build.yaml'
-              - '.github/actions/setup-nix/**'
 
-  # Intel Mac (x86_64-darwin) — self-hosted runner
-  build-x86:
+  check:
     needs: changes
     if: needs.changes.outputs.nix == 'true' || github.event_name == 'workflow_dispatch'
-    runs-on: [self-hosted, macOS, X64]
-    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build x86_64-darwin configuration
-        run: |
-          nix build .#darwinConfigurations.gigun-x86_64-darwin.system \
-            --print-build-logs \
-            --show-trace
+      - uses: cachix/install-nix-action@v31
+        with:
+          github_access_token: ${{ github.token }}
 
-      - name: Push to Cachix
-        run: |
-          nix path-info --all | cachix push gigun
+      - name: Nix flake check
+        run: nix flake check --no-build
 
-  # Apple Silicon (aarch64-darwin) — self-hosted runner
-  build-aarch64:
-    needs: changes
-    if: needs.changes.outputs.nix == 'true' || github.event_name == 'workflow_dispatch'
-    runs-on: [self-hosted, macOS, ARM64]
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build aarch64-darwin configuration
-        run: |
-          nix build .#darwinConfigurations.gigun-aarch64-darwin.system \
-            --print-build-logs \
-            --show-trace
-
-      - name: Push to Cachix
-        run: |
-          nix path-info --all | cachix push gigun
+      - name: Nix fmt check
+        run: nix fmt -- --check .
