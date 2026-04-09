@@ -12,6 +12,7 @@
     brews = [
       "cloudflared"
       "k1LoW/tap/mo"
+      "tailscale"
     ];
 
     casks = [
@@ -31,7 +32,6 @@
       "proxyman"
       "slack"
       "tableplus"
-      "tailscale-app"
       "zed"
     ];
 
