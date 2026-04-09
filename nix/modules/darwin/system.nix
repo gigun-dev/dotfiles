@@ -117,6 +117,15 @@ in
     };
   };
 
+  # Mac Mini (Intel) — サーバー用途のためスリープ無効化
+  power = lib.mkIf pkgs.stdenv.hostPlatform.isx86_64 {
+    sleep.computer = "never";
+    sleep.display = "never";
+    sleep.harddisk = "never";
+    restartAfterPowerFailure = true;
+    restartAfterFreeze = true;
+  };
+
   # Required for darwin-rebuild
   system.stateVersion = 6;
 }
