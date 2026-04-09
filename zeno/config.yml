@@ -1,0 +1,23 @@
+history:
+  defaultScope: global
+  fzfCommand: fzf
+  fzfOptions:
+    - "--tmux"
+    - "80%"
+  keymap:
+    deleteSoft: ctrl-d
+    deleteHard: alt-d
+    toggleScope: ctrl-r
+
+snippets:
+  - keyword: v
+    snippet: nvim
+
+  - keyword: gg
+    snippet: ghq get
+
+  - keyword: gca
+    snippet: git commit -m "$(git diff --cached | claude -p 'この差分に対する簡潔なコミットメッセージを1行で書いて。メッセージ本文のみ出力して')"
+
+  - keyword: ngc
+    snippet: nix-collect-garbage -d

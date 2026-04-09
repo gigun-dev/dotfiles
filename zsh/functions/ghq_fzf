@@ -1,0 +1,9 @@
+ghq_fzf() {
+  local src
+  src=$(ghq list | fzf --preview "eza --tree --level=2 --color=always --icons $(ghq root)/{}")
+  if [[ -n "$src" ]]; then
+    BUFFER="cd $(ghq root)/$src"
+    zle accept-line
+  fi
+  zle -R -c
+}

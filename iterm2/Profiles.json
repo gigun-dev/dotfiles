@@ -1,0 +1,10 @@
+{
+  "Profiles" : [
+    {
+      "Use Separate Colors for Light and Dark Mode" : false,
+      "Name" : "Main",
+      "Rewritable" : true,
+      "Guid" : "B2031F02-5AB1-41DF-99FD-21B77E056A2F"
+    }
+  ]
+}
