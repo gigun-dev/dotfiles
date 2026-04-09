@@ -102,6 +102,9 @@ in
       NSStatusItemSelectionPadding = 2;
     };
 
+    # Finder サイドバーを表示
+    CustomUserPreferences."com.apple.finder".ShowSidebar = true;
+
     # "Close windows when quitting an application" を無効化
     CustomUserPreferences.NSGlobalDomain.NSQuitAlwaysKeepsWindows = true;
 
