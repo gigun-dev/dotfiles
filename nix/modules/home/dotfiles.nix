@@ -31,5 +31,12 @@ in
     # iTerm2 Dynamic Profiles
     $DRY_RUN_CMD mkdir -p "${config.home.homeDirectory}/Library/Application Support/iTerm2/DynamicProfiles"
     link_force "${dotfilesPath}/iterm2/Profiles.json" "${config.home.homeDirectory}/Library/Application Support/iTerm2/DynamicProfiles/Profiles.json"
+
+    # Claude Code (~/.claude/ は memory/log 等があるので個別リンク)
+    $DRY_RUN_CMD mkdir -p "${config.home.homeDirectory}/.claude"
+    link_force "${dotfilesPath}/claude/settings.json" "${config.home.homeDirectory}/.claude/settings.json"
+    link_force "${dotfilesPath}/claude/hooks" "${config.home.homeDirectory}/.claude/hooks"
+    link_force "${dotfilesPath}/claude/commands" "${config.home.homeDirectory}/.claude/commands"
+    link_force "${dotfilesPath}/claude/skills" "${config.home.homeDirectory}/.claude/skills"
   '';
 }
