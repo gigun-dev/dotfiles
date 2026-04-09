@@ -45,13 +45,17 @@ in
     reattach = true;
   };
 
-  # Xcode CLT auto-install
+  # Xcode CLT auto-install + Tailscale Magic DNS resolver
   system.activationScripts.preActivation.text = ''
     if ! /usr/bin/xcrun -f clang >/dev/null 2>&1; then
       touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
       PROD=$(/usr/sbin/softwareupdate -l | grep "\*.*Command Line" | tail -n 1 | sed 's/^[^C]* //')
       /usr/sbin/softwareupdate -i "$PROD" --verbose
     fi
+
+    # Tailscale CLI 版は Magic DNS を自動設定しないため手動で resolver を作成
+    mkdir -p /etc/resolver
+    echo "nameserver 100.100.100.100" > /etc/resolver/ts.net
   '';
 
   # User
