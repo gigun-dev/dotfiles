@@ -105,6 +105,12 @@
         "source": "github",
         "repo": "openai/codex-plugin-cc"
       }
+    },
+    "agent-browser": {
+      "source": {
+        "source": "github",
+        "repo": "vercel-labs/agent-browser"
+      }
     }
   },
   "language": "Japanese",

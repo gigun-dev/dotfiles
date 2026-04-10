@@ -40,6 +40,7 @@
     # Dev
     cocoapods
     mise
+    ffmpeg
 
     # Editor
     neovim
