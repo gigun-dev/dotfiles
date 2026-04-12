@@ -122,6 +122,10 @@ if [[ -n $ZENO_LOADED ]]; then
   bindkey '^i'   zeno-completion
   bindkey '^r'   zeno-smart-history-selection
   bindkey '^x^s' zeno-insert-snippet
+
+  # zsh-autosuggestions は defer で遅延ロードされるため、
+  # zeno ウィジェットを clear リストに追加してゴーストテキスト残留を防止
+  zsh-defer -c 'ZSH_AUTOSUGGEST_CLEAR_WIDGETS+=(zeno-auto-snippet-and-accept-line zeno-auto-snippet); _zsh_autosuggest_bind_widgets'
 fi
 
 # =============================================================================
