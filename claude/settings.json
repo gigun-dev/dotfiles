@@ -1,121 +1,122 @@
 {
-  "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "env": {
-    "EDITOR": "zed --wait",
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1"
-  },
-  "permissions": {
-    "allow": [
-      "Bash(play:*)",
-      "mcp__plugin_cloudflare_cloudflare-docs__search_cloudflare_documentation",
-      "mcp__deepwiki__**",
-      "WebSearch",
-      "mcp__plugin_context7_context7__**",
-      "Bash(nix search:*)",
-      "WebFetch(domain:open-vsx.org)",
-      "WebFetch(domain:mise.jdx.dev)",
-      "Read(//Users/gigun/**)",
-      "Bash(mise ls:*)",
-      "Bash(mise use:*)",
-      "Bash(find:*)",
-      "Bash(nix flake:*)",
-      "WebFetch(domain:dotenvx.com)",
-      "WebFetch(domain:www.dotenv.org)",
-      "WebFetch(domain:tailscale.com)",
-      "Bash(nix eval:*)",
-      "Bash(defaults read:*)"
-    ],
-    "defaultMode": "default"
-  },
-  "hooks": {
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "afplay /System/Library/Sounds/Funk.aiff"
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "matcher": "permission_prompt|idle_prompt|elicitation_dialog",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/bark-notify.sh"
-          }
-        ]
-      }
-    ]
-  },
-  "statusLine": {
-    "type": "command",
-    "command": "bunx -y ccstatusline@latest",
-    "padding": 0
-  },
-  "enabledPlugins": {
-    "typescript-lsp@claude-plugins-official": true,
-    "hono-skill@hono-skill": true,
-    "lua-lsp@claude-plugins-official": false,
-    "deploy-on-aws@agent-plugins-for-aws": false,
-    "github@claude-plugins-official": false,
-    "code-simplifier@claude-plugins-official": true,
-    "skill-creator@claude-plugins-official": true,
-    "supabase@claude-plugins-official": false,
-    "stripe@claude-plugins-official": false,
-    "swift-lsp@claude-plugins-official": true,
-    "slack@claude-plugins-official": false,
-    "vercel@claude-plugins-official": false,
-    "gopls-lsp@claude-plugins-official": true,
-    "coderabbit@claude-plugins-official": true,
-    "firecrawl@claude-plugins-official": true,
-    "postman@claude-plugins-official": false,
-    "dig@kuu-marketplace": true,
-    "fix-ci@kuu-marketplace": true,
-    "decomposition@kuu-marketplace": true,
-    "deslop@kuu-marketplace": true,
-    "auth-skills@better-auth-agent-skills": false,
-    "context7@claude-plugins-official": true
-  },
-  "extraKnownMarketplaces": {
-    "better-auth-agent-skills": {
-      "source": {
-        "source": "github",
-        "repo": "better-auth/skills"
-      }
-    },
-    "cloudflare": {
-      "source": {
-        "source": "github",
-        "repo": "cloudflare/skills"
-      }
-    },
-    "cman": {
-      "source": {
-        "source": "github",
-        "repo": "laiso/cman"
-      }
-    },
-    "openai-codex": {
-      "source": {
-        "source": "github",
-        "repo": "openai/codex-plugin-cc"
-      }
-    },
-    "agent-browser": {
-      "source": {
-        "source": "github",
-        "repo": "vercel-labs/agent-browser"
-      }
-    }
-  },
-  "language": "Japanese",
-  "effortLevel": "medium",
-  "voiceEnabled": true,
-  "skipDangerousModePermissionPrompt": true,
-  "teammateMode": "tmux"
+	"$schema": "https://json.schemastore.org/claude-code-settings.json",
+	"env": {
+		"EDITOR": "zed --wait",
+		"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+		"CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1"
+	},
+	"permissions": {
+		"allow": [
+			"Bash(play:*)",
+			"mcp__plugin_cloudflare_cloudflare-docs__search_cloudflare_documentation",
+			"mcp__deepwiki__**",
+			"WebSearch",
+			"mcp__plugin_context7_context7__**",
+			"Bash(nix search:*)",
+			"WebFetch(domain:open-vsx.org)",
+			"WebFetch(domain:mise.jdx.dev)",
+			"Read(//Users/gigun/**)",
+			"Bash(mise ls:*)",
+			"Bash(mise use:*)",
+			"Bash(find:*)",
+			"Bash(nix flake:*)",
+			"WebFetch(domain:dotenvx.com)",
+			"WebFetch(domain:www.dotenv.org)",
+			"WebFetch(domain:tailscale.com)",
+			"Bash(nix eval:*)",
+			"Bash(defaults read:*)"
+		],
+		"defaultMode": "default"
+	},
+	"hooks": {
+		"Stop": [
+			{
+				"matcher": "",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "afplay /System/Library/Sounds/Funk.aiff"
+					}
+				]
+			}
+		],
+		"Notification": [
+			{
+				"matcher": "permission_prompt|idle_prompt|elicitation_dialog",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "~/.claude/hooks/bark-notify.sh"
+					}
+				]
+			}
+		]
+	},
+	"statusLine": {
+		"type": "command",
+		"command": "bunx -y ccstatusline@latest",
+		"padding": 0
+	},
+	"enabledPlugins": {
+		"typescript-lsp@claude-plugins-official": true,
+		"hono-skill@hono-skill": true,
+		"lua-lsp@claude-plugins-official": false,
+		"deploy-on-aws@agent-plugins-for-aws": false,
+		"github@claude-plugins-official": false,
+		"code-simplifier@claude-plugins-official": true,
+		"skill-creator@claude-plugins-official": true,
+		"supabase@claude-plugins-official": false,
+		"stripe@claude-plugins-official": false,
+		"swift-lsp@claude-plugins-official": true,
+		"slack@claude-plugins-official": false,
+		"vercel@claude-plugins-official": false,
+		"gopls-lsp@claude-plugins-official": true,
+		"coderabbit@claude-plugins-official": true,
+		"firecrawl@claude-plugins-official": true,
+		"postman@claude-plugins-official": false,
+		"dig@kuu-marketplace": true,
+		"fix-ci@kuu-marketplace": true,
+		"decomposition@kuu-marketplace": true,
+		"deslop@kuu-marketplace": true,
+		"auth-skills@better-auth-agent-skills": false,
+		"context7@claude-plugins-official": true
+	},
+	"extraKnownMarketplaces": {
+		"better-auth-agent-skills": {
+			"source": {
+				"source": "github",
+				"repo": "better-auth/skills"
+			}
+		},
+		"cloudflare": {
+			"source": {
+				"source": "github",
+				"repo": "cloudflare/skills"
+			}
+		},
+		"cman": {
+			"source": {
+				"source": "github",
+				"repo": "laiso/cman"
+			}
+		},
+		"openai-codex": {
+			"source": {
+				"source": "github",
+				"repo": "openai/codex-plugin-cc"
+			}
+		},
+		"agent-browser": {
+			"source": {
+				"source": "github",
+				"repo": "vercel-labs/agent-browser"
+			}
+		}
+	},
+	"language": "Japanese",
+	"effortLevel": "medium",
+	"voiceEnabled": true,
+	"skipDangerousModePermissionPrompt": true,
+	"cleanupPeriodDays": 9999,
+	"teammateMode": "tmux"
 }
