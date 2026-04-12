@@ -32,8 +32,8 @@ in
       fi
       url="https://github.com/azu/launchd-ui/releases/latest/download/launchd-ui_''${slug}.app.tar.gz"
       echo "Installing launchd-ui ($slug) ..."
-      $DRY_RUN_CMD curl -fsSL "$url" | tar xz -C /Applications
-      $DRY_RUN_CMD xattr -cr "$app"
+      $DRY_RUN_CMD ${lib.getExe pkgs.curl} -fsSL "$url" | ${pkgs.gnutar}/bin/tar xz -C /Applications
+      $DRY_RUN_CMD /usr/bin/xattr -cr "$app"
     fi
   '';
 
