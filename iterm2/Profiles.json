@@ -602,6 +602,7 @@
       "Right Option Key Sends": 0,
       "Rows": 25,
       "Screen": -2,
+      "Save Lines To Scrollback In Alternate Screen Buffer": false,
       "Scrollback Lines": 0,
       "Selected Text Color": {
         "Alpha Component": 1.0,
