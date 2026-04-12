@@ -19,6 +19,24 @@ in
 
   # .zshrc は programs.zsh が管理するため home.file ではなく
   # home.activation で強制シンボリックリンク (ryoppippi パターン)
+  # launchd-ui: unsigned app — download from GitHub Releases
+  # https://github.com/azu/launchd-ui
+  home.activation.installLaunchdUI = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+    app="/Applications/launchd-ui.app"
+    if [ ! -d "$app" ]; then
+      arch="$(uname -m)"
+      if [ "$arch" = "arm64" ]; then
+        slug="aarch64"
+      else
+        slug="x64"
+      fi
+      url="https://github.com/azu/launchd-ui/releases/latest/download/launchd-ui_''${slug}.app.tar.gz"
+      echo "Installing launchd-ui ($slug) ..."
+      $DRY_RUN_CMD curl -fsSL "$url" | tar xz -C /Applications
+      $DRY_RUN_CMD xattr -cr "$app"
+    fi
+  '';
+
   home.activation.linkDotfiles = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
     link_force() {
       local src="$1" dst="$2"
