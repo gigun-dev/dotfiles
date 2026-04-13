@@ -1,4 +1,11 @@
-{ ... }:
+{
+  pkgs,
+  lib,
+  ...
+}:
+let
+  isAarch64 = pkgs.stdenv.hostPlatform.isAarch64;
+in
 {
   homebrew = {
     enable = true;
@@ -7,12 +14,16 @@
     taps = [
       "k1LoW/tap"
       "manaflow-ai/cmux"
+    ] ++ lib.optionals isAarch64 [
+      "rudrankriyam/tap"
     ];
 
     brews = [
       "cloudflared"
       "k1LoW/tap/mo"
       "tailscale"
+    ] ++ lib.optionals isAarch64 [
+      "rudrankriyam/tap/afm"
     ];
 
     casks = [

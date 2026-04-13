@@ -42,6 +42,9 @@
     mise
     ffmpeg
 
+    # Font
+    nerd-fonts.jetbrains-mono
+
     # Editor
     neovim
   ];

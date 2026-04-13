@@ -134,6 +134,7 @@ fi
 command -v eza &>/dev/null && alias ls='eza'
 command -v bat &>/dev/null && alias cat='bat'
 alias clr='clear'
+alias notchbar-cli='/Applications/NotchBar.app/Contents/MacOS/notchbar-cli'
 
 # =============================================================================
 # Hooks

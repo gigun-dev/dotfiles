@@ -33,6 +33,19 @@ in
     fi
   '';
 
+  # NotchBar: macOS notch notification app + CLI
+  # https://github.com/azu/notchbar
+  home.activation.installNotchBar = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+    app="/Applications/NotchBar.app"
+    if [ ! -d "$app" ]; then
+      echo "Installing NotchBar ..."
+      $DRY_RUN_CMD /usr/bin/curl -fsSL \
+        "https://github.com/azu/notchbar/releases/latest/download/NotchBar.tar.gz" \
+        | /usr/bin/tar xz -C /Applications
+      $DRY_RUN_CMD /usr/bin/xattr -cr "$app"
+    fi
+  '';
+
   # uv: Python ランタイムを uv 管理に統一 (system python は 3.9 で古い)
   home.activation.installUvPython = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
     if command -v uv &>/dev/null; then
