@@ -10,6 +10,9 @@ export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 export LANG="${LANG:-en_US.UTF-8}"
 export LC_ALL="${LC_ALL:-en_US.UTF-8}"
 
+# Bun global bin
+export PATH="${XDG_CACHE_HOME}/.bun/bin:$PATH"
+
 # =============================================================================
 # Emacs keybind (mozumasu pattern — must be before other bindkey calls)
 # =============================================================================

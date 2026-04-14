@@ -17,8 +17,19 @@ in
     "ccstatusline".source = mkLink "ccstatusline";
   };
 
-  # launchd-ui: unsigned app — download from GitHub Releases
-  # https://github.com/azu/launchd-ui
+  # NotchBar: 開発ビルドをログイン時に自動起動
+  launchd.agents.notchbar = {
+    enable = true;
+    config = {
+      Label = "com.github.gigun-dev.NotchBar";
+      Program = "${config.home.homeDirectory}/ghq/github.com/gigun-dev/notchbar/.build/debug/NotchBar";
+      RunAtLoad = true;
+      KeepAlive = true;
+      StandardOutPath = "/tmp/notchbar.log";
+      StandardErrorPath = "/tmp/notchbar.log";
+    };
+  };
+
   # launchd-ui: unsigned app — download from GitHub Releases
   # https://github.com/azu/launchd-ui
   home.activation.installLaunchdUI = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
