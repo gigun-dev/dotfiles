@@ -51,6 +51,7 @@
       systems = [
         "aarch64-darwin"
         "x86_64-darwin"
+        "x86_64-linux"
       ];
 
       imports = [
@@ -93,8 +94,8 @@
             inputsFrom = [ config.pre-commit.devShell ];
           };
 
-          # Apps — perSystem の system で正しい darwinConfiguration を選択
-          apps = {
+          # Apps — perSystem の system で正しい darwinConfiguration を選択（darwin のみ）
+          apps = pkgs.lib.optionalAttrs pkgs.stdenv.isDarwin {
             switch = mkApp "darwin-switch" ''
               sudo ${inputs.nix-darwin.packages.${system}.darwin-rebuild}/bin/darwin-rebuild \
                 switch --flake ".#${username}-${system}" "$@"

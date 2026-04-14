@@ -14,7 +14,8 @@ in
     taps = [
       "k1LoW/tap"
       "manaflow-ai/cmux"
-    ] ++ lib.optionals isAarch64 [
+    ]
+    ++ lib.optionals isAarch64 [
       "rudrankriyam/tap"
     ];
 
@@ -22,7 +23,8 @@ in
       "cloudflared"
       "k1LoW/tap/mo"
       "tailscale"
-    ] ++ lib.optionals isAarch64 [
+    ]
+    ++ lib.optionals isAarch64 [
       "rudrankriyam/tap/afm"
     ];
 

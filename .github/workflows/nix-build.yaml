@@ -44,4 +44,4 @@ jobs:
         run: nix flake check --no-build
 
       - name: Nix fmt check
-        run: nix fmt -- --check .
+        run: nix fmt -- --ci .

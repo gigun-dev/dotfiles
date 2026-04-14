@@ -33,7 +33,6 @@ in
     fi
   '';
 
-
   # uv: Python ランタイムを uv 管理に統一 (system python は 3.9 で古い)
   home.activation.installUvPython = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
     if command -v uv &>/dev/null; then
