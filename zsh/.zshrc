@@ -13,6 +13,9 @@ export LC_ALL="${LC_ALL:-en_US.UTF-8}"
 # Bun global bin
 export PATH="${XDG_CACHE_HOME}/.bun/bin:$PATH"
 
+# ~/.local/bin — nix/brew で管理できない例外ツール用（末尾=低優先度）
+export PATH="$PATH:$HOME/.local/bin"
+
 # =============================================================================
 # Emacs keybind (mozumasu pattern — must be before other bindkey calls)
 # =============================================================================

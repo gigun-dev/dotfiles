@@ -52,6 +52,7 @@ nix run .#update               # flake update + switch
 - **brew は GUI アプリのみ**: CLI ツールは nixpkgs、tap 限定の例外のみ brews
 - **cleanup = "zap"**: 宣言外のアプリは完全削除。使う GUI アプリは必ず casks に宣言する
 - **ensure_installed パターン**: ツールが未インストールなら静かにスキップ
+- **`~/.local/bin` は例外レーン**: PATH 末尾に追加（nix/brew が常に優先）。self-update 前提のツールや nixpkgs にない uv tool 等、宣言管理できないものだけ許容する
 
 ## Nix 規約
 

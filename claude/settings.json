@@ -89,12 +89,6 @@
         "repo": "better-auth/skills"
       }
     },
-    "cloudflare": {
-      "source": {
-        "source": "github",
-        "repo": "cloudflare/skills"
-      }
-    },
     "cman": {
       "source": {
         "source": "github",
@@ -123,6 +117,12 @@
       "source": {
         "source": "github",
         "repo": "supabase/agent-skills"
+      }
+    },
+    "cloudflare": {
+      "source": {
+        "source": "github",
+        "repo": "cloudflare/skills"
       }
     }
   },
