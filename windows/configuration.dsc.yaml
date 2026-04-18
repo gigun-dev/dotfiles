@@ -366,7 +366,9 @@ properties:
       settings:
         Key: HKLM:\SYSTEM\CurrentControlSet\Control\Keyboard Layout
         ValueName: Scancode Map
-        ValueData: ['00,00,00,00,00,00,00,00,03,00,00,00,1D,00,3A,00,3A,00,1D,00,00,00,00,00']
+        # 24 バイト: 8-byte header + 4-byte entry count (3) + 4+4-byte mappings + 4-byte terminator
+        # 3A(Caps) <-> 1D(LCtrl) 双方向 swap
+        ValueData: ['00', '00', '00', '00', '00', '00', '00', '00', '03', '00', '00', '00', '1D', '00', '3A', '00', '3A', '00', '1D', '00', '00', '00', '00', '00']
         ValueType: Binary
         Force: true
 
