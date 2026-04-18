@@ -7,7 +7,7 @@
       "https://gigun.cachix.org"
     ];
     extra-trusted-public-keys = [
-      "cache.numtide.com-1:bf1jVIGj3GBKisevCptOlNXMoMnPkKlkh89RqPsNJWo="
+      "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
       "gigun.cachix.org-1:jP3ksvzV3coFUQORcYZOR3repURIK+eYtpMiIMaN788="
     ];
   };
@@ -94,34 +94,64 @@
             inputsFrom = [ config.pre-commit.devShell ];
           };
 
-          # Apps — perSystem の system で正しい darwinConfiguration を選択（darwin のみ）
-          apps = pkgs.lib.optionalAttrs pkgs.stdenv.isDarwin {
-            switch = mkApp "darwin-switch" ''
-              sudo ${inputs.nix-darwin.packages.${system}.darwin-rebuild}/bin/darwin-rebuild \
-                switch --flake ".#${username}-${system}" "$@"
-              # cachix push in background
-              if command -v cachix &>/dev/null; then
-                echo "Pushing to cachix in background..."
-                nix path-info --all | cachix push gigun &>/dev/null &
-              fi
-            '';
+          # Apps — perSystem の system で正しい構成を選択
+          # darwin: darwin-rebuild で system + home 両方適用
+          # linux:  home-manager standalone で home のみ適用 (WSL 想定)
+          apps =
+            pkgs.lib.optionalAttrs pkgs.stdenv.isDarwin {
+              switch = mkApp "darwin-switch" ''
+                sudo ${inputs.nix-darwin.packages.${system}.darwin-rebuild}/bin/darwin-rebuild \
+                  switch --flake ".#${username}-${system}" "$@"
+                # cachix push in background
+                if command -v cachix &>/dev/null; then
+                  echo "Pushing to cachix in background..."
+                  nix path-info --all | cachix push gigun &>/dev/null &
+                fi
+              '';
 
-            build = mkApp "darwin-build" ''
-              ${inputs.nix-darwin.packages.${system}.darwin-rebuild}/bin/darwin-rebuild \
-                build --flake ".#${username}-${system}" "$@"
-            '';
+              build = mkApp "darwin-build" ''
+                ${inputs.nix-darwin.packages.${system}.darwin-rebuild}/bin/darwin-rebuild \
+                  build --flake ".#${username}-${system}" "$@"
+              '';
 
-            update = mkApp "darwin-update" ''
-              nix flake update
-              sudo ${inputs.nix-darwin.packages.${system}.darwin-rebuild}/bin/darwin-rebuild \
-                switch --flake ".#${username}-${system}" "$@"
-              # cachix push in background
-              if command -v cachix &>/dev/null; then
-                echo "Pushing to cachix in background..."
-                nix path-info --all | cachix push gigun &>/dev/null &
-              fi
-            '';
-          };
+              update = mkApp "darwin-update" ''
+                nix flake update
+                sudo ${inputs.nix-darwin.packages.${system}.darwin-rebuild}/bin/darwin-rebuild \
+                  switch --flake ".#${username}-${system}" "$@"
+                # cachix push in background
+                if command -v cachix &>/dev/null; then
+                  echo "Pushing to cachix in background..."
+                  nix path-info --all | cachix push gigun &>/dev/null &
+                fi
+              '';
+            }
+            // pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+              switch = mkApp "home-switch" ''
+                ${inputs.home-manager.packages.${system}.home-manager}/bin/home-manager \
+                  switch --flake ".#${username}-${system}" "$@"
+                # cachix push in background (requires `cachix authtoken` to have been run)
+                if command -v cachix &>/dev/null; then
+                  echo "Pushing to cachix in background..."
+                  nix path-info --all | cachix push gigun &>/dev/null &
+                fi
+              '';
+
+              build = mkApp "home-build" ''
+                ${inputs.home-manager.packages.${system}.home-manager}/bin/home-manager \
+                  build --flake ".#${username}-${system}" "$@"
+              '';
+
+              update = mkApp "home-update" ''
+                nix flake update
+                ${inputs.home-manager.packages.${system}.home-manager}/bin/home-manager \
+                  switch --flake ".#${username}-${system}" "$@"
+                # cachix push in background
+                if command -v cachix &>/dev/null; then
+                  echo "Pushing to cachix in background..."
+                  nix path-info --all | cachix push gigun &>/dev/null &
+                fi
+              '';
+            };
         };
 
       flake =
@@ -165,6 +195,19 @@
           darwinConfigurations = {
             "${username}-aarch64-darwin" = mkDarwinSystem "aarch64-darwin";
             "${username}-x86_64-darwin" = mkDarwinSystem "x86_64-darwin";
+          };
+
+          # home-manager standalone (WSL / Linux 向け)
+          # nix run .#switch が perSystem の system で自動選択
+          homeConfigurations = {
+            "${username}-x86_64-linux" = inputs.home-manager.lib.homeManagerConfiguration {
+              pkgs = import inputs.nixpkgs {
+                system = "x86_64-linux";
+                inherit overlays;
+                config.allowUnfree = true;
+              };
+              modules = [ ./nix/modules/home ];
+            };
           };
         };
     };

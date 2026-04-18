@@ -1,4 +1,17 @@
 # =============================================================================
+# Nix (Linux WSL multi-user: /etc/zsh/zshenv does not source /etc/profile)
+# Mac は nix-darwin が PATH を処理するので不要だが、無害
+# =============================================================================
+if [ -z "$__NIX_SOURCED" ]; then
+  if [ -e /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ]; then
+    . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+  elif [ -e "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then
+    . "$HOME/.nix-profile/etc/profile.d/nix.sh"
+  fi
+  export __NIX_SOURCED=1
+fi
+
+# =============================================================================
 # XDG Base Directory
 # =============================================================================
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
@@ -71,9 +84,16 @@ fi
 unset _sheldon_cache _sheldon_toml
 
 # =============================================================================
+# Pure prompt activation (sheldon 経由で源ファイルはロード済み)
+# =============================================================================
+autoload -Uz promptinit && promptinit
+prompt pure 2>/dev/null || true
+
+# =============================================================================
 # Options (mozumasu pattern)
 # =============================================================================
 setopt hist_ignore_dups
+setopt ignore_eof  # Ctrl+D でシェルが勝手に終了するのを防ぐ (10回 EOF が必要)
 setopt hist_ignore_all_dups
 setopt hist_ignore_space
 setopt hist_reduce_blanks
@@ -97,6 +117,15 @@ zstyle ':completion:*' format '%B%F{blue}%d%f%b'
 zstyle ':completion:*' group-name ""
 zstyle ':completion:*:default' menu select=2
 
+# fpath に nix profile 経由の completion ディレクトリを追加
+# home-manager で入れたパッケージ (gh, git, etc.) の補完を有効化
+fpath=(
+  "$HOME/.nix-profile/share/zsh/site-functions"
+  "$HOME/.nix-profile/share/zsh/$ZSH_VERSION/functions"
+  /nix/var/nix/profiles/default/share/zsh/site-functions
+  $fpath
+)
+
 function _deferred_compinit() {
   autoload -Uz compinit
   _comp_dump="${ZDOTDIR:-$HOME}/.zcompdump"
@@ -112,7 +141,10 @@ function _deferred_compinit() {
   fi
   unset _comp_dump _comp_zwc
 }
-zsh-defer _deferred_compinit
+# 起動時に同期実行 (WSL では zsh-defer の遅延が発火しないケースがあり、
+# defer だと Tab 補完が効かない問題が発生。Mac では defer 発火するが
+# 両環境で確実に動くよう同期実行に統一)
+_deferred_compinit
 
 # =============================================================================
 # Zeno (mozumasu pattern)

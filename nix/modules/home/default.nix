@@ -6,7 +6,7 @@
 }:
 {
   home.username = "gigun";
-  home.homeDirectory = "/Users/gigun";
+  home.homeDirectory = if pkgs.stdenv.isDarwin then "/Users/gigun" else "/home/gigun";
   home.stateVersion = "25.05";
 
   imports = [

@@ -34,13 +34,18 @@
     jq
 
     # Shell
+    zsh
     sheldon
     vivid
 
     # Dev
-    cocoapods
     mise
     ffmpeg
+  ]
+  ++ lib.optionals pkgs.stdenv.isDarwin [
+    cocoapods # iOS 開発 — darwin 限定
+  ]
+  ++ [
 
     # Font
     nerd-fonts.jetbrains-mono
