@@ -368,7 +368,8 @@ properties:
         ValueName: Scancode Map
         # 24 バイト: 8-byte header + 4-byte entry count (3) + 4+4-byte mappings + 4-byte terminator
         # 3A(Caps) <-> 1D(LCtrl) 双方向 swap
-        ValueData: ['00', '00', '00', '00', '00', '00', '00', '00', '03', '00', '00', '00', '1D', '00', '3A', '00', '3A', '00', '1D', '00', '00', '00', '00', '00']
+        # PSDscResources/Registry の Binary type は区切り無しの hex 連結単一文字列を要求
+        ValueData: '0000000000000000030000001D003A003A001D0000000000'
         ValueType: Binary
         Force: true
 
