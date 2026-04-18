@@ -352,6 +352,24 @@ properties:
           $procs = @('node.exe','bun.exe','pnpm.exe','npm.exe','uv.exe','python.exe','git.exe')
           foreach ($x in $procs) { Add-MpPreference -ExclusionProcess $x }
 
+    # Caps Lock <-> Left Ctrl 全キーボード system-wide swap (Scancode Map)
+    # 再起動または再ログインで反映される
+    # バイナリフォーマット: 8バイトヘッダ + エントリ数(4) + 各mapping(4x2) + terminator(4)
+    #   00 00 00 00 00 00 00 00      # header
+    #   03 00 00 00                   # 3 entries (2 mappings + terminator)
+    #   1D 00 3A 00                   # 3A(Caps) -> 1D(LCtrl)
+    #   3A 00 1D 00                   # 1D(LCtrl) -> 3A(Caps)
+    #   00 00 00 00                   # terminator
+    - resource: PSDscResources/Registry
+      id: reg-caps-ctrl-swap
+      directives: { description: Swap Caps Lock and Left Ctrl system-wide }
+      settings:
+        Key: HKLM:\SYSTEM\CurrentControlSet\Control\Keyboard Layout
+        ValueName: Scancode Map
+        ValueData: ['00,00,00,00,00,00,00,00,03,00,00,00,1D,00,3A,00,3A,00,1D,00,00,00,00,00']
+        ValueType: Binary
+        Force: true
+
     # WezTerm を NVIDIA 優先 GPU でレンダリング指定
     - resource: PSDscResources/Registry
       id: reg-wezterm-gpu-high-perf
@@ -421,6 +439,7 @@ properties:
               Wslconfig = (Get-Item "$env:USERPROFILE\.wslconfig" -Force -ErrorAction SilentlyContinue).LinkType
               Wezterm   = (Get-Item "$env:USERPROFILE\.wezterm.lua" -Force -ErrorAction SilentlyContinue).LinkType
               Kanata    = (Get-Item "$env:USERPROFILE\.config\kanata\kanata.kbd" -Force -ErrorAction SilentlyContinue).LinkType
+              Gitconfig = (Get-Item "$env:USERPROFILE\.gitconfig" -Force -ErrorAction SilentlyContinue).LinkType
             }
           }
         TestScript: |
@@ -429,6 +448,7 @@ properties:
             "$env:USERPROFILE\.wslconfig"                      = "$dotfiles\windows\wsl\wslconfig"
             "$env:USERPROFILE\.wezterm.lua"                    = "$dotfiles\windows\terminal\wezterm.lua"
             "$env:USERPROFILE\.config\kanata\kanata.kbd"       = "$dotfiles\windows\kanata\kanata.kbd"
+            "$env:USERPROFILE\.gitconfig"                      = "$dotfiles\git\gitconfig"
           }
           foreach ($link in $checks.Keys) {
             $item = Get-Item $link -Force -ErrorAction SilentlyContinue
@@ -441,6 +461,7 @@ properties:
             "$env:USERPROFILE\.wslconfig"                = "$dotfiles\windows\wsl\wslconfig"
             "$env:USERPROFILE\.wezterm.lua"              = "$dotfiles\windows\terminal\wezterm.lua"
             "$env:USERPROFILE\.config\kanata\kanata.kbd" = "$dotfiles\windows\kanata\kanata.kbd"
+            "$env:USERPROFILE\.gitconfig"                = "$dotfiles\git\gitconfig"
           }
           foreach ($link in $map.Keys) {
             $parent = Split-Path -Parent $link

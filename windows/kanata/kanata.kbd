@@ -11,10 +11,12 @@
 ;; 現状この設定は「global 適用」。Anker 固有フィルタは未導入（TODO）。
 ;;
 ;; Mac 上での挙動 (karabiner.json):
-;;   Caps Lock ↔ Left Ctrl
-;;   Left Cmd  tap -> 英数 (japanese_eisuu)   / hold -> Left Cmd
-;;   Right Cmd tap -> かな (japanese_kana)    / hold -> Right Cmd
+;;   Caps Lock ↔ Left Ctrl                              ← Windows では Scancode Map (Registry) で実施
+;;   Left Cmd  tap -> 英数 (japanese_eisuu)   / hold -> Left Cmd   ← ★ Kanata 担当
+;;   Right Cmd tap -> かな (japanese_kana)    / hold -> Right Cmd  ← ★ Kanata 担当
+;;
 ;; Windows マッピング:
+;;   Caps ↔ Ctrl swap は OS レベル (configuration.dsc.yaml の reg-caps-ctrl-swap) で実施
 ;;   Left/Right Cmd = Left/Right Meta (Win) キー
 ;;   japanese_eisuu ≈ muhenkan (無変換) — Microsoft IME で IME OFF に割当
 ;;   japanese_kana  ≈ henkan   (変換)   — Microsoft IME で IME ON  に割当
@@ -29,8 +31,10 @@
   ;; windows-interception-keyboard-hwids ("HID\\VID_291A&PID_8502")
 )
 
+;; Caps↔Ctrl swap は Scancode Map (Registry) で OS レベル実施済みなので Kanata では扱わない
+;; Kanata は IME トグル (Cmd tap → muhenkan/henkan) のみ担当
 (defsrc
-  caps lctl lmet rmet
+  lmet rmet
 )
 
 ;; tap = 100ms threshold (karabiner の to_if_held_down_threshold_milliseconds と同じ)
@@ -40,5 +44,5 @@
 )
 
 (deflayer base
-  lctl caps @lmeta-tap @rmeta-tap
+  @lmeta-tap @rmeta-tap
 )
