@@ -1,0 +1,30 @@
+# WSL2 global config
+# 配置先: C:\Users\<user>\.wslconfig (シンボリックリンクで配置)
+# 適用: wsl --shutdown 後に次回起動時反映
+
+[wsl2]
+# VHD 最大サイズ (デフォルト 1TB だが、疎ファイル化と合わせて実用サイズに)
+defaultVhdSize=64GB
+
+# メモリ上限 (マシンは 16GB 搭載、WSL primary なので大きめに割当)
+# autoMemoryReclaim=gradual と組み合わせて、アイドル時は Windows に返還される
+memory=12GB
+
+# スワップなし (SSD で十分)
+swap=0
+
+# ネットワーク: mirrored モード (localhost 共有、Tailscale 等と親和)
+networkingMode=mirrored
+
+# DNS: Windows 側の DNS を継承
+dnsTunneling=true
+
+# ファイアウォールは Windows 側ルールを尊重
+firewall=true
+
+[experimental]
+# 疎 VHD: 削除したファイルの領域を自動解放
+sparseVhd=true
+
+# 自動メモリ回収
+autoMemoryReclaim=gradual

@@ -1,0 +1,44 @@
+;; Kanata config — karabiner.json から移植 (Anker A7726 向け)
+;;
+;; 重要: Kanata Windows は既定で LowLevelKeyboardProc を使い全キーボードを捕捉する。
+;; つまり、このファイルをそのまま適用するとノート PC 内蔵キーボードにも remap が効く。
+;;
+;; Anker 限定にしたい場合:
+;;   (a) Interception ドライバを入れて `windows-interception-keyboard-hwids` で HWID フィルタ
+;;       → 下部コメント参照
+;;   (b) Anker が接続されている時だけ Kanata サービスを起動する (検出スクリプト要)
+;;
+;; 現状この設定は「global 適用」。Anker 固有フィルタは未導入（TODO）。
+;;
+;; Mac 上での挙動 (karabiner.json):
+;;   Caps Lock ↔ Left Ctrl
+;;   Left Cmd  tap -> 英数 (japanese_eisuu)   / hold -> Left Cmd
+;;   Right Cmd tap -> かな (japanese_kana)    / hold -> Right Cmd
+;; Windows マッピング:
+;;   Left/Right Cmd = Left/Right Meta (Win) キー
+;;   japanese_eisuu ≈ muhenkan (無変換) — Microsoft IME で IME OFF に割当
+;;   japanese_kana  ≈ henkan   (変換)   — Microsoft IME で IME ON  に割当
+
+(defcfg
+  process-unmapped-keys yes
+  log-layer-changes no
+
+  ;; --- Anker 限定化 (Interception ドライバ必須) ---
+  ;; Anker A7726: VID=0x291A (10522), PID=0x8502 (34050)
+  ;; 下の行を有効化すると Interception 経由で Anker のみ捕捉する
+  ;; windows-interception-keyboard-hwids ("HID\\VID_291A&PID_8502")
+)
+
+(defsrc
+  caps lctl lmet rmet
+)
+
+;; tap = 100ms threshold (karabiner の to_if_held_down_threshold_milliseconds と同じ)
+(defalias
+  lmeta-tap (tap-hold 100 200 muhenkan lmet)
+  rmeta-tap (tap-hold 100 200 henkan   rmet)
+)
+
+(deflayer base
+  lctl caps @lmeta-tap @rmeta-tap
+)

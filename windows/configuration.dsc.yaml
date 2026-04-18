@@ -1,0 +1,452 @@
+# yaml-language-server: $schema=https://aka.ms/configuration-dsc-schema/0.2
+#
+# Windows 宣言的構成 — Mac 側 nix run .#switch に相当
+#
+# 適用: 管理者権限の PowerShell から
+#   winget configure --file windows\configuration.dsc.yaml --accept-configuration-agreements
+#
+# または:
+#   pwsh -File windows\setup.ps1
+
+properties:
+  resources:
+    # ========================================================================
+    # Packages (winget)
+    # ========================================================================
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: pkg-git
+      directives: { description: Git for Windows }
+      settings: { id: Git.Git, source: winget }
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: pkg-gh
+      directives: { description: GitHub CLI }
+      settings: { id: GitHub.cli, source: winget }
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: pkg-vscode
+      directives: { description: Visual Studio Code }
+      settings: { id: Microsoft.VisualStudioCode, source: winget }
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: pkg-cursor
+      directives: { description: Cursor editor }
+      settings: { id: Anysphere.Cursor, source: winget }
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: pkg-zed
+      directives: { description: Zed editor }
+      settings: { id: ZedIndustries.Zed, source: winget }
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: pkg-wezterm
+      directives: { description: WezTerm terminal }
+      settings: { id: wez.wezterm, source: winget }
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: pkg-kanata
+      directives: { description: Kanata keyboard remapper }
+      settings: { id: jtroo.kanata_gui, source: winget }
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: pkg-claude-desktop
+      directives: { description: Claude Desktop }
+      settings: { id: Anthropic.Claude, source: winget }
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: pkg-chrome
+      directives: { description: Google Chrome }
+      settings: { id: Google.Chrome, source: winget }
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: pkg-figma
+      directives: { description: Figma }
+      settings: { id: Figma.Figma, source: winget }
+
+    # uv / nodejs / bun / deno / pnpm は WSL 内 home-manager 管理 (Mac 側 packages.nix と同じ扱い)
+    # Windows ネイティブには dev ランタイムを入れない
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: pkg-pwsh7
+      directives: { description: PowerShell 7 }
+      settings: { id: Microsoft.PowerShell, source: winget }
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: pkg-autohotkey
+      directives: { description: AutoHotkey v2 (hotkey scripts) }
+      settings: { id: AutoHotkey.AutoHotkey, source: winget }
+
+    # ========================================================================
+    # Explorer tweaks (tweaks/explorer.ps1 相当)
+    # ========================================================================
+    - resource: PSDscResources/Registry
+      id: reg-show-hidden
+      directives: { description: Show hidden files }
+      settings:
+        Key: HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced
+        ValueName: Hidden
+        ValueData: ['1']
+        ValueType: Dword
+        Force: true
+        Ensure: Present
+
+    - resource: PSDscResources/Registry
+      id: reg-show-extensions
+      directives: { description: Show file extensions }
+      settings:
+        Key: HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced
+        ValueName: HideFileExt
+        ValueData: ['0']
+        ValueType: Dword
+        Force: true
+
+    - resource: PSDscResources/Registry
+      id: reg-launch-to-thispc
+      directives: { description: Open Explorer to This PC }
+      settings:
+        Key: HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced
+        ValueName: LaunchTo
+        ValueData: ['1']
+        ValueType: Dword
+        Force: true
+
+    - resource: PSDscResources/Registry
+      id: reg-hide-checkboxes
+      directives: { description: Hide item checkboxes }
+      settings:
+        Key: HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced
+        ValueName: AutoCheckSelect
+        ValueData: ['0']
+        ValueType: Dword
+        Force: true
+
+    - resource: PSDscResources/Registry
+      id: reg-full-path-titlebar
+      directives: { description: Full path in title bar }
+      settings:
+        Key: HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\CabinetState
+        ValueName: FullPath
+        ValueData: ['1']
+        ValueType: Dword
+        Force: true
+
+    # ========================================================================
+    # UI noise reduction (tweaks/startup.ps1 相当)
+    # ========================================================================
+    - resource: PSDscResources/Registry
+      id: reg-no-widgets
+      directives: { description: Disable taskbar widgets icon }
+      settings:
+        Key: HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced
+        ValueName: TaskbarDa
+        ValueData: ['0']
+        ValueType: Dword
+        Force: true
+
+    - resource: PSDscResources/Registry
+      id: reg-no-chat
+      directives: { description: Disable taskbar Chat icon }
+      settings:
+        Key: HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced
+        ValueName: TaskbarMn
+        ValueData: ['0']
+        ValueType: Dword
+        Force: true
+
+    - resource: PSDscResources/Registry
+      id: reg-no-copilot
+      directives: { description: Disable Copilot taskbar button }
+      settings:
+        Key: HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced
+        ValueName: ShowCopilotButton
+        ValueData: ['0']
+        ValueType: Dword
+        Force: true
+
+    - resource: PSDscResources/Registry
+      id: reg-searchbox-icon-only
+      directives: { description: Search box as icon only }
+      settings:
+        Key: HKCU:\Software\Microsoft\Windows\CurrentVersion\Search
+        ValueName: SearchboxTaskbarMode
+        ValueData: ['1']
+        ValueType: Dword
+        Force: true
+
+    - resource: PSDscResources/Registry
+      id: reg-taskbar-center
+      directives: { description: Taskbar alignment center (Mac-like) }
+      settings:
+        Key: HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced
+        ValueName: TaskbarAl
+        ValueData: ['1']
+        ValueType: Dword
+        Force: true
+
+    - resource: PSDscResources/Registry
+      id: reg-no-advertising-id
+      directives: { description: Disable advertising ID }
+      settings:
+        Key: HKCU:\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo
+        ValueName: Enabled
+        ValueData: ['0']
+        ValueType: Dword
+        Force: true
+
+    - resource: PSDscResources/Registry
+      id: reg-no-start-recommendations
+      directives: { description: Disable Start menu recommendations }
+      settings:
+        Key: HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced
+        ValueName: Start_IrisRecommendations
+        ValueData: ['0']
+        ValueType: Dword
+        Force: true
+
+    # ========================================================================
+    # Performance (tweaks/performance.ps1 相当)
+    # ========================================================================
+    - resource: PSDscResources/Registry
+      id: reg-visual-fx-best-perf
+      directives: { description: Visual effects = best performance }
+      settings:
+        Key: HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects
+        ValueName: VisualFXSetting
+        ValueData: ['2']
+        ValueType: Dword
+        Force: true
+
+    - resource: PSDscResources/Registry
+      id: reg-no-fast-startup
+      directives: { description: Disable Fast Startup (hiberboot) }
+      settings:
+        Key: HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power
+        ValueName: HiberbootEnabled
+        ValueData: ['0']
+        ValueType: Dword
+        Force: true
+
+    # ドラッグ中はウィンドウ枠のみ表示 (GPU/CPU 負荷軽減)
+    - resource: PSDscResources/Registry
+      id: reg-drag-outline-only
+      directives: { description: Drag window outline only (lighter) }
+      settings:
+        Key: HKCU:\Control Panel\Desktop
+        ValueName: DragFullWindows
+        ValueData: ['0']
+        ValueType: String
+        Force: true
+
+    # メニュー表示遅延を最小化 (400ms → 0ms)
+    - resource: PSDscResources/Registry
+      id: reg-menu-no-delay
+      directives: { description: Remove menu show delay }
+      settings:
+        Key: HKCU:\Control Panel\Desktop
+        ValueName: MenuShowDelay
+        ValueData: ['0']
+        ValueType: String
+        Force: true
+
+    # ウィンドウ最小化/最大化アニメーション OFF
+    - resource: PSDscResources/Registry
+      id: reg-no-min-animate
+      directives: { description: Disable minimize/maximize animation }
+      settings:
+        Key: HKCU:\Control Panel\Desktop\WindowMetrics
+        ValueName: MinAnimate
+        ValueData: ['0']
+        ValueType: String
+        Force: true
+
+    - resource: PSDscResources/Service
+      id: svc-sysmain-disabled
+      directives: { description: Disable SysMain (Superfetch) }
+      settings:
+        Name: SysMain
+        State: Stopped
+        StartupType: Disabled
+
+    # ========================================================================
+    # Script リソース (複雑な手続きをここに隔離)
+    # ========================================================================
+
+    # Hibernation OFF — powercfg は Registry だけでは完結しないので Script
+    - resource: PSDscResources/Script
+      id: script-hibernation-off
+      directives: { description: Disable hibernation (frees ~6GB hiberfil.sys) }
+      settings:
+        GetScript: |
+          @{ Result = (Test-Path 'C:\hiberfil.sys') }
+        TestScript: |
+          -not (Test-Path 'C:\hiberfil.sys')
+        SetScript: |
+          powercfg /hibernate off
+
+    # 電源プラン → High performance
+    - resource: PSDscResources/Script
+      id: script-power-high-perf
+      directives: { description: Set power plan to High performance }
+      settings:
+        GetScript: |
+          @{ Result = (powercfg /getactivescheme) }
+        TestScript: |
+          (powercfg /getactivescheme) -match '8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c'
+        SetScript: |
+          powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
+
+    # JetBrains Mono Nerd Font インストール
+    - resource: PSDscResources/Script
+      id: script-install-nerdfont
+      directives: { description: Install JetBrains Mono Nerd Font (user scope) }
+      settings:
+        GetScript: |
+          @{ Result = Get-ChildItem "$env:LOCALAPPDATA\Microsoft\Windows\Fonts\JetBrainsMono*.ttf" -ErrorAction SilentlyContinue }
+        TestScript: |
+          $fontDir = "$env:LOCALAPPDATA\Microsoft\Windows\Fonts"
+          (Test-Path "$fontDir\JetBrainsMonoNerdFontMono-Regular.ttf")
+        SetScript: |
+          & "$env:USERPROFILE\ghq\github.com\gigun-dev\dotfiles\windows\fonts\install.ps1"
+
+    # Tailscale セットアップ (MSI + unattended mode)
+    - resource: PSDscResources/Script
+      id: script-tailscale
+      directives: { description: Install Tailscale and enable unattended mode }
+      settings:
+        GetScript: |
+          @{
+            Result = @{
+              Installed = (Test-Path 'C:\Program Files\Tailscale\tailscaled.exe')
+              Service   = (Get-Service Tailscale -ErrorAction SilentlyContinue).Status
+            }
+          }
+        TestScript: |
+          (Test-Path 'C:\Program Files\Tailscale\tailscaled.exe') -and
+          ((Get-Service Tailscale -ErrorAction SilentlyContinue).Status -eq 'Running')
+        SetScript: |
+          & "$env:USERPROFILE\ghq\github.com\gigun-dev\dotfiles\windows\tailscale\install-daemon.ps1"
+
+    # Windows Defender 除外 (開発ディレクトリ)
+    - resource: PSDscResources/Script
+      id: script-defender-exclusions
+      directives: { description: Windows Defender exclusions for dev dirs }
+      settings:
+        GetScript: |
+          @{ Result = (Get-MpPreference).ExclusionPath }
+        TestScript: |
+          $required = @(
+            "$env:USERPROFILE\ghq",
+            "$env:USERPROFILE\.local",
+            "$env:USERPROFILE\archive"
+          )
+          $current = (Get-MpPreference).ExclusionPath
+          -not ($required | Where-Object { $_ -notin $current })
+        SetScript: |
+          $paths = @(
+            "$env:USERPROFILE\ghq",
+            "$env:USERPROFILE\.local",
+            "$env:USERPROFILE\archive",
+            "$env:USERPROFILE\.cache"
+          )
+          foreach ($p in $paths) { if (Test-Path $p) { Add-MpPreference -ExclusionPath $p } }
+          $procs = @('node.exe','bun.exe','pnpm.exe','npm.exe','uv.exe','python.exe','git.exe')
+          foreach ($x in $procs) { Add-MpPreference -ExclusionProcess $x }
+
+    # WezTerm を NVIDIA 優先 GPU でレンダリング指定
+    - resource: PSDscResources/Registry
+      id: reg-wezterm-gpu-high-perf
+      directives: { description: Use High-Performance GPU for WezTerm }
+      settings:
+        Key: HKCU:\Software\Microsoft\DirectX\UserGpuPreferences
+        ValueName: C:\Program Files\WezTerm\wezterm-gui.exe
+        ValueData: ['GpuPreference=2;']
+        ValueType: String
+        Force: true
+
+    # AHK スクリプト (WezTerm Hotkey Window) をスタートアップに登録
+    - resource: PSDscResources/Script
+      id: script-ahk-startup
+      directives: { description: Register AHK wezterm-toggle in Startup }
+      settings:
+        GetScript: |
+          @{ Result = (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\wezterm-toggle.ahk.lnk") }
+        TestScript: |
+          Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\wezterm-toggle.ahk.lnk"
+        SetScript: |
+          $ahkScript = "$env:USERPROFILE\ghq\github.com\gigun-dev\dotfiles\windows\hotkey\wezterm-toggle.ahk"
+          $startup = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup"
+          $shortcut = Join-Path $startup 'wezterm-toggle.ahk.lnk'
+          $WshShell = New-Object -comObject WScript.Shell
+          $lnk = $WshShell.CreateShortcut($shortcut)
+          $lnk.TargetPath = $ahkScript
+          $lnk.Save()
+          # 起動
+          Start-Process $ahkScript -ErrorAction SilentlyContinue
+
+    # WSL Ubuntu のデフォルトシェルを zsh に
+    # 前提: WSL Ubuntu 導入済 + home-manager で zsh がインストール済
+    - resource: PSDscResources/Script
+      id: script-wsl-default-shell
+      directives: { description: Set WSL Ubuntu default shell to nix zsh }
+      settings:
+        GetScript: |
+          @{
+            Result = try {
+              $p = wsl -d Ubuntu -u root -- getent passwd gigun 2>$null
+              if ($p) { $p.Split(':')[6].Trim() } else { 'no-wsl' }
+            } catch { 'error' }
+          }
+        TestScript: |
+          try {
+            $p = wsl -d Ubuntu -u root -- getent passwd gigun 2>$null
+            if (-not $p) { return $false }
+            $current = $p.Split(':')[6].Trim()
+            return $current -eq '/home/gigun/.nix-profile/bin/zsh'
+          } catch { return $false }
+        SetScript: |
+          $zsh = '/home/gigun/.nix-profile/bin/zsh'
+          # zsh が /etc/shells に無ければ追加
+          wsl -d Ubuntu -u root -- sh -c "grep -qxF '$zsh' /etc/shells || echo '$zsh' >> /etc/shells"
+          # ログインシェル変更
+          wsl -d Ubuntu -u root -- chsh -s $zsh gigun
+
+    # シンボリックリンク (wslconfig / wezterm / kanata)
+    - resource: PSDscResources/Script
+      id: script-symlinks
+      directives: { description: Symlink dotfiles/windows configs to user home }
+      settings:
+        GetScript: |
+          @{
+            Result = @{
+              Wslconfig = (Get-Item "$env:USERPROFILE\.wslconfig" -Force -ErrorAction SilentlyContinue).LinkType
+              Wezterm   = (Get-Item "$env:USERPROFILE\.wezterm.lua" -Force -ErrorAction SilentlyContinue).LinkType
+              Kanata    = (Get-Item "$env:USERPROFILE\.config\kanata\kanata.kbd" -Force -ErrorAction SilentlyContinue).LinkType
+            }
+          }
+        TestScript: |
+          $dotfiles = "$env:USERPROFILE\ghq\github.com\gigun-dev\dotfiles"
+          $checks = @{
+            "$env:USERPROFILE\.wslconfig"                      = "$dotfiles\windows\wsl\wslconfig"
+            "$env:USERPROFILE\.wezterm.lua"                    = "$dotfiles\windows\terminal\wezterm.lua"
+            "$env:USERPROFILE\.config\kanata\kanata.kbd"       = "$dotfiles\windows\kanata\kanata.kbd"
+          }
+          foreach ($link in $checks.Keys) {
+            $item = Get-Item $link -Force -ErrorAction SilentlyContinue
+            if (-not $item -or $item.LinkType -ne 'SymbolicLink' -or $item.Target -ne $checks[$link]) { return $false }
+          }
+          return $true
+        SetScript: |
+          $dotfiles = "$env:USERPROFILE\ghq\github.com\gigun-dev\dotfiles"
+          $map = @{
+            "$env:USERPROFILE\.wslconfig"                = "$dotfiles\windows\wsl\wslconfig"
+            "$env:USERPROFILE\.wezterm.lua"              = "$dotfiles\windows\terminal\wezterm.lua"
+            "$env:USERPROFILE\.config\kanata\kanata.kbd" = "$dotfiles\windows\kanata\kanata.kbd"
+          }
+          foreach ($link in $map.Keys) {
+            $parent = Split-Path -Parent $link
+            if (-not (Test-Path $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+            if (Test-Path $link) { Remove-Item $link -Force -Recurse }
+            New-Item -ItemType SymbolicLink -Path $link -Target $map[$link] | Out-Null
+          }
+
+  configurationVersion: '0.2.0'
