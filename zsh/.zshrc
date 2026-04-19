@@ -126,20 +126,33 @@ fpath=(
   $fpath
 )
 
+# Nix 環境では zsh 自身の補完 (_cd / _ls 等の Completion/Unix/) が自動で
+# fpath に入らないため、zsh インストール先の Completion サブディレクトリを追加。
+# Mac は nix-darwin の programs.zsh が処理するので不要だが、無害。
+_zsh_share="$(dirname "$(dirname "$(readlink -f "$(command -v zsh)")")")/share/zsh/$ZSH_VERSION"
+if [[ -d "$_zsh_share/functions/Completion" ]]; then
+  fpath=( "$_zsh_share/functions/Completion"/*(/N) $fpath )
+fi
+unset _zsh_share
+
 function _deferred_compinit() {
   autoload -Uz compinit
   _comp_dump="${ZDOTDIR:-$HOME}/.zcompdump"
-  _comp_zwc="$_comp_dump.zwc"
-  if [[ -r "$_comp_zwc" && "$_comp_zwc" -nt "$_comp_dump" ]]; then
-    source "$_comp_dump"
-  elif [[ -r "$_comp_dump" ]]; then
-    source "$_comp_dump"
-    zcompile "$_comp_dump"
+  # compinit は必ず呼ぶ必要がある (.zcompdump を source するだけでは _comps が
+  # 初期化されず補完が登録されない)。24 時間以内なら -C で security check を
+  # スキップして高速化、そうでなければ通常 compinit。
+  # -u は WSL の nix-profile 補完ディレクトリの insecure permission を無視するため
+  # (Mac でも害なし)。
+  if [[ -n "$_comp_dump"(#qN.mh-24) ]]; then
+    compinit -u -C -d "$_comp_dump"
   else
-    compinit -d "$_comp_dump"
+    compinit -u -d "$_comp_dump"
+  fi
+  # .zwc 再生成 (キャッシュより新しい場合のみ)
+  if [[ ! -f "$_comp_dump.zwc" || "$_comp_dump" -nt "$_comp_dump.zwc" ]]; then
     zcompile "$_comp_dump"
   fi
-  unset _comp_dump _comp_zwc
+  unset _comp_dump
 }
 # 起動時に同期実行 (WSL では zsh-defer の遅延が発火しないケースがあり、
 # defer だと Tab 補完が効かない問題が発生。Mac では defer 発火するが

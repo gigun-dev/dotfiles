@@ -78,9 +78,17 @@ nix run .#update               # flake update + switch
 
 - **sheldon キャッシュ**: `plugins.toml` の mtime でキャッシュ再生成 + `zcompile`
 - **config キャッシュ**: ツール init 出力を `$XDG_CACHE_HOME/zsh/config.zsh` にキャッシュ + `zcompile`
-- **deferred compinit**: `zsh-defer` で遅延実行
+- **deferred compinit**: `zsh-defer` で遅延実行 + WSL は同期 fallback (defer が発火しないため)
 - **nix store パスを .zshrc に書かない**: ポータビリティのため
 - **chpwd フック**: cd 時に `eza -hlF` で自動 ls
+
+### compinit / 補完の落とし穴 (WSL/Nix 固有)
+
+`.zshrc` 内にコメント付きで対処済。変更時は壊さない:
+- **`compinit -u`** で insecure check 緩和 (WSL では `~/.config/zsh/functions` 等の symlink target permission に引っかかる)
+- **`compinit` を必ず呼ぶ**こと。`.zcompdump` を `source` するだけだと `_comps` 配列が初期化されず補完登録ゼロになる
+- **fpath に zsh の Completion サブディレクトリを動的追加**: Nix の zsh は `share/zsh/$VER/functions/Completion/{Base,Unix,Linux,...}` を自動 fpath 追加しない (Mac は nix-darwin の `programs.zsh` が処理)。`.zshrc` で `readlink -f $(command -v zsh)` から検出して追加
+- **`dotfiles/zsh/functions` の permission は 755**: 777 だと compinit が insecure 判定で全補完スキップ。git は permission を完全管理できないので、`bootstrap.sh` や home.activation で `chmod -R go-w` する余地あり (TODO)
 
 ## Windows 規約
 
