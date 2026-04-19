@@ -280,6 +280,39 @@ properties:
         State: Stopped
         StartupType: Disabled
 
+    # DiagTrack (Connected User Experiences and Telemetry) 無効化
+    # MS への診断データ送信、開発機では不要。~30-80 MB RAM + I/O 削減
+    - resource: PSDscResources/Service
+      id: svc-diagtrack-disabled
+      directives: { description: Disable DiagTrack (Telemetry) }
+      settings:
+        Name: DiagTrack
+        State: Stopped
+        StartupType: Disabled
+
+    # OneDrive を startup から除外 (sync 使わない場合、~100-150 MB RAM 節約)
+    - resource: PSDscResources/Registry
+      id: reg-no-onedrive-startup
+      directives: { description: Remove OneDrive from user startup }
+      settings:
+        Key: HKCU:\Software\Microsoft\Windows\CurrentVersion\Run
+        ValueName: OneDrive
+        Ensure: Absent
+        Force: true
+
+    # Google Updater の Scheduled Task を無効化 (Chrome 本体起動時更新で十分)
+    - resource: PSDscResources/Script
+      id: script-disable-googleupdater-tasks
+      directives: { description: Disable GoogleUpdater scheduled tasks }
+      settings:
+        GetScript: |
+          @{ Result = ((Get-ScheduledTask -TaskName 'GoogleUpdater*' -EA 0 | Where-Object State -ne 'Disabled').TaskName -join ',') }
+        TestScript: |
+          $tasks = Get-ScheduledTask -TaskName 'GoogleUpdater*' -EA 0 | Where-Object State -ne 'Disabled'
+          -not $tasks
+        SetScript: |
+          Get-ScheduledTask -TaskName 'GoogleUpdater*' -EA 0 | Disable-ScheduledTask -EA 0 | Out-Null
+
     # ========================================================================
     # Script リソース (複雑な手続きをここに隔離)
     # ========================================================================
