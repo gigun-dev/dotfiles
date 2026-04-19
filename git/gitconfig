@@ -9,3 +9,7 @@
 	rebase = true
 [push]
 	autoSetupRemote = true
+[credential]
+	# gh CLI を credential helper に統一 (Windows GCM 上書き、Mac/Linux と統一)
+	# 前提: 1 回 `gh auth login` が必要
+	helper = !gh auth git-credential

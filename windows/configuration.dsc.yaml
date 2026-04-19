@@ -480,6 +480,21 @@ properties:
           # ログインシェル変更
           wsl -d Ubuntu -u root -- chsh -s $zsh gigun
 
+    # Git credential helper を gh CLI に統一 (Windows GCM から移行)
+    # Mac/Linux は home-manager の programs.git で同設定済、全 OS で gh auth login 1 回で完結
+    # 前提: gh CLI (winget Github.cli) がインストール済 + ユーザーが `gh auth login` 実行済
+    - resource: PSDscResources/Script
+      id: script-git-credential-gh
+      directives: { description: Set git credential.helper to gh CLI (unify with Mac/Linux) }
+      settings:
+        GetScript: |
+          @{ Result = (git config --global --get credential.helper) }
+        TestScript: |
+          $current = git config --global --get credential.helper 2>$null
+          $current -eq '!gh auth git-credential'
+        SetScript: |
+          git config --global credential.helper '!gh auth git-credential'
+
     # シンボリックリンク (wslconfig / wezterm / kanata)
     - resource: PSDscResources/Script
       id: script-symlinks
