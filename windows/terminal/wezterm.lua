@@ -120,14 +120,14 @@ end
 config.disable_default_key_bindings = false
 
 config.keys = {
-  -- Tab / Pane: cwd 引き継がず常に WSL domain default_cwd (= /home/gigun) で開く
-  -- pane.cwd を継承しないので ssh 中の remote path / 連打 race 等の事故ゼロ
-  { key = 't', mods = 'CTRL|SHIFT',       action = act.SpawnCommandInNewTab({}) }, -- Cmd+T
+  -- Tab / Pane: cwd を /home/gigun にハードコード (空 spec だと pane.cwd を補完されるため)
+  -- 新 tab/pane は常に WSL home で開く、ssh 中の remote path / 連打 race 等の事故ゼロ
+  { key = 't', mods = 'CTRL|SHIFT',       action = act.SpawnCommandInNewTab({ cwd = '/home/gigun' }) }, -- Cmd+T
   { key = 'w', mods = 'CTRL|SHIFT',       action = act.CloseCurrentPane({ confirm = false }) }, -- Cmd+W
 
-  -- Pane split (iTerm2 準拠) — command = { args = {} } で cwd 引き継ぎ無効化
-  { key = 'd', mods = 'CTRL|SHIFT',       action = act.SplitPane({ direction = 'Right', size = { Percent = 50 }, command = { args = {} } }) }, -- Cmd+D (左右)
-  { key = 'd', mods = 'CTRL|SHIFT|ALT',   action = act.SplitPane({ direction = 'Down',  size = { Percent = 50 }, command = { args = {} } }) }, -- Cmd+Shift+D (上下)
+  -- Pane split (iTerm2 準拠) — cwd 明示で引き継ぎ無効
+  { key = 'd', mods = 'CTRL|SHIFT',       action = act.SplitPane({ direction = 'Right', size = { Percent = 50 }, command = { cwd = '/home/gigun' } }) }, -- Cmd+D (左右)
+  { key = 'd', mods = 'CTRL|SHIFT|ALT',   action = act.SplitPane({ direction = 'Down',  size = { Percent = 50 }, command = { cwd = '/home/gigun' } }) }, -- Cmd+Shift+D (上下)
 
   -- Tab navigation
   { key = ']', mods = 'CTRL|SHIFT',       action = act.ActivateTabRelative(1) },         -- Cmd+]
