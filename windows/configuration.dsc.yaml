@@ -81,13 +81,6 @@ properties:
       directives: { description: PowerShell 7 }
       settings: { id: Microsoft.PowerShell, source: winget }
 
-    # Node.js LTS — codex Claude Code plugin の hook (stop-review-gate-hook.mjs)
-    # 等が node を要求するため。本体の Rust binary codex CLI とは別軸。
-    - resource: Microsoft.WinGet.DSC/WinGetPackage
-      id: pkg-nodejs
-      directives: { description: Node.js LTS (Claude Code plugin hooks) }
-      settings: { id: OpenJS.NodeJS.LTS, source: winget }
-
     - resource: Microsoft.WinGet.DSC/WinGetPackage
       id: pkg-autohotkey
       directives: { description: AutoHotkey v2 (hotkey scripts) }
