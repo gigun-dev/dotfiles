@@ -87,7 +87,8 @@ unset _sheldon_cache _sheldon_toml
 # Pure prompt activation (sheldon 経由で源ファイルはロード済み)
 # =============================================================================
 autoload -Uz promptinit && promptinit
-prompt pure 2>/dev/null || true
+# pure テーマ未ロード時 (sheldon キャッシュ初期化中など) の prompt usage 出力を完全抑制
+prompt pure &>/dev/null || true
 
 # =============================================================================
 # Options (mozumasu pattern)
