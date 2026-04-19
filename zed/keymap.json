@@ -17,10 +17,12 @@
     }
   },
   {
-    // Agent panel focus 中も ctrl-l で閉じられるよう明示的に bind
-    "context": "AgentPanel",
+    // Agent panel focus 中は agent::ToggleFocus だと close しない (focus 状態維持)。
+    // Zed default の ctrl-shift-i と同じく workspace::ToggleRightDock を使えば
+    // 右 dock ごと閉じる。これで editor/AgentPanel 両方で正しい open/close toggle に。
+    "context": "AgentPanel || MessageEditor > Editor",
     "bindings": {
-      "ctrl-l": "agent::ToggleFocus"
+      "ctrl-l": "workspace::ToggleRightDock"
     }
   }
 ]
