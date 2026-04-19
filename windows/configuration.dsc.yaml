@@ -33,7 +33,11 @@ properties:
       directives: { description: Cursor editor }
       settings: { id: Anysphere.Cursor, source: winget }
 
-    # Zed は WSL 側 (nix の zed-editor) に統一、Windows native は不採用
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: pkg-zed
+      directives: { description: Zed editor (Windows GA、組込 WSL Remote で公式推奨) }
+      settings: { id: ZedIndustries.Zed, source: winget }
+
 - resource: Microsoft.WinGet.DSC/WinGetPackage
       id: pkg-wezterm
       directives: { description: WezTerm terminal }
@@ -596,6 +600,7 @@ properties:
             "$env:USERPROFILE\.wezterm.lua"                    = "$dotfiles\windows\terminal\wezterm.lua"
             "$env:USERPROFILE\.config\kanata\kanata.kbd"       = "$dotfiles\windows\kanata\kanata.kbd"
             "$env:USERPROFILE\.gitconfig"                      = "$dotfiles\git\gitconfig"
+            "$env:APPDATA\Zed\keymap.json"                     = "$dotfiles\zed\keymap.json"
           }
           foreach ($link in $checks.Keys) {
             $item = Get-Item $link -Force -ErrorAction SilentlyContinue
@@ -609,6 +614,7 @@ properties:
             "$env:USERPROFILE\.wezterm.lua"              = "$dotfiles\windows\terminal\wezterm.lua"
             "$env:USERPROFILE\.config\kanata\kanata.kbd" = "$dotfiles\windows\kanata\kanata.kbd"
             "$env:USERPROFILE\.gitconfig"                = "$dotfiles\git\gitconfig"
+            "$env:APPDATA\Zed\keymap.json"               = "$dotfiles\zed\keymap.json"
           }
           foreach ($link in $map.Keys) {
             $parent = Split-Path -Parent $link

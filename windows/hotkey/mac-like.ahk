@@ -145,6 +145,26 @@ ForceActivate(hwnd) {
     DllCall("AttachThreadInput", "uint", myTid, "uint", foreTid, "int", 0)
 }
 
+; Mac 風 IME 変換 (Caps = Ctrl 経由、IME 入力中のみ発動)
+;   Ctrl+J → F6 (ひらがな)
+;   Ctrl+K → F7 (カタカナ)
+;   Ctrl+L → F8 (半角カタカナ)
+;   IME オフの時は通常の Ctrl+J/K/L を透過 (Zed/Chrome 等の機能維持)
+;   LAlt (= F13) + J/L は別ハンドラ (F13 & j / F13 & l) で Zed 用なので競合しない。
+IsImeOn() {
+    hwnd := WinExist("A")
+    if !hwnd
+        return false
+    hime := DllCall("imm32\ImmGetDefaultIMEWnd", "ptr", hwnd, "ptr")
+    if !hime
+        return false
+    return DllCall("user32\SendMessage", "ptr", hime, "uint", 0x283, "ptr", 0x005, "ptr", 0)
+}
+
+^j::Send IsImeOn() ? "{F6}" : "^j"
+^k::Send IsImeOn() ? "{F7}" : "^k"
+^l::Send IsImeOn() ? "{F8}" : "^l"
+
 ; IME 切替時の視覚フィードバック
 ;   実制御は MS IME の設定 (無変換→IME-オフ / 変換→IME-オン) に委譲。
 ;   AHK は `~` prefix でキーを pass-through してオーバーレイ表示のみ担当。

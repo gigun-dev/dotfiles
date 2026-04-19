@@ -15,10 +15,12 @@ in
     "zeno".source = mkLink "zeno";
     "zsh/functions".source = mkLink "zsh/functions";
     "ccstatusline".source = mkLink "ccstatusline";
-    "zed/keymap.json".source = mkLink "zed/keymap.json";
   }
   // lib.optionalAttrs isDarwin {
     "karabiner".source = mkLink "karabiner";
+    # Zed keymap (Pattern A: Mac は brew cask zed、Win は DSC で別途 symlink、
+    # Linux/WSL は Zed 入れない)
+    "zed/keymap.json".source = mkLink "zed/keymap.json";
   };
 
   # NotchBar: 開発ビルドをログイン時に自動起動 (darwin only)

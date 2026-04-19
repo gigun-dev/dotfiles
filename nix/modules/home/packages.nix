@@ -48,7 +48,6 @@
   ]
   ++ lib.optionals (!pkgs.stdenv.isDarwin) [
     llm-agents.codex # Linux/WSL のみ (Mac は brew cask、Rust build を回避)
-    zed-editor       # WSL で WSLg 経由起動、開発環境ネイティブアクセス (Mac は brew cask)
   ]
   ++ [
 
