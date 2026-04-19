@@ -81,8 +81,8 @@ config.colors = {
 }
 -- Win11 統合ボタン (タブバー右端に最小/最大/閉じるが乗る)
 config.window_decorations = 'INTEGRATED_BUTTONS|RESIZE'
--- 透過 (Mac iTerm2 の Transparency=0.135 / Blur=0 を再現、opacity = 1 - 0.135 = 0.865)
-config.window_background_opacity = 0.865
+-- 透過 (default 30% 透過、Cmd+U で 1.0 と toggle 可能)
+config.window_background_opacity = 0.7
 config.initial_cols = 120
 config.initial_rows = 36
 
@@ -155,6 +155,17 @@ config.keys = {
 
   -- Fullscreen (Cmd+Shift+F 相当)
   { key = 'f', mods = 'CTRL|SHIFT|ALT',   action = act.ToggleFullScreen },
+
+  -- Transparency toggle (iTerm2 Cmd+U 風、opaque ↔ 0.7 で切替)
+  { key = 'u', mods = 'CTRL|SHIFT', action = wezterm.action_callback(function(window, _)
+      local o = window:get_config_overrides() or {}
+      if o.window_background_opacity == 1.0 then
+        o.window_background_opacity = 0.7
+      else
+        o.window_background_opacity = 1.0
+      end
+      window:set_config_overrides(o)
+    end) },
 }
 
 -- Tab navigation by number (iTerm2 風 Cmd+1..9 → ActivateTab)
