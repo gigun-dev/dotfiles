@@ -15,5 +15,12 @@
     "bindings": {
       "ctrl-l": "agent::ToggleFocus"
     }
+  },
+  {
+    // Agent panel focus 中も ctrl-l で閉じられるよう明示的に bind
+    "context": "AgentPanel",
+    "bindings": {
+      "ctrl-l": "agent::ToggleFocus"
+    }
   }
 ]
