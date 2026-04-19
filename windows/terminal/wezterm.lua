@@ -81,8 +81,8 @@ config.colors = {
 }
 -- Win11 統合ボタン (タブバー右端に最小/最大/閉じるが乗る)
 config.window_decorations = 'INTEGRATED_BUTTONS|RESIZE'
--- 透過 (default 50% 透過、Cmd+U で 1.0 と toggle 可能)
-config.window_background_opacity = 0.5
+-- 透過 (default 30% 透過、Cmd+U で 1.0 と toggle 可能)
+config.window_background_opacity = 0.7
 config.initial_cols = 120
 config.initial_rows = 36
 
@@ -160,7 +160,7 @@ config.keys = {
   { key = 'u', mods = 'CTRL|SHIFT', action = wezterm.action_callback(function(window, _)
       local o = window:get_config_overrides() or {}
       if o.window_background_opacity == 1.0 then
-        o.window_background_opacity = 0.5
+        o.window_background_opacity = 0.7
       else
         o.window_background_opacity = 1.0
       end
