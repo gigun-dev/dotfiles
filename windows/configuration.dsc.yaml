@@ -38,7 +38,7 @@ properties:
       directives: { description: Zed editor (Windows GA、組込 WSL Remote で公式推奨) }
       settings: { id: ZedIndustries.Zed, source: winget }
 
-- resource: Microsoft.WinGet.DSC/WinGetPackage
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
       id: pkg-wezterm
       directives: { description: WezTerm terminal }
       settings: { id: wez.wezterm, source: winget }
