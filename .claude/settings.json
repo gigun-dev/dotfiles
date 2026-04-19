@@ -2,6 +2,8 @@
   "enabledPlugins": {
     "decomposition@kuu-marketplace": true,
     "dig@kuu-marketplace": true,
-    "fix-ci@kuu-marketplace": true
+    "fix-ci@kuu-marketplace": true,
+    "cman@cman": true,
+    "codex@openai-codex": true
   }
 }

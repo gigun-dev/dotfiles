@@ -36,7 +36,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "afplay /System/Library/Sounds/Funk.aiff"
+            "command": "if command -v afplay >/dev/null 2>&1; then afplay /System/Library/Sounds/Funk.aiff; fi"
           }
         ]
       }
@@ -123,6 +123,12 @@
       "source": {
         "source": "github",
         "repo": "cloudflare/skills"
+      }
+    },
+    "kuu-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "fumiya-kume/claude-code"
       }
     }
   },

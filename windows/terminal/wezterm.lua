@@ -24,6 +24,8 @@ config.font = wezterm.font_with_fallback({
 config.font_size = 13.0
 config.line_height = 1.1
 config.cell_width = 1.0
+config.freetype_load_target = 'Light'        -- Mac の Core Text に近い滑らかなヒンティング
+config.freetype_render_target = 'HorizontalLcd'  -- サブピクセルレンダリング
 
 -- ============================================================================
 -- レンダリング / パフォーマンス (極限チューニング)

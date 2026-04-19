@@ -45,13 +45,19 @@ if ($ttfFiles.Count -eq 0) {
 $installed = 0
 foreach ($ttf in $ttfFiles) {
     $dest = Join-Path $userFontDir $ttf.Name
+    $copied = $false
     if (-not (Test-Path $dest)) {
         Copy-Item -Path $ttf.FullName -Destination $dest -Force
-        # フォント名 (TTF) を登録
-        $regName = "$([System.IO.Path]::GetFileNameWithoutExtension($ttf.Name)) (TrueType)"
-        Set-ItemProperty -Path $regKey -Name $regName -Value $dest
-        $installed++
+        $copied = $true
     }
+    # レジストリは常に確認・登録（ファイルだけあってレジストリ未登録のケースを救済）
+    $regName = "$([System.IO.Path]::GetFileNameWithoutExtension($ttf.Name)) (TrueType)"
+    $current = Get-ItemProperty -Path $regKey -Name $regName -ErrorAction SilentlyContinue
+    if (-not $current -or $current.$regName -ne $dest) {
+        Set-ItemProperty -Path $regKey -Name $regName -Value $dest
+        $copied = $true
+    }
+    if ($copied) { $installed++ }
 }
 
 Write-Host "    ok $installed font file(s) installed" -ForegroundColor Green
