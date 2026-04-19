@@ -95,14 +95,19 @@ config.scrollback_lines = 10000
 
 -- ============================================================================
 -- デフォルトシェル: WSL2 Ubuntu (なければ PowerShell 7)
+-- WSL domain の default_cwd を WSL home に固定 — 新 tab/pane は cwd 引き継がず
+-- 常に ~/ で開く方針 (ssh / mini path 引継ぎ事故ゼロ、シンプル優先)
 -- ============================================================================
+local wsl_domains = wezterm.default_wsl_domains()
 local wsl_present = false
-for _, d in ipairs(wezterm.default_wsl_domains()) do
+for _, d in ipairs(wsl_domains) do
   if d.name == 'WSL:Ubuntu' then
     wsl_present = true
+    d.default_cwd = '/home/gigun'
     break
   end
 end
+config.wsl_domains = wsl_domains
 if wsl_present then
   config.default_domain = 'WSL:Ubuntu'
 else
@@ -115,14 +120,14 @@ end
 config.disable_default_key_bindings = false
 
 config.keys = {
-  -- Tab: WezTerm が pane の cwd を自動引継ぎ (OSC 7 経由)。連打で race が
-  -- 起きると WezTerm 起動時 cwd (Windows side) に落ちることがあるが稀なので許容。
-  { key = 't', mods = 'CTRL|SHIFT',       action = act.SpawnTab('CurrentPaneDomain') },
+  -- Tab / Pane: cwd 引き継がず常に WSL domain default_cwd (= /home/gigun) で開く
+  -- pane.cwd を継承しないので ssh 中の remote path / 連打 race 等の事故ゼロ
+  { key = 't', mods = 'CTRL|SHIFT',       action = act.SpawnCommandInNewTab({}) }, -- Cmd+T
   { key = 'w', mods = 'CTRL|SHIFT',       action = act.CloseCurrentPane({ confirm = false }) }, -- Cmd+W
 
-  -- Pane split (iTerm2 準拠)
-  { key = 'd', mods = 'CTRL|SHIFT',       action = act.SplitPane({ direction = 'Right', size = { Percent = 50 } }) }, -- Cmd+D (左右分割)
-  { key = 'd', mods = 'CTRL|SHIFT|ALT',   action = act.SplitPane({ direction = 'Down',  size = { Percent = 50 } }) }, -- Cmd+Shift+D (上下分割)
+  -- Pane split (iTerm2 準拠) — command = { args = {} } で cwd 引き継ぎ無効化
+  { key = 'd', mods = 'CTRL|SHIFT',       action = act.SplitPane({ direction = 'Right', size = { Percent = 50 }, command = { args = {} } }) }, -- Cmd+D (左右)
+  { key = 'd', mods = 'CTRL|SHIFT|ALT',   action = act.SplitPane({ direction = 'Down',  size = { Percent = 50 }, command = { args = {} } }) }, -- Cmd+Shift+D (上下)
 
   -- Tab navigation
   { key = ']', mods = 'CTRL|SHIFT',       action = act.ActivateTabRelative(1) },         -- Cmd+]
