@@ -15,6 +15,7 @@ in
     "zeno".source = mkLink "zeno";
     "zsh/functions".source = mkLink "zsh/functions";
     "ccstatusline".source = mkLink "ccstatusline";
+    "zed/keymap.json".source = mkLink "zed/keymap.json";
   }
   // lib.optionalAttrs isDarwin {
     "karabiner".source = mkLink "karabiner";

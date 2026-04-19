@@ -33,12 +33,8 @@ properties:
       directives: { description: Cursor editor }
       settings: { id: Anysphere.Cursor, source: winget }
 
-    - resource: Microsoft.WinGet.DSC/WinGetPackage
-      id: pkg-zed
-      directives: { description: Zed editor }
-      settings: { id: ZedIndustries.Zed, source: winget }
-
-    - resource: Microsoft.WinGet.DSC/WinGetPackage
+    # Zed は WSL 側 (nix の zed-editor) に統一、Windows native は不採用
+- resource: Microsoft.WinGet.DSC/WinGetPackage
       id: pkg-wezterm
       directives: { description: WezTerm terminal }
       settings: { id: wez.wezterm, source: winget }
