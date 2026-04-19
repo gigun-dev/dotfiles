@@ -4,7 +4,7 @@
     "bindings": {
       // Cursor-like keybindings (Cmd+J / Cmd+L → ctrl+j / ctrl+l via AHK Mac-like remap)
       "ctrl-j": "terminal_panel::ToggleFocus",
-      "ctrl-l": "agent_panel::ToggleFocus"
+      "ctrl-l": "workspace::ToggleRightDock"
     }
   }
 ]
