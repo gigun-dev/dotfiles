@@ -300,6 +300,31 @@ properties:
         Ensure: Absent
         Force: true
 
+    # Remote Desktop services 完全無効化 (Windows 機に外部から接続することがないため)
+    - resource: PSDscResources/Service
+      id: svc-termservice-disabled
+      directives: { description: Disable Remote Desktop Services }
+      settings: { Name: TermService, StartupType: Disabled }
+    - resource: PSDscResources/Service
+      id: svc-sessionenv-disabled
+      directives: { description: Disable Remote Desktop Configuration }
+      settings: { Name: SessionEnv, StartupType: Disabled }
+    - resource: PSDscResources/Service
+      id: svc-umrdpservice-disabled
+      directives: { description: Disable Remote Desktop UserMode Port Redirector }
+      settings: { Name: UmRdpService, StartupType: Disabled }
+
+    # Windows Copilot 完全無効化 (Group Policy)
+    - resource: PSDscResources/Registry
+      id: reg-disable-copilot-policy
+      directives: { description: Disable Windows Copilot via group policy }
+      settings:
+        Key: HKCU:\Software\Policies\Microsoft\Windows\WindowsCopilot
+        ValueName: TurnOffWindowsCopilot
+        ValueData: ['1']
+        ValueType: Dword
+        Force: true
+
     # Google Updater の Scheduled Task を無効化 (Chrome 本体起動時更新で十分)
     - resource: PSDscResources/Script
       id: script-disable-googleupdater-tasks
