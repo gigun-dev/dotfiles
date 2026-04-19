@@ -458,6 +458,22 @@ properties:
             Start-Process $src -ErrorAction SilentlyContinue
           }
 
+    # WSL Ubuntu の en_US.UTF-8 locale を生成 (nix bash の setlocale 警告解消)
+    - resource: PSDscResources/Script
+      id: script-wsl-locale
+      directives: { description: Generate en_US.UTF-8 locale in WSL Ubuntu }
+      settings:
+        GetScript: |
+          @{ Result = (wsl -d Ubuntu -u root -- locale -a 2>$null) }
+        TestScript: |
+          try {
+            $locales = wsl -d Ubuntu -u root -- locale -a 2>$null
+            return ($locales -match 'en_US')
+          } catch { return $false }
+        SetScript: |
+          wsl -d Ubuntu -u root -- locale-gen en_US.UTF-8
+          wsl -d Ubuntu -u root -- update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+
     # WSL Ubuntu のデフォルトシェルを zsh に
     # 前提: WSL Ubuntu 導入済 + home-manager で zsh がインストール済
     - resource: PSDscResources/Script
