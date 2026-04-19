@@ -41,15 +41,21 @@ nix run .#update               # flake update + switch
 │           └── git/         # programs.git + programs.delta
 ├── zsh/
 │   ├── .zshrc               # メイン設定（nix 非依存）
-│   └── functions/            # zsh 関数（ghq_fzf 等）
+│   └── functions/            # zsh 関数（ghq_fzf 等、permission は 755 必須）
 ├── sheldon/plugins.toml      # sheldon プラグイン定義
 ├── zeno/config.yml           # zeno snippets
+├── zed/keymap.json           # Zed エディタ keymap (Mac/Win 共通、Cursor 風 Cmd+J/L)
+├── git/gitconfig             # .gitconfig 実体 (Windows は DSC Script で symlink、Mac/Linux は programs.git で生成)
 └── windows/                  # Windows 11 用（詳細: windows/README.md）
     ├── configuration.dsc.yaml # Single source of truth (winget configure)
     ├── setup.ps1             # winget configure を呼ぶ薄いラッパ
     ├── fonts/install.ps1     # JetBrains Mono Nerd Font
-    ├── kanata/kanata.kbd     # karabiner.json から移植
+    ├── hotkey/
+    │   └── mac-like.ahk      # Scancode Map + Mac 風 modifier + IME 変換 + WezTerm トグル
+    ├── kanata/kanata.kbd     # karabiner.json から移植 (現状未使用、将来 device 別 remap 用)
     ├── tailscale/            # MSI 導入 + unattended mode 有効化
+    ├── tools/
+    │   └── keyboard-probe.ahk # 物理 VK/SC 実測ツール
     ├── wsl/wslconfig         # WSL2 設定の実体
     └── terminal/wezterm.lua  # WezTerm 設定の実体
 ```
@@ -94,11 +100,14 @@ nix run .#update               # flake update + switch
 
 - **宣言的構成**: `windows/configuration.dsc.yaml` を single source of truth とし、`winget configure` で冪等適用する。Mac 側の `nix run .#switch` 相当
 - **軽量化は dotfiles 責務**: Mac の `system.nix` と同じ論理で、Windows の UI/パフォーマンス設定を DSC YAML の `PSDscResources/Registry`・`Service`・`Script` リソースで宣言
-- **winget 一本化**: Scoop / Chocolatey は不採用
+- **winget 一本化**: Scoop / Chocolatey は不採用。winget / msstore にないもの (例: Aqua Voice) のみ DSC `Script` で直接 download + install
 - **WSL2 に寄せる**: Windows ネイティブは最小限（ターミナル、エディタ、ブラウザ、GUI アプリ）。CLI 開発は WSL 内で `packages.nix`（x86_64-linux）を適用して Mac と同等の環境にする
+- **エディタは Pattern A (Win native + Remote-WSL)**: VSCode / Cursor / Zed は全て Windows native install + 組込 Remote-WSL 機能で使用 (2026 公式推奨)。Linux 版 WSLg は GPU/IME/起動速度で劣るため不採用。keymap は dotfiles で symlink 共有 (Mac は brew cask + home-manager、Win は DSC Script で `%APPDATA%\Zed\keymap.json` 等へ)
+- **AI tools は WSL 集約**: `claude-code` / `codex` / `opencode` / `ccstatusline` は nix (`packages.nix`) で WSL 側に。Windows native には入れない方針
+- **git auth 統一**: 全 OS で `gh auth login` 1 回 + `credential.helper = '!gh auth git-credential'`。SSH key 管理しない (url rewrite で SSH URL が混入しても HTTPS に変換する手もあるが現在は未採用)
 - **Tailscale**: MSI デフォルト構成（GUI + daemon + CLI）を尊重。Unattended mode を有効化して daemon 単体で接続継続可能に
 - **フォント**: Mac と同じ JetBrains Mono Nerd Font をユーザースコープで配置
-- **シンボリックリンク**: DSC Script リソースが `.wslconfig` / `.wezterm.lua` / `kanata.kbd` を `windows/` 配下から張る（nix の `mkOutOfStoreSymlink` 相当）
+- **シンボリックリンク**: DSC Script リソースが `.wslconfig` / `.wezterm.lua` / `kanata.kbd` / `.gitconfig` / Zed `keymap.json` を `windows/` または dotfiles ルート配下から張る（nix の `mkOutOfStoreSymlink` 相当）
 - **補助 .ps1 は DSC から呼ばれる**: `fonts/install.ps1` / `tailscale/install-daemon.ps1` は個別実行用ではなく、DSC Script リソースからの呼び出し前提。単独実行してもエラーにならないよう冪等に書く
 
 ## Git ワークフロー

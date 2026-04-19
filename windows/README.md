@@ -41,9 +41,15 @@ windows/
 ├── setup.ps1               # winget configure を呼ぶ薄いラッパ
 ├── README.md
 ├── fonts/install.ps1       # JetBrains Mono Nerd Font (DSC から呼ばれる)
+├── hotkey/
+│   ├── mac-like.ahk        # Mac 風キーマップ + IME 変換 + WezTerm トグル等
+│   └── wezterm-toggle.ahk  # (legacy、mac-like.ahk に統合済で撤廃予定)
 ├── kanata/kanata.kbd       # karabiner.json から移植 (symlink 対象)
 ├── tailscale/install-daemon.ps1  # Tailscale + unattended mode (DSC から呼ばれる)
 ├── terminal/wezterm.lua    # WezTerm 設定 (symlink 対象)
+├── tools/
+│   ├── keyboard-probe.ahk  # 物理 VK/SC 実測ツール (Scancode Map 設計時に利用)
+│   └── hp-envy-keymap.txt  # 実測結果
 └── wsl/wslconfig           # WSL2 設定 (symlink 対象)
 ```
 
@@ -51,20 +57,25 @@ windows/
 
 | カテゴリ | リソース型 | 例 |
 |---|---|---|
-| パッケージ | `Microsoft.WinGet.DSC/WinGetPackage` | Git, gh, VSCode, Cursor, Zed, WezTerm, Kanata, Tailscale, Claude, Chrome, Figma, uv |
+| パッケージ (winget) | `Microsoft.WinGet.DSC/WinGetPackage` | Git, gh, Node.js 等除外、VSCode, Cursor, Zed, WezTerm, Kanata, Tailscale, Claude Desktop, Chrome, Figma, RealVNC Viewer, Slack, Zoom, PowerShell 7, AutoHotkey v2 |
+| パッケージ (msstore) | 同上 | iCloud for Windows (Chrome iCloud Passwords 拡張用) |
 | Explorer 設定 | `PSDscResources/Registry` | 隠しファイル、拡張子、This PC、チェックボックス |
-| UI 抑止 | `PSDscResources/Registry` | Widgets, Copilot, 広告 ID, Start 推奨 |
-| パフォーマンス | `PSDscResources/Registry` + `Service` | Visual effects, Fast Startup, SysMain |
-| カスタムスクリプト | `PSDscResources/Script` | Hibernation off, 電源プラン, Font 導入, Tailscale, Defender 除外, Symlink |
+| UI 抑止 | `PSDscResources/Registry` | Widgets, Copilot (taskbar + Group Policy), 広告 ID, Start 推奨 |
+| パフォーマンス (Registry/Service) | `PSDscResources/*` | Visual effects=Custom, Fast Startup off, SysMain/DiagTrack/OneSyncSvc 無効化, EnableTransparency=1 |
+| キー / 入力 | `PSDscResources/Registry` | Scancode Map (Mac 風 remap)、PrintScreen→Snipping、iGPU 強制 (WezTerm 透過) |
+| カスタムスクリプト | `PSDscResources/Script` | Hibernation off、電源プラン、Font 導入、Tailscale、Defender 除外、Phone Link / CrossDevice 削除、GoogleUpdater Scheduled Task 無効化、WSL locale 生成、git credential helper 切替 (gh)、AHK スタートアップ登録、Aqua Voice 直接 download install、Symlink (wslconfig / wezterm.lua / kanata / .gitconfig / Zed keymap) |
 
 ## 設計原則
 
 - **宣言的 single source of truth**: `configuration.dsc.yaml` が構成の全て。個別 .ps1 は DSC Script から呼ばれる補助
-- **winget 一本化**: Scoop / Chocolatey は不採用
-- **WSL2 を主力に**: ローカル開発は WSL 内で完結。Git Bash は Claude Code 等のネイティブツールが呼ぶ最小 POSIX 用途のみ（nix / home-manager は動かない）
+- **winget 一本化**: Scoop / Chocolatey は不採用。winget に無いもの (Aqua Voice 等) だけ DSC Script で直接 download
+- **WSL2 を主力に**: ローカル開発は WSL 内で完結。Git Bash は Claude Code 等のネイティブツールが呼ぶ最小 POSIX 用途のみ
+- **エディタ**: VSCode / Cursor / Zed は **Windows native + Remote-WSL (公式推奨) pattern**。各エディタが組込 WSL 接続機能を持つため Linux 版 WSLg より起動/IME/GPU の質が高い。設定 (keymap 等) は dotfiles で symlink 共有
+- **AI tools**: `claude-code` / `codex` / `opencode` / `ccstatusline` は nix で WSL に集約。Windows native には入れない (= Windows native Claude Code 利用時は plugin hook の node 依存等で注意)
 - **Tailscale**: MSI デフォルト構成 (GUI + daemon) を尊重、Unattended mode 有効化で daemon 単独接続可
 - **フォント**: Mac と同じ JetBrains Mono Nerd Font
-- **キーボード**: Kanata で karabiner.json 相当を提供。ノート PC 内蔵キーは remap しない方針（Interception + HWID filter または Anker 接続時のみ起動は TODO）
+- **キーボード**: Scancode Map + AHK `mac-like.ahk` で Mac 風 modifier 配置 (LAlt=Cmd / LWin=Opt / Caps=Ctrl)。WezTerm Hotkey Window / IME トグル / Cursor 風 Cmd+J/L 等を全部ここで実装
+- **git auth 統一**: 全 OS で `gh auth login` 1 回 + `credential.helper = '!gh auth git-credential'` で HTTPS+token 認証。SSH key 管理不要
 
 ## DSC 適用後の手動ステップ
 
