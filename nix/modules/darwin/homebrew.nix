@@ -33,6 +33,7 @@ in
       "azookey"
       "claude"
       "cmux"
+      "codex" # Mac は brew cask (prebuilt、Rust build 回避)。Linux は packages.nix で nix install
       "discord"
       "figma"
       "google-chrome"

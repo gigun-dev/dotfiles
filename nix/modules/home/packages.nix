@@ -15,7 +15,8 @@
 
     # AI
     claude-code # ← claude-code-overlay (ryoppippi)
-    llm-agents.codex   # 初回 Rust ビルドは数分、以後キャッシュで瞬時
+    # codex は OS 分岐: Mac は brew cask (prebuilt 高速)、Linux/WSL は llm-agents.codex
+    # Mac Intel で Rust build 走らせると数十分かかる + Nixpkgs 26.05 が x86_64-darwin 最終 EOL のため
     llm-agents.opencode
     llm-agents.ccstatusline
     llm-agents.agent-browser
@@ -44,6 +45,9 @@
   ]
   ++ lib.optionals pkgs.stdenv.isDarwin [
     cocoapods # iOS 開発 — darwin 限定
+  ]
+  ++ lib.optionals (!pkgs.stdenv.isDarwin) [
+    llm-agents.codex # Linux/WSL のみ (Mac は brew cask、Rust build を回避)
   ]
   ++ [
 
