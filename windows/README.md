@@ -125,6 +125,12 @@ Windows 環境で遭遇したハマり所と解決策。設定ファイル側に
 - **DWM は iGPU で動作**: アプリが dGPU で描画すると DXGI surface の cross-adapter 共有で alpha が欠落する既知バグ (WezTerm 透過失敗の根源)
 - **WezTerm のような軽量 GUI は iGPU で十分**: `GpuPreference=1` (Power saving) で固定が安定。`2` (High performance) だと透過が壊れるだけで描画性能メリットなし
 
+### WSL ↔ Windows の境界
+- **環境変数の継承は WSLENV だけ**: Windows 側の env を WSL に渡すには `WSLENV` 環境変数に列挙が必要 (例: `WT_SESSION:WT_PROFILE_ID::TERM:COLORTERM:TERM_PROGRAM:TERM_PROGRAM_VERSION`)。WezTerm は WSLENV を設定しないので `WEZTERM_PANE` 等は WSL 内で空 → `.zshrc` で OSC 7 シェル統合の判定を `WEZTERM_PANE` ベースにすると WSL では発動しない。**判定撤廃して常時送信が無難** (対応外ターミナルは escape を無視)
+- **`TERM` は WSL 内で `xterm-256color` になりがち**: WezTerm がデフォルトで `wezterm` を設定しても WSL の login shell で上書きされる。`TERM=wezterm*` 判定も WSL では効かない
+- **git credential は OS ごとに別**: Windows GCM (DPAPI) と WSL の credential helper は別ストア。`gh CLI` を helper に統一すれば全 OS で `gh auth login` 1 回で完結
+- **chmod は WSL native (`~/`) のみ有効**: `/mnt/c/` 以下の Windows ファイルは drvfs 経由で chmod が反映されない (NTFS permission は別仕様)
+
 ## 未対応 / 今後
 
 - `kanata` サービス登録の自動化（DSC Script に追加）
