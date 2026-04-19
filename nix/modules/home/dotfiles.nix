@@ -68,6 +68,15 @@ in
     fi
   '';
 
+  # zsh/functions の permission を 755 に固定 (compinit insecure 対策)
+  # 777 (world-writable) だと compinit が insecure 判定で全補完スキップになる。
+  # git は permission を完全管理できないので home-manager apply 時に毎回修正。
+  home.activation.fixZshFnPerms = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+    if [ -d "${dotfilesPath}/zsh/functions" ]; then
+      $DRY_RUN_CMD chmod -R go-w "${dotfilesPath}/zsh/functions" 2>/dev/null || true
+    fi
+  '';
+
   # .zshrc は programs.zsh が管理するため home.file ではなく
   # home.activation で強制シンボリックリンク (ryoppippi パターン)
   home.activation.linkDotfiles = lib.hm.dag.entryAfter [ "linkGeneration" ] (''

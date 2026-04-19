@@ -67,6 +67,10 @@ link "${DOTFILES_DIR}/sheldon"          "${HOME}/.config/sheldon"
 link "${DOTFILES_DIR}/zeno"             "${HOME}/.config/zeno"
 link "${DOTFILES_DIR}/zsh/functions"    "${HOME}/.config/zsh/functions"
 
+# zsh/functions の permission を 755 に固定 (compinit insecure 対策)
+# 777 だと compinit が全補完スキップする
+chmod -R go-w "${DOTFILES_DIR}/zsh/functions" 2>/dev/null || true
+
 # ---------------------------------------------------------------------------
 # 4. Sheldon
 # ---------------------------------------------------------------------------
