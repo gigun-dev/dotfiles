@@ -63,6 +63,11 @@ properties:
       directives: { description: Figma }
       settings: { id: Figma.Figma, source: winget }
 
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: pkg-vncviewer
+      directives: { description: RealVNC Viewer (remote desktop to Mac mini) }
+      settings: { id: RealVNC.VNCViewer, source: winget }
+
     # uv / nodejs / bun / deno / pnpm は WSL 内 home-manager 管理 (Mac 側 packages.nix と同じ扱い)
     # Windows ネイティブには dev ランタイムを入れない
 
@@ -206,13 +211,16 @@ properties:
     # ========================================================================
     # Performance (tweaks/performance.ps1 相当)
     # ========================================================================
+    # VisualFXSetting=3 (カスタム) にして EnableTransparency + 個別軽量化設定を両立
+    # VisualFXSetting=2 (パフォーマンス優先) だと透過描画自体が禁止され WezTerm 等の
+    # window_background_opacity が効かなくなる副作用がある
     - resource: PSDscResources/Registry
-      id: reg-visual-fx-best-perf
-      directives: { description: Visual effects = best performance }
+      id: reg-visual-fx-custom
+      directives: { description: Visual effects = Custom (respect individual settings) }
       settings:
         Key: HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects
         ValueName: VisualFXSetting
-        ValueData: ['2']
+        ValueData: ['3']
         ValueType: Dword
         Force: true
 
@@ -352,57 +360,98 @@ properties:
           $procs = @('node.exe','bun.exe','pnpm.exe','npm.exe','uv.exe','python.exe','git.exe')
           foreach ($x in $procs) { Add-MpPreference -ExclusionProcess $x }
 
-    # Caps Lock <-> Left Ctrl 全キーボード system-wide swap (Scancode Map)
-    # 再起動または再ログインで反映される
-    # バイナリフォーマット: 8バイトヘッダ + エントリ数(4) + 各mapping(4x2) + terminator(4)
-    #   00 00 00 00 00 00 00 00      # header
-    #   03 00 00 00                   # 3 entries (2 mappings + terminator)
-    #   1D 00 3A 00                   # 3A(Caps) -> 1D(LCtrl)
-    #   3A 00 1D 00                   # 1D(LCtrl) -> 3A(Caps)
-    #   00 00 00 00                   # terminator
+    # Mac-like キーマップ (Scancode Map, system-wide, 要ログオフ/再起動)
+    #
+    # フォーマット: 8-byte header + 4-byte count (N+1) + N*4-byte mappings + 4-byte terminator
+    #   各 mapping = [output VK low][output VK high][input VK low][input VK high] (little-endian)
+    #
+    # 36 bytes total = 72 hex chars. MBP JIS 最下段と完全一致する配置:
+    #   MBP:  fn | ctrl | opt | cmd | 英数 | space | かな | cmd | opt
+    #   HP:   Fn | Win  | Opt | Cmd | 英数 | space | かな | Cmd | Opt  (以下の remap で実現)
+    #
+    #   0000000000000000  header
+    #   06000000          count = 5 mappings + 1 terminator
+    #   1D003A00          Caps(3A)    -> LCtrl(1D)       小指 Ctrl (zsh hotkey / SIGINT)
+    #   5BE01D00          LCtrl(1D)   -> LWin(E0 5B)     本物の Win キー (Win+L, Win+Shift+S)
+    #   38005BE0          LWin(E0 5B) -> LAlt(38)        3 番目を Opt (MBP opt 位置と一致)
+    #   64003800          LAlt(38)    -> F13(64)         4 番目を Cmd (MBP cmd 位置と一致、AHK で Ctrl+文字 に変換)
+    #   65007000          カタカナ(70) -> F14(65)          右親指 Cmd (AHK で Ctrl+文字 に変換)
+    #   00000000          terminator
+    #
+    # AHK 側: windows/hotkey/mac-like.ahk が F13/F14 + 文字 を Ctrl+文字 (WezTerm 内は Ctrl+Shift+文字) に変換
     - resource: PSDscResources/Registry
-      id: reg-caps-ctrl-swap
-      directives: { description: Swap Caps Lock and Left Ctrl system-wide }
+      id: reg-keymap-mac-like
+      directives: { description: Mac-like keymap (LAlt=Cmd / LWin=Opt / LCtrl=Win / Caps=Ctrl / Kana=RCmd) }
       settings:
         Key: HKLM:\SYSTEM\CurrentControlSet\Control\Keyboard Layout
         ValueName: Scancode Map
-        # 24 バイト: 8-byte header + 4-byte entry count (3) + 4+4-byte mappings + 4-byte terminator
-        # 3A(Caps) <-> 1D(LCtrl) 双方向 swap
-        # PSDscResources/Registry の Binary type は区切り無しの hex 連結単一文字列を要求
-        ValueData: '0000000000000000030000001D003A003A001D0000000000'
+        ValueData: '0000000000000000060000001D003A005BE01D0038005BE0640038006500700000000000'
         ValueType: Binary
         Force: true
 
-    # WezTerm を NVIDIA 優先 GPU でレンダリング指定
+    # Windows の透明効果を有効化 (WezTerm の window_background_opacity を効かせるため)
+    # VisualFXSetting=2 (パフォーマンス優先) だと EnableTransparency が 0 になりオーバーライド必要
     - resource: PSDscResources/Registry
-      id: reg-wezterm-gpu-high-perf
-      directives: { description: Use High-Performance GPU for WezTerm }
+      id: reg-enable-transparency
+      directives: { description: Enable Windows transparency effects (for WezTerm opacity) }
+      settings:
+        Key: HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize
+        ValueName: EnableTransparency
+        ValueData: ['1']
+        ValueType: Dword
+        Force: true
+
+    # PrintScreen 単体で Snipping Tool を起動 (Win+Shift+S の代替保険)
+    - resource: PSDscResources/Registry
+      id: reg-printscreen-snipping
+      directives: { description: PrintScreen key launches Snipping Tool }
+      settings:
+        Key: HKCU:\Control Panel\Keyboard
+        ValueName: PrintScreenKeyForSnippingEnabled
+        ValueData: ['1']
+        ValueType: Dword
+        Force: true
+
+    # WezTerm を Iris Xe (iGPU) 強制 — GpuPreference=1 (Power saving / iGPU)
+    # NVIDIA MX450 や自動選択だと WezTerm GitHub #4502 #5790 の dual-GPU alpha 欠落 bug に
+    # 引っかかり window_background_opacity が効かない。DWM が iGPU で動くため同じ GPU に
+    # 揃えると cross-adapter 共有問題を回避できる。
+    - resource: PSDscResources/Registry
+      id: reg-wezterm-gpu-igpu
+      directives: { description: Force WezTerm to iGPU (Iris Xe) to fix transparency }
       settings:
         Key: HKCU:\Software\Microsoft\DirectX\UserGpuPreferences
         ValueName: C:\Program Files\WezTerm\wezterm-gui.exe
-        ValueData: ['GpuPreference=2;']
+        ValueData: ['GpuPreference=1;']
         ValueType: String
         Force: true
 
-    # AHK スクリプト (WezTerm Hotkey Window) をスタートアップに登録
+# AHK スクリプト (WezTerm トグル + Mac-like キー変換) をスタートアップに登録
     - resource: PSDscResources/Script
       id: script-ahk-startup
-      directives: { description: Register AHK wezterm-toggle in Startup }
+      directives: { description: Register AHK scripts (wezterm-toggle, mac-like) in Startup }
       settings:
         GetScript: |
-          @{ Result = (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\wezterm-toggle.ahk.lnk") }
-        TestScript: |
-          Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\wezterm-toggle.ahk.lnk"
-        SetScript: |
-          $ahkScript = "$env:USERPROFILE\ghq\github.com\gigun-dev\dotfiles\windows\hotkey\wezterm-toggle.ahk"
           $startup = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup"
-          $shortcut = Join-Path $startup 'wezterm-toggle.ahk.lnk'
+          @{ Result = @{
+            WezTerm = (Test-Path "$startup\wezterm-toggle.ahk.lnk")
+            MacLike = (Test-Path "$startup\mac-like.ahk.lnk")
+          }}
+        TestScript: |
+          $startup = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup"
+          (Test-Path "$startup\wezterm-toggle.ahk.lnk") -and (Test-Path "$startup\mac-like.ahk.lnk")
+        SetScript: |
+          $dotfiles = "$env:USERPROFILE\ghq\github.com\gigun-dev\dotfiles"
+          $startup  = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup"
+          $scripts  = @('wezterm-toggle.ahk', 'mac-like.ahk')
           $WshShell = New-Object -comObject WScript.Shell
-          $lnk = $WshShell.CreateShortcut($shortcut)
-          $lnk.TargetPath = $ahkScript
-          $lnk.Save()
-          # 起動
-          Start-Process $ahkScript -ErrorAction SilentlyContinue
+          foreach ($script in $scripts) {
+            $src = "$dotfiles\windows\hotkey\$script"
+            $lnk = $WshShell.CreateShortcut((Join-Path $startup "$script.lnk"))
+            $lnk.TargetPath = $src
+            $lnk.Save()
+            Start-Process $src -ErrorAction SilentlyContinue
+          }
 
     # WSL Ubuntu のデフォルトシェルを zsh に
     # 前提: WSL Ubuntu 導入済 + home-manager で zsh がインストール済

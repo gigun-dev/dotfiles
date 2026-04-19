@@ -29,8 +29,11 @@ config.cell_width = 1.0
 -- レンダリング / パフォーマンス (極限チューニング)
 -- ============================================================================
 -- GPU レンダラ
-config.front_end = 'WebGpu'
-config.webgpu_power_preference = 'HighPerformance'
+-- WezTerm GitHub #4502 #5790 #6265 #6359: WebGpu + NVIDIA dual-GPU + Windows 11 で
+-- window_background_opacity が効かない既知 regression。公式ワークアラウンドは
+-- front_end = 'OpenGL' + prefer_egl = true (ANGLE 経由で DX11 を掴む)。
+config.front_end = 'OpenGL'
+config.prefer_egl = true
 
 -- フレームレート
 config.max_fps = 240          -- ディスプレイ再描画上限 (高 Hz モニタ対応)
@@ -72,14 +75,15 @@ config.show_new_tab_button_in_tab_bar = false
 -- テーマ / 外観
 -- ============================================================================
 config.color_scheme = 'Tokyo Night'
-config.window_decorations = 'RESIZE'
--- 透過 ~75%、blur なし (背景の文字も読める純粋な透過)
-config.window_background_opacity = 0.75
--- win32_system_backdrop は指定しない (Acrylic/Mica は blur 付き、不要)
+-- Win11 統合ボタン (タブバー右端に最小/最大/閉じるが乗る)
+config.window_decorations = 'INTEGRATED_BUTTONS|RESIZE'
+-- 透過 (Mac iTerm2 の Transparency=0.135 / Blur=0 を再現、opacity = 1 - 0.135 = 0.865)
+config.window_background_opacity = 0.865
 config.initial_cols = 120
 config.initial_rows = 36
 
-config.hide_tab_bar_if_only_one_tab = true
+-- INTEGRATED_BUTTONS を常に表示したいので 1 タブ時もタブバー非表示にしない
+config.hide_tab_bar_if_only_one_tab = false
 config.use_fancy_tab_bar = false
 config.tab_max_width = 32
 config.tab_bar_at_bottom = false

@@ -15,15 +15,17 @@ global WEZTERM_EXE := "wezterm-gui.exe"
 ToggleWezTerm() {
     if WinExist("ahk_exe " . WEZTERM_EXE) {
         if WinActive("ahk_exe " . WEZTERM_EXE) {
-            ; フォアグラウンドにあるなら最小化して隠す
-            WinMinimize("ahk_exe " . WEZTERM_EXE)
+            ; フォアグラウンドにあるなら隠す (タスクバーから消える)
+            WinHide("ahk_exe " . WEZTERM_EXE)
         } else {
-            ; 存在するが背面/最小化 → 前面へ
+            ; 存在するが背面/最小化/非表示 → 前面に全画面で表示
+            WinShow("ahk_exe " . WEZTERM_EXE)
             WinRestore("ahk_exe " . WEZTERM_EXE)
+            WinMaximize("ahk_exe " . WEZTERM_EXE)
             WinActivate("ahk_exe " . WEZTERM_EXE)
         }
     } else {
-        ; 起動していない → 新規起動
+        ; 起動していない → 新規起動 (最大化)
         Run(WEZTERM_EXE, , "Max")
     }
 }
