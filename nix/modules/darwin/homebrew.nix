@@ -33,7 +33,6 @@ in
       "azookey"
       "claude"
       "cmux"
-      "codex"
       "discord"
       "figma"
       "google-chrome"

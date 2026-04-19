@@ -15,7 +15,7 @@
 
     # AI
     claude-code # ← claude-code-overlay (ryoppippi)
-    # codex は brew cask で管理（Rust ビルドが重いため）
+    llm-agents.codex   # 初回 Rust ビルドは数分、以後キャッシュで瞬時
     llm-agents.opencode
     llm-agents.ccstatusline
     llm-agents.agent-browser
