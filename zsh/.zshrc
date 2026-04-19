@@ -135,17 +135,15 @@ if [[ -d "$_zsh_share/functions/Completion" ]]; then
 fi
 unset _zsh_share
 
-# WezTerm shell integration (OSC 7): 新規タブ/分割を現在のディレクトリで開く
-# WEZTERM_PANE は WezTerm が子プロセスに設定するが、WSL では WSLENV に
-# 含まれていないと継承されないので $TERM=wezterm でも有効化 (TERM は WSLENV 継承される)。
-if [[ -n "$WEZTERM_PANE" || "$TERM" == wezterm* ]]; then
-  function _wezterm_osc7() {
-    printf "\e]7;file://%s%s\e\\" "$HOSTNAME" "$PWD"
-  }
-  autoload -Uz add-zsh-hook
-  add-zsh-hook chpwd _wezterm_osc7
-  _wezterm_osc7
-fi
+# Shell integration (OSC 7): 新規タブ/分割を現在のディレクトリで開く (WezTerm 等)
+# WSL では WEZTERM_PANE が継承されず $TERM も xterm-256color になるので判定せず常時送信。
+# OSC 7 は対応していないターミナルでは無視されるだけなので害なし。
+function _wezterm_osc7() {
+  printf "\e]7;file://%s%s\e\\" "$HOSTNAME" "$PWD"
+}
+autoload -Uz add-zsh-hook
+add-zsh-hook chpwd _wezterm_osc7
+_wezterm_osc7
 
 function _deferred_compinit() {
   autoload -Uz compinit
