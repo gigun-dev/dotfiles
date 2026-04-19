@@ -1,12 +1,19 @@
 [
   {
+    // Workspace context: Ctrl+J → bottom dock (terminal)、Ctrl+L → agent panel
     "context": "Workspace",
     "bindings": {
-      // Cursor-like keybindings (Cmd+J / Cmd+L → ctrl+j / ctrl+l via AHK Mac-like remap)
       "ctrl-j": "workspace::ToggleBottomDock",
-      // agent::NewThread を使うと panel 未 deploy 時も自動で右 dock に展開される
-      // (ToggleFocus は panel 既存前提のため、初回 deploy で詰まる挙動を回避)
-      "ctrl-l": "agent::NewThread"
+      "ctrl-l": "agent::ToggleFocus"
+    }
+  },
+  {
+    // Editor context は default で ctrl-l が editor::SelectLine に bind されている
+    // (default-windows.json L114) ため override が必要。これがないと editor focus 時
+    // のみ「閉じるしかできない」見かけになる
+    "context": "Editor",
+    "bindings": {
+      "ctrl-l": "agent::ToggleFocus"
     }
   }
 ]
