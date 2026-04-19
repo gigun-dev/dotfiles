@@ -301,23 +301,32 @@ properties:
         Force: true
 
     # OneSyncSvc (Sync Host) 無効化 — OneDrive / メール sync 等を停止 (使ってない場合)
+    # PSDscResources/Service は Disabled + Running の組み合わせを reject するため
+    # State: Stopped を明示して整合させる
     - resource: PSDscResources/Service
       id: svc-onesyncsvc-disabled
       directives: { description: Disable Sync Host (OneSyncSvc) }
-      settings: { Name: OneSyncSvc, StartupType: Disabled }
+      settings: { Name: OneSyncSvc, State: Stopped, StartupType: Disabled }
 
     # Phone Link / クロスデバイス連携を削除 (モバイル連携不使用)
+    # 複数 Name の同時指定は PowerShell version で string array reject されるため
+    # 1 個ずつ呼び出して結果を OR 取る方式に
     - resource: PSDscResources/Script
       id: script-remove-mobile-link
       directives: { description: Remove Phone Link and CrossDevice apps }
       settings:
         GetScript: |
-          @{ Result = ((Get-AppxPackage Microsoft.YourPhone, MicrosoftWindows.CrossDevice -EA 0).Name -join ',') }
+          $apps = @()
+          $apps += (Get-AppxPackage -Name 'Microsoft.YourPhone' -EA 0).Name
+          $apps += (Get-AppxPackage -Name 'MicrosoftWindows.CrossDevice' -EA 0).Name
+          @{ Result = ($apps -join ',') }
         TestScript: |
-          -not (Get-AppxPackage Microsoft.YourPhone, MicrosoftWindows.CrossDevice -EA 0)
+          $yp = Get-AppxPackage -Name 'Microsoft.YourPhone' -EA 0
+          $cd = Get-AppxPackage -Name 'MicrosoftWindows.CrossDevice' -EA 0
+          return (-not $yp -and -not $cd)
         SetScript: |
-          Get-AppxPackage Microsoft.YourPhone -EA 0 | Remove-AppxPackage -EA 0
-          Get-AppxPackage MicrosoftWindows.CrossDevice -EA 0 | Remove-AppxPackage -EA 0
+          Get-AppxPackage -Name 'Microsoft.YourPhone' -EA 0 | Remove-AppxPackage -EA 0
+          Get-AppxPackage -Name 'MicrosoftWindows.CrossDevice' -EA 0 | Remove-AppxPackage -EA 0
 
     # Windows Copilot 完全無効化 (Group Policy)
     - resource: PSDscResources/Registry
