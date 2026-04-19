@@ -83,6 +83,23 @@ properties:
       directives: { description: Zoom Workplace }
       settings: { id: Zoom.Zoom, source: winget }
 
+    # Aqua Voice (音声入力 AI) — winget 未登録、公式 S3 から直接 download
+    - resource: PSDscResources/Script
+      id: script-install-aquavoice
+      directives: { description: Install Aqua Voice (direct download from aqua.zone S3) }
+      settings:
+        GetScript: |
+          @{ Result = (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Aqua Voice.lnk") }
+        TestScript: |
+          Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Aqua Voice.lnk"
+        SetScript: |
+          $url = 'https://aqua-desktop-builds.s3.us-east-1.amazonaws.com/aqua-voice-updates/stable/latest/Aqua-Voice-Windows-Setup.exe'
+          $exe = "$env:TEMP\Aqua-Voice-Setup.exe"
+          Invoke-WebRequest -Uri $url -OutFile $exe -UseBasicParsing
+          # Squirrel-style installer: /S で silent install (対応してなければ UI 表示、手動で OK)
+          Start-Process -FilePath $exe -ArgumentList '/S' -Wait
+          Remove-Item $exe -ErrorAction SilentlyContinue
+
     # uv / nodejs / bun / deno / pnpm は WSL 内 home-manager 管理 (Mac 側 packages.nix と同じ扱い)
     # Windows ネイティブには dev ランタイムを入れない
 
