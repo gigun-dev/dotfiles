@@ -73,6 +73,16 @@ properties:
       directives: { description: iCloud for Windows (Chrome iCloud Passwords 拡張に必要) }
       settings: { id: 9PKTQ5699M62, source: msstore }
 
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: pkg-slack
+      directives: { description: Slack }
+      settings: { id: SlackTechnologies.Slack, source: winget }
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: pkg-zoom
+      directives: { description: Zoom Workplace }
+      settings: { id: Zoom.Zoom, source: winget }
+
     # uv / nodejs / bun / deno / pnpm は WSL 内 home-manager 管理 (Mac 側 packages.nix と同じ扱い)
     # Windows ネイティブには dev ランタイムを入れない
 
