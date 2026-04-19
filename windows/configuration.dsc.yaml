@@ -531,7 +531,7 @@ properties:
         TestScript: |
           try {
             $locales = wsl -d Ubuntu -u root -- locale -a 2>$null
-            return ($locales -match 'en_US')
+            return [bool]($locales -match 'en_US')
           } catch { return $false }
         SetScript: |
           wsl -d Ubuntu -u root -- locale-gen en_US.UTF-8
