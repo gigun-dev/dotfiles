@@ -68,6 +68,11 @@ properties:
       directives: { description: RealVNC Viewer (remote desktop to Mac mini) }
       settings: { id: RealVNC.VNCViewer, source: winget }
 
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: pkg-icloud
+      directives: { description: iCloud for Windows (Chrome iCloud Passwords 拡張に必要) }
+      settings: { id: 9PKTQ5699M62, source: msstore }
+
     # uv / nodejs / bun / deno / pnpm は WSL 内 home-manager 管理 (Mac 側 packages.nix と同じ扱い)
     # Windows ネイティブには dev ランタイムを入れない
 
