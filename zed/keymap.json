@@ -3,7 +3,8 @@
     "context": "Workspace",
     "bindings": {
       // Cursor-like keybindings (Cmd+J / Cmd+L → ctrl+j / ctrl+l via AHK Mac-like remap)
-      "ctrl-j": "terminal_panel::ToggleFocus",
+      // bottom dock = terminal、right dock = AI chat / outline、両方 open/close toggle
+      "ctrl-j": "workspace::ToggleBottomDock",
       "ctrl-l": "workspace::ToggleRightDock"
     }
   }
