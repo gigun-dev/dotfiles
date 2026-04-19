@@ -4,7 +4,9 @@
     "bindings": {
       // Cursor-like keybindings (Cmd+J / Cmd+L → ctrl+j / ctrl+l via AHK Mac-like remap)
       "ctrl-j": "workspace::ToggleBottomDock",
-      "ctrl-l": "agent::ToggleFocus"
+      // agent::NewThread を使うと panel 未 deploy 時も自動で右 dock に展開される
+      // (ToggleFocus は panel 既存前提のため、初回 deploy で詰まる挙動を回避)
+      "ctrl-l": "agent::NewThread"
     }
   }
 ]

@@ -86,8 +86,8 @@ config.window_background_opacity = 0.75
 config.initial_cols = 120
 config.initial_rows = 36
 
--- INTEGRATED_BUTTONS を常に表示したいので 1 タブ時もタブバー非表示にしない
-config.hide_tab_bar_if_only_one_tab = false
+-- タブバー完全非表示 (タブ管理は LAlt+1..9 や LAlt+T/W 等のキー操作で完結)
+config.enable_tab_bar = false
 config.use_fancy_tab_bar = false
 config.tab_max_width = 32
 config.tab_bar_at_bottom = false
