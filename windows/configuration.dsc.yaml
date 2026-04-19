@@ -300,20 +300,6 @@ properties:
         Ensure: Absent
         Force: true
 
-    # Remote Desktop services 完全無効化 (Windows 機に外部から接続することがないため)
-    - resource: PSDscResources/Service
-      id: svc-termservice-disabled
-      directives: { description: Disable Remote Desktop Services }
-      settings: { Name: TermService, StartupType: Disabled }
-    - resource: PSDscResources/Service
-      id: svc-sessionenv-disabled
-      directives: { description: Disable Remote Desktop Configuration }
-      settings: { Name: SessionEnv, StartupType: Disabled }
-    - resource: PSDscResources/Service
-      id: svc-umrdpservice-disabled
-      directives: { description: Disable Remote Desktop UserMode Port Redirector }
-      settings: { Name: UmRdpService, StartupType: Disabled }
-
     # OneSyncSvc (Sync Host) 無効化 — OneDrive / メール sync 等を停止 (使ってない場合)
     - resource: PSDscResources/Service
       id: svc-onesyncsvc-disabled
