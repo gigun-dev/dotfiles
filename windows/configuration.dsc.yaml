@@ -314,6 +314,25 @@ properties:
       directives: { description: Disable Remote Desktop UserMode Port Redirector }
       settings: { Name: UmRdpService, StartupType: Disabled }
 
+    # OneSyncSvc (Sync Host) 無効化 — OneDrive / メール sync 等を停止 (使ってない場合)
+    - resource: PSDscResources/Service
+      id: svc-onesyncsvc-disabled
+      directives: { description: Disable Sync Host (OneSyncSvc) }
+      settings: { Name: OneSyncSvc, StartupType: Disabled }
+
+    # Phone Link / クロスデバイス連携を削除 (モバイル連携不使用)
+    - resource: PSDscResources/Script
+      id: script-remove-mobile-link
+      directives: { description: Remove Phone Link and CrossDevice apps }
+      settings:
+        GetScript: |
+          @{ Result = ((Get-AppxPackage Microsoft.YourPhone, MicrosoftWindows.CrossDevice -EA 0).Name -join ',') }
+        TestScript: |
+          -not (Get-AppxPackage Microsoft.YourPhone, MicrosoftWindows.CrossDevice -EA 0)
+        SetScript: |
+          Get-AppxPackage Microsoft.YourPhone -EA 0 | Remove-AppxPackage -EA 0
+          Get-AppxPackage MicrosoftWindows.CrossDevice -EA 0 | Remove-AppxPackage -EA 0
+
     # Windows Copilot 完全無効化 (Group Policy)
     - resource: PSDscResources/Registry
       id: reg-disable-copilot-policy
