@@ -75,6 +75,10 @@ config.show_new_tab_button_in_tab_bar = false
 -- テーマ / 外観
 -- ============================================================================
 config.color_scheme = 'Tokyo Night'
+-- Tokyo Night の青みがかった背景を純粋な黒に override (foreground 色はそのまま)
+config.colors = {
+  background = '#000000',
+}
 -- Win11 統合ボタン (タブバー右端に最小/最大/閉じるが乗る)
 config.window_decorations = 'INTEGRATED_BUTTONS|RESIZE'
 -- 透過 (Mac iTerm2 の Transparency=0.135 / Blur=0 を再現、opacity = 1 - 0.135 = 0.865)
