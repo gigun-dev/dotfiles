@@ -63,12 +63,12 @@ windows/
 | UI 抑止 | `PSDscResources/Registry` | Widgets, Copilot (taskbar + Group Policy), 広告 ID, Start 推奨 |
 | パフォーマンス (Registry/Service) | `PSDscResources/*` | Visual effects=Custom, Fast Startup off, SysMain/DiagTrack/OneSyncSvc 無効化, EnableTransparency=1 |
 | キー / 入力 | `PSDscResources/Registry` | Scancode Map (Mac 風 remap)、PrintScreen→Snipping、iGPU 強制 (WezTerm 透過) |
-| カスタムスクリプト | `PSDscResources/Script` | Hibernation off、電源プラン、Font 導入、Tailscale、Defender 除外、Phone Link / CrossDevice 削除、GoogleUpdater Scheduled Task 無効化、WSL locale 生成、git credential helper 切替 (gh)、AHK スタートアップ登録、Aqua Voice 直接 download install、Symlink (wslconfig / wezterm.lua / kanata / .gitconfig / Zed keymap) |
+| カスタムスクリプト | `PSDscResources/Script` | Hibernation off、電源プラン、Font 導入、Tailscale、Defender 除外、Phone Link / CrossDevice 削除、GoogleUpdater Scheduled Task 無効化、WSL locale 生成、git credential helper 切替 (gh)、AHK スタートアップ登録、Symlink (wslconfig / wezterm.lua / kanata / .gitconfig / Zed keymap) |
 
 ## 設計原則
 
 - **宣言的 single source of truth**: `configuration.dsc.yaml` が構成の全て。個別 .ps1 は DSC Script から呼ばれる補助
-- **winget 一本化**: Scoop / Chocolatey は不採用。winget に無いもの (Aqua Voice 等) だけ DSC Script で直接 download
+- **winget 一本化**: Scoop / Chocolatey は不採用。winget / msstore に無いものだけ DSC Script で直接 download
 - **WSL2 を主力に**: ローカル開発は WSL 内で完結。Git Bash は Claude Code 等のネイティブツールが呼ぶ最小 POSIX 用途のみ
 - **エディタ**: VSCode / Cursor / Zed は **Windows native + Remote-WSL (公式推奨) pattern**。各エディタが組込 WSL 接続機能を持つため Linux 版 WSLg より起動/IME/GPU の質が高い。設定 (keymap 等) は dotfiles で symlink 共有
 - **AI tools**: `claude-code` / `codex` / `opencode` / `ccstatusline` は nix で WSL に集約。Windows native には入れない (= Windows native Claude Code 利用時は plugin hook の node 依存等で注意)
