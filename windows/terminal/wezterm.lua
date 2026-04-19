@@ -115,8 +115,9 @@ end
 config.disable_default_key_bindings = false
 
 config.keys = {
-  -- Tab
-  { key = 't', mods = 'CTRL|SHIFT',       action = act.SpawnTab('CurrentPaneDomain') }, -- Cmd+T
+  -- Tab: WezTerm が pane の cwd を自動引継ぎ (OSC 7 経由)。連打で race が
+  -- 起きると WezTerm 起動時 cwd (Windows side) に落ちることがあるが稀なので許容。
+  { key = 't', mods = 'CTRL|SHIFT',       action = act.SpawnTab('CurrentPaneDomain') },
   { key = 'w', mods = 'CTRL|SHIFT',       action = act.CloseCurrentPane({ confirm = false }) }, -- Cmd+W
 
   -- Pane split (iTerm2 準拠)
@@ -146,5 +147,11 @@ config.keys = {
   -- Fullscreen (Cmd+Shift+F 相当)
   { key = 'f', mods = 'CTRL|SHIFT|ALT',   action = act.ToggleFullScreen },
 }
+
+-- Tab navigation by number (iTerm2 風 Cmd+1..9 → ActivateTab)
+-- phys:Digit1..9 で物理キー指定 (JIS/US の Shift+数字 symbol 違いを回避)
+for i = 1, 9 do
+  table.insert(config.keys, { key = 'phys:' .. tostring(i), mods = 'CTRL|SHIFT', action = act.ActivateTab(i - 1) })
+end
 
 return config
