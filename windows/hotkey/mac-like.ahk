@@ -161,9 +161,10 @@ IsImeOn() {
     return DllCall("user32\SendMessage", "ptr", hime, "uint", 0x283, "ptr", 0x005, "ptr", 0)
 }
 
-^j::Send IsImeOn() ? "{F6}" : "^j"
-^k::Send IsImeOn() ? "{F7}" : "^k"
-^l::Send IsImeOn() ? "{F8}" : "^l"
+; $ prefix で Use Hook → AHK が送った ^j を自分で再 trigger しないようにする
+$^j::Send IsImeOn() ? "{F6}" : "^j"
+$^k::Send IsImeOn() ? "{F7}" : "^k"
+$^l::Send IsImeOn() ? "{F8}" : "^l"
 
 ; IME 切替時の視覚フィードバック
 ;   実制御は MS IME の設定 (無変換→IME-オフ / 変換→IME-オン) に委譲。
