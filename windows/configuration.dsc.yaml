@@ -333,12 +333,18 @@ properties:
         Force: true
 
     # OneSyncSvc (Sync Host) 無効化 — OneDrive / メール sync 等を停止 (使ってない場合)
-    # PSDscResources/Service は Disabled + Running の組み合わせを reject するため
-    # State: Stopped を明示して整合させる
-    - resource: PSDscResources/Service
+    # PSDscResources/Service は Per-User サービス (OneSyncSvc_xxxxx) に対して
+    # StartupType プロパティが存在しないためエラーになる。Registry で直接無効化。
+    - resource: PSDscResources/Registry
       id: svc-onesyncsvc-disabled
-      directives: { description: Disable Sync Host (OneSyncSvc) }
-      settings: { Name: OneSyncSvc, State: Stopped, StartupType: Disabled }
+      directives: { description: Disable Sync Host (OneSyncSvc) via Registry }
+      settings:
+        Key: HKLM:\SYSTEM\CurrentControlSet\Services\OneSyncSvc
+        ValueName: Start
+        ValueData: "4"
+        ValueType: Dword
+        Ensure: Present
+        Force: true
 
     # Phone Link / クロスデバイス連携を削除 (モバイル連携不使用)
     # 複数 Name の同時指定は PowerShell version で string array reject されるため
@@ -360,7 +366,7 @@ properties:
           Get-AppxPackage -Name 'Microsoft.YourPhone' -EA 0 | Remove-AppxPackage -EA 0
           Get-AppxPackage -Name 'MicrosoftWindows.CrossDevice' -EA 0 | Remove-AppxPackage -EA 0
 
-    # Windows Copilot 完全無効化 (Group Policy)
+    # Windows Copilot 完全無効化 (Group Policy + AppxPackage 削除)
     - resource: PSDscResources/Registry
       id: reg-disable-copilot-policy
       directives: { description: Disable Windows Copilot via group policy }
@@ -370,6 +376,18 @@ properties:
         ValueData: ['1']
         ValueType: Dword
         Force: true
+
+    - resource: PSDscResources/Script
+      id: script-remove-copilot
+      directives: { description: Remove Microsoft Copilot AppxPackage }
+      settings:
+        GetScript: |
+          @{ Result = (Get-AppxPackage -Name 'Microsoft.Copilot' -EA 0).Name }
+        TestScript: |
+          -not (Get-AppxPackage -Name 'Microsoft.Copilot' -EA 0)
+        SetScript: |
+          Get-AppxPackage -Name 'Microsoft.Copilot' -EA 0 | Remove-AppxPackage -EA 0
+          Get-AppxPackage -Name 'Microsoft.Windows.Copilot' -EA 0 | Remove-AppxPackage -EA 0
 
     # Google Updater の Scheduled Task を無効化 (Chrome 本体起動時更新で十分)
     - resource: PSDscResources/Script
