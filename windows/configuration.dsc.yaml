@@ -400,17 +400,17 @@ properties:
         SetScript: |
           powercfg /hibernate off
 
-    # 電源プラン → High performance
+    # 電源プラン → Balanced (設定アプリの「電源モード」スライダーを有効化)
     - resource: PSDscResources/Script
-      id: script-power-high-perf
-      directives: { description: Set power plan to High performance }
+      id: script-power-balanced
+      directives: { description: Set power plan to Balanced (enables power mode slider in Settings) }
       settings:
         GetScript: |
           @{ Result = (powercfg /getactivescheme) }
         TestScript: |
-          (powercfg /getactivescheme) -match '8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c'
+          (powercfg /getactivescheme) -match '381b4222-f694-41f0-9685-ff5bb260df2e'
         SetScript: |
-          powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
+          powercfg /setactive 381b4222-f694-41f0-9685-ff5bb260df2e
 
     # JetBrains Mono Nerd Font インストール
     - resource: PSDscResources/Script
