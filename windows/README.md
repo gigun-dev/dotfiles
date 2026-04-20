@@ -63,7 +63,7 @@ windows/
 | UI 抑止 | `PSDscResources/Registry` | Widgets, Copilot (taskbar + Group Policy), 広告 ID, Start 推奨 |
 | パフォーマンス (Registry/Service) | `PSDscResources/*` | Visual effects=Custom, Fast Startup off, SysMain/DiagTrack/OneSyncSvc 無効化, EnableTransparency=1 |
 | キー / 入力 | `PSDscResources/Registry` | Scancode Map (Mac 風 remap)、PrintScreen→Snipping、iGPU 強制 (WezTerm 透過) |
-| カスタムスクリプト | `PSDscResources/Script` | Hibernation off、電源プラン、Font 導入、Tailscale、Defender 除外、Phone Link / CrossDevice 削除、GoogleUpdater Scheduled Task 無効化、WSL locale 生成、git credential helper 切替 (gh)、AHK スタートアップ登録、Symlink (wslconfig / wezterm.lua / kanata / .gitconfig / Zed keymap) |
+| カスタムスクリプト | `PSDscResources/Script` | Hibernation off、電源プラン (Balanced = GUI スライダー有効)、Font 導入、Tailscale、Defender 除外、Phone Link / CrossDevice 削除、GoogleUpdater Scheduled Task 無効化、WSL locale 生成、git credential helper 切替 (gh)、AHK スタートアップ登録、ImageMagick symlink、Symlink (wslconfig / wezterm.lua / kanata / .gitconfig / Zed keymap) |
 
 ## 設計原則
 
@@ -74,7 +74,7 @@ windows/
 - **AI tools**: `claude-code` / `codex` / `opencode` / `ccstatusline` は nix で WSL に集約。Windows native には入れない (= Windows native Claude Code 利用時は plugin hook の node 依存等で注意)
 - **Tailscale**: MSI デフォルト構成 (GUI + daemon) を尊重、Unattended mode 有効化で daemon 単独接続可
 - **フォント**: Mac と同じ JetBrains Mono Nerd Font
-- **キーボード**: Scancode Map + AHK `mac-like.ahk` で Mac 風 modifier 配置 (LAlt=Cmd / LWin=Opt / Caps=Ctrl)。WezTerm Hotkey Window / IME トグル / Cursor 風 Cmd+J/L 等を全部ここで実装
+- **キーボード**: Scancode Map + AHK `mac-like.ahk` で Mac 風 modifier 配置 (LAlt=Cmd / LWin=Opt / Caps=Ctrl)。WezTerm Hotkey Window / IME トグル / Cursor 風 Cmd+J/L / クリップボード画像→WSL パスペースト / Rapture スクショ (Cmd+Shift+4) 等を全部ここで実装
 - **git auth 統一**: 全 OS で `gh auth login` 1 回 + `credential.helper = '!gh auth git-credential'` で HTTPS+token 認証。SSH key 管理不要
 
 ## DSC 適用後の手動ステップ
