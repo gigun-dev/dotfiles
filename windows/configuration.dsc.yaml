@@ -96,6 +96,28 @@ properties:
       directives: { description: AutoHotkey v2 (hotkey scripts) }
       settings: { id: AutoHotkey.AutoHotkey, source: winget }
 
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: pkg-imagemagick
+      directives: { description: ImageMagick (clipboard image → PNG 保存用) }
+      settings: { id: ImageMagick.ImageMagick, source: winget }
+
+    - resource: PSDscResources/Script
+      id: script-magick-shim
+      dependsOn: [pkg-imagemagick]
+      directives: { description: Symlink C:\tools\imagemagick → ImageMagick dir (バージョン非依存) }
+      settings:
+        GetScript: |
+          @{ Result = (Get-Item 'C:\tools\imagemagick' -ErrorAction SilentlyContinue).Target }
+        TestScript: |
+          $item = Get-Item 'C:\tools\imagemagick' -ErrorAction SilentlyContinue
+          return ($item -and $item.LinkType -eq 'SymbolicLink' -and (Test-Path "$($item.Target)\magick.exe"))
+        SetScript: |
+          $dir = Get-ChildItem 'C:\Program Files\ImageMagick*' -Directory | Select-Object -Last 1
+          if (-not $dir) { throw 'ImageMagick not found' }
+          if (-not (Test-Path 'C:\tools')) { New-Item -ItemType Directory -Path 'C:\tools' | Out-Null }
+          if (Test-Path 'C:\tools\imagemagick') { Remove-Item 'C:\tools\imagemagick' -Force }
+          New-Item -ItemType SymbolicLink -Path 'C:\tools\imagemagick' -Target $dir.FullName | Out-Null
+
     # ========================================================================
     # Explorer tweaks (tweaks/explorer.ps1 相当)
     # ========================================================================

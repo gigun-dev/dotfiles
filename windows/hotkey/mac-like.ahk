@@ -60,7 +60,12 @@ F13 & u::SendCmd("u")   ; WezTerm: transparency toggle (iTerm2 Cmd+U 風)
 F13 & 1::SendCmd("1")
 F13 & 2::SendCmd("2")
 F13 & 3::SendCmd("3")
-F13 & 4::SendCmd("4")
+F13 & 4::{                  ; Cmd+4 / Cmd+Shift+4 = Rapture (Mac スクショ)
+    if GetKeyState("Shift", "P")
+        Run '"C:\Users\81809\rapture-2.4.1\rapture.exe"', "C:\Users\81809\rapture-2.4.1"
+    else
+        SendCmd("4")
+}
 F13 & 5::SendCmd("5")
 F13 & 6::SendCmd("6")
 F13 & 7::SendCmd("7")
@@ -99,6 +104,39 @@ F14 & 7::SendCmd("7")
 F14 & 8::SendCmd("8")
 F14 & 9::SendCmd("9")
 F14 & Backspace::SendInput "{Delete}"
+
+; Caps+V (= Ctrl+V) = ペースト (WezTerm 内: 画像があれば WSL パス貼り付け、なければ通常ペースト)
+; $ prefix でフック使用 (自身の SendInput ^v を再 trigger しない)
+$^v::{
+    if WinActive("ahk_exe wezterm-gui.exe") {
+        if PasteClipboardImage()
+            return
+        SendInput "^+v"  ; WezTerm のペーストは Ctrl+Shift+V
+    } else {
+        SendInput "^v"
+    }
+}
+
+PasteClipboardImage() {
+    static counter := 0
+    stamp := FormatTime(, "yyyyMMddHHmmss") . "_" . (++counter)
+    winPath := "C:\tmp\clip_" . stamp . ".png"
+    wslPath := "/mnt/c/tmp/clip_" . stamp . ".png"
+
+    DirCreate "C:\tmp"
+
+    ; ImageMagick でクリップボード画像を PNG 保存 (非ゼロ exit = 画像なし)
+    ; DSC が C:\tools\imagemagick → 実体ディレクトリに symlink
+    RunWait('"C:\tools\imagemagick\magick.exe" clipboard: "' . winPath . '"', "C:\tmp", "Hide")
+    if !FileExist(winPath)
+        return false
+
+    ; WSL パスをクリップボード経由で一括ペースト
+    A_Clipboard := wslPath
+    ClipWait 1
+    SendInput "^+v"
+    return true
+}
 
 ; WezTerm Hotkey Window (iTerm2 風)
 ;   物理 LWin+Space (= F13+Space) でトグル。Mac の Cmd+Space 感覚。
