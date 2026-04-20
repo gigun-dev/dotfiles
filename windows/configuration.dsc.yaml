@@ -389,6 +389,28 @@ properties:
           Get-AppxPackage -Name 'Microsoft.Copilot' -EA 0 | Remove-AppxPackage -EA 0
           Get-AppxPackage -Name 'Microsoft.Windows.Copilot' -EA 0 | Remove-AppxPackage -EA 0
 
+    # HP ブロートウェア全削除 (myHP, Support Assistant, QuickDrop 等)
+    - resource: PSDscResources/Script
+      id: script-remove-hp-bloatware
+      directives: { description: Remove all HP preinstalled AppxPackages }
+      settings:
+        GetScript: |
+          @{ Result = ((Get-AppxPackage -Name 'AD2F1837.*' -EA 0).Name -join ',') }
+        TestScript: |
+          -not (Get-AppxPackage -Name 'AD2F1837.*' -EA 0)
+        SetScript: |
+          Get-AppxPackage -Name 'AD2F1837.*' -EA 0 | Remove-AppxPackage -EA 0
+
+    # Aqua Voice スタートアップ無効化 (使う時だけ手動起動、常駐 ~780MB 節約)
+    - resource: PSDscResources/Registry
+      id: reg-disable-aquavoice-startup
+      directives: { description: Disable Aqua Voice auto-start }
+      settings:
+        Key: HKCU:\Software\Microsoft\Windows\CurrentVersion\Run
+        ValueName: aqua-voice
+        Ensure: Absent
+        Force: true
+
     # Google Updater の Scheduled Task を無効化 (Chrome 本体起動時更新で十分)
     - resource: PSDscResources/Script
       id: script-disable-googleupdater-tasks
