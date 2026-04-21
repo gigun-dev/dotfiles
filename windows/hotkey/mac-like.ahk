@@ -169,6 +169,21 @@ IsImeOn() {
     return DllCall("user32\SendMessage", "ptr", hime, "uint", 0x283, "ptr", 0x005, "ptr", 0)
 }
 
+; IME に未確定文字 (composition) があるか判定
+;   GCS_COMPSTR = 0x0008, ImmGetCompositionString の戻り値 > 0 なら未確定あり
+IsComposing() {
+    hwnd := WinExist("A")
+    if !hwnd
+        return false
+    tid := DllCall("GetWindowThreadProcessId", "ptr", hwnd, "ptr*", 0, "uint")
+    himc := DllCall("imm32\ImmGetContext", "ptr", hwnd, "ptr")
+    if !himc
+        return false
+    len := DllCall("imm32\ImmGetCompositionString", "ptr", himc, "uint", 0x0008, "ptr", 0, "uint", 0, "int")
+    DllCall("imm32\ImmReleaseContext", "ptr", hwnd, "ptr", himc)
+    return len > 0
+}
+
 ; $ prefix で Use Hook → AHK が送った ^j を自分で再 trigger しないようにする
 $^j::Send IsImeOn() ? "{F6}" : "^j"
 $^k::Send IsImeOn() ? "{F7}" : "^k"
@@ -180,7 +195,15 @@ $^l::Send IsImeOn() ? "{F8}" : "^l"
 ;   注意: Scancode Map で JIS キー (カタカナ等) を remap すると変換/無変換の
 ;   VK コードが崩壊して MS IME KeyAssignment が効かなくなる (既知問題)。
 ~vk1D::ShowImeIndicator("A")
-~vk1C::ShowImeIndicator("あ")
+
+; 変換キー: 未確定文字がなければ IME ON として pass-through + インジケータ表示
+; 未確定文字があるときは抑制 (カタカナ変換を防止、Mac 風の挙動)
+vk1C::{
+    if IsComposing()
+        return
+    SendInput "{vk1C}"
+    ShowImeIndicator("あ")
+}
 
 ShowImeIndicator(text) {
     static g := ""
