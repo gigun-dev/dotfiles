@@ -129,7 +129,7 @@ Windows 環境で遭遇したハマり所と解決策。設定ファイル側に
 
 ### MS IME
 - **ライブ変換は Windows 11 標準 MS IME にない**: macOS の live conversion (azooKey 風) は標準未提供。Mozc 等 OSS も同等機能なし。azooKey Windows 版は未リリース (2026-04 時点)
-- **無変換/変換 → IME Off/On**: `HKCU:\SOFTWARE\Microsoft\IME\15.0\IMEJP\MSIME` の `KeyAssignmentMuhenkan=1` / `KeyAssignmentHenkan=0` で宣言化済 (DSC で冪等適用)
+- **無変換/変換 → IME Off/On**: MS IME KeyAssignment (Registry 宣言化済) + AHK で SC ベース捕捉→標準 VK 再送。Scancode Map がカタカナキーを remap すると変換/無変換の VK コードが標準 (0x1C/0x1D) から HP 固有値 (0xFF/0xEB) に化ける。SC (0x79/0x7B) は安定なので SC で捕捉し `SendInput "{vk1Csc079}"` で標準 VK+SC を再送して MS IME に認識させる
 
 ### dual-GPU (NVIDIA Optimus 系)
 - **DWM は iGPU で動作**: アプリが dGPU で描画すると DXGI surface の cross-adapter 共有で alpha が欠落する既知バグ (WezTerm 透過失敗の根源)
