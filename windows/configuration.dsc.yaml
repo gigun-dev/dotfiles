@@ -59,6 +59,11 @@ properties:
       settings: { id: Google.Chrome, source: winget }
 
     - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: pkg-google-drive
+      directives: { description: Google Drive Desktop }
+      settings: { id: Google.GoogleDrive, source: winget }
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
       id: pkg-figma
       directives: { description: Figma }
       settings: { id: Figma.Figma, source: winget }
@@ -702,6 +707,23 @@ properties:
           wsl -d Ubuntu -u root -- sh -c "grep -qxF '$zsh' /etc/shells || echo '$zsh' >> /etc/shells"
           # ログインシェル変更
           wsl -d Ubuntu -u root -- chsh -s $zsh gigun
+
+    # WSL の /etc/fstab に Google Drive (G:) の自動マウントを宣言
+    # Google Drive Desktop が G: に仮想ドライブを作成する前提
+    - resource: PSDscResources/Script
+      id: script-wsl-fstab-gdrive
+      directives: { description: Auto-mount Google Drive (G:) in WSL via /etc/fstab }
+      settings:
+        GetScript: |
+          @{ Result = (wsl -d Ubuntu -u root -- cat /etc/fstab 2>$null) }
+        TestScript: |
+          try {
+            $fstab = wsl -d Ubuntu -u root -- cat /etc/fstab 2>$null
+            return [bool]($fstab -match 'G:\s+/mnt/g')
+          } catch { return $false }
+        SetScript: |
+          wsl -d Ubuntu -u root -- sh -c "echo 'G: /mnt/g drvfs defaults 0 0' >> /etc/fstab"
+          wsl -d Ubuntu -u root -- sh -c "mkdir -p /mnt/g"
 
     # Git credential helper を gh CLI に統一 (Windows GCM から移行)
     # Mac/Linux は home-manager の programs.git で同設定済、全 OS で gh auth login 1 回で完結
