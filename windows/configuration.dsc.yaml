@@ -519,27 +519,30 @@ properties:
     # フォーマット: 8-byte header + 4-byte count (N+1) + N*4-byte mappings + 4-byte terminator
     #   各 mapping = [output VK low][output VK high][input VK low][input VK high] (little-endian)
     #
-    # 36 bytes total = 72 hex chars. MBP JIS 最下段と完全一致する配置:
+    # 28 bytes total = 56 hex chars. MBP JIS 最下段の左手側を再現:
     #   MBP:  fn | ctrl | opt | cmd | 英数 | space | かな | cmd | opt
-    #   HP:   Fn | Win  | Opt | Cmd | 英数 | space | かな | Cmd | Opt  (以下の remap で実現)
+    #   HP:   Fn | Win  | Opt | Cmd | 無変換| space | カタカナ(native) | ...
     #
     #   0000000000000000  header
-    #   06000000          count = 5 mappings + 1 terminator
+    #   05000000          count = 4 mappings + 1 terminator
     #   1D003A00          Caps(3A)    -> LCtrl(1D)       小指 Ctrl (zsh hotkey / SIGINT)
     #   5BE01D00          LCtrl(1D)   -> LWin(E0 5B)     本物の Win キー (Win+L, Win+Shift+S)
     #   38005BE0          LWin(E0 5B) -> LAlt(38)        3 番目を Opt (MBP opt 位置と一致)
     #   64003800          LAlt(38)    -> F13(64)         4 番目を Cmd (MBP cmd 位置と一致、AHK で Ctrl+文字 に変換)
-    #   65007000          カタカナ(70) -> F14(65)          右親指 Cmd (AHK で Ctrl+文字 に変換)
     #   00000000          terminator
     #
-    # AHK 側: windows/hotkey/mac-like.ahk が F13/F14 + 文字 を Ctrl+文字 (WezTerm 内は Ctrl+Shift+文字) に変換
+    # 注意: カタカナキー (SC 0x70) は remap しない。JIS 固有キーを Scancode Map で
+    # 変更すると、ドライバの JIS 配列認識が崩れて変換/無変換の VK コードまで変化する。
+    # 右 Cmd が必要になった場合は AHK 側で対応する。
+    #
+    # AHK 側: windows/hotkey/mac-like.ahk が F13 + 文字 を Ctrl+文字 (WezTerm 内は Ctrl+Shift+文字) に変換
     - resource: PSDscResources/Registry
       id: reg-keymap-mac-like
-      directives: { description: Mac-like keymap (LAlt=Cmd / LWin=Opt / LCtrl=Win / Caps=Ctrl / Kana=RCmd) }
+      directives: { description: Mac-like keymap (LAlt=Cmd / LWin=Opt / LCtrl=Win / Caps=Ctrl) }
       settings:
         Key: HKLM:\SYSTEM\CurrentControlSet\Control\Keyboard Layout
         ValueName: Scancode Map
-        ValueData: '0000000000000000060000001D003A005BE01D0038005BE0640038006500700000000000'
+        ValueData: '0000000000000000050000001D003A005BE01D0038005BE06400380000000000'
         ValueType: Binary
         Force: true
 

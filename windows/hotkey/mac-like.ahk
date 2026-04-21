@@ -14,10 +14,10 @@ DllCall("SystemParametersInfo", "UInt", 0x2001, "UInt", 0, "Ptr", 0, "UInt", 0)
 ;   物理 Caps       → LCtrl (既存 swap、小指 Ctrl)
 ;
 ; このスクリプトは F13 / F14 + 文字キー を Ctrl + 文字 に変換する。
-; F13 / F14 単体押下は明示的に吸収 (race condition 防止、最重要)。
+; F13 単体押下は明示的に吸収 (race condition 防止、最重要)。
+; F14 は未使用 (カタカナキーの Scancode Map remap を撤廃済、JIS VK 崩壊回避のため)。
 
 F13::return
-F14::return
 
 ; Cmd+key → Ctrl+key (一般 GUI) / Ctrl+Shift+key (WezTerm 内、タブ操作等のため)
 SendCmd(key) {
@@ -72,38 +72,6 @@ F13 & 7::SendCmd("7")
 F13 & 8::SendCmd("8")
 F13 & 9::SendCmd("9")
 F13 & Backspace::SendInput "{Delete}"
-
-; F14 = 右 Cmd (物理 カタカナひらがな)
-F14 & c::SendCmd("c")
-F14 & v::SendCmd("v")
-F14 & x::SendCmd("x")
-F14 & a::SendCmd("a")
-F14 & z::SendCmd("z")
-F14 & y::SendCmd("y")
-F14 & s::SendCmd("s")
-F14 & f::SendCmd("f")
-F14 & t::SendCmd("t")
-F14 & w::SendCmd("w")
-F14 & d::HandleCmdD()
-F14 & k::SendCmd("k")
-F14 & n::SendCmd("n")
-F14 & p::SendCmd("p")
-F14 & o::SendCmd("o")
-F14 & r::SendCmd("r")
-F14 & q::SendCmd("q")
-F14 & j::SendCmd("j")
-F14 & l::SendCmd("l")
-F14 & u::SendCmd("u")
-F14 & 1::SendCmd("1")
-F14 & 2::SendCmd("2")
-F14 & 3::SendCmd("3")
-F14 & 4::SendCmd("4")
-F14 & 5::SendCmd("5")
-F14 & 6::SendCmd("6")
-F14 & 7::SendCmd("7")
-F14 & 8::SendCmd("8")
-F14 & 9::SendCmd("9")
-F14 & Backspace::SendInput "{Delete}"
 
 ; Caps+V (= Ctrl+V) = ペースト (WezTerm 内: 画像があれば WSL パス貼り付け、なければ通常ペースト)
 ; $ prefix でフック使用 (自身の SendInput ^v を再 trigger しない)
@@ -206,21 +174,13 @@ $^j::Send IsImeOn() ? "{F6}" : "^j"
 $^k::Send IsImeOn() ? "{F7}" : "^k"
 $^l::Send IsImeOn() ? "{F8}" : "^l"
 
-; IME 切替 (無変換→Off / 変換→On) + 視覚フィードバック
-;   HP ENVY JIS の VK コードが Scancode Map 影響で標準 (0x1D/0x1C) から変化するため
-;   MS IME KeyAssignment が効かない。keybd_event で標準 VK を直接注入し
-;   MS IME に正しいキーとして認識させる。
-
-SC07B::  ; 無変換 (SC 0x7B — SendInput で標準 VK+SC を再送、AHK フック自己バイパス)
-{
-    SendInput "{vk1Dsc07B}"
-    ShowImeIndicator("A")
-}
-SC079::  ; 変換 (SC 0x79)
-{
-    SendInput "{vk1Csc079}"
-    ShowImeIndicator("あ")
-}
+; IME 切替時の視覚フィードバック
+;   実制御は MS IME の設定 (無変換→IME-オフ / 変換→IME-オン) に委譲。
+;   AHK は `~` prefix でキーを pass-through してオーバーレイ表示のみ担当。
+;   注意: Scancode Map で JIS キー (カタカナ等) を remap すると変換/無変換の
+;   VK コードが崩壊して MS IME KeyAssignment が効かなくなる (既知問題)。
+~vk1D::ShowImeIndicator("A")
+~vk1C::ShowImeIndicator("あ")
 
 ShowImeIndicator(text) {
     static g := ""
