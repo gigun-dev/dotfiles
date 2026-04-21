@@ -208,33 +208,19 @@ $^l::Send IsImeOn() ? "{F8}" : "^l"
 
 ; IME 切替 (無変換→Off / 変換→On) + 視覚フィードバック
 ;   HP ENVY JIS の VK コードが Scancode Map 影響で標準 (0x1D/0x1C) から変化するため
-;   MS IME KeyAssignment も SendInput 再送も効かない。
-;   ImmGetContext + ImmSetOpenStatus で IME コンテキストを直接操作する。
-SetIme(mode) {
-    hwnd := WinExist("A")
-    if !hwnd
-        return
-    ; GetGUIThreadInfo でフォーカスウィンドウを正確に取得
-    cbSize := 4 + 4 + (A_PtrSize * 6) + 16
-    stGTI := Buffer(cbSize, 0)
-    NumPut("UInt", cbSize, stGTI, 0)
-    hwndFocus := DllCall("GetGUIThreadInfo", "UInt", 0, "Ptr", stGTI)
-        ? NumGet(stGTI, 8 + A_PtrSize, "UPtr") : hwnd
-    hIMC := DllCall("imm32\ImmGetContext", "Ptr", hwndFocus, "Ptr")
-    if !hIMC
-        return
-    DllCall("imm32\ImmSetOpenStatus", "Ptr", hIMC, "Int", mode)
-    DllCall("imm32\ImmReleaseContext", "Ptr", hwndFocus, "Ptr", hIMC)
-}
+;   MS IME KeyAssignment が効かない。keybd_event で標準 VK を直接注入し
+;   MS IME に正しいキーとして認識させる。
 
-SC07B::  ; 無変換 (SC 0x7B)
+SC07B::  ; 無変換 (SC 0x7B — 物理 VK 0xEB、標準 VK_NONCONVERT 0x1D を注入)
 {
-    SetIme(0)
+    DllCall("keybd_event", "UChar", 0x1D, "UChar", 0x7B, "UInt", 0, "UPtr", 0)
+    DllCall("keybd_event", "UChar", 0x1D, "UChar", 0x7B, "UInt", 2, "UPtr", 0)
     ShowImeIndicator("A")
 }
-SC079::  ; 変換 (SC 0x79)
+SC079::  ; 変換 (SC 0x79 — 物理 VK 0xFF、標準 VK_CONVERT 0x1C を注入)
 {
-    SetIme(1)
+    DllCall("keybd_event", "UChar", 0x1C, "UChar", 0x79, "UInt", 0, "UPtr", 0)
+    DllCall("keybd_event", "UChar", 0x1C, "UChar", 0x79, "UInt", 2, "UPtr", 0)
     ShowImeIndicator("あ")
 }
 
