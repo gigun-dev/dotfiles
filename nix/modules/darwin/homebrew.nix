@@ -36,6 +36,7 @@ in
       "codex" # Mac は brew cask (prebuilt、Rust build 回避)。Linux は packages.nix で nix install
       "discord"
       "figma"
+      "fork"
       "google-chrome"
       "iterm2"
       "karabiner-elements"

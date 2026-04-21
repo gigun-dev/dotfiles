@@ -97,6 +97,11 @@ properties:
       settings: { id: AutoHotkey.AutoHotkey, source: winget }
 
     - resource: Microsoft.WinGet.DSC/WinGetPackage
+      id: pkg-fork
+      directives: { description: Fork (Git GUI client) }
+      settings: { id: Fork.Fork, source: winget }
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
       id: pkg-imagemagick
       directives: { description: ImageMagick (clipboard image → PNG 保存用) }
       settings: { id: ImageMagick.ImageMagick, source: winget }
