@@ -185,23 +185,32 @@ $^l::Send IsImeOn() ? "{F8}" : "^l"
 ~vk1C::ShowImeIndicator("あ")
 
 ShowImeIndicator(text) {
-    static g := ""
+    static g := "", hideFunc := ""
+    if IsObject(hideFunc)
+        SetTimer(hideFunc, 0)
     try {
         if IsObject(g)
             g.Destroy()
     }
+    g := ""
     w := 110, h := 110
     MonitorGetWorkArea(, &L, &T, &R, &B)
     x := L + (R - L - w) // 2
     y := T + (B - T - h) // 2
-    g := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x20", "ime-indicator")
-    g.BackColor := "202020"
-    g.MarginX := 0
-    g.MarginY := 0
-    g.SetFont("s44 cFFFFFF Bold", "Meiryo UI")
-    ; x0 y0 で margin 無視、Center = SS_CENTER (水平中央)、+0x200 = SS_CENTERIMAGE (縦中央)
-    g.Add("Text", Format("x0 y0 w{} h{} Center +0x200", w, h), text)
-    g.Show(Format("NoActivate x{} y{} w{} h{}", x, y, w, h))
-    WinSetTransparent(170, g.Hwnd)
-    SetTimer((*) => (IsObject(g) ? g.Destroy() : 0), -500)
+    try {
+        g := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x20", "ime-indicator")
+        g.BackColor := "202020"
+        g.MarginX := 0
+        g.MarginY := 0
+        g.SetFont("s44 cFFFFFF Bold", "Meiryo UI")
+        g.Add("Text", Format("x0 y0 w{} h{} Center +0x200", w, h), text)
+        g.Show(Format("NoActivate x{} y{} w{} h{}", x, y, w, h))
+        WinSetTransparent(170, g.Hwnd)
+    } catch {
+        g := ""
+        return
+    }
+    thisGui := g
+    hideFunc := (*) => (IsObject(g) && g = thisGui ? (g.Destroy(), g := "") : 0)
+    SetTimer(hideFunc, -500)
 }
