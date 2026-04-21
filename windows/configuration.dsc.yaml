@@ -543,6 +543,42 @@ properties:
         ValueType: Binary
         Force: true
 
+    # MS IME キー割当 (無変換→IME Off / 変換→IME On)
+    # GUI: 設定 → 言語 → 日本語 → Microsoft IME → キーとタッチのカスタマイズ 相当
+    # リセットされても DSC 再適用で復元される
+    - resource: PSDscResources/Registry
+      id: reg-ime-key-assignment-enabled
+      directives: { description: Enable MS IME key customization }
+      settings:
+        Key: HKCU:\SOFTWARE\Microsoft\IME\15.0\IMEJP\MSIME
+        ValueName: IsKeyAssignmentEnabled
+        ValueData: "1"
+        ValueType: Dword
+        Ensure: Present
+        Force: true
+
+    - resource: PSDscResources/Registry
+      id: reg-ime-muhenkan-off
+      directives: { description: 無変換 → IME Off }
+      settings:
+        Key: HKCU:\SOFTWARE\Microsoft\IME\15.0\IMEJP\MSIME
+        ValueName: KeyAssignmentMuhenkan
+        ValueData: "1"
+        ValueType: Dword
+        Ensure: Present
+        Force: true
+
+    - resource: PSDscResources/Registry
+      id: reg-ime-henkan-on
+      directives: { description: 変換 → IME On }
+      settings:
+        Key: HKCU:\SOFTWARE\Microsoft\IME\15.0\IMEJP\MSIME
+        ValueName: KeyAssignmentHenkan
+        ValueData: "0"
+        ValueType: Dword
+        Ensure: Present
+        Force: true
+
     # Windows の透明効果を有効化 (WezTerm の window_background_opacity を効かせるため)
     # VisualFXSetting=2 (パフォーマンス優先) だと EnableTransparency が 0 になりオーバーライド必要
     - resource: PSDscResources/Registry
@@ -580,32 +616,32 @@ properties:
         ValueType: String
         Force: true
 
-# AHK スクリプト (WezTerm トグル + Mac-like キー変換) をスタートアップに登録
+# AHK スクリプト (mac-like.ahk のみ) をスタートアップに登録
+    # wezterm-toggle.ahk は mac-like.ahk に統合済のため撤廃
     - resource: PSDscResources/Script
       id: script-ahk-startup
-      directives: { description: Register AHK scripts (wezterm-toggle, mac-like) in Startup }
+      directives: { description: Register mac-like.ahk in Startup (remove legacy wezterm-toggle) }
       settings:
         GetScript: |
           $startup = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup"
           @{ Result = @{
-            WezTerm = (Test-Path "$startup\wezterm-toggle.ahk.lnk")
             MacLike = (Test-Path "$startup\mac-like.ahk.lnk")
+            LegacyRemoved = (-not (Test-Path "$startup\wezterm-toggle.ahk.lnk"))
           }}
         TestScript: |
           $startup = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup"
-          (Test-Path "$startup\wezterm-toggle.ahk.lnk") -and (Test-Path "$startup\mac-like.ahk.lnk")
+          (Test-Path "$startup\mac-like.ahk.lnk") -and (-not (Test-Path "$startup\wezterm-toggle.ahk.lnk"))
         SetScript: |
           $dotfiles = "$env:USERPROFILE\ghq\github.com\gigun-dev\dotfiles"
           $startup  = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup"
-          $scripts  = @('wezterm-toggle.ahk', 'mac-like.ahk')
+          # legacy 削除
+          Remove-Item "$startup\wezterm-toggle.ahk.lnk" -EA 0
+          # mac-like.ahk のみ登録
+          $src = "$dotfiles\windows\hotkey\mac-like.ahk"
           $WshShell = New-Object -comObject WScript.Shell
-          foreach ($script in $scripts) {
-            $src = "$dotfiles\windows\hotkey\$script"
-            $lnk = $WshShell.CreateShortcut((Join-Path $startup "$script.lnk"))
-            $lnk.TargetPath = $src
-            $lnk.Save()
-            Start-Process $src -ErrorAction SilentlyContinue
-          }
+          $lnk = $WshShell.CreateShortcut("$startup\mac-like.ahk.lnk")
+          $lnk.TargetPath = $src
+          $lnk.Save()
 
     # WSL Ubuntu の en_US.UTF-8 locale を生成 (nix bash の setlocale 警告解消)
     - resource: PSDscResources/Script

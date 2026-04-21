@@ -42,8 +42,7 @@ windows/
 ├── README.md
 ├── fonts/install.ps1       # JetBrains Mono Nerd Font (DSC から呼ばれる)
 ├── hotkey/
-│   ├── mac-like.ahk        # Mac 風キーマップ + IME 変換 + WezTerm トグル等
-│   └── wezterm-toggle.ahk  # (legacy、mac-like.ahk に統合済で撤廃予定)
+│   └── mac-like.ahk        # Mac 風キーマップ + IME 変換 + WezTerm トグル等
 ├── kanata/kanata.kbd       # karabiner.json から移植 (symlink 対象)
 ├── tailscale/install-daemon.ps1  # Tailscale + unattended mode (DSC から呼ばれる)
 ├── terminal/wezterm.lua    # WezTerm 設定 (symlink 対象)
@@ -130,7 +129,7 @@ Windows 環境で遭遇したハマり所と解決策。設定ファイル側に
 
 ### MS IME
 - **ライブ変換は Windows 11 標準 MS IME にない**: macOS の live conversion (azooKey 風) は標準未提供。Mozc 等 OSS も同等機能なし。azooKey Windows 版は未リリース (2026-04 時点)
-- **無変換/変換 → IME Off/On**: 設定 → 言語 → 日本語 → Microsoft IME → キーとタッチのカスタマイズ で可能だが Registry 宣言化 path が未特定 (TODO)
+- **無変換/変換 → IME Off/On**: `HKCU:\SOFTWARE\Microsoft\IME\15.0\IMEJP\MSIME` の `KeyAssignmentMuhenkan=1` / `KeyAssignmentHenkan=0` で宣言化済 (DSC で冪等適用)
 
 ### dual-GPU (NVIDIA Optimus 系)
 - **DWM は iGPU で動作**: アプリが dGPU で描画すると DXGI surface の cross-adapter 共有で alpha が欠落する既知バグ (WezTerm 透過失敗の根源)
