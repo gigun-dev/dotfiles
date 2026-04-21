@@ -220,14 +220,14 @@ SetIme(mode) {
     DllCall("user32\SendMessage", "ptr", hime, "uint", 0x283, "ptr", 0x006, "ptr", mode)
 }
 
-SC07B::  ; 無変換 (SC 0x7B — VK は Scancode Map 影響で不安定なため SC で捕捉)
+SC07B::  ; 無変換 (SC 0x7B — VK は Scancode Map 影響で 0xEB に化けるため SC で捕捉)
 {
-    SetIme(0)
+    SendInput "{vk1D}"  ; 標準 VK_NONCONVERT を再送 → MS IME KeyAssignment が処理
     ShowImeIndicator("A")
 }
-SC079::  ; 変換 (SC 0x79)
+SC079::  ; 変換 (SC 0x79 — VK 0xFF に化ける)
 {
-    SetIme(1)
+    SendInput "{vk1C}"  ; 標準 VK_CONVERT を再送 → MS IME KeyAssignment が処理
     ShowImeIndicator("あ")
 }
 
