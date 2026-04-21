@@ -198,13 +198,11 @@ $^l::Send IsImeOn() ? "{F8}" : "^l"
 
 ; 変換キー: 未確定文字がなければ IME ON として pass-through + インジケータ表示
 ; 未確定文字があるときは抑制 (カタカナ変換を防止、Mac 風の挙動)
-; SendLevel 1 で送り直すことで自身のホットキー (Level 0) に再捕捉されるのを防ぐ
-vk1C::{
+; $ prefix (Use Hook) で SendInput による自己再発火を防止
+$vk1C::{
     if IsComposing()
         return
-    SendLevel 1
     SendInput "{vk1C}"
-    SendLevel 0
     ShowImeIndicator("あ")
 }
 
