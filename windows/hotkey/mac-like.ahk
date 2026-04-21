@@ -206,11 +206,30 @@ $^j::Send IsImeOn() ? "{F6}" : "^j"
 $^k::Send IsImeOn() ? "{F7}" : "^k"
 $^l::Send IsImeOn() ? "{F8}" : "^l"
 
-; IME 切替時の視覚フィードバック
-;   実制御は MS IME の設定 (無変換→IME-オフ / 変換→IME-オン) に委譲。
-;   AHK は `~` prefix でキーを pass-through してオーバーレイ表示のみ担当。
-~vk1D::ShowImeIndicator("A")
-~vk1C::ShowImeIndicator("あ")
+; IME 切替 (無変換→Off / 変換→On) + 視覚フィードバック
+;   HP ENVY JIS の VK コードが標準 (0x1D/0x1C) と異なる (0xEB/0xFF) ため
+;   MS IME の KeyAssignment では動かない。AHK で IME を直接制御する。
+;   WM_IME_CONTROL (0x283) + IMC_SETOPENSTATUS (0x006) で確実に切替。
+SetIme(mode) {
+    hwnd := WinExist("A")
+    if !hwnd
+        return
+    hime := DllCall("imm32\ImmGetDefaultIMEWnd", "ptr", hwnd, "ptr")
+    if !hime
+        return
+    DllCall("user32\SendMessage", "ptr", hime, "uint", 0x283, "ptr", 0x006, "ptr", mode)
+}
+
+SC07B::  ; 無変換 (SC 0x7B — VK は Scancode Map 影響で不安定なため SC で捕捉)
+{
+    SetIme(0)
+    ShowImeIndicator("A")
+}
+SC079::  ; 変換 (SC 0x79)
+{
+    SetIme(1)
+    ShowImeIndicator("あ")
+}
 
 ShowImeIndicator(text) {
     static g := ""
