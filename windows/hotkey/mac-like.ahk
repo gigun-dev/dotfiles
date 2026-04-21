@@ -211,16 +211,14 @@ $^l::Send IsImeOn() ? "{F8}" : "^l"
 ;   MS IME KeyAssignment が効かない。keybd_event で標準 VK を直接注入し
 ;   MS IME に正しいキーとして認識させる。
 
-SC07B::  ; 無変換 (SC 0x7B — 物理 VK 0xEB、標準 VK_NONCONVERT 0x1D を注入)
+SC07B::  ; 無変換 (SC 0x7B — SendInput で標準 VK+SC を再送、AHK フック自己バイパス)
 {
-    DllCall("keybd_event", "UChar", 0x1D, "UChar", 0x7B, "UInt", 0, "UPtr", 0)
-    DllCall("keybd_event", "UChar", 0x1D, "UChar", 0x7B, "UInt", 2, "UPtr", 0)
+    SendInput "{vk1Dsc07B}"
     ShowImeIndicator("A")
 }
-SC079::  ; 変換 (SC 0x79 — 物理 VK 0xFF、標準 VK_CONVERT 0x1C を注入)
+SC079::  ; 変換 (SC 0x79)
 {
-    DllCall("keybd_event", "UChar", 0x1C, "UChar", 0x79, "UInt", 0, "UPtr", 0)
-    DllCall("keybd_event", "UChar", 0x1C, "UChar", 0x79, "UInt", 2, "UPtr", 0)
+    SendInput "{vk1Csc079}"
     ShowImeIndicator("あ")
 }
 
