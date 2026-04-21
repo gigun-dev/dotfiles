@@ -207,27 +207,34 @@ $^k::Send IsImeOn() ? "{F7}" : "^k"
 $^l::Send IsImeOn() ? "{F8}" : "^l"
 
 ; IME 切替 (無変換→Off / 変換→On) + 視覚フィードバック
-;   HP ENVY JIS の VK コードが標準 (0x1D/0x1C) と異なる (0xEB/0xFF) ため
-;   MS IME の KeyAssignment では動かない。AHK で IME を直接制御する。
-;   WM_IME_CONTROL (0x283) + IMC_SETOPENSTATUS (0x006) で確実に切替。
+;   HP ENVY JIS の VK コードが Scancode Map 影響で標準 (0x1D/0x1C) から変化するため
+;   MS IME KeyAssignment も SendInput 再送も効かない。
+;   ImmGetContext + ImmSetOpenStatus で IME コンテキストを直接操作する。
 SetIme(mode) {
     hwnd := WinExist("A")
     if !hwnd
         return
-    hime := DllCall("imm32\ImmGetDefaultIMEWnd", "ptr", hwnd, "ptr")
-    if !hime
+    ; GetGUIThreadInfo でフォーカスウィンドウを正確に取得
+    cbSize := 4 + 4 + (A_PtrSize * 6) + 16
+    stGTI := Buffer(cbSize, 0)
+    NumPut("UInt", cbSize, stGTI, 0)
+    hwndFocus := DllCall("GetGUIThreadInfo", "UInt", 0, "Ptr", stGTI)
+        ? NumGet(stGTI, 8 + A_PtrSize, "UPtr") : hwnd
+    hIMC := DllCall("imm32\ImmGetContext", "Ptr", hwndFocus, "Ptr")
+    if !hIMC
         return
-    DllCall("user32\SendMessage", "ptr", hime, "uint", 0x283, "ptr", 0x006, "ptr", mode)
+    DllCall("imm32\ImmSetOpenStatus", "Ptr", hIMC, "Int", mode)
+    DllCall("imm32\ImmReleaseContext", "Ptr", hwndFocus, "Ptr", hIMC)
 }
 
-SC07B::  ; 無変換 (SC 0x7B — VK は Scancode Map 影響で 0xEB に化けるため SC で捕捉)
+SC07B::  ; 無変換 (SC 0x7B)
 {
-    SendInput "{vk1D}"  ; 標準 VK_NONCONVERT を再送 → MS IME KeyAssignment が処理
+    SetIme(0)
     ShowImeIndicator("A")
 }
-SC079::  ; 変換 (SC 0x79 — VK 0xFF に化ける)
+SC079::  ; 変換 (SC 0x79)
 {
-    SendInput "{vk1C}"  ; 標準 VK_CONVERT を再送 → MS IME KeyAssignment が処理
+    SetIme(1)
     ShowImeIndicator("あ")
 }
 
