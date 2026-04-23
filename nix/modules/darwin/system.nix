@@ -102,6 +102,9 @@ in
       NSStatusItemSelectionPadding = 2;
     };
 
+    # スクリーンショットをクリップボードに保存
+    CustomUserPreferences."com.apple.screencapture".target = "clipboard";
+
     # Finder サイドバーを表示
     CustomUserPreferences."com.apple.finder".ShowSidebar = true;
 
