@@ -1,0 +1,7 @@
+# LF 統一 (Mac / WSL 基準、Windows でも変換しない)
+* text=auto eol=lf
+
+# Windows 固有: CRLF が必要なファイルだけ明示
+*.ps1  text eol=crlf
+*.cmd  text eol=crlf
+*.bat  text eol=crlf
