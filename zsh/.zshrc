@@ -214,10 +214,14 @@ alias ab='agent-browser'
 
 _ab_launch() {
   local port=$1 name=$2; shift 2
-  if ! curl -sf -o /dev/null http://localhost:$port/json/version 2>/dev/null; then
+  if ! curl -sf --connect-timeout 0.2 -o /dev/null http://localhost:$port/json/version 2>/dev/null; then
     if [[ -n "$WSL_DISTRO_NAME" ]]; then
-      powershell.exe -NoProfile -Command \
-        "Start-Process 'C:\Program Files\Google\Chrome\Application\chrome.exe' -ArgumentList \"--remote-debugging-port=$port\",\"--user-data-dir=\`\"\$env:LOCALAPPDATA\\Google\\$name\`\"\",\"--no-first-run\",\"--no-default-browser-check\""
+      local appdata
+      appdata=$(wslpath -w "$(ls -d /mnt/c/Users/*/AppData/Local 2>/dev/null | grep -vE 'Default|Public' | head -1)")
+      "/mnt/c/Program Files/Google/Chrome/Application/chrome.exe" \
+        --remote-debugging-port=$port \
+        --user-data-dir="$appdata\\Google\\$name" \
+        --no-first-run --no-default-browser-check &>/dev/null &!
     else
       local chrome="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
       if [[ ! -x "$chrome" ]]; then
@@ -230,7 +234,7 @@ _ab_launch() {
     fi
     local i=0
     while (( i < 30 )); do
-      curl -sf -o /dev/null http://localhost:$port/json/version 2>/dev/null && break
+      curl -sf --max-time 1 -o /dev/null http://localhost:$port/json/version 2>/dev/null && break
       sleep 0.5
       (( i++ ))
     done
