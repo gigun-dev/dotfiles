@@ -186,6 +186,11 @@ export ZENO_ENABLE_SOCK=1
 export ZENO_GIT_CAT="bat --color=always"
 export ZENO_GIT_TREE="eza --tree"
 
+zeno-reload() {
+  pkill -f "deno.*zeno.zsh/src/server.ts" 2>/dev/null
+  zeno-enable-sock
+}
+
 if [[ -n $ZENO_LOADED ]]; then
   bindkey ' '    zeno-auto-snippet
   bindkey '^m'   zeno-auto-snippet-and-accept-line
@@ -205,7 +210,38 @@ command -v eza &>/dev/null && alias ls='eza'
 command -v bat &>/dev/null && alias cat='bat'
 alias clr='clear'
 alias notchbar-cli="$HOME/ghq/github.com/gigun-dev/notchbar/.build/debug/notchbar-cli"
-alias agb='agent-browser'
+alias ab='agent-browser'
+
+_ab_launch() {
+  local port=$1 name=$2; shift 2
+  if ! curl -sf -o /dev/null http://localhost:$port/json/version 2>/dev/null; then
+    if [[ -n "$WSL_DISTRO_NAME" ]]; then
+      powershell.exe -NoProfile -Command \
+        "Start-Process 'C:\Program Files\Google\Chrome\Application\chrome.exe' -ArgumentList \"--remote-debugging-port=$port\",\"--user-data-dir=\`\"\$env:LOCALAPPDATA\\Google\\$name\`\"\",\"--no-first-run\",\"--no-default-browser-check\""
+    else
+      local chrome="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+      if [[ ! -x "$chrome" ]]; then
+        echo "Chrome not found: $chrome" >&2
+        return 1
+      fi
+      "$chrome" --remote-debugging-port=$port \
+        --user-data-dir="$HOME/Library/Application Support/Google/$name" \
+        --no-first-run --no-default-browser-check >/dev/null 2>&1 &!
+    fi
+    local i=0
+    while (( i < 30 )); do
+      curl -sf -o /dev/null http://localhost:$port/json/version 2>/dev/null && break
+      sleep 0.5
+      (( i++ ))
+    done
+    if (( i >= 30 )); then
+      echo "Chrome CDP not ready on port $port" >&2
+      return 1
+    fi
+  fi
+  agent-browser --cdp $port "$@"
+}
+abf() { _ab_launch 9222 chrome-for-agent "$@" }
 
 # =============================================================================
 # Hooks

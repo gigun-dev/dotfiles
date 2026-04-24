@@ -97,6 +97,10 @@ in
     link_force "${dotfilesPath}/claude/hooks" "${config.home.homeDirectory}/.claude/hooks"
     link_force "${dotfilesPath}/claude/commands" "${config.home.homeDirectory}/.claude/commands"
     link_force "${dotfilesPath}/claude/skills" "${config.home.homeDirectory}/.claude/skills"
+
+    # agent-browser (~/.agent-browser/ は browsers/sessions 等があるので config のみ)
+    $DRY_RUN_CMD mkdir -p "${config.home.homeDirectory}/.agent-browser"
+    link_force "${dotfilesPath}/agent-browser/config.json" "${config.home.homeDirectory}/.agent-browser/config.json"
   '' + lib.optionalString isDarwin ''
 
     # iTerm2 Dynamic Profiles (darwin only)
