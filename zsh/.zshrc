@@ -91,6 +91,14 @@ autoload -Uz promptinit && promptinit
 prompt pure &>/dev/null || true
 
 # =============================================================================
+# History
+# =============================================================================
+export HISTFILE="${XDG_STATE_HOME}/zsh/history"
+export HISTSIZE=100000
+export SAVEHIST=100000
+[[ -d "${HISTFILE:h}" ]] || mkdir -p "${HISTFILE:h}"
+
+# =============================================================================
 # Options (mozumasu pattern)
 # =============================================================================
 setopt hist_ignore_dups
@@ -187,7 +195,7 @@ if [[ -n $ZENO_LOADED ]]; then
 
   # zsh-autosuggestions は defer で遅延ロードされるため、
   # zeno ウィジェットを clear リストに追加してゴーストテキスト残留を防止
-  zsh-defer -c 'ZSH_AUTOSUGGEST_CLEAR_WIDGETS+=(zeno-auto-snippet-and-accept-line zeno-auto-snippet); _zsh_autosuggest_bind_widgets'
+  zsh-defer -c 'ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=244"; ZSH_AUTOSUGGEST_CLEAR_WIDGETS+=(zeno-auto-snippet-and-accept-line zeno-auto-snippet); _zsh_autosuggest_bind_widgets'
 fi
 
 # =============================================================================
@@ -197,6 +205,7 @@ command -v eza &>/dev/null && alias ls='eza'
 command -v bat &>/dev/null && alias cat='bat'
 alias clr='clear'
 alias notchbar-cli="$HOME/ghq/github.com/gigun-dev/notchbar/.build/debug/notchbar-cli"
+alias ab='agent-browser'
 
 # =============================================================================
 # Hooks

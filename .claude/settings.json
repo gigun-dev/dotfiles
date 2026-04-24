@@ -4,6 +4,7 @@
     "dig@kuu-marketplace": true,
     "fix-ci@kuu-marketplace": true,
     "cman@cman": true,
-    "codex@openai-codex": true
+    "codex@openai-codex": true,
+    "agent-browser@agent-browser": true
   }
 }

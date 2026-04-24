@@ -135,6 +135,14 @@ Windows 環境で遭遇したハマり所と解決策。設定ファイル側に
 - **DWM は iGPU で動作**: アプリが dGPU で描画すると DXGI surface の cross-adapter 共有で alpha が欠落する既知バグ (WezTerm 透過失敗の根源)
 - **WezTerm のような軽量 GUI は iGPU で十分**: `GpuPreference=1` (Power saving) で固定が安定。`2` (High performance) だと透過が壊れるだけで描画性能メリットなし
 
+### ブラウザ自動化 (CDP)
+- **Chrome 136+ は `--user-data-dir` 必須**: デフォルトデータディレクトリでは `--remote-debugging-port` が無視される (Cookie 窃取対策)。別ディレクトリを指定すれば従来通り CDP が動く
+- **起動コマンド**: `& "C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --user-data-dir="$env:LOCALAPPDATA\Google\Chrome Dev" --no-first-run --no-default-browser-check`
+- **ショートカット**: デスクトップに「Chrome Dev」ショートカットを作成しタスクバーにピン留め。普段使いの Chrome として一本化可能（Google 同期で状態共有）
+- **WSL から接続**: `networkingMode=mirrored` なら `localhost:9222` でそのまま接続可能。`--remote-allow-origins` は不要
+- **agent-browser**: `agent-browser --cdp 9222 tab new https://example.com` で headed（Chrome 実タブ）で開く。`open` は Playwright 内部コンテキストで Chrome タブに表示されないので注意
+- **abbr**: `abi` (初回 CDP 接続)、`abt` (tab new)、`abs` (snapshot)、`abc` (close all)、`ab` (alias)
+
 ### WSL ↔ Windows の境界
 - **環境変数の継承は WSLENV だけ**: Windows 側の env を WSL に渡すには `WSLENV` 環境変数に列挙が必要 (例: `WT_SESSION:WT_PROFILE_ID::TERM:COLORTERM:TERM_PROGRAM:TERM_PROGRAM_VERSION`)。WezTerm は WSLENV を設定しないので `WEZTERM_PANE` 等は WSL 内で空 → `.zshrc` で OSC 7 シェル統合の判定を `WEZTERM_PANE` ベースにすると WSL では発動しない。**判定撤廃して常時送信が無難** (対応外ターミナルは escape を無視)
 - **`TERM` は WSL 内で `xterm-256color` になりがち**: WezTerm がデフォルトで `wezterm` を設定しても WSL の login shell で上書きされる。`TERM=wezterm*` 判定も WSL では効かない
