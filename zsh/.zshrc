@@ -205,7 +205,7 @@ command -v eza &>/dev/null && alias ls='eza'
 command -v bat &>/dev/null && alias cat='bat'
 alias clr='clear'
 alias notchbar-cli="$HOME/ghq/github.com/gigun-dev/notchbar/.build/debug/notchbar-cli"
-alias ab='agent-browser'
+alias agb='agent-browser'
 
 # =============================================================================
 # Hooks

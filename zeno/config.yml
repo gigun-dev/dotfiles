@@ -22,14 +22,14 @@ snippets:
   - keyword: ngc
     snippet: nix-collect-garbage -d
 
-  - keyword: abi
+  - keyword: agbi
     snippet: agent-browser --cdp 9222
 
-  - keyword: abt
+  - keyword: agbt
     snippet: agent-browser tab new
 
-  - keyword: abs
+  - keyword: agbs
     snippet: agent-browser snapshot --compact
 
-  - keyword: abc
+  - keyword: agbc
     snippet: agent-browser close --all
