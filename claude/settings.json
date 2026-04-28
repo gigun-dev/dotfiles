@@ -70,7 +70,6 @@
     "stripe@claude-plugins-official": false,
     "swift-lsp@claude-plugins-official": true,
     "slack@claude-plugins-official": false,
-    "vercel@claude-plugins-official": true,
     "gopls-lsp@claude-plugins-official": true,
     "coderabbit@claude-plugins-official": true,
     "firecrawl@claude-plugins-official": true,
@@ -136,5 +135,8 @@
   "effortLevel": "medium",
   "voiceEnabled": true,
   "skipDangerousModePermissionPrompt": true,
-  "teammateMode": "tmux"
+  "teammateMode": "tmux",
+  "theme": "dark-daltonized",
+  "preferredNotifChannel": "terminal_bell",
+  "remoteControlAtStartup": true
 }
