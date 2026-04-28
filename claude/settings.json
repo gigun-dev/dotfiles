@@ -133,10 +133,11 @@
   },
   "language": "Japanese",
   "effortLevel": "medium",
-  "voiceEnabled": true,
   "skipDangerousModePermissionPrompt": true,
-  "teammateMode": "tmux",
   "theme": "dark-daltonized",
   "preferredNotifChannel": "terminal_bell",
-  "remoteControlAtStartup": true
+  "teammateMode": "tmux",
+  "remoteControlAtStartup": true,
+  "voiceEnabled": true,
+  "agentPushNotifEnabled": true
 }

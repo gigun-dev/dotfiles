@@ -71,6 +71,10 @@ link "${DOTFILES_DIR}/zsh/functions"    "${HOME}/.config/zsh/functions"
 # 777 だと compinit が全補完スキップする
 chmod -R go-w "${DOTFILES_DIR}/zsh/functions" 2>/dev/null || true
 
+# git hooks を有効化 (pre-commit で nix fmt を自動適用し CI fmt 失敗を防ぐ)
+git -C "${DOTFILES_DIR}" config --local core.hooksPath git/hooks
+chmod +x "${DOTFILES_DIR}/git/hooks/"* 2>/dev/null || true
+
 # ---------------------------------------------------------------------------
 # 4. Sheldon
 # ---------------------------------------------------------------------------

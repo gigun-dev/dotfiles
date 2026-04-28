@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Auto-format staged .nix files with `nix fmt` so CI's `nix fmt -- --ci` never fails.
+# Skip silently if nix is unavailable (e.g. partial bootstrap).
+set -euo pipefail
+
+mapfile -t staged < <(git diff --cached --name-only --diff-filter=ACM -z \
+  | tr '\0' '\n' | grep -E '\.nix$' || true)
+
+[ "${#staged[@]}" -eq 0 ] && exit 0
+command -v nix >/dev/null 2>&1 || exit 0
+
+# Stash unstaged changes so we only format the staged snapshot.
+if ! git diff --quiet; then
+  stash_ref=$(git stash create -- "${staged[@]}" 2>/dev/null || true)
+  [ -n "${stash_ref:-}" ] && git checkout -- "${staged[@]}" 2>/dev/null || true
+fi
+
+nix fmt -- "${staged[@]}" >/dev/null
+git add -- "${staged[@]}"
+
+if [ -n "${stash_ref:-}" ]; then
+  git stash apply --index "$stash_ref" >/dev/null 2>&1 || true
+fi
