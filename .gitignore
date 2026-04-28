@@ -1,12 +1,12 @@
-# Claude Code per-project local settings (permissions, env)
-.claude/settings.local.json
 
-# OS / editor
+.claude/settings.local.json
+.direnv/
 .DS_Store
-Thumbs.db
+.envrc.local
 *.swp
 *~
-
+# Claude Code per-project local settings (permissions, env)
 # direnv
-.direnv/
-.envrc.local
+# OS / editor
+result
+Thumbs.db

@@ -103,8 +103,15 @@ in
     link_force "${dotfilesPath}/agent-browser/config.json" "${config.home.homeDirectory}/.agent-browser/config.json"
   '' + lib.optionalString isDarwin ''
 
-    # iTerm2 Dynamic Profiles (darwin only)
-    $DRY_RUN_CMD mkdir -p "${config.home.homeDirectory}/Library/Application Support/iTerm2/DynamicProfiles"
-    link_force "${dotfilesPath}/iterm2/Profiles.json" "${config.home.homeDirectory}/Library/Application Support/iTerm2/DynamicProfiles/Profiles.json"
+    # iTerm2 plist リストア
+    # brew zap で plist が消えた場合、dotfiles のバックアップから復元する
+    # バックアップは手動で `cp ~/Library/Preferences/com.googlecode.iterm2.plist iterm2/` する
+    # (自動バックアップするとウィンドウ位置等の一時的な差分が混入するため)
+    iterm_plist="${config.home.homeDirectory}/Library/Preferences/com.googlecode.iterm2.plist"
+    iterm_backup="${dotfilesPath}/iterm2/com.googlecode.iterm2.plist"
+    if [ ! -f "$iterm_plist" ] && [ -f "$iterm_backup" ]; then
+      echo "Restoring iTerm2 plist from dotfiles backup..."
+      $DRY_RUN_CMD cp "$iterm_backup" "$iterm_plist"
+    fi
   '');
 }

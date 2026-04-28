@@ -5,3 +5,6 @@
 *.ps1  text eol=crlf
 *.cmd  text eol=crlf
 *.bat  text eol=crlf
+
+# plist: バイナリだが XML 変換で diff 可能にする
+*.plist diff=plist

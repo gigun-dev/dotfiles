@@ -8,6 +8,11 @@ let
   username = "gigun";
 in
 {
+  # Fonts (home.packages だと macOS が認識しないため fonts.packages で管理)
+  fonts.packages = with pkgs; [
+    nerd-fonts.jetbrains-mono
+  ];
+
   # Nix settings (ryoppippi pattern)
   nix.gc = {
     automatic = true;
@@ -111,13 +116,8 @@ in
     # "Close windows when quitting an application" を無効化
     CustomUserPreferences.NSGlobalDomain.NSQuitAlwaysKeepsWindows = true;
 
-    # iTerm2 グローバル設定
-    CustomUserPreferences."com.googlecode.iterm2" = {
-      DimBackgroundWindows = false;
-      DimInactiveSplitPanes = false;
-      NoSyncBrowserUpsell = true;
-      "NoSyncBrowserUpsell_selection" = 1;
-    };
+    # iTerm2: plist (iterm2/com.googlecode.iterm2.plist) が source of truth
+    # defaults は不要 (plist リストアで全設定が復元される)
   };
 
   # Mac Mini (Intel) — サーバー用途のためスリープ無効化
