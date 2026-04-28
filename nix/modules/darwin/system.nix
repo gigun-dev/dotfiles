@@ -40,6 +40,7 @@ in
     ];
     extra-trusted-public-keys = [
       "cache.numtide.com-1:bf1jVIGj3GBKisevCptOlNXMoMnPkKlkh89RqPsNJWo="
+      "niks3.numtide.com-1:DTx8wZduET09hRmMtKlx087E31z7KurReQ1YHSKp5iw="
       "gigun.cachix.org-1:jP3ksvzV3coFUQORcYZOR3repURIK+eYtpMiIMaN788="
     ];
   };

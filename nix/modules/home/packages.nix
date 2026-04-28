@@ -9,14 +9,12 @@
     # JS / Python runtime
     nodejs
     bun
-    deno
+    # deno は nixpkgs だと rusty-v8 フルビルドで重いため mise に移譲
     pnpm
     uv
 
     # AI
     claude-code # ← claude-code-overlay (ryoppippi)
-    # codex は OS 分岐: Mac は brew cask (prebuilt 高速)、Linux/WSL は llm-agents.codex
-    # Mac Intel で Rust build 走らせると数十分かかる + Nixpkgs 26.05 が x86_64-darwin 最終 EOL のため
     llm-agents.opencode
     llm-agents.ccstatusline
     llm-agents.agent-browser
@@ -46,8 +44,8 @@
   ++ lib.optionals pkgs.stdenv.isDarwin [
     cocoapods # iOS 開発 — darwin 限定
   ]
-  ++ lib.optionals (!pkgs.stdenv.isDarwin) [
-    llm-agents.codex # Linux/WSL のみ (Mac は brew cask、Rust build を回避)
+  ++ lib.optionals (!(pkgs.stdenv.isDarwin && pkgs.stdenv.isx86_64)) [
+    llm-agents.codex # Intel Mac のみ brew cask (Rust build 回避)、それ以外は nix
   ]
   ++ [
 

@@ -8,6 +8,7 @@
     ];
     extra-trusted-public-keys = [
       "cache.numtide.com-1:bf1jVIGj3GBKisevCptOlNXMoMnPkKlkh89RqPsNJWo="
+      "niks3.numtide.com-1:DTx8wZduET09hRmMtKlx087E31z7KurReQ1YHSKp5iw="
       "gigun.cachix.org-1:jP3ksvzV3coFUQORcYZOR3repURIK+eYtpMiIMaN788="
     ];
   };
@@ -151,6 +152,13 @@
                   nix path-info --all | cachix push gigun &>/dev/null &
                 fi
               '';
+            }
+            // {
+              update-ai-tools = mkApp "update-ai-tools" ''
+                echo "Updating AI tools inputs..."
+                nix flake update llm-agents claude-code-overlay
+                echo "Done! Run 'nix run .#switch' to apply changes."
+              '';
             };
         };
 
@@ -161,6 +169,10 @@
           overlays = [
             inputs.claude-code-overlay.overlays.default
             inputs.llm-agents.overlays.default
+            # direnv の checkPhase が nix sandbox 内でハングするため無効化
+            (final: prev: {
+              direnv = prev.direnv.overrideAttrs { doCheck = false; };
+            })
           ];
 
           # 両アーキテクチャで同一モジュールを共有

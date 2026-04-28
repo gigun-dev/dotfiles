@@ -33,7 +33,11 @@ in
       "azookey"
       "claude"
       "cmux"
-      "codex" # Mac は brew cask (prebuilt、Rust build 回避)。Linux は packages.nix で nix install
+    ]
+    ++ lib.optionals (!isAarch64) [
+      "codex" # Intel Mac のみ brew cask (Rust build 回避)。aarch64 + Linux は packages.nix で nix install
+    ]
+    ++ [
       "discord"
       "figma"
       "fork"

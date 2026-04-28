@@ -15,6 +15,7 @@ in
     "zeno".source = mkLink "zeno";
     "zsh/functions".source = mkLink "zsh/functions";
     "ccstatusline".source = mkLink "ccstatusline";
+    "mise".source = mkLink "mise";
   }
   // lib.optionalAttrs isDarwin {
     "karabiner".source = mkLink "karabiner";
