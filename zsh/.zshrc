@@ -12,6 +12,16 @@ if [ -z "$__NIX_SOURCED" ]; then
 fi
 
 # =============================================================================
+# Auto-zcompile (mozumasu pattern): source 経由で読まれるファイルを自動 zwc 化
+# =============================================================================
+ensure_zcompiled() {
+  local src=$1 zwc="$1.zwc" dir="${1:h}"
+  [[ -w "$dir" ]] || return
+  [[ ! -r "$zwc" || "$src" -nt "$zwc" ]] && zcompile "$src"
+}
+source() { ensure_zcompiled "$1"; builtin source "$@"; }
+
+# =============================================================================
 # XDG Base Directory
 # =============================================================================
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
@@ -28,6 +38,11 @@ export PATH="${XDG_CACHE_HOME}/.bun/bin:$PATH"
 
 # ~/.local/bin — nix/brew で管理できない例外ツール用（末尾=低優先度）
 export PATH="$PATH:$HOME/.local/bin"
+
+# zeno: 起動時の `deno cache cli.ts` を毎回実行しない (mise shim 経由 deno で固まる)
+# 初回のみ手動で `deno cache <ZENO_ROOT>/src/cli.ts` を打てばよい。
+# sheldon が zeno.zsh を source する前に効かせる必要があるためこの位置で export する
+export ZENO_DISABLE_EXECUTE_CACHE_COMMAND=1
 
 # =============================================================================
 # Emacs keybind (mozumasu pattern — must be before other bindkey calls)
@@ -51,8 +66,8 @@ _config_cache="${XDG_CACHE_HOME}/zsh/config.zsh"
 if [[ ! -f "$_config_cache" || "${ZDOTDIR:-$HOME}/.zshrc" -nt "$_config_cache" ]]; then
   mkdir -p "${XDG_CACHE_HOME}/zsh"
   {
-    # brew shellenv (architecture-aware)
-    if [[ "$(uname -m)" == "arm64" ]]; then
+    # brew shellenv (architecture-aware; $CPUTYPE は zsh 組込で fork 不要)
+    if [[ "$CPUTYPE" == arm64 ]]; then
       /opt/homebrew/bin/brew shellenv 2>/dev/null
     else
       /usr/local/bin/brew shellenv 2>/dev/null
@@ -82,6 +97,29 @@ if [[ ! -r "$_sheldon_cache" || "$_sheldon_toml" -nt "$_sheldon_cache" ]]; then
 fi
 [[ -r "$_sheldon_cache" ]] && source "$_sheldon_cache"
 unset _sheldon_cache _sheldon_toml
+
+# =============================================================================
+# mise (mozumasu pattern: activate + shims をキャッシュして zsh-defer source)
+# deno/python など shim 経由のツールが PATH に乗る。defer で起動を妨げない。
+# =============================================================================
+# mise バイナリパスは fork レス取得 (commands 連想配列は zsh 組込)
+if [[ -n "${commands[mise]}" ]]; then
+  _mise_cache="${XDG_CACHE_HOME}/zsh/mise.zsh"
+  if [[ ! -r "$_mise_cache" || "${commands[mise]}" -nt "$_mise_cache" ]]; then
+    mkdir -p "${_mise_cache:h}"
+    {
+      mise activate zsh
+      mise activate --shims
+    } > "$_mise_cache"
+    zcompile "$_mise_cache"
+  fi
+  if (( $+functions[zsh-defer] )); then
+    zsh-defer source "$_mise_cache"
+  else
+    source "$_mise_cache"
+  fi
+  unset _mise_cache
+fi
 
 # =============================================================================
 # Pure prompt activation (sheldon 経由で源ファイルはロード済み)
@@ -127,7 +165,10 @@ zstyle ':completion:*' group-name ""
 zstyle ':completion:*:default' menu select=2
 
 # fpath に nix profile 経由の completion ディレクトリを追加
-# home-manager で入れたパッケージ (gh, git, etc.) の補完を有効化
+# home-manager で入れたパッケージ (gh, git, etc.) の補完を有効化。
+# typeset -U で重複除去 (sheldon プラグインや /etc/zshenv の NIX_PROFILES ループが
+# 同じディレクトリを多重 prepend し、compinit の fpath 全走査が爆発するのを防ぐ)。
+typeset -gU fpath
 fpath=(
   "$HOME/.nix-profile/share/zsh/site-functions"
   "$HOME/.nix-profile/share/zsh/$ZSH_VERSION/functions"
@@ -135,14 +176,18 @@ fpath=(
   $fpath
 )
 
-# Nix 環境では zsh 自身の補完 (_cd / _ls 等の Completion/Unix/) が自動で
-# fpath に入らないため、zsh インストール先の Completion サブディレクトリを追加。
-# Mac は nix-darwin の programs.zsh が処理するので不要だが、無害。
-_zsh_share="$(dirname "$(dirname "$(readlink -f "$(command -v zsh)")")")/share/zsh/$ZSH_VERSION"
-if [[ -d "$_zsh_share/functions/Completion" ]]; then
-  fpath=( "$_zsh_share/functions/Completion"/*(/N) $fpath )
+# Nix 環境で zsh 自身の Completion/{Base,Unix,...} を fpath に追加 (WSL 専用)。
+# Mac (nix-darwin) は programs.zsh が処理済みなので不要。かつ
+# `$(dirname $(dirname $(readlink -f $(command -v zsh))))` のような 4 段
+# command substitution は macOS zsh 5.9 interactive で SIGCHLD レース (lost signal)
+# を起こして起動が固まるため、zsh の組込モディファイア (:A:h:h) で fork 0 化する。
+if [[ "$OSTYPE" != darwin* ]]; then
+  _zsh_share="${commands[zsh]:A:h:h}/share/zsh/$ZSH_VERSION"
+  if [[ -d "$_zsh_share/functions/Completion" ]]; then
+    fpath=( "$_zsh_share/functions/Completion"/*(/N) $fpath )
+  fi
+  unset _zsh_share
 fi
-unset _zsh_share
 
 # Shell integration (OSC 7): 新規タブ/分割を現在のディレクトリで開く (WezTerm 等)
 # WSL では WEZTERM_PANE が継承されず $TERM も xterm-256color になるので判定せず常時送信。
@@ -173,10 +218,17 @@ function _deferred_compinit() {
   fi
   unset _comp_dump
 }
-# 起動時に同期実行 (WSL では zsh-defer の遅延が発火しないケースがあり、
-# defer だと Tab 補完が効かない問題が発生。Mac では defer 発火するが
-# 両環境で確実に動くよう同期実行に統一)
-_deferred_compinit
+# compinit の起動タイミング:
+# - macOS zsh 5.9 では compdump 内の `$(typeset +fm '_*')` 等の command
+#   substitution が SIGCHLD レースで永久 block する症状があり、同期実行すると
+#   shell 起動が固まる。zsh-defer でプロンプト表示後に非同期実行すれば、
+#   万一 compinit が遅くてもユーザは即座にコマンドを打てる (mozumasu pattern)。
+# - WSL は zsh-defer が発火しないケースがあるため同期実行 fallback。
+if [[ "$OSTYPE" == darwin* ]] && (( $+functions[zsh-defer] )); then
+  zsh-defer _deferred_compinit
+else
+  _deferred_compinit
+fi
 
 # =============================================================================
 # Zeno (mozumasu pattern)

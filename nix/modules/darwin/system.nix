@@ -70,7 +70,18 @@ in
     home = "/Users/${username}";
     shell = pkgs.zsh;
   };
-  programs.zsh.enable = true;
+  programs.zsh = {
+    enable = true;
+    # /etc/zshrc を骨抜きにして dotfiles の zsh/.zshrc に一本化する (mozumasu pattern)。
+    # macOS zsh 5.9 interactive では compdump 内の `$(typeset +fm '_*')` 等の
+    # command substitution が SIGCHLD レースで永久 block する症状があり、
+    # /etc/zshrc が compinit/bashcompinit/promptinit を二重に呼ぶと
+    # shell 起動が30秒以上固まる。
+    enableCompletion = false;
+    enableBashCompletion = false;
+    promptInit = "";
+    interactiveShellInit = lib.mkForce "";
+  };
 
   # macOS system defaults
   system.defaults = {

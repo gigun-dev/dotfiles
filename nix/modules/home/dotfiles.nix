@@ -78,7 +78,7 @@ in
   home.activation.installDotfilesHooks = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
     if [ -d "${dotfilesPath}/.git" ]; then
       $DRY_RUN_CMD chmod +x "${dotfilesPath}/git/hooks/"* 2>/dev/null || true
-      $DRY_RUN_CMD git -C "${dotfilesPath}" config --local core.hooksPath git/hooks
+      $DRY_RUN_CMD ${pkgs.git}/bin/git -C "${dotfilesPath}" config --local core.hooksPath git/hooks
     fi
   '';
 
@@ -89,6 +89,20 @@ in
     if [ -d "${dotfilesPath}/zsh/functions" ]; then
       $DRY_RUN_CMD chmod -R go-w "${dotfilesPath}/zsh/functions" 2>/dev/null || true
     fi
+  '';
+
+  # compinit を非対話 zsh で事前生成し、interactive shell が SIGCHLD レースを
+  # 踏まないようにする (macOS zsh 5.9 で compdump の `$(typeset +fm '_*')` が
+  # 永久 block する症状を回避)。古い tempfile 残骸も同時に掃除する。
+  home.activation.warmCompdump = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+    $DRY_RUN_CMD ${pkgs.findutils}/bin/find "${config.home.homeDirectory}" -maxdepth 1 \
+      \( -name '.zcompdump.*.local.*' -o -name '.zcompdump-*' \) \
+      -mtime +1 -delete 2>/dev/null || true
+    $DRY_RUN_CMD ${pkgs.zsh}/bin/zsh -c '
+      autoload -Uz compinit
+      compinit -u -d "${config.home.homeDirectory}/.zcompdump"
+      zcompile "${config.home.homeDirectory}/.zcompdump"
+    ' 2>/dev/null || true
   '';
 
   # .zshrc は programs.zsh が管理するため home.file ではなく
