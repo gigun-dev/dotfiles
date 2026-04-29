@@ -81,6 +81,21 @@ in
     enableBashCompletion = false;
     promptInit = "";
     interactiveShellInit = lib.mkForce "";
+    # /etc/zshenv に書き出される。interactive 起動より早く評価され fork なし。
+    # `brew shellenv` の path_helper fork (SIGCHLD race の主犯) を静的 export で代替。
+    shellInit =
+      let
+        prefix = if pkgs.stdenv.hostPlatform.isAarch64 then "/opt/homebrew" else "/usr/local";
+      in
+      ''
+        export HOMEBREW_PREFIX="${prefix}"
+        export HOMEBREW_CELLAR="${prefix}/Cellar"
+        export HOMEBREW_REPOSITORY="${prefix}"
+        export PATH="${prefix}/bin:${prefix}/sbin''${PATH:+:$PATH}"
+        export MANPATH="${prefix}/share/man''${MANPATH:+:$MANPATH}:"
+        export INFOPATH="${prefix}/share/info:''${INFOPATH:-}"
+        fpath=(${prefix}/share/zsh/site-functions $fpath)
+      '';
   };
 
   # macOS system defaults

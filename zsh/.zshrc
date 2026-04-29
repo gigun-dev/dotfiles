@@ -43,6 +43,16 @@ export PATH="$PATH:$HOME/.local/bin"
 # 初回のみ手動で `deno cache <ZENO_ROOT>/src/cli.ts` を打てばよい。
 # sheldon が zeno.zsh を source する前に効かせる必要があるためこの位置で export する
 export ZENO_DISABLE_EXECUTE_CACHE_COMMAND=1
+# zeno.zsh は起動時に `$(deno -V)` を fork する。mise activate は defer 後なので
+# deno が PATH に未登録でこの fork が空回り → SIGCHLD race の温床。
+# DISABLE_SOCK=1 で zeno-server 起動を抑止し fork を排除する (パフォーマンス影響軽微)。
+export ZENO_DISABLE_SOCK=1
+
+# pure prompt は precmd で `who -m` を fork する (pure.zsh:650-656)。
+#   if [[ -z $SSH_CONNECTION ]] && (( $+commands[who] )); then who_out=$(who -m); fi
+# macOS zsh 5.9 の SIGCHLD race で precmd 段の fork が高頻度で固まる。
+# SSH_CONNECTION にダミー値を入れて条件分岐を skip させる (色や user 表示は出ない)。
+[[ -z "$SSH_CONNECTION" ]] && export SSH_CONNECTION="local"
 
 # =============================================================================
 # Emacs keybind (mozumasu pattern — must be before other bindkey calls)
@@ -62,20 +72,15 @@ ensure_installed() {
 # =============================================================================
 # Config cache (ryoppippi pattern + ZWC compile)
 # =============================================================================
+# brew env は nix-darwin の programs.zsh.shellInit で /etc/zshenv に静的 export 済み。
+# vivid LS_COLORS は home.sessionVariables 経由で nix が build 時評価して export 済み。
+# 残るキャッシュ対象は direnv/zoxide のフック登録のみ。
+# 注意: direnv/zoxide の precmd/chpwd は内部で fork するが、prompt 表示後にしか走らない。
+# init 同期 fork (path_helper, vivid) を排除したことで SIGCHLD race の主犯は塞がれる。
 _config_cache="${XDG_CACHE_HOME}/zsh/config.zsh"
 if [[ ! -f "$_config_cache" || "${ZDOTDIR:-$HOME}/.zshrc" -nt "$_config_cache" ]]; then
   mkdir -p "${XDG_CACHE_HOME}/zsh"
   {
-    # brew shellenv (architecture-aware; $CPUTYPE は zsh 組込で fork 不要)
-    if [[ "$CPUTYPE" == arm64 ]]; then
-      /opt/homebrew/bin/brew shellenv 2>/dev/null
-    else
-      /usr/local/bin/brew shellenv 2>/dev/null
-    fi
-    # Tool init (skipped if not installed)
-    if command -v vivid &>/dev/null; then
-      echo "export LS_COLORS=\"$(vivid generate gruvbox-dark)\""
-    fi
     ensure_installed direnv hook zsh
     ensure_installed zoxide init zsh
   } > "$_config_cache"
