@@ -138,6 +138,6 @@
   "preferredNotifChannel": "terminal_bell",
   "teammateMode": "tmux",
   "remoteControlAtStartup": true,
-  "voiceEnabled": true,
-  "agentPushNotifEnabled": true
+  "agentPushNotifEnabled": true,
+  "voiceEnabled": true
 }
