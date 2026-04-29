@@ -74,25 +74,27 @@ ensure_installed() {
 # =============================================================================
 # brew env は nix-darwin の programs.zsh.shellInit で /etc/zshenv に静的 export 済み。
 # vivid LS_COLORS は home.sessionVariables 経由で nix が build 時評価して export 済み。
-# direnv/zoxide のフック登録は defer 化する: これらは precmd/chpwd で fork するため、
-# 同期で source すると初回プロンプト到達前に precmd で SIGCHLD race を踏む
-# (macOS 26 + zsh 5.9)。defer 経由なら初回プロンプト後にフック登録され、
-# exec zsh で対話が固まる症状を回避できる。
-_config_cache="${XDG_CACHE_HOME}/zsh/config.zsh"
-if [[ ! -f "$_config_cache" || "${ZDOTDIR:-$HOME}/.zshrc" -nt "$_config_cache" ]]; then
-  mkdir -p "${XDG_CACHE_HOME}/zsh"
-  {
-    ensure_installed direnv hook zsh
-    ensure_installed zoxide init zsh
-  } > "$_config_cache"
-  zcompile "$_config_cache"
+#
+# direnv の自動フック (`direnv hook zsh`) は precmd_functions に登録された
+# `_direnv_hook` が毎プロンプトで `direnv export zsh` を fork する設計で、
+# macOS 26 + zsh 5.9 の SIGCHLD race を高頻度で踏むため対話が固まる。
+# 自動フックを外し、必要時のみ `direnv exec . <cmd>` または明示的に
+#   eval "$(direnv export zsh)"
+# で env を流し込む手動運用にする。
+#
+# zoxide も同じく chpwd で `zoxide add` を fork するが、`z`/`zi` 自体は
+# fork なしで動くため、init 出力から chpwd 登録行だけを除いて使う。
+_zoxide_cache="${XDG_CACHE_HOME}/zsh/zoxide.zsh"
+if command -v zoxide &>/dev/null; then
+  if [[ ! -r "$_zoxide_cache" || "${commands[zoxide]}" -nt "$_zoxide_cache" ]]; then
+    mkdir -p "${_zoxide_cache:h}"
+    # `add-zsh-hook chpwd __zoxide_hook` を sed で除去 → 自動 add を無効化
+    zoxide init zsh | sed '/add-zsh-hook .* __zoxide_hook/d' > "$_zoxide_cache"
+    zcompile "$_zoxide_cache"
+  fi
+  source "$_zoxide_cache"
 fi
-if (( $+functions[zsh-defer] )); then
-  zsh-defer source "$_config_cache"
-else
-  source "$_config_cache"
-fi
-unset _config_cache
+unset _zoxide_cache
 
 # =============================================================================
 # Sheldon cache (mozumasu pattern)
