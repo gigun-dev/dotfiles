@@ -74,9 +74,10 @@ ensure_installed() {
 # =============================================================================
 # brew env は nix-darwin の programs.zsh.shellInit で /etc/zshenv に静的 export 済み。
 # vivid LS_COLORS は home.sessionVariables 経由で nix が build 時評価して export 済み。
-# 残るキャッシュ対象は direnv/zoxide のフック登録のみ。
-# 注意: direnv/zoxide の precmd/chpwd は内部で fork するが、prompt 表示後にしか走らない。
-# init 同期 fork (path_helper, vivid) を排除したことで SIGCHLD race の主犯は塞がれる。
+# direnv/zoxide のフック登録は defer 化する: これらは precmd/chpwd で fork するため、
+# 同期で source すると初回プロンプト到達前に precmd で SIGCHLD race を踏む
+# (macOS 26 + zsh 5.9)。defer 経由なら初回プロンプト後にフック登録され、
+# exec zsh で対話が固まる症状を回避できる。
 _config_cache="${XDG_CACHE_HOME}/zsh/config.zsh"
 if [[ ! -f "$_config_cache" || "${ZDOTDIR:-$HOME}/.zshrc" -nt "$_config_cache" ]]; then
   mkdir -p "${XDG_CACHE_HOME}/zsh"
@@ -86,7 +87,11 @@ if [[ ! -f "$_config_cache" || "${ZDOTDIR:-$HOME}/.zshrc" -nt "$_config_cache" ]
   } > "$_config_cache"
   zcompile "$_config_cache"
 fi
-source "$_config_cache"
+if (( $+functions[zsh-defer] )); then
+  zsh-defer source "$_config_cache"
+else
+  source "$_config_cache"
+fi
 unset _config_cache
 
 # =============================================================================
@@ -104,26 +109,14 @@ fi
 unset _sheldon_cache _sheldon_toml
 
 # =============================================================================
-# mise (mozumasu pattern: activate + shims をキャッシュして zsh-defer source)
-# deno/python など shim 経由のツールが PATH に乗る。defer で起動を妨げない。
+# mise (shims のみ: activate を使わず PATH に shims を入れるだけ)
+# `mise activate zsh` は precmd で `eval "$(mise hook-env)"` を fork する設計で、
+# macOS 26 + zsh 5.9 の SIGCHLD race を毎プロンプトで踏んで対話が固まる。
+# shim binary は cwd を見て tool-version を自動解決するので CLI 利用は同等。
+# .tool-versions の自動 export (環境変数) は失う (実用上ほぼ影響なし)。
 # =============================================================================
-# mise バイナリパスは fork レス取得 (commands 連想配列は zsh 組込)
-if [[ -n "${commands[mise]}" ]]; then
-  _mise_cache="${XDG_CACHE_HOME}/zsh/mise.zsh"
-  if [[ ! -r "$_mise_cache" || "${commands[mise]}" -nt "$_mise_cache" ]]; then
-    mkdir -p "${_mise_cache:h}"
-    {
-      mise activate zsh
-      mise activate --shims
-    } > "$_mise_cache"
-    zcompile "$_mise_cache"
-  fi
-  if (( $+functions[zsh-defer] )); then
-    zsh-defer source "$_mise_cache"
-  else
-    source "$_mise_cache"
-  fi
-  unset _mise_cache
+if [[ -d "${XDG_DATA_HOME}/mise/shims" ]]; then
+  export PATH="${XDG_DATA_HOME}/mise/shims:$PATH"
 fi
 
 # =============================================================================
