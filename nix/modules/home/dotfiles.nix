@@ -103,39 +103,29 @@ in
 
   # .zshrc は programs.zsh が管理するため home.file ではなく
   # home.activation で強制シンボリックリンク (ryoppippi パターン)
-  home.activation.linkDotfiles = lib.hm.dag.entryAfter [ "linkGeneration" ] (
-    ''
-      link_force() {
-        local src="$1" dst="$2"
-        [ -L "$dst" ] && rm "$dst"
-        [ -e "$dst" ] && mv "$dst" "$dst.backup"
-        ln -sf "$src" "$dst"
-      }
-      link_force "${dotfilesPath}/zsh/.zshrc" "${config.home.homeDirectory}/.zshrc"
+  home.activation.linkDotfiles = lib.hm.dag.entryAfter [ "linkGeneration" ] (''
+    link_force() {
+      local src="$1" dst="$2"
+      [ -L "$dst" ] && rm "$dst"
+      [ -e "$dst" ] && mv "$dst" "$dst.backup"
+      ln -sf "$src" "$dst"
+    }
+    link_force "${dotfilesPath}/zsh/.zshrc" "${config.home.homeDirectory}/.zshrc"
 
-      # Claude Code (~/.claude/ は memory/log 等があるので個別リンク)
-      $DRY_RUN_CMD mkdir -p "${config.home.homeDirectory}/.claude"
-      link_force "${dotfilesPath}/claude/settings.json" "${config.home.homeDirectory}/.claude/settings.json"
-      link_force "${dotfilesPath}/claude/hooks" "${config.home.homeDirectory}/.claude/hooks"
-      link_force "${dotfilesPath}/claude/commands" "${config.home.homeDirectory}/.claude/commands"
-      link_force "${dotfilesPath}/claude/skills" "${config.home.homeDirectory}/.claude/skills"
+    # Claude Code (~/.claude/ は memory/log 等があるので個別リンク)
+    $DRY_RUN_CMD mkdir -p "${config.home.homeDirectory}/.claude"
+    link_force "${dotfilesPath}/claude/settings.json" "${config.home.homeDirectory}/.claude/settings.json"
+    link_force "${dotfilesPath}/claude/hooks" "${config.home.homeDirectory}/.claude/hooks"
+    link_force "${dotfilesPath}/claude/commands" "${config.home.homeDirectory}/.claude/commands"
+    link_force "${dotfilesPath}/claude/skills" "${config.home.homeDirectory}/.claude/skills"
 
-      # agent-browser (~/.agent-browser/ は browsers/sessions 等があるので config のみ)
-      $DRY_RUN_CMD mkdir -p "${config.home.homeDirectory}/.agent-browser"
-      link_force "${dotfilesPath}/agent-browser/config.json" "${config.home.homeDirectory}/.agent-browser/config.json"
-    ''
-    + lib.optionalString isDarwin ''
+    # agent-browser (~/.agent-browser/ は browsers/sessions 等があるので config のみ)
+    $DRY_RUN_CMD mkdir -p "${config.home.homeDirectory}/.agent-browser"
+    link_force "${dotfilesPath}/agent-browser/config.json" "${config.home.homeDirectory}/.agent-browser/config.json"
+  '');
 
-      # iTerm2 plist リストア
-      # brew zap で plist が消えた場合、dotfiles のバックアップから復元する
-      # バックアップは手動で `cp ~/Library/Preferences/com.googlecode.iterm2.plist iterm2/` する
-      # (自動バックアップするとウィンドウ位置等の一時的な差分が混入するため)
-      iterm_plist="${config.home.homeDirectory}/Library/Preferences/com.googlecode.iterm2.plist"
-      iterm_backup="${dotfilesPath}/iterm2/com.googlecode.iterm2.plist"
-      if [ ! -f "$iterm_plist" ] && [ -f "$iterm_backup" ]; then
-        echo "Restoring iTerm2 plist from dotfiles backup..."
-        $DRY_RUN_CMD cp "$iterm_backup" "$iterm_plist"
-      fi
-    ''
-  );
+  # iTerm2 plist の同期は system.defaults.CustomUserPreferences."com.googlecode.iterm2"
+  # で `LoadPrefsFromCustomFolder = true` + `PrefsCustomFolder = repo path` を宣言済み。
+  # iTerm2 自身が repo 内 plist を source of truth として読み書きするため、
+  # 旧 restore-on-missing ロジックは不要 (system.nix を参照)。
 }

@@ -143,8 +143,15 @@ in
     # "Close windows when quitting an application" を無効化
     CustomUserPreferences.NSGlobalDomain.NSQuitAlwaysKeepsWindows = true;
 
-    # iTerm2: plist (iterm2/com.googlecode.iterm2.plist) が source of truth
-    # defaults は不要 (plist リストアで全設定が復元される)
+    # iTerm2: Custom Preferences Folder 機構で repo 内の plist を直接読み書き。
+    # ~/Library/Preferences/com.googlecode.iterm2.plist にはこの bootstrap meta key
+    # だけ宣言し、本体の設定は dotfiles リポ側 plist が single source of truth。
+    # GUI 変更は iTerm2 終了時に repo 側 plist へ書き戻されるので、
+    # `git diff iterm2/` で変更内容を確認して commit すれば反映される。
+    CustomUserPreferences."com.googlecode.iterm2" = {
+      LoadPrefsFromCustomFolder = true;
+      PrefsCustomFolder = "/Users/${username}/ghq/github.com/gigun-dev/dotfiles/iterm2";
+    };
   };
 
   # Mac Mini (Intel) — サーバー用途のためスリープ無効化

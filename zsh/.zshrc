@@ -97,6 +97,21 @@ fi
 unset _zoxide_cache
 
 # =============================================================================
+# mise (shims のみ: activate を使わず PATH に shims を入れるだけ)
+# `mise activate zsh` は precmd で `eval "$(mise hook-env)"` を fork する設計で、
+# macOS 26 + zsh 5.9 の SIGCHLD race を毎プロンプトで踏んで対話が固まる。
+# shim binary は cwd を見て tool-version を自動解決するので CLI 利用は同等。
+# .tool-versions の自動 export (環境変数) は失う (実用上ほぼ影響なし)。
+#
+# 重要: sheldon source より **前** に登録する必要がある。
+# zeno.zsh は冒頭で `whence -p deno` を確認し、未発見なら即 return する仕様
+# (ZENO_LOADED が立たず space-snippet 展開が無効化される)。
+# =============================================================================
+if [[ -d "${XDG_DATA_HOME}/mise/shims" ]]; then
+  export PATH="${XDG_DATA_HOME}/mise/shims:$PATH"
+fi
+
+# =============================================================================
 # Sheldon cache (mozumasu pattern)
 # =============================================================================
 _sheldon_cache="${XDG_CACHE_HOME}/sheldon.zsh"
@@ -109,17 +124,6 @@ if [[ ! -r "$_sheldon_cache" || "$_sheldon_toml" -nt "$_sheldon_cache" ]]; then
 fi
 [[ -r "$_sheldon_cache" ]] && source "$_sheldon_cache"
 unset _sheldon_cache _sheldon_toml
-
-# =============================================================================
-# mise (shims のみ: activate を使わず PATH に shims を入れるだけ)
-# `mise activate zsh` は precmd で `eval "$(mise hook-env)"` を fork する設計で、
-# macOS 26 + zsh 5.9 の SIGCHLD race を毎プロンプトで踏んで対話が固まる。
-# shim binary は cwd を見て tool-version を自動解決するので CLI 利用は同等。
-# .tool-versions の自動 export (環境変数) は失う (実用上ほぼ影響なし)。
-# =============================================================================
-if [[ -d "${XDG_DATA_HOME}/mise/shims" ]]; then
-  export PATH="${XDG_DATA_HOME}/mise/shims:$PATH"
-fi
 
 # =============================================================================
 # Pure prompt activation (sheldon 経由で源ファイルはロード済み)

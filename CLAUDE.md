@@ -13,6 +13,8 @@ nix run .#update               # flake update + switch
 
 **重要**: nix は git index から評価するため、`nix run .#switch` の前に必ず `git add` すること。
 
+**iTerm2 初回 bootstrap 順序**: `LoadPrefsFromCustomFolder` / `PrefsCustomFolder` は nix 側 (`system.defaults.CustomUserPreferences."com.googlecode.iterm2"`) で system plist に宣言する設計のため、**iTerm2 を起動する前に最初の `nix run .#switch` を完了させる**こと。先に iTerm2 を立ち上げると bootstrap meta key が無く、repo 内 plist が source of truth として読まれない（system plist に書かれた古い設定が継続使用される）。
+
 ## 対象マシン
 
 | マシン | アーキテクチャ | 管理 |
