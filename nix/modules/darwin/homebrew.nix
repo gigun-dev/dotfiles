@@ -29,6 +29,7 @@ in
     ];
 
     casks = [
+      "android-studio"
       "aqua-voice"
       "azookey"
       "claude"
