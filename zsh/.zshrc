@@ -172,8 +172,15 @@ zstyle ':completion:*:default' menu select=2
 # home-manager で入れたパッケージ (gh, git, etc.) の補完を有効化。
 # typeset -U で重複除去 (sheldon プラグインや /etc/zshenv の NIX_PROFILES ループが
 # 同じディレクトリを多重 prepend し、compinit の fpath 全走査が爆発するのを防ぐ)。
+#
+# /etc/profiles/per-user/$USER は nix-darwin + home-manager (useUserPackages) で
+# 入れたパッケージ (例: bun) の補完置き場。/etc/zshenv の NIX_PROFILES ループは
+# このパスを含まないことがあり (~/.nix-profile が standalone profile を指している場合)、
+# ここで明示的に追加して取りこぼしを防ぐ。Linux/WSL では存在しないので無視される。
 typeset -gU fpath
 fpath=(
+  "/etc/profiles/per-user/$USER/share/zsh/site-functions"
+  "/etc/profiles/per-user/$USER/share/zsh/$ZSH_VERSION/functions"
   "$HOME/.nix-profile/share/zsh/site-functions"
   "$HOME/.nix-profile/share/zsh/$ZSH_VERSION/functions"
   /nix/var/nix/profiles/default/share/zsh/site-functions

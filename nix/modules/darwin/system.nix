@@ -70,6 +70,9 @@ in
     home = "/Users/${username}";
     shell = pkgs.zsh;
   };
+  # /etc/shells に nix の zsh を登録 (chsh で login shell に指定可能にする)。
+  # zsh master ビルド (sigsuspend race fix) を login shell として使うため必須。
+  environment.shells = [ pkgs.zsh ];
   programs.zsh = {
     enable = true;
     # /etc/zshrc を骨抜きにして dotfiles の zsh/.zshrc に一本化する (mozumasu pattern)。
