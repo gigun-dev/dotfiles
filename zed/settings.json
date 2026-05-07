@@ -1,4 +1,10 @@
 {
+  "autosave": {
+    "after_delay": {
+      "milliseconds": 1000
+    }
+  },
+  "show_edit_predictions": false,
   "cli_default_open_behavior": "new_window",
   "project_panel": {
     "dock": "left"
@@ -10,6 +16,12 @@
     "dock": "left"
   },
   "agent": {
+    "default_model": {
+      "provider": "zed.dev",
+      "model": "claude-sonnet-4-6",
+      "enable_thinking": true,
+      "effort": "medium"
+    },
     "dock": "right",
     "favorite_models": [],
     "model_parameters": []
