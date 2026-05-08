@@ -1,4 +1,5 @@
 {
   "$schema": "https://agent-browser.dev/schema.json",
-  "headed": true
+  "headed": true,
+  "profile": "Default"
 }
