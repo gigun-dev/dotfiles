@@ -22,8 +22,8 @@ readonly WHITE=$'\033[38;5;188m'
 
 metric="${1:-}"
 case "$metric" in
-  5h) label='5h'; section='five_hour' ;;
-  7d) label='7d'; section='seven_day' ;;
+  5h) label='5h'; section='five_hour'; window=18000 ;;
+  7d) label='7d'; section='seven_day'; window=604800 ;;
   *)  echo "Usage: $0 5h|7d" >&2; exit 1 ;;
 esac
 
@@ -35,6 +35,21 @@ if [[ "$after" =~ \"used_percentage\"[[:space:]]*:[[:space:]]*([0-9]+\.?[0-9]*) 
   pct="${BASH_REMATCH[1]}"
 else
   printf '%s%s         --%s' "$DIM" "$label" "$R"; exit 0
+fi
+
+# for 7d, compute current day in cycle from resets_at
+if [[ "$metric" == "7d" ]]; then
+  if [[ "$after" =~ \"resets_at\"[[:space:]]*:[[:space:]]*([0-9]+) ]]; then
+    resets_at="${BASH_REMATCH[1]}"
+    now=$(date +%s)
+    remaining=$(( resets_at - now ))
+    (( remaining < 0 )) && remaining=0
+    elapsed=$(( window - remaining ))
+    (( elapsed < 0 )) && elapsed=0
+    day=$(( elapsed / 86400 + 1 ))
+    (( day > 7 )) && day=7
+    label="${day}/7d"
+  fi
 fi
 
 p=$(printf '%.0f' "$pct")

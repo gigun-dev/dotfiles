@@ -29,7 +29,7 @@ after="${json#*\"$section\"}"
 if [[ "$after" =~ \"resets_at\"[[:space:]]*:[[:space:]]*([0-9]+) ]]; then
   resets_at="${BASH_REMATCH[1]}"
 else
-  printf '%s%s ○ --%s' "$DIM" "reset" "$R"; exit 0
+  printf '%s%s ○ --%s' "$DIM" "r" "$R"; exit 0
 fi
 
 # remaining time and elapsed percentage
@@ -57,17 +57,21 @@ idx=$(( p / 25 ))
 (( idx > 4 )) && idx=4
 ring="${RINGS[$idx]}"
 
-hours=$(( remaining / 3600 ))
-minutes=$(( (remaining % 3600) / 60 ))
-
-if (( hours > 0 )); then
-  timer="${hours}hr ${minutes}m"
+if [[ "$metric" == "7d" ]]; then
+  days=$(( remaining / 86400 ))
+  timer="${days}d"
 else
-  timer="${minutes}m"
+  hours=$(( remaining / 3600 ))
+  minutes=$(( (remaining % 3600) / 60 ))
+  if (( hours > 0 )); then
+    timer="${hours}h ${minutes}m"
+  else
+    timer="${minutes}m"
+  fi
 fi
 
 # output
 printf '%s%s%s %b%s%s %s%s%s' \
-  "$DIM" "reset" "$R" \
+  "$DIM" "r" "$R" \
   "$color" "$ring" "$R" \
   "$WHITE" "$timer" "$R"
