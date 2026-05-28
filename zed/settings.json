@@ -16,6 +16,7 @@
     "dock": "left"
   },
   "agent": {
+    "default_profile": "ask",
     "default_model": {
       "provider": "zed.dev",
       "model": "claude-sonnet-4-6",

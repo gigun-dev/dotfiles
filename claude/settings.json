@@ -135,11 +135,12 @@
   "effortLevel": "medium",
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark-daltonized",
+  "verbose": false,
   "preferredNotifChannel": "terminal_bell",
   "teammateMode": "tmux",
   "remoteControlAtStartup": true,
+  "inputNeededNotifEnabled": true,
   "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
-  "voiceEnabled": true,
-  "inputNeededNotifEnabled": true
+  "voiceEnabled": true
 }

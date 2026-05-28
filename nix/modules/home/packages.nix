@@ -42,6 +42,10 @@
       # Dev
       mise
       ffmpeg
+
+      # DB client (server は都度 Docker / nix shell で起動)
+      mariadb.client # mysql CLI (Oracle MySQL 互換)
+      postgresql_17 # psql + サーババイナリ同梱 (常駐させず spot 起動)
     ]
     ++ lib.optionals pkgs.stdenv.isDarwin [
       cocoapods # iOS 開発 — darwin 限定
