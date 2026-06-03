@@ -32,6 +32,33 @@
 	<false/>
 	<key>DimInactiveSplitPanes</key>
 	<false/>
+	<key>GlobalKeyMap</key>
+	<dict>
+		<key>0x2b-0x120000</key>
+		<dict>
+			<key>Action</key>
+			<integer>25</integer>
+			<key>Text</key>
+			<string>Make Text Bigger
+Make Text Bigger</string>
+		</dict>
+		<key>0x2b-0x100000</key>
+		<dict>
+			<key>Action</key>
+			<integer>25</integer>
+			<key>Text</key>
+			<string>Make Text Bigger
+Make Text Bigger</string>
+		</dict>
+		<key>0x3b-0x120000</key>
+		<dict>
+			<key>Action</key>
+			<integer>25</integer>
+			<key>Text</key>
+			<string>Make Text Bigger
+Make Text Bigger</string>
+		</dict>
+	</dict>
 	<key>HapticFeedbackForEsc</key>
 	<false/>
 	<key>HotkeyMigratedFromSingleToMulti</key>
