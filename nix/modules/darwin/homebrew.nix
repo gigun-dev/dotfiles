@@ -41,6 +41,7 @@ in
     ++ [
       "discord"
       "figma"
+      "fiji" # ImageJ ディストリ (Fiji Is Just ImageJ)。ARM ネイティブ。素の imagej cask は Gatekeeper 不通過で deprecated のため不採用
       "fork"
       "google-chrome"
       "iterm2"
