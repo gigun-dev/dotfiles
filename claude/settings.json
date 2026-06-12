@@ -79,7 +79,8 @@
     "decomposition@kuu-marketplace": true,
     "deslop@kuu-marketplace": true,
     "auth-skills@better-auth-agent-skills": false,
-    "context7@claude-plugins-official": true
+    "context7@claude-plugins-official": true,
+    "clangd-lsp@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "better-auth-agent-skills": {
@@ -132,7 +133,7 @@
     }
   },
   "language": "Japanese",
-  "effortLevel": "medium",
+  "effortLevel": "xhigh",
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark-daltonized",
   "verbose": false,
