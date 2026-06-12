@@ -48,10 +48,12 @@ in
       "karabiner-elements"
       "monitorcontrol"
       "ollama-app"
+      "orbstack"
       "postman"
       "proxyman"
       "slack"
       "tableplus"
+      "thaw"
       "zed"
     ];
 
