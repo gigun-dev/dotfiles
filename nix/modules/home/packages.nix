@@ -46,6 +46,10 @@
       # DB client (server は都度 Docker / nix shell で起動)
       mariadb.client # mysql CLI (Oracle MySQL 互換)
       postgresql_17 # psql + サーババイナリ同梱 (常駐させず spot 起動)
+      # dbcli: 補完 + ハイライト強化版 CLI (mysql/postgres/sqlite で操作感共通)
+      mycli
+      pgcli
+      litecli
     ]
     ++ lib.optionals pkgs.stdenv.isDarwin [
       cocoapods # iOS 開発 — darwin 限定
