@@ -40,6 +40,7 @@ in
     ]
     ++ [
       "discord"
+      "drawio" # GUI + headless export CLI (drawio -x ...) を同梱。CLI 目的でも実体は desktop app のため cask
       "figma"
       "fiji" # ImageJ ディストリ (Fiji Is Just ImageJ)。ARM ネイティブ。素の imagej cask は Gatekeeper 不通過で deprecated のため不採用
       "fork"
