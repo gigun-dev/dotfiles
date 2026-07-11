@@ -2,8 +2,10 @@
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "cleanupPeriodDays": 9999,
   "env": {
+    "DISABLE_TELEMETRY": "1",
+    "DISABLE_ERROR_REPORTING": "1",
+    "DISABLE_BUG_COMMAND": "1",
     "EDITOR": "zed --wait",
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1"
   },
   "permissions": {
@@ -29,6 +31,7 @@
     ],
     "defaultMode": "auto"
   },
+  "model": "claude-fable-5[1m]",
   "hooks": {
     "Stop": [
       {
@@ -66,10 +69,10 @@
     "github@claude-plugins-official": false,
     "code-simplifier@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
-    "supabase@claude-plugins-official": false,
+    "supabase@claude-plugins-official": true,
     "stripe@claude-plugins-official": false,
     "swift-lsp@claude-plugins-official": true,
-    "slack@claude-plugins-official": false,
+    "slack@claude-plugins-official": true,
     "gopls-lsp@claude-plugins-official": true,
     "coderabbit@claude-plugins-official": true,
     "firecrawl@claude-plugins-official": true,
@@ -80,7 +83,8 @@
     "deslop@kuu-marketplace": true,
     "auth-skills@better-auth-agent-skills": false,
     "context7@claude-plugins-official": true,
-    "clangd-lsp@claude-plugins-official": true
+    "clangd-lsp@claude-plugins-official": true,
+    "cloudflare@cloudflare": true
   },
   "extraKnownMarketplaces": {
     "better-auth-agent-skills": {
@@ -133,11 +137,12 @@
     }
   },
   "language": "Japanese",
-  "effortLevel": "xhigh",
+  "effortLevel": "low",
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark-daltonized",
   "verbose": false,
   "preferredNotifChannel": "terminal_bell",
+  "autoCompactEnabled": false,
   "teammateMode": "tmux",
   "remoteControlAtStartup": true,
   "inputNeededNotifEnabled": true,
