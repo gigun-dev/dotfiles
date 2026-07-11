@@ -335,3 +335,6 @@ unset _zsh_functions
 # =============================================================================
 zle -N ghq_fzf
 bindkey '^g' ghq_fzf
+
+# Added by Devin
+export PATH="/Users/gigun/.codeium/windsurf/bin:$PATH"
