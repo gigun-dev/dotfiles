@@ -44,6 +44,7 @@ in
       "figma"
       "fiji" # ImageJ ディストリ (Fiji Is Just ImageJ)。ARM ネイティブ。素の imagej cask は Gatekeeper 不通過で deprecated のため不採用
       "fork"
+      "gcloud-cli" # Google Cloud SDK。gcloud run deploy 等の Cloud Run デプロイ CLI
       "google-chrome"
       "iterm2"
       "karabiner-elements"
