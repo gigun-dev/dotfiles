@@ -25,9 +25,10 @@ in
   };
 
   # NotchBar: 開発ビルドをログイン時に自動起動 (darwin only)
+  # 現状は起動しない方針 (enable = false)。再開したくなったら true に戻す
   launchd.agents = lib.optionalAttrs isDarwin {
     notchbar = {
-      enable = true;
+      enable = false;
       config = {
         Label = "com.github.gigun-dev.NotchBar";
         Program = "${config.home.homeDirectory}/ghq/github.com/gigun-dev/notchbar/.build/debug/NotchBar";
