@@ -17,13 +17,15 @@
 	<key>AIVectorStore</key>
 	<integer>0</integer>
 	<key>AiMaxTokens</key>
-	<integer>400000</integer>
+	<integer>1050000</integer>
 	<key>AiModel</key>
-	<string>gpt-5.2</string>
+	<string>gpt-5.5</string>
 	<key>AiResponseMaxTokens</key>
 	<integer>128000</integer>
 	<key>AitermURL</key>
 	<string>https://api.openai.com/v1/responses</string>
+	<key>AllowClipboardAccess</key>
+	<true/>
 	<key>ClickToSelectCommand</key>
 	<false/>
 	<key>Default Bookmark Guid</key>
@@ -34,7 +36,7 @@
 	<false/>
 	<key>GlobalKeyMap</key>
 	<dict>
-		<key>0x2b-0x120000</key>
+		<key>0x2b-0x100000</key>
 		<dict>
 			<key>Action</key>
 			<integer>25</integer>
@@ -42,7 +44,7 @@
 			<string>Make Text Bigger
 Make Text Bigger</string>
 		</dict>
-		<key>0x2b-0x100000</key>
+		<key>0x2b-0x120000</key>
 		<dict>
 			<key>Action</key>
 			<integer>25</integer>
@@ -62,8 +64,6 @@ Make Text Bigger</string>
 	<key>HapticFeedbackForEsc</key>
 	<false/>
 	<key>HotkeyMigratedFromSingleToMulti</key>
-	<true/>
-	<key>PreventEscapeSequenceFromClearingHistory</key>
 	<true/>
 	<key>New Bookmarks</key>
 	<array>
