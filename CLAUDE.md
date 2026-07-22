@@ -80,7 +80,9 @@ nix run .#update               # flake update + switch
 - **useGlobalPkgs = false**: overlay との整合性（flake.nix で設定）
 - **mkOutOfStoreSymlink**: nix store にコピーせず dotfiles リポを直接参照
 - `.zshrc` は `home.activation` で強制リンク（`programs.zsh` は home-manager 側では使わない）
-- **AI ツール**: claude-code は ryoppippi overlay、codex 等は llm-agents overlay（`pkgs.llm-agents.*`）
+- **AI ツール**: claude-code は ryoppippi overlay。codex/opencode 等 llm-agents のツールは **overlay を使わず** `inputs.llm-agents.packages.${system}.*` を `extraSpecialArgs`（引数名 `llmAgents`）で home モジュールへ渡す。overlay 経由だと我々の nixpkgs に対して再ビルドされ numtide キャッシュ（llm-agents 自身の nixpkgs でビルド）にヒットせず毎回ソースビルドになる（codex の Rust フルビルドが顕著）。standalone 参照ならキャッシュ直ヒット
+- **キャッシュヒットを壊さない**: overlay で base パッケージを `overrideAttrs` すると上流キャッシュのハッシュと不一致になり、そのパッケージと依存元が全てソースビルドになる。真に必要な override（zsh master 等）だけに限定する。zsh override は direnv 等にも波及して再ビルドを誘発するため、これら自前ビルドは個人キャッシュ（gigun.cachix.org）で吸収する前提
+- **個人キャッシュ**: `nix run .#switch`/`update` は完了後に `nix path-info --all | cachix push gigun` を背景実行する。`cachix` は `packages.nix` で導入済み。初回のみ `cachix authtoken <token>` を実行して push を有効化すること（未実行だと push が silently skip され個人キャッシュが空のままになる）
 
 ## Zsh 規約
 
