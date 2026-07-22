@@ -115,6 +115,13 @@ in
 
     # Claude Code (~/.claude/ は memory/log 等があるので個別リンク)
     $DRY_RUN_CMD mkdir -p "${config.home.homeDirectory}/.claude"
+    # Claude Code は設定書き込み時に rename で置き換えるため symlink が実ファイル化する。
+    # そのまま link_force すると最新設定が .backup 行きになり dotfiles 側の古い設定に
+    # 巻き戻るので、実ファイル化していたら先に dotfiles 側へ吸い上げる
+    claude_settings="${config.home.homeDirectory}/.claude/settings.json"
+    if [ -f "$claude_settings" ] && [ ! -L "$claude_settings" ]; then
+      $DRY_RUN_CMD cp "$claude_settings" "${dotfilesPath}/claude/settings.json"
+    fi
     link_force "${dotfilesPath}/claude/settings.json" "${config.home.homeDirectory}/.claude/settings.json"
     link_force "${dotfilesPath}/claude/hooks" "${config.home.homeDirectory}/.claude/hooks"
     link_force "${dotfilesPath}/claude/commands" "${config.home.homeDirectory}/.claude/commands"
