@@ -125,10 +125,6 @@ in
     link_force "${dotfilesPath}/claude/settings.json" "${config.home.homeDirectory}/.claude/settings.json"
     link_force "${dotfilesPath}/claude/hooks" "${config.home.homeDirectory}/.claude/hooks"
     link_force "${dotfilesPath}/claude/commands" "${config.home.homeDirectory}/.claude/commands"
-
-    # agent-browser (~/.agent-browser/ は browsers/sessions 等があるので config のみ)
-    $DRY_RUN_CMD mkdir -p "${config.home.homeDirectory}/.agent-browser"
-    link_force "${dotfilesPath}/agent-browser/config.json" "${config.home.homeDirectory}/.agent-browser/config.json"
   '');
 
   # iTerm2 plist の同期は system.defaults.CustomUserPreferences."com.googlecode.iterm2"

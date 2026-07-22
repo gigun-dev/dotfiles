@@ -18,8 +18,8 @@
       # AI
       claude-code # ← claude-code-overlay (ryoppippi)
       llm-agents.opencode
-      llm-agents.ccstatusline
-      llm-agents.agent-browser
+      # ccstatusline は bunx/npx で足りるため nix pin をやめた (軽量・常駐でない)
+      # agent-browser は chrome-devtools-mcp に一本化したため撤去
 
       # Git
       gh

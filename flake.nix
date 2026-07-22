@@ -168,7 +168,9 @@
 
           overlays = [
             inputs.claude-code-overlay.overlays.default
-            inputs.llm-agents.overlays.default
+            # llm-agents.nix は overlay 名を default → shared-nixpkgs に改名した
+            # (2026-07 頃)。pkgs.llm-agents.* の中身は不変。
+            inputs.llm-agents.overlays.shared-nixpkgs
             # direnv の checkPhase が nix sandbox 内でハングするため無効化
             (final: prev: {
               direnv = prev.direnv.overrideAttrs { doCheck = false; };

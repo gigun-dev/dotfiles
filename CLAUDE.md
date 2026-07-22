@@ -105,9 +105,9 @@ nix run .#update               # flake update + switch
 - **winget 一本化**: Scoop / Chocolatey は不採用。winget / msstore にないものだけ DSC `Script` で直接 download + install
 - **WSL2 に寄せる**: Windows ネイティブは最小限（ターミナル、エディタ、ブラウザ、GUI アプリ）。CLI 開発は WSL 内で `packages.nix`（x86_64-linux）を適用して Mac と同等の環境にする
 - **エディタは Pattern A (Win native + Remote-WSL)**: VSCode / Cursor / Zed は全て Windows native install + 組込 Remote-WSL 機能で使用 (2026 公式推奨)。Linux 版 WSLg は GPU/IME/起動速度で劣るため不採用。keymap は dotfiles で symlink 共有 (Mac は brew cask + home-manager、Win は DSC Script で `%APPDATA%\Zed\keymap.json` 等へ)
-- **AI tools は WSL 集約**: `claude-code` / `codex` / `opencode` / `ccstatusline` は nix (`packages.nix`) で WSL 側に。Windows native には入れない方針
+- **AI tools は WSL 集約**: `claude-code` / `codex` / `opencode` は nix (`packages.nix`) で WSL 側に。Windows native には入れない方針。`ccstatusline` は軽量なので nix pin せず `bunx`/`npx` 都度実行
 - **git auth 統一**: 全 OS で `gh auth login` 1 回 + `credential.helper = '!gh auth git-credential'`。SSH key 管理しない (url rewrite で SSH URL が混入しても HTTPS に変換する手もあるが現在は未採用)
-- **ブラウザ自動化 (CDP)**: Chrome 136+ は `--user-data-dir` 必須。`--remote-debugging-port=9222 --user-data-dir=%LOCALAPPDATA%\Google\Chrome Dev` で起動し、WSL から `localhost:9222` で接続 (`networkingMode=mirrored` 前提)。agent-browser は `--cdp 9222`、headed で開くには `tab new https://...`（`open` は Playwright 内部コンテキストで Chrome タブに出ない）
+- **ブラウザ自動化**: Claude Code からの対話操作は `chrome-devtools-mcp` に一本化 (agent-browser は撤去)。再現可能なスクリプトが要る場合は Puppeteer ではなく Playwright を選ぶ。CDP 接続時は Chrome 136+ で `--user-data-dir` 必須、`--remote-debugging-port=9222 --user-data-dir=%LOCALAPPDATA%\Google\Chrome Dev` で起動し WSL から `localhost:9222` で接続 (`networkingMode=mirrored` 前提)
 - **Tailscale**: MSI デフォルト構成（GUI + daemon + CLI）を尊重。Unattended mode を有効化して daemon 単体で接続継続可能に
 - **フォント**: Mac と同じ JetBrains Mono Nerd Font をユーザースコープで配置
 - **シンボリックリンク**: DSC Script リソースが `.wslconfig` / `.wezterm.lua` / `kanata.kbd` / `.gitconfig` / Zed `keymap.json` を `windows/` または dotfiles ルート配下から張る（nix の `mkOutOfStoreSymlink` 相当）
