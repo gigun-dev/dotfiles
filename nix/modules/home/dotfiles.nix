@@ -125,7 +125,6 @@ in
     link_force "${dotfilesPath}/claude/settings.json" "${config.home.homeDirectory}/.claude/settings.json"
     link_force "${dotfilesPath}/claude/hooks" "${config.home.homeDirectory}/.claude/hooks"
     link_force "${dotfilesPath}/claude/commands" "${config.home.homeDirectory}/.claude/commands"
-    link_force "${dotfilesPath}/claude/skills" "${config.home.homeDirectory}/.claude/skills"
 
     # agent-browser (~/.agent-browser/ は browsers/sessions 等があるので config のみ)
     $DRY_RUN_CMD mkdir -p "${config.home.homeDirectory}/.agent-browser"
