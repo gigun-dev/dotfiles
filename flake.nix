@@ -166,15 +166,19 @@
         let
           username = "gigun";
 
+          # llm-agents の CLI ツール (codex/opencode 等) は overlay 経由で取ると
+          # 我々の nixpkgs に対して再ビルドされ numtide キャッシュ(llm-agents 自身の
+          # nixpkgs でビルド)にヒットしない。standalone packages を直接参照して
+          # キャッシュヒットさせるため overlay は使わず extraSpecialArgs で渡す
+          # (flake.nix の home-manager 設定参照)。
+          llmAgentsFor = system: inputs.llm-agents.packages.${system};
+
           overlays = [
             inputs.claude-code-overlay.overlays.default
-            # llm-agents.nix は overlay 名を default → shared-nixpkgs に改名した
-            # (2026-07 頃)。pkgs.llm-agents.* の中身は不変。
-            inputs.llm-agents.overlays.shared-nixpkgs
-            # direnv の checkPhase が nix sandbox 内でハングするため無効化
-            (final: prev: {
-              direnv = prev.direnv.overrideAttrs { doCheck = false; };
-            })
+            # direnv の doCheck=false override は撤去した: override はハッシュを変えて
+            # 素なら upstream キャッシュから fetch できる direnv を毎回ソースビルドさせ、
+            # その結果 checkPhase ハングを踏むという自己誘発ループだった。override 無しなら
+            # キャッシュヒットでビルドが走らず、ハングも起きない。
             # zsh master ビルド: 5.9 リリース版の `signal_suspend` は
             # `sigprocmask + pause()` の race 持ち実装で、macOS 26.4.1 と組合せると
             # SIGCHLD 配送タイミング次第で widget 内 `$(...)` が永久 wait に陥る。
@@ -264,6 +268,9 @@
                     useGlobalPkgs = false;
                     useUserPackages = true;
                     backupFileExtension = "backup";
+                    extraSpecialArgs = {
+                      llmAgents = llmAgentsFor system;
+                    };
                     users.${username} = {
                       imports = [ ./nix/modules/home ];
                       nixpkgs.overlays = overlays;
@@ -289,6 +296,9 @@
                 system = "x86_64-linux";
                 inherit overlays;
                 config.allowUnfree = true;
+              };
+              extraSpecialArgs = {
+                llmAgents = llmAgentsFor "x86_64-linux";
               };
               modules = [ ./nix/modules/home ];
             };
