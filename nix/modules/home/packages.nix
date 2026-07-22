@@ -58,7 +58,11 @@
       litecli
     ]
     ++ lib.optionals pkgs.stdenv.isDarwin [
-      cocoapods # iOS 開発 — darwin 限定
+      # iOS / Swift 開発 — darwin 限定
+      cocoapods
+      xcodegen # project.yml から .xcodeproj 生成
+      swiftformat # Swift フォーマッタ
+      swiftlint # Swift リンタ
     ]
     ++ lib.optionals (!(pkgs.stdenv.isDarwin && pkgs.stdenv.isx86_64)) [
       llmAgents.codex # Intel Mac のみ brew cask (Rust build 回避)、それ以外は nix
