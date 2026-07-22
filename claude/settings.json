@@ -82,7 +82,6 @@
     "cloudflare@cloudflare": true,
     "frontend-design@claude-plugins-official": true,
     "chrome-devtools-mcp@gigun": true,
-    "dart-mcp@gigun": false,
     "deepwiki-mcp@gigun": true,
     "markitdown-mcp@gigun": true,
     "next-devtools-mcp@gigun": true,
