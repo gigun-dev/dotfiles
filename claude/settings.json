@@ -1,167 +1,164 @@
 {
-  "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "cleanupPeriodDays": 9999,
-  "env": {
-    "DISABLE_TELEMETRY": "1",
-    "DISABLE_ERROR_REPORTING": "1",
-    "DISABLE_BUG_COMMAND": "1",
-    "EDITOR": "zed --wait",
-    "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1"
-  },
-  "permissions": {
-    "allow": [
-      "Bash(play:*)",
-      "mcp__plugin_cloudflare_cloudflare-docs__search_cloudflare_documentation",
-      "mcp__deepwiki__**",
-      "WebSearch",
-      "mcp__plugin_context7_context7__**",
-      "Bash(nix search:*)",
-      "WebFetch(domain:open-vsx.org)",
-      "WebFetch(domain:mise.jdx.dev)",
-      "Read(//Users/gigun/**)",
-      "Bash(mise ls:*)",
-      "Bash(mise use:*)",
-      "Bash(find:*)",
-      "Bash(nix flake:*)",
-      "WebFetch(domain:dotenvx.com)",
-      "WebFetch(domain:www.dotenv.org)",
-      "WebFetch(domain:tailscale.com)",
-      "Bash(nix eval:*)",
-      "Bash(defaults read:*)"
-    ],
-    "defaultMode": "auto"
-  },
-  "model": "claude-fable-5[1m]",
-  "hooks": {
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "if command -v afplay >/dev/null 2>&1; then afplay /System/Library/Sounds/Funk.aiff; fi"
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "matcher": "permission_prompt|idle_prompt|elicitation_dialog",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/bark-notify.sh"
-          }
-        ]
-      }
-    ]
-  },
-  "statusLine": {
-    "type": "command",
-    "command": "bunx -y ccstatusline@latest",
-    "padding": 0
-  },
-  "enabledPlugins": {
-    "typescript-lsp@claude-plugins-official": true,
-    "hono-skill@hono-skill": true,
-    "lua-lsp@claude-plugins-official": false,
-    "deploy-on-aws@agent-plugins-for-aws": false,
-    "github@claude-plugins-official": false,
-    "code-simplifier@claude-plugins-official": true,
-    "skill-creator@claude-plugins-official": true,
-    "supabase@claude-plugins-official": false,
-    "stripe@claude-plugins-official": false,
-    "swift-lsp@claude-plugins-official": true,
-    "slack@claude-plugins-official": true,
-    "gopls-lsp@claude-plugins-official": true,
-    "coderabbit@claude-plugins-official": false,
-    "firecrawl@claude-plugins-official": true,
-    "postman@claude-plugins-official": false,
-    "dig@kuu-marketplace": true,
-    "fix-ci@kuu-marketplace": true,
-    "decomposition@kuu-marketplace": true,
-    "deslop@kuu-marketplace": true,
-    "auth-skills@better-auth-agent-skills": false,
-    "context7@claude-plugins-official": true,
-    "clangd-lsp@claude-plugins-official": true,
-    "cloudflare@cloudflare": true,
-    "frontend-design@claude-plugins-official": true,
-    "chrome-devtools-mcp@gigun": true,
-    "dart-mcp@gigun": false,
-    "deepwiki-mcp@gigun": true,
-    "markitdown-mcp@gigun": true,
-    "next-devtools-mcp@gigun": true,
-    "tableplus-mcp@gigun": true,
-    "xcode-mcp@gigun": true
-  },
-  "extraKnownMarketplaces": {
-    "better-auth-agent-skills": {
-      "source": {
-        "source": "github",
-        "repo": "better-auth/skills"
-      }
-    },
-    "cman": {
-      "source": {
-        "source": "github",
-        "repo": "laiso/cman"
-      }
-    },
-    "openai-codex": {
-      "source": {
-        "source": "github",
-        "repo": "openai/codex-plugin-cc"
-      }
-    },
-    "agent-browser": {
-      "source": {
-        "source": "github",
-        "repo": "vercel-labs/agent-browser"
-      }
-    },
-    "claude-plugins-official": {
-      "source": {
-        "source": "github",
-        "repo": "anthropics/claude-plugins-official"
-      }
-    },
-    "supabase-agent-skills": {
-      "source": {
-        "source": "github",
-        "repo": "supabase/agent-skills"
-      }
-    },
-    "cloudflare": {
-      "source": {
-        "source": "github",
-        "repo": "cloudflare/skills"
-      }
-    },
-    "kuu-marketplace": {
-      "source": {
-        "source": "github",
-        "repo": "fumiya-kume/claude-code"
-      }
-    },
-    "gigun": {
-      "source": {
-        "source": "directory",
-        "path": "/Users/gigun/ghq/github.com/gigun-dev/claude-code"
-      }
-    }
-  },
-  "language": "Japanese",
-  "effortLevel": "low",
-  "skipDangerousModePermissionPrompt": true,
-  "skipWorkflowUsageWarning": true,
-  "theme": "dark-daltonized",
-  "verbose": false,
-  "preferredNotifChannel": "terminal_bell",
-  "autoCompactEnabled": false,
-  "teammateMode": "tmux",
-  "remoteControlAtStartup": true,
-  "inputNeededNotifEnabled": true,
-  "agentPushNotifEnabled": true,
-  "skipAutoPermissionPrompt": true,
-  "voiceEnabled": true
+	"$schema": "https://json.schemastore.org/claude-code-settings.json",
+	"cleanupPeriodDays": 9999,
+	"env": {
+		"EDITOR": "zed --wait",
+		"CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1"
+	},
+	"permissions": {
+		"allow": [
+			"Bash(play:*)",
+			"mcp__plugin_cloudflare_cloudflare-docs__search_cloudflare_documentation",
+			"mcp__deepwiki__**",
+			"WebSearch",
+			"mcp__plugin_context7_context7__**",
+			"Bash(nix search:*)",
+			"WebFetch(domain:open-vsx.org)",
+			"WebFetch(domain:mise.jdx.dev)",
+			"Read(//Users/gigun/**)",
+			"Bash(mise ls:*)",
+			"Bash(mise use:*)",
+			"Bash(find:*)",
+			"Bash(nix flake:*)",
+			"WebFetch(domain:dotenvx.com)",
+			"WebFetch(domain:www.dotenv.org)",
+			"WebFetch(domain:tailscale.com)",
+			"Bash(nix eval:*)",
+			"Bash(defaults read:*)"
+		],
+		"defaultMode": "auto"
+	},
+	"model": "claude-fable-5[1m]",
+	"hooks": {
+		"Stop": [
+			{
+				"matcher": "",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "if command -v afplay >/dev/null 2>&1; then afplay /System/Library/Sounds/Funk.aiff; fi"
+					}
+				]
+			}
+		],
+		"Notification": [
+			{
+				"matcher": "permission_prompt|idle_prompt|elicitation_dialog",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "~/.claude/hooks/bark-notify.sh"
+					}
+				]
+			}
+		]
+	},
+	"statusLine": {
+		"type": "command",
+		"command": "bunx -y ccstatusline@latest",
+		"padding": 0
+	},
+	"enabledPlugins": {
+		"typescript-lsp@claude-plugins-official": true,
+		"hono-skill@hono-skill": true,
+		"lua-lsp@claude-plugins-official": false,
+		"deploy-on-aws@agent-plugins-for-aws": false,
+		"github@claude-plugins-official": false,
+		"code-simplifier@claude-plugins-official": true,
+		"skill-creator@claude-plugins-official": true,
+		"supabase@claude-plugins-official": false,
+		"stripe@claude-plugins-official": false,
+		"swift-lsp@claude-plugins-official": true,
+		"slack@claude-plugins-official": true,
+		"gopls-lsp@claude-plugins-official": true,
+		"coderabbit@claude-plugins-official": false,
+		"firecrawl@claude-plugins-official": true,
+		"postman@claude-plugins-official": false,
+		"dig@kuu-marketplace": true,
+		"fix-ci@kuu-marketplace": true,
+		"decomposition@kuu-marketplace": true,
+		"deslop@kuu-marketplace": true,
+		"auth-skills@better-auth-agent-skills": false,
+		"context7@claude-plugins-official": true,
+		"clangd-lsp@claude-plugins-official": true,
+		"cloudflare@cloudflare": true,
+		"frontend-design@claude-plugins-official": true,
+		"chrome-devtools-mcp@gigun": true,
+		"dart-mcp@gigun": false,
+		"deepwiki-mcp@gigun": true,
+		"markitdown-mcp@gigun": true,
+		"next-devtools-mcp@gigun": true,
+		"tableplus-mcp@gigun": true,
+		"xcode-mcp@gigun": true
+	},
+	"extraKnownMarketplaces": {
+		"better-auth-agent-skills": {
+			"source": {
+				"source": "github",
+				"repo": "better-auth/skills"
+			}
+		},
+		"cman": {
+			"source": {
+				"source": "github",
+				"repo": "laiso/cman"
+			}
+		},
+		"openai-codex": {
+			"source": {
+				"source": "github",
+				"repo": "openai/codex-plugin-cc"
+			}
+		},
+		"agent-browser": {
+			"source": {
+				"source": "github",
+				"repo": "vercel-labs/agent-browser"
+			}
+		},
+		"claude-plugins-official": {
+			"source": {
+				"source": "github",
+				"repo": "anthropics/claude-plugins-official"
+			}
+		},
+		"supabase-agent-skills": {
+			"source": {
+				"source": "github",
+				"repo": "supabase/agent-skills"
+			}
+		},
+		"cloudflare": {
+			"source": {
+				"source": "github",
+				"repo": "cloudflare/skills"
+			}
+		},
+		"kuu-marketplace": {
+			"source": {
+				"source": "github",
+				"repo": "fumiya-kume/claude-code"
+			}
+		},
+		"gigun": {
+			"source": {
+				"source": "directory",
+				"path": "/Users/gigun/ghq/github.com/gigun-dev/claude-code"
+			}
+		}
+	},
+	"language": "Japanese",
+	"effortLevel": "low",
+	"skipDangerousModePermissionPrompt": true,
+	"skipWorkflowUsageWarning": true,
+	"theme": "dark-daltonized",
+	"verbose": false,
+	"preferredNotifChannel": "terminal_bell",
+	"autoCompactEnabled": false,
+	"teammateMode": "tmux",
+	"remoteControlAtStartup": true,
+	"inputNeededNotifEnabled": true,
+	"agentPushNotifEnabled": true,
+	"skipAutoPermissionPrompt": true,
+	"voiceEnabled": true
 }
