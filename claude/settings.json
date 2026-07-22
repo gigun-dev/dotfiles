@@ -28,7 +28,6 @@
     ],
     "defaultMode": "auto"
   },
-  "model": "claude-fable-5[1m]",
   "hooks": {
     "Stop": [
       {
@@ -71,7 +70,7 @@
     "swift-lsp@claude-plugins-official": true,
     "gopls-lsp@claude-plugins-official": true,
     "coderabbit@claude-plugins-official": false,
-    "firecrawl@claude-plugins-official": true,
+    "firecrawl@claude-plugins-official": false,
     "postman@claude-plugins-official": false,
     "dig@kuu-marketplace": true,
     "fix-ci@kuu-marketplace": true,
@@ -83,12 +82,12 @@
     "cloudflare@cloudflare": true,
     "frontend-design@claude-plugins-official": true,
     "chrome-devtools-mcp@gigun": true,
-    "dart-mcp@gigun": true,
+    "dart-mcp@gigun": false,
     "deepwiki-mcp@gigun": true,
     "markitdown-mcp@gigun": true,
     "next-devtools-mcp@gigun": true,
     "tableplus-mcp@gigun": true,
-    "xcode-mcp@gigun": false,
+    "codex@openai-codex": true,
     "figmate-mcp@gigun": true,
     "ios-skills@gigun": true,
     "workers-fetch@gigun": true
