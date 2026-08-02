@@ -63,6 +63,7 @@
       xcodegen # project.yml から .xcodeproj 生成
       swiftformat # Swift フォーマッタ
       swiftlint # Swift リンタ
+      idb-companion # iOS Simulator 自動操作の gRPC companion。CLI 側 fb-idb は nixpkgs に無く uv 管理 (uv tool install fb-idb)
     ]
     ++ lib.optionals (!(pkgs.stdenv.isDarwin && pkgs.stdenv.isx86_64)) [
       llmAgents.codex # Intel Mac のみ brew cask (Rust build 回避)、それ以外は nix

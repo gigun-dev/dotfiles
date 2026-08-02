@@ -1,7 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "cleanupPeriodDays": 9999,
-  "plansDirectory": ".claude/plans",
   "env": {
     "EDITOR": "zed --wait",
     "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1"
@@ -89,8 +88,9 @@
     "tableplus-mcp@gigun": true,
     "codex@openai-codex": true,
     "figmate-mcp@gigun": true,
-    "ios-skills@gigun": true,
-    "workers-fetch@gigun": true
+    "ios-skills@gigun": false,
+    "workers-fetch@gigun": true,
+    "cman@cman": true
   },
   "extraKnownMarketplaces": {
     "better-auth-agent-skills": {
@@ -150,6 +150,7 @@
   },
   "language": "Japanese",
   "effortLevel": "high",
+  "plansDirectory": ".claude/plans",
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
   "skipWorkflowUsageWarning": true,
@@ -162,5 +163,6 @@
   "inputNeededNotifEnabled": true,
   "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
-  "voiceEnabled": true
+  "voiceEnabled": true,
+  "model": "sonnet"
 }
