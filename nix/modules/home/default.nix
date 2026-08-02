@@ -19,8 +19,7 @@
   programs.home-manager.enable = true;
 
   # vivid LS_COLORS を build 時に評価して静的 export。
-  # interactive 起動時に `vivid generate` を fork する必要をなくし、
-  # macOS zsh 5.9 の SIGCHLD race を踏まないようにする。
+  # interactive 起動時の `vivid generate` を省いて起動を軽量化する。
   home.sessionVariables.LS_COLORS =
     let
       ls = pkgs.runCommand "ls-colors" { nativeBuildInputs = [ pkgs.vivid ]; } ''

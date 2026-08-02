@@ -71,21 +71,17 @@ in
     shell = pkgs.zsh;
   };
   # /etc/shells に nix の zsh を登録 (chsh で login shell に指定可能にする)。
-  # zsh master ビルド (sigsuspend race fix) を login shell として使うため必須。
   environment.shells = [ pkgs.zsh ];
   programs.zsh = {
     enable = true;
     # /etc/zshrc を骨抜きにして dotfiles の zsh/.zshrc に一本化する (mozumasu pattern)。
-    # macOS zsh 5.9 interactive では compdump 内の `$(typeset +fm '_*')` 等の
-    # command substitution が SIGCHLD レースで永久 block する症状があり、
-    # /etc/zshrc が compinit/bashcompinit/promptinit を二重に呼ぶと
-    # shell 起動が30秒以上固まる。
+    # /etc/zshrc による compinit/bashcompinit/promptinit の二重初期化を避ける。
     enableCompletion = false;
     enableBashCompletion = false;
     promptInit = "";
     interactiveShellInit = lib.mkForce "";
     # /etc/zshenv に書き出される。interactive 起動より早く評価され fork なし。
-    # `brew shellenv` の path_helper fork (SIGCHLD race の主犯) を静的 export で代替。
+    # `brew shellenv` の path_helper fork を静的 export で代替。
     shellInit =
       let
         prefix = if pkgs.stdenv.hostPlatform.isAarch64 then "/opt/homebrew" else "/usr/local";

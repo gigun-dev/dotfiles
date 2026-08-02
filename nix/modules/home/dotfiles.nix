@@ -94,8 +94,7 @@ in
 
   # 古い compdump tempfile 残骸を掃除 (compinit が atomic rename 直前で kill
   # された場合に残る .zcompdump.HOST.local.<pid>)。compinit 自体は interactive
-  # shell の zsh-defer に委譲する (非対話 zsh でも compdump 内 $(typeset +fm)
-  # の SIGCHLD race を踏むため activation で warm すると hook が固まる)。
+  # shell の zsh-defer に委譲し、activation では残骸の掃除だけを行う。
   home.activation.cleanCompdumpStale = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
     $DRY_RUN_CMD ${pkgs.findutils}/bin/find "${config.home.homeDirectory}" -maxdepth 1 \
       \( -name '.zcompdump.*.local.*' -o -name '.zcompdump-*' \) \
