@@ -144,7 +144,8 @@
     "ios-skills@gigun": false,
     "workers-fetch@gigun": true,
     "cman@cman": true,
-    "harness@gigun": true
+    "harness@gigun": true,
+    "cclens@cclens": true
   },
   "extraKnownMarketplaces": {
     "better-auth-agent-skills": {
