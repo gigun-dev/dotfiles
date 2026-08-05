@@ -20,8 +20,9 @@ in
     (modulesPath + "/profiles/qemu-guest.nix")
   ];
 
-  # Lima のインスタンス名は nixos だが、tailnet 名 (mini-vm) と食い違うと
-  # mini (macOS) と取り違えるので揃える。
+  # Lima のインスタンス名・tailnet 名・hostname はすべて mini-vm に揃えてある
+  # (mini は macOS 側を指すので、取り違えると事故る)。
+  # なお switch では稼働中の hostname は変わらず、次回 boot から反映される。
   networking.hostName = "mini-vm";
 
   # lima-init が起動時にユーザーを imperative に作るため true 必須。

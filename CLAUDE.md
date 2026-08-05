@@ -121,7 +121,7 @@ Mac Mini (Intel) のエージェント基盤は macOS 上の Lima ゲスト (Nix
 - **VM 作成時に home パスを揃える**: 既定では `/home/<user>.guest` になる。WSL と同じ `homeConfigurations.gigun-x86_64-linux` を使い回すため `/home/gigun` に合わせる
 
   ```bash
-  limactl start --name=nixos --memory 24 --cpus 8 --disk 300 \
+  limactl start --name=mini-vm --memory 24 --cpus 8 --disk 300 \
     --set '.user.home = "/home/gigun"' github:nixos-lima
   ```
 - **OS 層と home 層を分ける**: OS は `nixosConfigurations.mini-vm`、CLI 環境は WSL と共用の `homeConfigurations.gigun-x86_64-linux`。Lima がユーザーを imperative に作る (`users.mutableUsers = true` が必須) ため、home 層を NixOS module 側へ統合しない

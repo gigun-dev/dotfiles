@@ -13,16 +13,19 @@
   凍結し、Finder 経由の iPhone バックアップ・画面共有・Xcode 26.3 専用にした。M4 Pro から
   `ssh gigun@mini-vm` で直接入れる (Tailscale SSH / `tag:server`)。経緯はカタログの該当節。
 
+- **mini の再起動からの自動復帰は検証済み (2026-08-06)**。`sudo reboot` を実行し、
+  「macOS 自動ログイン (`who` に console) → LaunchAgent → Lima 起動 → VM の tailscaled 復帰」が
+  手を触れずに通ることを確認した。**46秒で mini に ssh 可能、その直後に `ssh gigun@mini-vm` も成立**。
+  boot 時は `networking.hostName` が効くのでゲストの hostname も `mini-vm` になる
+  (switch では稼働中の hostname が変わらないだけだった)。
+
 - **未検証の危険 (実地確認していないもの)**:
-  - ⚠️ **mini を再起動したときに VM が自動復帰するか未検証**。24/365 運用の根幹だが、稼働中の
-    本番機なので再起動を試していない。経路は「macOS 自動ログイン → LaunchAgent
-    (`limactl autostart`) → Lima 起動 → tailscaled 復帰」で、各要素は個別に設定済み・
-    tag 付きなので key expiry もしないが、**通しで動くところは見ていない**。
-    どこかで切れると mini が tailnet から消えて手元から復旧できなくなる (物理アクセスが要る)。
-  - ⚠️ **pre-push の失敗パスが未検証**。成功時 exit 0 は確認したが、検証が落ちたときに実際に
-    push が止まるかは見ていない (テンプレートに `(! a) && b` の解釈バグがあった経緯があるので、
-    失敗を注入して確かめる価値がある)。
-  - ⚠️ **apple/container の再起動後の復帰が未検証**。apiserver は launchd 登録済みだが未確認。
+  - ⚠️ **pre-push の失敗パスが未検証**。成功パスは本番 push で確認済み (2026-08-06、
+    `nix flake check` → `nix fmt` が走ってから push された) が、検証が落ちたときに実際に
+    push が止まるところは見ていない。テンプレートに `(! a) && b` の解釈バグがあった経緯が
+    あるので、わざと失敗を注入して確かめる価値がある。
+  - ⚠️ **apple/container の再起動後の復帰が未検証**。Apple Silicon 限定なので mini では
+    確認できず、M4 Pro を再起動しないと分からない。apiserver は launchd 登録済み。
 
 - **裁定待ち**: SPEC.md の扱い (凍結/削除/追従の3案)、CLAUDE.md「ディレクトリ構造」節の圧縮。
   どちらも下の着手順に理由付きで書いてある。
@@ -79,9 +82,12 @@ kernel 6.18 LTS / 7.0 に追従)。
 ### 宣言管理から外れているもの
 
 - **mini の macOS**: generation 26 で凍結。設定変更は手で当てる。アンインストールはしていない
-- **Lima 本体**: brew で導入 (macOS 側が nix 管理外のため)。`limactl autostart enable nixos` で
-  LaunchAgent 登録済みだが、**macOS の自動ログインが前提** — 無いと再起動後に VM が上がらない。
-  FileVault を有効にすると自動ログインが使えなくなり 24/365 運用が崩れる
+- **Lima 本体**: brew で導入 (macOS 側が nix 管理外のため)。`limactl autostart enable mini-vm` で
+  LaunchAgent 登録済み。**macOS の自動ログインが前提** — 無いと再起動後に VM が上がらない。
+  FileVault を有効にすると自動ログインが使えなくなり 24/365 運用が崩れる。
+  インスタンス名は当初 `nixos` (テンプレート名のまま) だったが、`limactl stop` →
+  `~/.lima/` 配下のディレクトリを rename → `limactl start` で改名できた
+  (公式サポートされた操作ではないが動く。autostart は名前が変わるので登録し直しが要る)
 - **`~/.local/bin`**: PATH 末尾の例外レーン。self-update 前提のツールや nixpkgs にない uv tool 用
 - **apple/container**: 公式署名 pkg のみで brew にも nixpkgs にも無いが、pkg を `fetchurl` で hash 固定し
   activation から冪等に `installer` を叩く形で宣言管理下に置いた
