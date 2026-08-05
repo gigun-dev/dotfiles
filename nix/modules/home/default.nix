@@ -18,6 +18,11 @@
 
   programs.home-manager.enable = true;
 
+  # agy (antigravity-cli) は既定でバックグラウンド自己更新するが nix store は read-only。
+  # 更新は `nix run .#update-ai-tools` に一本化する。
+  # 同じ理由で `agy install` (PATH / shell 設定の書き換え) も実行しないこと。
+  home.sessionVariables.AGY_CLI_DISABLE_AUTO_UPDATE = "1";
+
   # vivid LS_COLORS を build 時に評価して静的 export。
   # interactive 起動時の `vivid generate` を省いて起動を軽量化する。
   home.sessionVariables.LS_COLORS =

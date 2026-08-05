@@ -67,6 +67,10 @@
     ]
     ++ lib.optionals (!(pkgs.stdenv.isDarwin && pkgs.stdenv.isx86_64)) [
       llmAgents.codex # Intel Mac のみ brew cask (Rust build 回避)、それ以外は nix
+      # agy (Google Antigravity CLI)。公式バイナリを $out/bin/agy に置くだけでソースビルド無し。
+      # 同じ条件だが理由は別: llm-agents が x86_64-darwin を未収録のため Intel Mac Mini では入らない
+      # (上流 Google には darwin-x64 バイナリが存在するので、必要になったら llm-agents へ PR)
+      llmAgents.antigravity-cli
     ]
     ++ [
 
