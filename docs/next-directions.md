@@ -12,10 +12,20 @@
 - **Mac Mini (Intel) のエージェント基盤を Lima ゲスト (NixOS) へ移し、稼働中**。macOS 側は nix 管理を
   凍結し、Finder 経由の iPhone バックアップ・画面共有・Xcode 26.3 専用にした。M4 Pro から
   `ssh gigun@mini-vm` で直接入れる (Tailscale SSH / `tag:server`)。経緯はカタログの該当節。
-- **未完了が3つ**: pre-push が未配置 (harness 導入時に `--skip-prepush` した)、SPEC.md の扱いが未決、
-  harness:doctor の誤検知の起票が下書きのまま。下の着手順を参照。
-- CLAUDE.md はこのセッションで大きく更新済み (対象マシン表・Lima VM 規約・`flake.lock` の運用)。
-  ただし「ディレクトリ構造」節が 39 行あり doctor に指摘されている。
+
+- **未検証の危険 (実地確認していないもの)**:
+  - ⚠️ **mini を再起動したときに VM が自動復帰するか未検証**。24/365 運用の根幹だが、稼働中の
+    本番機なので再起動を試していない。経路は「macOS 自動ログイン → LaunchAgent
+    (`limactl autostart`) → Lima 起動 → tailscaled 復帰」で、各要素は個別に設定済み・
+    tag 付きなので key expiry もしないが、**通しで動くところは見ていない**。
+    どこかで切れると mini が tailnet から消えて手元から復旧できなくなる (物理アクセスが要る)。
+  - ⚠️ **pre-push の失敗パスが未検証**。成功時 exit 0 は確認したが、検証が落ちたときに実際に
+    push が止まるかは見ていない (テンプレートに `(! a) && b` の解釈バグがあった経緯があるので、
+    失敗を注入して確かめる価値がある)。
+  - ⚠️ **apple/container の再起動後の復帰が未検証**。apiserver は launchd 登録済みだが未確認。
+
+- **裁定待ち**: SPEC.md の扱い (凍結/削除/追従の3案)、CLAUDE.md「ディレクトリ構造」節の圧縮。
+  どちらも下の着手順に理由付きで書いてある。
 
 ## 着手順(次にやること)
 
@@ -23,7 +33,10 @@
    > **2026-08-06 更新:** harness の `.githooks/pre-push` は採らなかった。`core.hooksPath` は
    > 1つしか持てず、`.githooks` へ切り替えると既存の `git/hooks/pre-commit`(staged .nix の
    > nix fmt 自動整形)が死ぬため、既存側に合わせた。検証内容は CI と同じ
-   > `nix flake check --no-build` + `nix fmt -- --ci .`。実行テスト済み(exit 0)。
+   > `nix flake check --no-build` + `nix fmt -- --ci .`。
+   > **検証**: main への push を模擬 (`echo "refs/heads/main <sha> refs/heads/main <sha>" |
+   > ./git/hooks/pre-push`) して両コマンドが走り exit 0 を確認 (2026-08-06)。
+   > **失敗パスは未検証** — 検証が落ちたときに実際に push が止まるところは見ていない。
    > なお `nix flake check` は現在の system しか評価しない(x86_64-darwin は omit される)ので、
    > 壊れている Intel 構成はこの関門では検出されない。
 2. **SPEC.md の扱いを決める** — 2026-04-10 の初期コミット以降まったく更新されておらず、Windows 対応も
