@@ -20,7 +20,10 @@ in
     (modulesPath + "/profiles/qemu-guest.nix")
   ];
 
-  networking.hostName = "mini-vm";
+  # networking.hostName は設定しない。lima-init が毎起動で Lima のインスタンス名
+  # (= "nixos") を hostname にセットし直すため、宣言しても上書きされる。
+  # tailnet 上の名前は `tailscale up --hostname=mini-vm` で別に与えてあるので、
+  # `ssh gigun@mini-vm` は問題なく通る。
 
   # lima-init が起動時にユーザーを imperative に作るため true 必須。
   # false だと nixos-rebuild がそのユーザーを消してログインできなくなる。
