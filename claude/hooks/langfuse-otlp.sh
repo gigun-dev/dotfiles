@@ -115,6 +115,12 @@ case "$event" in
   PreToolUse)
     tool_use_id=$(get '.tool_use_id')
     [ -n "$tool_use_id" ] && mark_start "tool-$tool_use_id"
+    # サブエージェントの開始時刻は SubagentStart 相当のフックが無いため、そのエージェントが
+    # 最初にツールを使った時刻で代用する(これが無いと SubagentStop 側で開始時刻を拾えず、
+    # duration 0 の span になる — 実際に Langfuse で「subagent: 0.0s」として現れた)。
+    if [ -n "$agent_id" ] && [ ! -e "$STATE_DIR/$session_id/agent-$agent_id" ]; then
+      mark_start "agent-$agent_id"
+    fi
     ;;
   PostToolUse)
     tool_use_id=$(get '.tool_use_id')
@@ -131,7 +137,11 @@ case "$event" in
   SubagentStop)
     [ -n "$agent_id" ] || exit 0
     start=$(read_start "agent-$agent_id")
-    send_span "$(hex_id "agent-$agent_id" 16)" "$root_span_id" "subagent:$(get '.agent_type')" \
+    # agent_type は空で来ることがある(Langfuse 上で "subagent:" とだけ表示され、どの
+    # エージェントか分からなくなった)。空なら agent_id の先頭を使って識別可能にする。
+    agent_label=$(get '.agent_type')
+    [ -n "$agent_label" ] || agent_label=$(printf '%s' "$agent_id" | cut -c1-8)
+    send_span "$(hex_id "agent-$agent_id" 16)" "$root_span_id" "subagent:$agent_label" \
       "$start" "$(now_nanos)" "span" "" "$(trunc "$(get '.last_assistant_message')")" "DEFAULT"
     ;;
   Stop)
