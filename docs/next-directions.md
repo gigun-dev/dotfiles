@@ -35,11 +35,13 @@
 - [ ] `DF-5` apple/container の再起動後の復帰を確認する
       M4 Pro を再起動する機会に `container system status` を見るだけ。単独で再起動する必要はない。
       → 完了条件: 再起動後に手を触れず apiserver が running であること
-- [ ] `DF-6` 手順知識の置き場所を決める
-      「Lima のインスタンス名は rename できる」のような、やってみて分かった再利用可能な操作知識に
-      置き場所が無い。CLAUDE.md は 200 行制限があり不適、log.md は時系列で引きにくい、
-      コメントは対応するコードが無い。skill 化 (呼ばれたときだけロード) が候補。
-      → 完了条件: 置き場所を決めて、Lima リネーム手順を実際にそこへ移す
+- [ ] `DF-6` 意思決定 (ADR) の置き場所について harness の結論を取り込む
+      確定した決定を残す場所が無い。カタログは可変の方向性、log.md は時系列、コメントはコード必須、
+      コミットログは却下案が残らない (revert すれば消える)、CLAUDE.md は 200 行制限。
+      配布元へ起票済み: gigun-dev/claude-code#3。ADR を docs/adr/ に置き rules の `paths:` で
+      スコープする案を出してある (agent-optimized ADR の推奨は番号ファイリングでなく file glob)。
+      なお手順知識 (Lima のリネーム等) は ADR とは別問題で、頻度が低ければ永続化しない判断もある。
+      → 完了条件: #3 の裁定が出て、このリポジトリで ADR を使うか否かが決まること
 - [x] `DF-1` pre-push を `git/hooks/pre-push` に置く
       harness の `.githooks` は採らなかった。`core.hooksPath` は 1 つしか持てず、切り替えると
       既存の `git/hooks/pre-commit`(staged .nix の nix fmt 自動整形)が無言で死ぬため。
