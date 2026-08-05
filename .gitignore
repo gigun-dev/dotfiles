@@ -10,3 +10,6 @@
 # OS / editor
 result
 Thumbs.db
+
+# claude local settings(個人環境の設定。プロジェクト共有の設定は .claude/settings.json に置く)
+.claude/plans/

@@ -1,0 +1,55 @@
+#!/bin/sh
+# harness-template v0.3.0 (配布元: gigun-dev/claude-code plugins/harness)
+# =============================================================================
+# pre-push フック — main への push 時だけ、CI と同一の検証をローカルで実行する
+# =============================================================================
+# 【なぜ pre-push か / 何を守るか】
+#   守りたいのは「悪意」ではなく「壊れたコードを事故で main に push すること」。
+#   個人開発では main の branch protection があっても admin(=自分/Claude Code)が
+#   bypass できるので、サーバー側の ruleset は実効的な歯止めにならない。
+#
+#   pre-commit ではなく pre-push なのは、手元のコミットは細かく刻みたい一方で、
+#   共有される瞬間(push)だけ品質を保証すれば十分だから。
+#
+# 【スコープ】main への push のときだけ走らせる。緊急時は `git push --no-verify` で
+#   意図的にスキップ可能 — 回避は「明示的に --no-verify を打ったときだけ」という設計。
+#
+# 【配置が .githooks ではなく git/hooks なのはなぜか】
+#   harness の既定は .githooks だが、このリポジトリは既に core.hooksPath = git/hooks で
+#   pre-commit(staged .nix の nix fmt 自動整形)を動かしている。core.hooksPath は1つしか
+#   持てないので、.githooks へ切り替えるとその pre-commit が無言で死ぬ。既存側に合わせた。
+#
+# 【有効化】core.hooksPath は .git/config に入るため git 管理されず、**clone ごとに1回必要**:
+#       git config core.hooksPath git/hooks
+#
+# 【検証内容】.github/workflows/nix-build.yaml と同一。手元で通って CI で落ちるなら
+#   関門の意味がないため。`nix flake check` は --no-build を付けて eval のみに留めており
+#   (数十秒)、push のたびに実ビルドを待たされることはない。
+# =============================================================================
+
+remote_main=refs/heads/main
+run_check=0
+
+# stdin: "<local ref> <local sha> <remote ref> <remote sha>" が push される ref ごとに来る。
+while read -r local_ref local_sha remote_ref remote_sha; do
+	# ブランチ削除(local_sha が全ゼロ)は検査対象外。
+	case "$local_sha" in
+		*[!0]*) : ;;      # 非ゼロを含む = 通常の push → 判定続行
+		*) continue ;;    # 全ゼロ = 削除 → skip
+	esac
+	if [ "$remote_ref" = "$remote_main" ]; then
+		run_check=1
+	fi
+done
+
+[ "$run_check" -eq 0 ] && exit 0
+
+echo "pre-push: main へ push するため検証を実行します…"
+# `{ ...; }` のグループ化は必須。`! a && b` は `(! a) && b` と解釈されるため、
+# 括らないと flake check が失敗したときに nix fmt の結果で上書きされて素通りする。
+if ! { nix flake check --no-build && nix fmt -- --ci .; }; then
+	echo ""
+	echo "✗ 検証に失敗しました。main への push を中止します。"
+	echo "  どうしても push する場合のみ: git push --no-verify"
+	exit 1
+fi
