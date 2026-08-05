@@ -3,6 +3,7 @@
   pkgs,
   lib,
   llmAgents, # inputs.llm-agents.packages.${system} (flake.nix の extraSpecialArgs)
+  cclens, # inputs.cclens.packages.${system}.default (同上)
   ...
 }:
 {
@@ -21,6 +22,9 @@
       # llm-agents は overlay 経由だと自 nixpkgs で再ビルドされ numtide キャッシュに
       # ヒットしないため standalone packages を直接参照 (llmAgents = extraSpecialArgs)。
       llmAgents.opencode
+      # cclens: Claude Code のセッション transcript を解析する診断ツール (Rust)。
+      # llm-agents と同じく follows せず standalone 参照で cclens.cachix.org に当てる
+      cclens
       # ccstatusline は bunx/npx で足りるため nix pin をやめた (軽量・常駐でない)
       # agent-browser は chrome-devtools-mcp に一本化したため撤去
 

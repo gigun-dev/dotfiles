@@ -5,11 +5,13 @@
     extra-substituters = [
       "https://cache.numtide.com"
       "https://gigun.cachix.org"
+      "https://cclens.cachix.org"
     ];
     extra-trusted-public-keys = [
       "cache.numtide.com-1:bf1jVIGj3GBKisevCptOlNXMoMnPkKlkh89RqPsNJWo="
       "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
       "gigun.cachix.org-1:jP3ksvzV3coFUQORcYZOR3repURIK+eYtpMiIMaN788="
+      "cclens.cachix.org-1:0QUNU6PuVyf+yXOvg3n1rd3FksBoB3s3/Jty50iKRNQ="
     ];
   };
 
@@ -39,6 +41,11 @@
     };
 
     llm-agents.url = "github:numtide/llm-agents.nix";
+
+    # cclens (Claude Code の使用状況診断ツール, Rust)。llm-agents と同じ理由で
+    # nixpkgs.follows を付けない: follows すると我々の nixpkgs に対して Rust を
+    # フルビルドし、cclens.cachix.org のキャッシュにヒットしなくなる。
+    cclens.url = "github:lambdalisue/cclens";
 
     claude-code-overlay = {
       url = "github:ryoppippi/claude-code-overlay";
@@ -156,7 +163,7 @@
             // {
               update-ai-tools = mkApp "update-ai-tools" ''
                 echo "Updating AI tools inputs..."
-                nix flake update llm-agents claude-code-overlay
+                nix flake update llm-agents claude-code-overlay cclens
                 echo "Done! Run 'nix run .#switch' to apply changes."
               '';
             };
@@ -172,6 +179,10 @@
           # キャッシュヒットさせるため overlay は使わず extraSpecialArgs で渡す
           # (flake.nix の home-manager 設定参照)。
           llmAgentsFor = system: inputs.llm-agents.packages.${system};
+
+          # cclens も同じ理由で overlay を使わず standalone package を直接参照する
+          # (専用キャッシュ cclens.cachix.org は nixConfig で substituter に追加済み)。
+          cclensFor = system: inputs.cclens.packages.${system}.default;
 
           overlays = [
             inputs.claude-code-overlay.overlays.default
@@ -200,6 +211,7 @@
                     backupFileExtension = "backup";
                     extraSpecialArgs = {
                       llmAgents = llmAgentsFor system;
+                      cclens = cclensFor system;
                     };
                     users.${username} = {
                       imports = [ ./nix/modules/home ];
@@ -229,6 +241,7 @@
               };
               extraSpecialArgs = {
                 llmAgents = llmAgentsFor "x86_64-linux";
+                cclens = cclensFor "x86_64-linux";
               };
               modules = [ ./nix/modules/home ];
             };
