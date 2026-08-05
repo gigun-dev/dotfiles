@@ -40,6 +40,14 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Mac Mini (Intel) 上の Lima ゲストを NixOS で動かすためのモジュール。
+    # 提供されるイメージはビルドせず nixosModules.lima だけを使うため、
+    # キャッシュヒットの心配がなく follows を統一できる。
+    nixos-lima = {
+      url = "github:nixos-lima/nixos-lima";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     llm-agents.url = "github:numtide/llm-agents.nix";
 
     # cclens (Claude Code の使用状況診断ツール, Rust)。llm-agents と同じ理由で
@@ -134,7 +142,15 @@
               '';
             }
             // pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
-              switch = mkApp "home-switch" ''
+              # Linux は 2 種類ある: WSL (home-manager standalone のみ) と
+              # Mac Mini の Lima ゲスト (NixOS なので OS 層も管理する)。
+              # /etc/NIXOS の有無で判別し、darwin の switch が system + home を
+              # まとめて適用するのと同じ挙動に揃える。どの機械でも
+              # `nix run .#switch` だけ覚えていれば済むようにするための分岐。
+              switch = mkApp "linux-switch" ''
+                if [ -e /etc/NIXOS ]; then
+                  sudo nixos-rebuild switch --flake ".#mini-vm" "$@"
+                fi
                 ${inputs.home-manager.packages.${system}.home-manager}/bin/home-manager \
                   switch --flake ".#${username}-${system}" "$@"
                 # cachix push in background (requires `cachix authtoken` to have been run)
@@ -144,13 +160,19 @@
                 fi
               '';
 
-              build = mkApp "home-build" ''
+              build = mkApp "linux-build" ''
+                if [ -e /etc/NIXOS ]; then
+                  nixos-rebuild build --flake ".#mini-vm" "$@"
+                fi
                 ${inputs.home-manager.packages.${system}.home-manager}/bin/home-manager \
                   build --flake ".#${username}-${system}" "$@"
               '';
 
-              update = mkApp "home-update" ''
+              update = mkApp "linux-update" ''
                 nix flake update
+                if [ -e /etc/NIXOS ]; then
+                  sudo nixos-rebuild switch --flake ".#mini-vm" "$@"
+                fi
                 ${inputs.home-manager.packages.${system}.home-manager}/bin/home-manager \
                   switch --flake ".#${username}-${system}" "$@"
                 # cachix push in background
@@ -230,7 +252,20 @@
             "${username}-x86_64-darwin" = mkDarwinSystem "x86_64-darwin";
           };
 
-          # home-manager standalone (WSL / Linux 向け)
+          # Mac Mini (Intel) 上の Lima ゲスト。
+          # OS 層のみここで管理し、CLI 環境は下の homeConfigurations
+          # (WSL と共用の x86_64-linux 構成) を home-manager standalone で適用する。
+          # Lima がユーザーを imperative に作る都合で users.mutableUsers = true が
+          # 要るため、home 層を NixOS module 側へ統合はしない。
+          nixosConfigurations."mini-vm" = inputs.nixpkgs.lib.nixosSystem {
+            system = "x86_64-linux";
+            modules = [
+              inputs.nixos-lima.nixosModules.lima
+              ./nix/modules/nixos/mini-vm.nix
+            ];
+          };
+
+          # home-manager standalone (WSL / Lima ゲスト向け)
           # nix run .#switch が perSystem の system で自動選択
           homeConfigurations = {
             "${username}-x86_64-linux" = inputs.home-manager.lib.homeManagerConfiguration {
