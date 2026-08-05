@@ -12,52 +12,55 @@
 - **Mac Mini (Intel) のエージェント基盤を Lima ゲスト (NixOS) へ移し、稼働中**。macOS 側は nix 管理を
   凍結し、Finder 経由の iPhone バックアップ・画面共有・Xcode 26.3 専用にした。M4 Pro から
   `ssh gigun@mini-vm` で直接入れる (Tailscale SSH / `tag:server`)。経緯はカタログの該当節。
+  インスタンス名・tailnet 名・hostname はすべて `mini-vm`(`mini` は macOS 側を指す)。
 
-- **mini の再起動からの自動復帰は検証済み (2026-08-06)**。`sudo reboot` を実行し、
-  「macOS 自動ログイン (`who` に console) → LaunchAgent → Lima 起動 → VM の tailscaled 復帰」が
-  手を触れずに通ることを確認した。**46秒で mini に ssh 可能、その直後に `ssh gigun@mini-vm` も成立**。
-  boot 時は `networking.hostName` が効くのでゲストの hostname も `mini-vm` になる
-  (switch では稼働中の hostname が変わらないだけだった)。
+- **未検証の危険**: apple/container の再起動後の復帰。Apple Silicon 限定なので mini では確認できず、
+  M4 Pro を再起動しないと分からない (apiserver は launchd 登録済み)。→ `DF-5`
 
-- **未検証の危険 (実地確認していないもの)**:
-  - ⚠️ **pre-push の失敗パスが未検証**。成功パスは本番 push で確認済み (2026-08-06、
-    `nix flake check` → `nix fmt` が走ってから push された) が、検証が落ちたときに実際に
-    push が止まるところは見ていない。テンプレートに `(! a) && b` の解釈バグがあった経緯が
-    あるので、わざと失敗を注入して確かめる価値がある。
-  - ⚠️ **apple/container の再起動後の復帰が未検証**。Apple Silicon 限定なので mini では
-    確認できず、M4 Pro を再起動しないと分からない。apiserver は launchd 登録済み。
-
-- **裁定待ち**: SPEC.md の扱い (凍結/削除/追従の3案)、CLAUDE.md「ディレクトリ構造」節の圧縮。
-  どちらも下の着手順に理由付きで書いてある。
+- **裁定待ち**: SPEC.md の扱いと CLAUDE.md「ディレクトリ構造」節の圧縮。どちらも下に理由付きで書いた。
+  あわせて「やってみて分かった手順知識」の置き場所が決まっていない (CLAUDE.md は 200 行制限があり
+  不適、log.md は時系列なので引きにくい)。→ `DF-2` `DF-3` `DF-6`
 
 ## 着手順(次にやること)
 
-1. ~~**pre-push を `git/hooks/pre-push` に置く**~~ ✅ 2026-08-06 完了
-   > **2026-08-06 更新:** harness の `.githooks/pre-push` は採らなかった。`core.hooksPath` は
-   > 1つしか持てず、`.githooks` へ切り替えると既存の `git/hooks/pre-commit`(staged .nix の
-   > nix fmt 自動整形)が死ぬため、既存側に合わせた。検証内容は CI と同じ
-   > `nix flake check --no-build` + `nix fmt -- --ci .`。
-   > **検証**: main への push を模擬 (`echo "refs/heads/main <sha> refs/heads/main <sha>" |
-   > ./git/hooks/pre-push`) して両コマンドが走り exit 0 を確認 (2026-08-06)。
-   > **失敗パスは未検証** — 検証が落ちたときに実際に push が止まるところは見ていない。
-   > なお `nix flake check` は現在の system しか評価しない(x86_64-darwin は omit される)ので、
-   > 壊れている Intel 構成はこの関門では検出されない。
-2. **SPEC.md の扱いを決める** — 2026-04-10 の初期コミット以降まったく更新されておらず、Windows 対応も
-   Lima VM も入っていない。現行仕様として読まれると事故る。案: (A) 冒頭に「初期設計の記録」と注記して
-   凍結 (推奨)、(B) 削除して CLAUDE.md に一本化、(C) 現状に追従。`docs/` ができたので
-   `docs/SPEC-initial.md` へ移す手もある。
-3. ~~**harness:doctor の誤検知を起票する**~~ ✅ 2026-08-06 完了
-   > **2026-08-06 更新:** 2件起票した。
-   > [#1](https://github.com/gigun-dev/claude-code/issues/1) は doctor の誤検知
-   > (CLAUDE.md 96行「毎回ソースビルドに**なる**」は症状の記述であって指示ではない。
-   > 逆に真に該当する14行「必ず `git add` すること」は挙がっていない)。
-   > [#2](https://github.com/gigun-dev/claude-code/issues/2) は init の pre-push テンプレートのバグ
-   > (`if ! {{CHECK_COMMAND}}` が複合コマンドで `(! a) && b` と解釈され、前半が失敗しても
-   > 素通りする)。**このリポジトリの `git/hooks/pre-push` は修正済み**だが、他リポジトリへ
-   > install.sh で配った分は要確認。
-4. **CLAUDE.md の「ディレクトリ構造」節を圧縮する** — `zsh/.zshrc # メイン設定` のような同語反復を削り、
-   `zsh/functions/ # permission は 755 必須` のような非自明な制約だけ残す。`windows/` 配下の詳細は
-   `windows/README.md` があるので1行に畳む。39行 → 15行程度が目標。
+- [ ] `DF-2` SPEC.md の扱いを決める
+      2026-04-10 の初期コミット以降まったく更新されておらず、Windows 対応も Lima VM も入っていない。
+      現行仕様として読まれると事故る。案: (A) 冒頭に「初期設計の記録」と注記して凍結 (推奨)、
+      (B) 削除して CLAUDE.md に一本化、(C) 現状に追従。`docs/SPEC-initial.md` へ移す手もある。
+      → 完了条件: 3案のどれかを実施し、現行仕様と誤読されない状態にする
+- [ ] `DF-3` CLAUDE.md の「ディレクトリ構造」節を圧縮する
+      `zsh/.zshrc # メイン設定` のような同語反復を削り、`zsh/functions/ # permission は 755 必須`
+      のような非自明な制約だけ残す。`windows/` 配下の詳細は `windows/README.md` に委ねる。
+      → 完了条件: 39 行 → 15 行程度にし、doctor の「長い節」指摘が消えること
+- [ ] `DF-5` apple/container の再起動後の復帰を確認する
+      M4 Pro を再起動する機会に `container system status` を見るだけ。単独で再起動する必要はない。
+      → 完了条件: 再起動後に手を触れず apiserver が running であること
+- [ ] `DF-6` 手順知識の置き場所を決める
+      「Lima のインスタンス名は rename できる」のような、やってみて分かった再利用可能な操作知識に
+      置き場所が無い。CLAUDE.md は 200 行制限があり不適、log.md は時系列で引きにくい、
+      コメントは対応するコードが無い。skill 化 (呼ばれたときだけロード) が候補。
+      → 完了条件: 置き場所を決めて、Lima リネーム手順を実際にそこへ移す
+- [x] `DF-1` pre-push を `git/hooks/pre-push` に置く
+      harness の `.githooks` は採らなかった。`core.hooksPath` は 1 つしか持てず、切り替えると
+      既存の `git/hooks/pre-commit`(staged .nix の nix fmt 自動整形)が無言で死ぬため。
+      検証内容は CI と同じ `nix flake check --no-build` + `nix fmt -- --ci .`。
+      なお `nix flake check` は現在の system しか評価しないので、壊れている x86_64-darwin 構成は
+      この関門では検出されない。
+      → 2026-08-06 / f5c82f2 / 成功パス: 本番 push で両コマンドが走ってから push されるのを確認。
+        失敗パス: 検証コマンドを `false` に差し替えた複製を実行し、exit 1 と中止メッセージを確認
+- [x] `DF-4` harness の不具合を配布元へ起票する
+      → 2026-08-06 / gigun-dev/claude-code#1 #2 / #1 は doctor が「毎回〜に**なる**」(症状の記述)を
+        自動化指示と誤検知し、真に該当する行を挙げていないこと。#2 は init の pre-push テンプレートが
+        `if ! {{CHECK_COMMAND}}` のため複合コマンドで `(! a) && b` と解釈され前半の失敗が素通りすること
+        (このリポジトリの分は修正済み、他リポジトリへ配った分は要確認)
+- [x] `DF-7` mini の再起動からの自動復帰を検証する
+      → 2026-08-06 / 2ff15f4 / `sudo reboot` 後、「macOS 自動ログイン → LaunchAgent → Lima 起動 →
+        VM の tailscaled 復帰」が手を触れず通ることを確認。46 秒で mini へ、その直後に mini-vm へも
+        ssh 成立。boot 時は `networking.hostName` が効きゲストの hostname も `mini-vm` になる
+- [x] `DF-8` Lima インスタンス名を mini-vm に揃える
+      → 2026-08-06 / 2ff15f4 / `limactl stop` → `~/.lima/nixos` を rename → `limactl start` で改名でき、
+        VM 作り直し (nix store 9.5GB の再取得) は不要だった。autostart は名前が変わるので登録し直し。
+        `limactl list` が `mini-vm Running`、LaunchAgent も `io.lima-vm.autostart.mini-vm.plist` に
 
 <!-- session-head-end: ここから下は SessionStart フックが注入しないオンデマンド領域。着手する節をそのとき読む -->
 
