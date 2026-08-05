@@ -20,10 +20,20 @@ in
     (modulesPath + "/profiles/qemu-guest.nix")
   ];
 
-  # networking.hostName は設定しない。lima-init が毎起動で Lima のインスタンス名
-  # (= "nixos") を hostname にセットし直すため、宣言しても上書きされる。
-  # tailnet 上の名前は `tailscale up --hostname=mini-vm` で別に与えてあるので、
-  # `ssh gigun@mini-vm` は問題なく通る。
+  # lima-init が毎起動で Lima のインスタンス名 (= "nixos") を hostname に
+  # セットし直すため、networking.hostName で宣言しても上書きされる。
+  # tailnet 上は mini-vm、シェルのプロンプトは nixos という食い違いが
+  # mini (macOS) との取り違えを招くので、lima-init の後に明示的に上書きする。
+  systemd.services.set-hostname = {
+    description = "Override the hostname set by lima-init";
+    after = [ "lima-init.service" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    script = "${pkgs.systemd}/bin/hostnamectl set-hostname mini-vm";
+  };
 
   # lima-init が起動時にユーザーを imperative に作るため true 必須。
   # false だと nixos-rebuild がそのユーザーを消してログインできなくなる。
