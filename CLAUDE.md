@@ -19,11 +19,20 @@ nix run .#update               # flake update + switch
 
 | マシン | アーキテクチャ | 管理 |
 |--------|-------------|-----|
-| Mac Mini (Intel) | x86_64-darwin | 標準 nix (nix-darwin + home-manager) |
 | MacBook Pro (M4 Pro) | aarch64-darwin | 標準 nix (nix-darwin + home-manager) |
+| Mac Mini (Intel) — macOS | x86_64-darwin | **nix 管理を凍結**（下記参照）。Finder 経由の iPhone バックアップ・画面共有・Xcode 26.3 用 |
+| Mac Mini (Intel) — Lima ゲスト | x86_64-linux | `nixosConfigurations.mini-vm` + home-manager standalone。24/365 のエージェント基盤 |
 | Windows 11 機 | x86_64-windows | `windows/setup.ps1` (winget configure で DSC YAML 適用)、WSL2 内で home-manager standalone |
 
 `darwinConfigurations` はアーキテクチャ別に生成し、`nix run .#switch` が perSystem で自動選択する。Windows は `windows/setup.ps1` を管理者権限の PowerShell で実行して適用する。
+
+### Mac Mini (Intel) の macOS を nix 管理から外した理由
+
+**nixpkgs 26.11 が x86_64-darwin を drop した**（Apple が macOS 27 で Intel を切ったことへの追随）。26.05 が最後のサポートで、セキュリティ修正も2026年末まで。延命には nixpkgs / home-manager / nix-darwin の3つを 26.05 に固定する必要があり、しかも **llm-agents は x86_64-darwin を提供していない**ため AI ツールはどのみち入らない。半年で消える延命に flake の複雑度を払う価値がないと判断した。
+
+macOS 側は generation 26 (2026-04-25, darwin-system-26.05) で凍結してある。設定変更が要る場合は手で当てる。アンインストールはしていない。
+
+**macOS を残す判断は正しかった**: Xcode 26.3 + iOS 26.2 SDK が Sequoia 15.7.7 / Intel でも現役で動く。Xcode 26.4 以降は macOS Tahoe 26.2 が必要になるため 26.3 が上限だが、それまでは mini 単体で iOS のビルドまで完結できる（Lima ゲストから `host.lima.internal` 経由でホストの xcodebuild を叩ける）。
 
 ## ディレクトリ構造
 
@@ -34,6 +43,8 @@ nix run .#update               # flake update + switch
 │   ├── darwin/
 │   │   ├── system.nix       # macOS 設定（nix.settings, TouchID, system.defaults）
 │   │   └── homebrew.nix     # casks / brews
+│   ├── nixos/
+│   │   └── mini-vm.nix      # Mac Mini 上の Lima ゲスト（OS 層のみ。CLI は home/ を共用）
 │   └── home/
 │       ├── default.nix      # home-manager エントリ
 │       ├── packages.nix     # home.packages（グローバル CLI）
@@ -99,6 +110,26 @@ nix run .#update               # flake update + switch
 - **`compinit` を必ず呼ぶ**こと。`.zcompdump` を `source` するだけだと `_comps` 配列が初期化されず補完登録ゼロになる
 - **fpath に zsh の Completion サブディレクトリを動的追加**: Nix の zsh は `share/zsh/$VER/functions/Completion/{Base,Unix,Linux,...}` を自動 fpath 追加しない (Mac は nix-darwin の `programs.zsh` が処理)。`.zshrc` で `readlink -f $(command -v zsh)` から検出して追加
 - **`dotfiles/zsh/functions` の permission は 755**: 777 だと compinit が insecure 判定で全補完スキップ。git は permission を完全管理できないので、`bootstrap.sh` や home.activation で `chmod -R go-w` する余地あり (TODO)
+
+## Mac Mini / Lima VM 規約
+
+Mac Mini (Intel) のエージェント基盤は macOS 上の Lima ゲスト (NixOS) に置く。ホストが Intel なので x86_64 ゲストが vz ドライバでネイティブに動く（変換なし）。
+
+- **Lima は brew で入れる**: macOS 側の nix 管理を凍結しているため nixpkgs からは入れられない。Tailscale と同じ扱い
+- **VM 作成時に home パスを揃える**: 既定では `/home/<user>.guest` になる。WSL と同じ `homeConfigurations.gigun-x86_64-linux` を使い回すため `/home/gigun` に合わせる
+
+  ```bash
+  limactl start --name=nixos --memory 24 --cpus 8 --disk 300 \
+    --set '.user.home = "/home/gigun"' github:nixos-lima
+  ```
+- **OS 層と home 層を分ける**: OS は `nixosConfigurations.mini-vm`、CLI 環境は WSL と共用の `homeConfigurations.gigun-x86_64-linux`。Lima がユーザーを imperative に作る (`users.mutableUsers = true` が必須) ため、home 層を NixOS module 側へ統合しない
+- **`mini-vm.nix` の boot / fileSystems は触らない**: nixos-lima が配布するイメージのレイアウトに合わせた固定値。変えるとブートしなくなる
+- **`nix run .#switch` は `/etc/NIXOS` で分岐する**: NixOS なら `nixos-rebuild` + home-manager、WSL なら home-manager のみ。どの機械でも同じコマンドで済ませるための分岐
+- **Tailscale は `tag:server` を付ける**: `sudo tailscale up --ssh --advertise-tags=tag:server --hostname=mini-vm`
+
+  tailnet は untagged fallback を削除済みなのでタグ無しだと到達不能。タグを付けると key expiry が無効になり 24/365 運用で失効しない。`tag:vm` を使わないのは、既存 VM 群 (nextcloud/openclaw/vikunja 等) の ssh ルールが root/ubuntu 限定で、Lima が作る `gigun` ユーザーで入れないため。`tag:server` 側に `autogroup:nonroot` の ssh ルールを足してある
+- **macOS の自動ログインが前提**: Lima の autostart (`limactl autostart enable nixos`) は LaunchAgent なのでユーザーログイン時にしか走らない。自動ログイン無しだと再起動後にログイン画面で止まり VM が起動しない。FileVault が無効だからこそ設定できている (有効にすると自動ログインが使えなくなり、24/365 運用が崩れる)
+- **iOS ビルドはホスト側に投げる**: ゲストから `host.lima.internal` 経由でホスト macOS の Xcode を叩く。Xcode / iOS SDK / Simulator / codesign は macOS 専用で Linux では代替できない
 
 ## Windows 規約
 
