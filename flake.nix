@@ -225,6 +225,7 @@
                 }
                 ./nix/modules/darwin/system.nix
                 ./nix/modules/darwin/homebrew.nix
+                ./nix/modules/darwin/apple-container.nix
                 inputs.home-manager.darwinModules.home-manager
                 {
                   home-manager = {

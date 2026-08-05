@@ -13,6 +13,8 @@ nix run .#update               # flake update + switch
 
 **重要**: nix は git index から評価するため、`nix run .#switch` の前に必ず `git add` すること。
 
+**`flake.lock` はコミットして push すること**: 手元は worktree の lock で switch できるが、mini VM は clone なので HEAD の lock しか見ず、update しただけでは反映されない。マシン間を揃える手順は「手元で update → lock をコミット・push → VM で `git pull && nix run .#switch`」。
+
 **iTerm2 初回 bootstrap 順序**: `LoadPrefsFromCustomFolder` / `PrefsCustomFolder` は nix 側 (`system.defaults.CustomUserPreferences."com.googlecode.iterm2"`) で system plist に宣言する設計のため、**iTerm2 を起動する前に最初の `nix run .#switch` を完了させる**こと。先に iTerm2 を立ち上げると bootstrap meta key が無く、repo 内 plist が source of truth として読まれない（system plist に書かれた古い設定が継続使用される）。
 
 ## 対象マシン
@@ -28,11 +30,9 @@ nix run .#update               # flake update + switch
 
 ### Mac Mini (Intel) の macOS を nix 管理から外した理由
 
-**nixpkgs 26.11 が x86_64-darwin を drop した**（Apple が macOS 27 で Intel を切ったことへの追随）。26.05 が最後のサポートで、セキュリティ修正も2026年末まで。延命には nixpkgs / home-manager / nix-darwin の3つを 26.05 に固定する必要があり、しかも **llm-agents は x86_64-darwin を提供していない**ため AI ツールはどのみち入らない。半年で消える延命に flake の複雑度を払う価値がないと判断した。
+nixpkgs 26.11 が x86_64-darwin を drop したため。26.05 固定での延命は nixpkgs / home-manager / nix-darwin の 3 つを固定する必要がある上、llm-agents が x86_64-darwin 非対応で AI ツールは結局入らない。2026年末で切れる延命に複雑度を払わない判断。
 
-macOS 側は generation 26 (2026-04-25, darwin-system-26.05) で凍結してある。設定変更が要る場合は手で当てる。アンインストールはしていない。
-
-**macOS を残す判断は正しかった**: Xcode 26.3 + iOS 26.2 SDK が Sequoia 15.7.7 / Intel でも現役で動く。Xcode 26.4 以降は macOS Tahoe 26.2 が必要になるため 26.3 が上限だが、それまでは mini 単体で iOS のビルドまで完結できる（Lima ゲストから `host.lima.internal` 経由でホストの xcodebuild を叩ける）。
+macOS 側は generation 26 で凍結。設定変更は手で当てる。Xcode 26.3 + iOS 26.2 SDK は動くので iOS ビルドには使える（26.4 以降は Tahoe 必須なのでここが上限）。
 
 ## ディレクトリ構造
 
@@ -42,7 +42,8 @@ macOS 側は generation 26 (2026-04-25, darwin-system-26.05) で凍結してあ�
 ├── nix/modules/
 │   ├── darwin/
 │   │   ├── system.nix       # macOS 設定（nix.settings, TouchID, system.defaults）
-│   │   └── homebrew.nix     # casks / brews
+│   │   ├── homebrew.nix     # casks / brews
+│   │   └── apple-container.nix # 公式 pkg を hash 固定して activation で導入
 │   ├── nixos/
 │   │   └── mini-vm.nix      # Mac Mini 上の Lima ゲスト（OS 層のみ。CLI は home/ を共用）
 │   └── home/
@@ -80,6 +81,7 @@ macOS 側は generation 26 (2026-04-25, darwin-system-26.05) で凍結してあ�
 - **brew は GUI アプリのみ**: CLI ツールは nixpkgs、tap 限定の例外のみ brews
 - **cleanup = "zap"**: 宣言外のアプリは完全削除。使う GUI アプリは必ず casks に宣言する
 - **ensure_installed パターン**: ツールが未インストールなら静かにスキップ
+- **公式 pkg しか無いものは activation で入れる**: brew にも nixpkgs にも無い署名済み pkg (apple/container) は `fetchurl` で hash 固定し、activation で冪等に `installer` を叩く。手作業で入れると新規 Mac のセットアップが再現できなくなる
 - **`~/.local/bin` は例外レーン**: PATH 末尾に追加（nix/brew が常に優先）。self-update 前提のツールや nixpkgs にない uv tool 等、宣言管理できないものだけ許容する
 
 ## Nix 規約
@@ -125,11 +127,9 @@ Mac Mini (Intel) のエージェント基盤は macOS 上の Lima ゲスト (Nix
 - **OS 層と home 層を分ける**: OS は `nixosConfigurations.mini-vm`、CLI 環境は WSL と共用の `homeConfigurations.gigun-x86_64-linux`。Lima がユーザーを imperative に作る (`users.mutableUsers = true` が必須) ため、home 層を NixOS module 側へ統合しない
 - **`mini-vm.nix` の boot / fileSystems は触らない**: nixos-lima が配布するイメージのレイアウトに合わせた固定値。変えるとブートしなくなる
 - **`nix run .#switch` は `/etc/NIXOS` で分岐する**: NixOS なら `nixos-rebuild` + home-manager、WSL なら home-manager のみ。どの機械でも同じコマンドで済ませるための分岐
-- **Tailscale は `tag:server` を付ける**: `sudo tailscale up --ssh --advertise-tags=tag:server --hostname=mini-vm`
-
-  tailnet は untagged fallback を削除済みなのでタグ無しだと到達不能。タグを付けると key expiry が無効になり 24/365 運用で失効しない。`tag:vm` を使わないのは、既存 VM 群 (nextcloud/openclaw/vikunja 等) の ssh ルールが root/ubuntu 限定で、Lima が作る `gigun` ユーザーで入れないため。`tag:server` 側に `autogroup:nonroot` の ssh ルールを足してある
-- **macOS の自動ログインが前提**: Lima の autostart (`limactl autostart enable nixos`) は LaunchAgent なのでユーザーログイン時にしか走らない。自動ログイン無しだと再起動後にログイン画面で止まり VM が起動しない。FileVault が無効だからこそ設定できている (有効にすると自動ログインが使えなくなり、24/365 運用が崩れる)
-- **iOS ビルドはホスト側に投げる**: ゲストから `host.lima.internal` 経由でホスト macOS の Xcode を叩く。Xcode / iOS SDK / Simulator / codesign は macOS 専用で Linux では代替できない
+- **Tailscale は `tag:server`**: `sudo tailscale up --ssh --advertise-tags=tag:server --hostname=mini-vm`。タグ無しだと untagged fallback が無いため到達不能。`tag:vm` は ssh ルールが root/ubuntu 限定で `gigun` が入れないため使わない
+- **macOS の自動ログインが前提**: `limactl autostart` は LaunchAgent なので、自動ログイン無しだと再起動後に VM が上がらない。FileVault を有効にすると自動ログインが使えなくなり 24/365 運用が崩れる
+- **iOS ビルドはホスト側に投げる**: ゲストから `host.lima.internal` 経由で macOS の Xcode を叩く。Xcode / iOS SDK / Simulator / codesign に Linux 代替は無い
 
 ## Windows 規約
 
