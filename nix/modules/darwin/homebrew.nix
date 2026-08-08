@@ -33,6 +33,7 @@ in
       "aqua-voice"
       "azookey"
       "claude"
+      "claude-devtools" # Claude Code のセッション transcript を可視化する Electron アプリ。実体は GUI なので nix ではなく cask
       "cmux"
     ]
     ++ lib.optionals (!isAarch64) [
