@@ -41,7 +41,7 @@
         ]
       }
     ],
-    "PreToolUse": [
+    "PostToolUse": [
       {
         "matcher": "",
         "hooks": [
@@ -53,7 +53,7 @@
         ]
       }
     ],
-    "PostToolUse": [
+    "PostToolUseFailure": [
       {
         "matcher": "",
         "hooks": [
@@ -145,7 +145,8 @@
     "workers-fetch@gigun": true,
     "cman@cman": true,
     "harness@gigun": true,
-    "cclens@cclens": true
+    "cclens@cclens": true,
+    "telemetry@gigun": true
   },
   "extraKnownMarketplaces": {
     "better-auth-agent-skills": {
