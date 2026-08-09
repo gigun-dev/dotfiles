@@ -269,10 +269,33 @@ in
       # リポジトリを patch せず、起動のたびに各 gatekeeper の .dev.vars を生成して埋める。
       # wrangler は設定ファイルと同じディレクトリの .dev.vars を自分で読むので、これで届く。
       # .dev.vars は gitignore 済みなので checkout の差分はゼロのまま保てる。
-      ExecStartPre = pkgs.writeShellScript "cloudflare-os-gatekeeper-base-urls" ''
+      # 非秘密の設定を毎起動時に生成する。
+      #
+      # ここで扱う値はどれも秘密ではない (Access の aud は全ての JWT ヘッダに入っており、
+      # iss は公開の team ドメイン)。よって agenix ではなく宣言から生成する方が適切で、
+      # VM を作り直しても手作業が要らなくなる。
+      #
+      # wrangler は設定ファイルと同じディレクトリの .dev.vars を自分で読む。この性質を使えば
+      # 上流リポジトリを patch せずに値を届けられる (.dev.vars は gitignore 済みなので
+      # checkout の差分もゼロのまま保てる)。
+      ExecStartPre = pkgs.writeShellScript "cloudflare-os-generate-dev-vars" ''
         set -eu
         root=/home/${username}/ghq/github.com/cloudflare/cloudflare-os
         base=https://os.097969.xyz
+
+        # ルート: run-dev-server.js が自前で読み、allowlist にある変数だけを worker へ渡す。
+        printf 'PUBLIC_BASE_URL=%s\n' "$base" > "$root/.dev.vars"
+
+        # backend: Cloudflare Access 認証の有効化。この 2 つが揃って初めて有効になる。
+        # ここに置くのは、ルートの .dev.vars では run-dev-server.js の allowlist
+        # (OPTIONAL_FEATURE_VARS) に CF_ACCESS_* が無く worker まで届かないため。
+        {
+          printf 'CF_ACCESS_AUD=%s\n' "171feed26a9a959a47baea51a250993280867e6a264baca9328220dc93fbf419"
+          printf 'CF_ACCESS_ISS=%s\n' "https://gigun.cloudflareaccess.com"
+        } > "$root/packages/workshop-backend/.dev.vars"
+
+        # gatekeeper: OAuth の redirect URI と接続 URL の組み立てに使う。
+        # 既定は http://localhost:8787/gatekeeper/<name> で、トンネルの後ろでは開けない。
         for dir in "$root"/packages/gatekeeper-*/; do
           [ -d "$dir" ] || continue
           pkg=$(basename "$dir")
