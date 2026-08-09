@@ -283,7 +283,19 @@ in
         done
       '';
 
-      ExecStart = "${pkgs.pnpm}/bin/pnpm run-local";
+      # --use-workers-ai-binding を付けると生成される worker 設定に
+      # `ai: { binding: "WORKERS_AI" }` が入り、env.WORKERS_AI が生える。
+      # これを使うのは webFetch の文書→Markdown 変換だけ (推論本体は HTTPS + トークン経由)。
+      # 無いと WebFetchEnv.ai が undefined のまま `env.ai.toMarkdown()` が呼ばれて
+      # TypeError になり、HTML/PDF/DOCX を取りに行った時点で webFetch が壊れる
+      # (ガードが無い。web-fetch.ts:26 の `ai: Ai` は必須フィールド)。
+      #
+      # 変換対象は Workers AI のモデルを使わない形式に絞られていて課金は発生しない。
+      # 画像だけは意図的に除外されている (有料モデルを使うため)。
+      #
+      # バインディングにはローカルエミュレーションが無く実際の Workers AI へ出るので、
+      # CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID が要る (上の EnvironmentFile 参照)。
+      ExecStart = "${pkgs.pnpm}/bin/pnpm run-local --use-workers-ai-binding";
       Restart = "always";
       RestartSec = 10;
 
