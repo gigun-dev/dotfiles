@@ -171,5 +171,54 @@ in
     chromium
   ];
 
+  # Cloudflare OS を 24/365 常駐させる。
+  #
+  # 立ち位置: これは「試用インスタンス」であって本番デプロイではない。上流 README の
+  # 本番セルフホスト手順 (workerd スタンドアロン) は COMING SOON のままで、KV / R2 /
+  # Browser Rendering の代替が提供されていない。それらを miniflare が肩代わりしてくれる
+  # `pnpm run-local` を常駐させるのが、現時点で自前ホストに一番近い形になる。
+  # 上流が本番手順を出したら、ここは丸ごと置き換わる想定。
+  #
+  # user service ではなく system service にした理由: user service だと boot 時に上げるのに
+  # loginctl enable-linger が要り、それは imperative な状態なので宣言から漏れる。
+  # User= を指定した system service なら linger 不要でそのまま boot から上がる。
+  #
+  # ConditionPathExists でチェックアウトの存在を条件にしている。無いマシンや VM 作り直し
+  # 直後に Restart=always と噛み合って無限再起動ループになるのを防ぐため
+  # (条件不成立なら systemd は「起動せず成功扱い」にするので静かにスキップされる)。
+  systemd.services.cloudflare-os = {
+    description = "Cloudflare OS (wrangler dev + workerd) 試用インスタンス";
+    wantedBy = [ "multi-user.target" ];
+    wants = [ "network-online.target" ];
+    after = [ "network-online.target" ];
+
+    unitConfig.ConditionPathExists = "/home/${username}/ghq/github.com/cloudflare/cloudflare-os/package.json";
+
+    # home-manager の profile には依存させない。nixpkgs の node/pnpm だけで完結させることで、
+    # home 層の switch 状況に関係なくこのサービスが成立するようにする。
+    # なお pnpm は package.json の packageManager (pnpm@11.17.0) を見て自分でその版へ
+    # 切り替える (pnpm 10+ の managePackageManagerVersions が既定 true)。実際、手元の
+    # pnpm 11.18.0 から起動しても install ログは "using pnpm v11.17.0" になっていた。
+    # よってここの pnpm の版は一致していなくてよい。
+    path = with pkgs; [
+      nodejs
+      pnpm
+      git # run-local.mjs が git ls-files でソースのハッシュを取るのに使う
+      bash
+      coreutils
+    ];
+
+    environment.HOME = "/home/${username}";
+
+    serviceConfig = {
+      Type = "simple";
+      User = username;
+      WorkingDirectory = "/home/${username}/ghq/github.com/cloudflare/cloudflare-os";
+      ExecStart = "${pkgs.pnpm}/bin/pnpm run-local";
+      Restart = "always";
+      RestartSec = 10;
+    };
+  };
+
   system.stateVersion = "26.05";
 }
