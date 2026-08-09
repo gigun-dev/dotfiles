@@ -21,6 +21,16 @@
   あわせて「やってみて分かった手順知識」の置き場所が決まっていない (CLAUDE.md は 200 行制限があり
   不適、log.md は時系列なので引きにくい)。→ `DF-2` `DF-3` `DF-6`
 
+> **2026-08-09 更新:** mini-vm が **3日間まるごと名前解決できていなかった**ことが判明し、直した
+> (`DF-9`)。DF-7 の再起動検証が ssh 到達性しか見ていなかったため素通りしていた。
+> 到達性が通っていても機能していないことがある、という教訓は `DF-12` に落とした。
+> あわせて mini-vm を **Cloudflare OS の常駐ホスト**にした (`DF-10`) — nix-ld で npm 配布の
+> プリビルド ELF (workerd) を動かせるようにし、`pnpm run-local` を systemd で常駐させ、
+> `tailscale serve` で `https://mini-vm.tailbf83fe.ts.net/` に出してある。
+> ブラウザ自動化も mini で完結するようにした (`DF-11`)。
+> なお 2026-08-08 に Langfuse フックの作り直し (e6f0bd5) と claude-devtools の cask 導入 (03bd4df)
+> が入っているが、このファイルには未反映のまま。次の棚卸しで拾うこと。
+
 ## 着手順(次にやること)
 
 - [ ] `DF-2` SPEC.md の扱いを決める
@@ -42,6 +52,36 @@
       スコープする案を出してある (agent-optimized ADR の推奨は番号ファイリングでなく file glob)。
       なお手順知識 (Lima のリネーム等) は ADR とは別問題で、頻度が低ければ永続化しない判断もある。
       → 完了条件: #3 の裁定が出て、このリポジトリで ADR を使うか否かが決まること
+- [ ] `DF-13` Cloudflare OS に AI プロバイダを繋いで実際に使う
+      現状は器が立っているだけでモデルが繋がっていない。`AiModelConfig.apiUrl` は
+      「互換 API を提供する別プロバイダ用」と型定義に明記されており、UI では
+      Add Model の **Advanced Settings** に "API URL" として出る (ollama/cloudflare 以外、
+      かつ Gateway モードでないとき)。provider ごとの既定と喋る形式は
+      anthropic=`anthropic-messages` / openai=**`openai-responses`** / google=`google-generative-ai` /
+      ollama=`openai-completions` (apiToken 空なら Authorization ヘッダ自体を送らない)。
+      サブスク枠を使うなら hotchpotch/openai-api-server-via-codex (`/v1/responses` 実装) を
+      mini に立てて provider=openai + apiUrl=`http://127.0.0.1:18080/v1` が第一候補。
+      **mini で動かす必然性**: `global_fetch_strictly_public` により本番 Worker からは
+      localhost/プライベート IP に届かない。`wrangler dev` だけが意図的に例外
+      (workshop-backend/wrangler.jsonc のコメントに明記)。
+      Workers AI は Workers Paid でも 10,000 Neurons/日までで超過は $0.011/1,000 Neurons なので
+      「$5 に収まる」前提は成り立たない。
+      → 完了条件: Cloudflare OS のチャットでモデルが応答すること
+- [ ] `DF-14` Kitesurf を chrome-devtools-mcp から使えるか試す
+      Kitesurf (2026-08-06 リリース、beta 無料) は OSS ではなくローカルには持ってこられないが、
+      CDP を WebSocket で外部公開しており、ローカルから接続できる:
+      `wss://api.cloudflare.com/client/v4/accounts/<ACCOUNT_ID>/browser-run/devtools/browser?browser=kitesurf`
+      + `Authorization: Bearer <API_TOKEN>`。chrome-devtools-mcp には
+      `--wsEndpoint` と `--wsHeaders '{"Authorization":"Bearer ..."}'` があるので、そのまま刺さるはず。
+      狙いは「エージェントごとにブラウザを用意する」「ローカルポート競合を消す」「Chromium より
+      3〜7 倍軽い」。ただし **WebGL / 動画再生 / ボット検出ハンドシェイク / 永続状態が要る長時間
+      セッションは未対応**なので、ログインが要る操作はローカル Chromium 側に残す使い分けになる。
+      → 完了条件: mini から Kitesurf 経由でページを取得・スクショできること
+- [ ] `DF-12` 「到達性テスト」に機能確認を含める型を決める
+      DF-7 は ssh が通ることを確認して合格としたが、その裏で DNS が全滅していた (`DF-9`)。
+      ping/ssh が通ることと使えることは別。最低限 DNS 解決と主要サービスの HTTP 応答まで
+      見るチェックを、再起動検証の定型にしたい。スクリプト化するか手順として書くかは未定。
+      → 完了条件: 再起動検証の手順が「上がったか」ではなく「使えるか」を見る形になること
 - [x] `DF-1` pre-push を `git/hooks/pre-push` に置く
       harness の `.githooks` は採らなかった。`core.hooksPath` は 1 つしか持てず、切り替えると
       既存の `git/hooks/pre-commit`(staged .nix の nix fmt 自動整形)が無言で死ぬため。
@@ -59,6 +99,48 @@
       → 2026-08-06 / 2ff15f4 / `sudo reboot` 後、「macOS 自動ログイン → LaunchAgent → Lima 起動 →
         VM の tailscaled 復帰」が手を触れず通ることを確認。46 秒で mini へ、その直後に mini-vm へも
         ssh 成立。boot 時は `networking.hostName` が効きゲストの hostname も `mini-vm` になる
+- [x] `DF-9` mini-vm の名前解決が全滅していたのを直す
+      → 2026-08-09 / 7ac7a24 / `nix run .#switch` が github.com を引けず発覚。tailscaled が
+        `dns: resolver: forward: no upstream resolvers set, returning SERVFAIL` を吐き続けていた。
+        dhcpcd と tailscaled の起動順レース: tailnet は global nameserver を配らず「system default を
+        使え」と指示するが、boot 直後の tailscaled はまだ書かれていない resolv.conf を読んで
+        上流ゼロを掴み、その後 resolv.conf を自分 (100.100.100.100) で上書きするため、
+        以降誰も上流を取り直さず恒久的に壊れる。tailscaled の起動時刻は 2026-08-06 23:07 で
+        DF-7 の再起動検証の瞬間。**3日間壊れていた**。
+        `networking.nameservers = [ "1.1.1.1" "1.0.0.1" ]` を宣言してレースごと消した。
+        検証: 再起動後、手を触れず `getent hosts github.com` が通り、
+        `tailscale dns query` の上流に DoH / 192.168.5.2 / 1.1.1.1 / 1.0.0.1 が並ぶことを確認。
+        なお切り分け中に手で書いた `/etc/resolv.conf` は resolvconf の署名検査に引っかかって
+        switch を一度失敗させた (`resolvconf -u` で復旧)。手で書くなら必ず戻すこと。
+- [x] `DF-10` mini-vm を Cloudflare OS の常駐ホストにする
+      → 2026-08-09 / e26d5a8 f74b50f 9ac26a4 /
+        (1) `programs.nix-ld.enable` — wrangler が実行時に取得する
+        `@cloudflare/workerd-linux-64` は interpreter が `/lib64/ld-linux-x86-64.so.2` の素の ELF で、
+        NixOS では起動できない (バイナリはあるのに ENOENT という分かりにくい失敗)。
+        `npx workerd --version` → `workerd 2026-08-09` で実証。
+        (2) `pnpm run-local` を **User= 付きの system service** で常駐 (user service だと
+        boot 起動に loginctl enable-linger という imperative な状態が要り宣言から漏れる)。
+        `ConditionPathExists` でチェックアウト不在時の無限再起動を防止。
+        (3) PATH を絞ったことで `Error: spawn ps ENOENT` が出た — wrangler のビルドが
+        `ps -o pid --no-headers --ppid <pid>` を叩くため `procps` が要る。対話 shell では
+        常に PATH にあるので systemd 化して初めて表面化した。
+        (4) 公開は `sudo tailscale serve --bg 8787` で `https://mini-vm.tailbf83fe.ts.net/`。
+        wrangler dev は 127.0.0.1 にしか bind せず `--ip` の通し口も無い (run-dev-server.js が
+        引数を固定生成する) ため、リポジトリを patch せずに済むこの形を採った。
+        検証: 再起動後、手を触れず M4 Pro から 200。cold start は約 1 分半 (17 gatekeeper +
+        フロントエンドを全ビルドするため)、ビルド済みなら数十秒。
+- [x] `DF-11` mini でブラウザ自動化を完結させる
+      → 2026-08-09 / 6446447 / `chromium` を **systemPackages** に追加。packages.nix ではなく
+        ここなのは、packages.nix が WSL と共用でありブラウザ操作を Windows ネイティブ Chrome に
+        投げる WSL には不要なため、および `/run/current-system/sw/bin/chromium` という
+        更新で変わらない安定パスが要るため。
+        chrome-devtools-mcp は実行ファイルを環境変数で受け取らず `--executablePath` /
+        `--browserUrl` / `--wsEndpoint` のみを解する (`--help` で確認)。よって mini では
+        `claude mcp add chrome-devtools --scope user -- bunx chrome-devtools-mcp@latest
+        --headless --isolated --executablePath=/run/current-system/sw/bin/chromium` で登録した
+        (mini にはこのプラグインが入っておらず、プラグイン側の args は固定で NixOS では動かないため)。
+        `--isolated` は同時に走るエージェントがプロファイルを奪い合わないようにするため。
+        検証: sandbox 有効のまま `--dump-dom` が通り、`claude mcp list` が Connected。
 - [x] `DF-8` Lima インスタンス名を mini-vm に揃える
       → 2026-08-06 / 2ff15f4 / `limactl stop` → `~/.lima/nixos` を rename → `limactl start` で改名でき、
         VM 作り直し (nix store 9.5GB の再取得) は不要だった。autostart は名前が変わるので登録し直し。
@@ -84,6 +166,42 @@ T2 機のネイティブ Linux 化 (デュアルブート) は Activation Lock �
 NixOS 化を再検討してよい。t2linux の NixOS サポートは現役 (nixos-hardware の `apple/t2`、
 kernel 6.18 LTS / 7.0 に追従)。
 
+### Cloudflare OS を mini-vm に置いた話 (2026-08-09)
+
+**Cloudflare OS とは**: 2026-08-05 に Apache-2.0 で公開された、Cloudflare Workers 上で動く
+エージェント用ワークスペース。Linux のような OS ではない。ワークスペースが Durable Object、
+各 Gadget が Dynamic Worker Facet として動く。
+
+**自前ホストの現在地**: README の「Deploy to your own server using `workerd`」節は見出しごと
+**COMING SOON**。「workerd 上で全部動くが、手順もツールもまだ無い。やるなら workerd.capnp を
+自分で書け」という状態。必要なバインディングのうち DO(SQLite)/Facets と `worker_loaders` は
+workerd の機能だが、**KV / R2 / Browser Rendering は Cloudflare のサービス**で、dev では
+miniflare が模倣しているだけ。ここの代替が「準備中のツール」の中身。
+したがって現状の最善手は `pnpm run-local` の常駐であり、これは体験版ではなく
+**中身は workerd 本体**(公式ブログが明言)。将来の本番セルフホストとほぼ同じものを触れる。
+
+**deploy 経路と repo の要否**: 作った Gadget / ブループリントは DO・KV・R2 に入り git には入らない。
+repo はプラットフォームのバージョンと設定の置き場でしかない。
+`os.cloudflare.app/deploy` は repo 不要、`cloudflare-os-starter` は repo 必要
+(上流リリースを submodule で pin し、Workers Builds ではなく手元から `pnpm deploy`)。
+starter が要求するアカウント機能は "Workers, KV, R2, Browser Rendering, and Dynamic Worker Loaders"。
+
+**コネクティビティ**: gatekeeper が 17 個 (github/google/cloudflare/supabase/notion/confluence/
+email/homeassistant/slack/spotify/zoominfo/linear/mcp/mcp-portal/context/scheduler)。
+Slack は **read-only** で、bot token ではなく user token (`xoxp-`) を使い「接続した本人に見えるもの」
+だけを見せる (private channel も DM も検索も含む)。許可の粒度は workspace / conversation / thread。
+`gatekeeper-mcp` があるので 17 個に無いものは MCP で吸収できる。
+
+**バージョン結合の罠**: wrangler と workerd はバージョンが結合している
+(`docs/integration-testing.md`)。**nixpkgs の wrangler を使わずリポジトリの pnpm 管理下のものを使う**こと。
+`packages.nix` に足すのは nodejs / pnpm までで正しい。
+なお pnpm は `packageManager` の pin を見て自分でその版に切り替える (pnpm 10+ の既定) ので、
+入っている pnpm の版が一致していなくてよい。
+
+**bun に置き換えられない**: `scripts/run-local.mjs` が `pnpm install` / `pnpm --filter ... build` を
+直接 spawn しており、`packageManager: pnpm@11.17.0` も宣言されている。bun 化するなら
+このスクリプトの書き換えが要る。
+
 ### 宣言管理から外れているもの
 
 - **mini の macOS**: generation 26 で凍結。設定変更は手で当てる。アンインストールはしていない
@@ -94,6 +212,13 @@ kernel 6.18 LTS / 7.0 に追従)。
   `~/.lima/` 配下のディレクトリを rename → `limactl start` で改名できた
   (公式サポートされた操作ではないが動く。autostart は名前が変わるので登録し直しが要る)
 - **`~/.local/bin`**: PATH 末尾の例外レーン。self-update 前提のツールや nixpkgs にない uv tool 用
+- **cloudflare-os のチェックアウト**: `~/ghq/github.com/cloudflare/cloudflare-os` に clone してあるだけで
+  宣言外。systemd 側は `ConditionPathExists` で不在を許容する作りなので、VM を作り直したら
+  clone し直すまでサービスは静かにスキップされる (壊れはしない)
+- **`tailscale serve` の設定**: `sudo tailscale serve --bg 8787` は tailscaled の状態として永続し
+  再起動も越えるが、宣言には無い。VM を作り直したら張り直しが要る
+- **mini の chrome-devtools MCP 登録**: `claude mcp add --scope user` で `~/.claude.json` に入る。
+  dotfiles が管理しているのは `claude/settings.json` / `hooks` / `commands` だけなので、ここは外
 - **apple/container**: 公式署名 pkg のみで brew にも nixpkgs にも無いが、pkg を `fetchurl` で hash 固定し
   activation から冪等に `installer` を叩く形で宣言管理下に置いた
   (`nix/modules/darwin/apple-container.nix`)。同種のツールが出たらこの形を踏襲する
