@@ -93,6 +93,31 @@ in
 
   boot.kernelPackages = pkgs.linuxPackages_latest;
 
+  # nix 管理外のプリビルド ELF バイナリを動かすための逃げ道。
+  #
+  # 動機: Cloudflare OS (workerd / wrangler) を 24/365 でこの VM に置きたい。wrangler は
+  # 実行時に @cloudflare/workerd-linux-64 を npm から取ってくるが、これは FHS 前提でビルド
+  # された素の ELF で、interpreter が /lib64/ld-linux-x86-64.so.2 を指している。NixOS には
+  # そのパスが無いので、nix-ld 無しでは "No such file or directory" で即死する
+  # (バイナリは存在するのに出るこのエラーが、NixOS 初見では最も分かりにくい)。
+  #
+  # 却下案:
+  #   - nixpkgs の workerd を使う → wrangler は自分のバージョンに結合した workerd を
+  #     同梱・起動する設計なので、外から差し替えても使われない。cloudflare-os の
+  #     docs/integration-testing.md も「wrangler と workerd はバージョンが結合している」と
+  #     明記している。
+  #   - buildFHSEnv でラップ → 対象が wrangler だけなら成立するが、この VM はエージェント
+  #     基盤で「npm/pip 由来のバイナリを試しに動かす」用途が今後も繰り返し出る。
+  #     その都度ラッパを書くより、逃げ道を 1 本用意しておく方が総コストが低い。
+  #
+  # なお ~/.local/bin と同じ「例外レーン」の思想。宣言的管理を諦めた領域なので、
+  # ここに頼るものが増えてきたら本来は nix 側へ引き上げるべきというサイン。
+  programs.nix-ld.enable = true;
+  programs.nix-ld.libraries = with pkgs; [
+    # workerd は C++ 製なので libstdc++ が要る。nix-ld の既定セットには含まれないため明示。
+    stdenv.cc.cc.lib
+  ];
+
   # CLI ツール群は home-manager standalone (packages.nix) が入れる。
   # ここは VM を最低限操作できるだけの構成に留める。
   environment.systemPackages = with pkgs; [
