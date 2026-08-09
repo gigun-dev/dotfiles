@@ -206,6 +206,11 @@ in
       git # run-local.mjs が git ls-files でソースのハッシュを取るのに使う
       bash
       coreutils
+      # ps は wrangler のビルドパイプラインが子プロセスの掃除に使う
+      # (`ps -o pid --no-headers --ppid <pid>` を spawn する)。無いと
+      # "Error: spawn ps ENOENT" でサービスごと落ちる。対話 shell では
+      # 常に PATH にあるため、systemd 化して初めて表面化した。
+      procps
     ];
 
     environment.HOME = "/home/${username}";
