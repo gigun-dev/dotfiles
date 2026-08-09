@@ -131,6 +131,43 @@
       → 2026-08-06 / 2ff15f4 / `sudo reboot` 後、「macOS 自動ログイン → LaunchAgent → Lima 起動 →
         VM の tailscaled 復帰」が手を触れず通ることを確認。46 秒で mini へ、その直後に mini-vm へも
         ssh 成立。boot 時は `networking.hostName` が効きゲストの hostname も `mini-vm` になる
+- [x] `DF-17` Cloudflare OS を Cloudflare Access でログインさせる
+      → 2026-08-09 / 6d7decd 以降 / **3 層すべてを揃えないと動かない。しかも欠けたときの症状が
+        3 層とも「ユーザー名/パスワード画面が出る」で同一**なので、切り分けが極めて難しい。
+        1. エッジ: Access アプリ + **Cloudflare IdP**。`cloudflare_account_member` セレクタは
+           Cloudflare IdP を使っていないと機能しない (docs に明記)。この tailnet の Zero Trust は
+           One-time PIN しか無い古い世代だったので、`type: "cloudflare"` の IdP を追加した
+           (`restrict_to_account_members: true`)。アプリ側は `allowed_idps` をその IdP だけに絞り、
+           `auto_redirect_to_identity: true` で選択画面を出さない。
+           なお Access アプリの更新は `PATCH` が `10405: Method not allowed for this
+           authentication scheme` で弾かれる。`PUT` で全項目を送り直すこと。
+        2. バックエンド: `CF_ACCESS_AUD` (アプリの aud) と `CF_ACCESS_ISS` (team URL) の両方。
+           **置き場所は `packages/workshop-backend/.dev.vars`** — wrangler が設定ファイルと同じ
+           ディレクトリの `.dev.vars` を直接読む。リポジトリ直下の `.dev.vars` は
+           `run-dev-server.js` が自前で読んで `OPTIONAL_FEATURE_VARS` の allowlist に載る変数だけを
+           転記する仕組みで、`CF_ACCESS_*` はそこに無いため**届かない**。
+           一度 allowlist にパッチを当てたが、worker 直下へ置けば不要と判明したので撤回した
+           (上流との差分ゼロを維持できる)。
+        3. フロントエンド: **`VITE_CF_ACCESS_MODE=true` (ビルド時)**。`useAuth.ts:5` が
+           `import.meta.env.VITE_CF_ACCESS_MODE` を見ており、false だとフロントは
+           `authenticateFromCfAccess()` を一度も呼ばない。実行時 env をいくら直しても効かない。
+           vite が `VITE_` 接頭辞を拾うので systemd の environment に置けば足りる。
+           ただし `run-local.mjs` はソースのハッシュが変わらないとビルドを飛ばすので、
+           初回は `.run-local-stamp` を消して強制リビルドすること。
+      → 切り分けの道具: JWT 無しで `curl http://localhost:8787/api` を叩き、
+        `Cross-origin API access not allowed.` / `Invalid CF access JWT.` /
+        `Access JWT didn't specify email address.` のどれが返るかを見る。この 3 つは
+        `if (env.CF_ACCESS_AUD)` ブロックの内側にしか無いので、**返ってくること自体が
+        バックエンド層が効いている証拠**になる。
+- [x] `DF-18` cloudflare-os サービスの外向き HTTPS が全滅していたのを直す
+      → 2026-08-09 / (mini-vm.nix) / `kj/compat/tls.c++:269: TLS peer's certificate is not
+        trusted` で workerd の外向き HTTPS が全て失敗していた。最初に踏んだのは Access の
+        JWKS 取得で、ブラウザには "Can't reach the server. Retrying..." としか出ず原因が見えない。
+        原因は systemd 化で環境を絞った際に `SSL_CERT_FILE` を渡し忘れたこと。対話シェルでは
+        NixOS が自動で入れるため手動の `pnpm run-local` では再現しない。`procps` が無くて
+        `spawn ps ENOENT` になったのと同じ罠を同じユニットで二度踏んだ。
+        **教訓: 環境を絞った systemd service は、対話シェルが暗黙に与えているものを
+        一つずつ失う。** AI 推論も同じ HTTPS 経路なので、Access を使わなくてもいずれ踏んでいた。
 - [x] `DF-16` Cloudflare OS の公開経路を named tunnel に移し、認証境界を Access にする
       → 2026-08-09 / 6d7decd / `tailscale serve` だと境界が「tailnet に居るかどうか」になり、
         要件の「Cloudflare アカウントでログイン」にならなかった。トンネルを張るとエッジが
