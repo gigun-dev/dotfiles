@@ -131,6 +131,25 @@
       → 2026-08-06 / 2ff15f4 / `sudo reboot` 後、「macOS 自動ログイン → LaunchAgent → Lima 起動 →
         VM の tailscaled 復帰」が手を触れず通ることを確認。46 秒で mini へ、その直後に mini-vm へも
         ssh 成立。boot 時は `networking.hostName` が効きゲストの hostname も `mini-vm` になる
+- [x] `DF-19` codex ブリッジを mini の外から使えるようにする
+      → 2026-08-10 / (mini-vm.nix) / `codex.097969.xyz` を既存トンネルの ingress に追加
+        (新しいトンネルは張らず、cloudflared は 1 プロセスのまま)。
+        **Access は張らない。** Access で守ると `CF-Access-Client-Id` /
+        `CF-Access-Client-Secret` ヘッダが要るが、Cloudflare OS の Add Model 画面は
+        apiUrl と apiToken (= `Authorization: Bearer`) しか送れず、カスタムヘッダを足す口が無い。
+        代わりにブリッジ自身の `api_key` で守る (Authorization に乗るので噛み合う)。
+        鍵は `~/.config/openai-api-server-via-codex/config.toml` (0600、git 外)。
+        検証: mini 内で鍵なし 401 / 鍵あり 200、M4 Pro から鍵なし 401 かつ Access の 302 が
+        挟まらないことを確認。
+        **ローカルの Cloudflare OS はこの URL を使わないこと。** 同じ mini に居るので
+        `http://127.0.0.1:18080/v1` へループバックで届く。トンネル経由にすると
+        mini → エッジ → mini と往復し、エッジやトンネルの不調がローカルの AI まで巻き込む。
+        この口の価値は「mini の外から使えること」だけ (将来 Cloudflare にデプロイした OS、
+        Mac、CI 等)。
+        **未了**: 公開網に出た口が 40 文字の鍵 1 枚で守られている状態。総当たりを鈍らせる
+        レート制限 (Cloudflare WAF) は未設定。
+        **規約**: サブスク枠のエンドポイントを公開網に出すのは、ブリッジ README の
+        「アカウント共有・再販禁止」に近づく方向。単独利用の範囲に留めること。
 - [x] `DF-17` Cloudflare OS を Cloudflare Access でログインさせる
       → 2026-08-09 / 6d7decd 以降 / **3 層すべてを揃えないと動かない。しかも欠けたときの症状が
         3 層とも「ユーザー名/パスワード画面が出る」で同一**なので、切り分けが極めて難しい。
