@@ -230,6 +230,24 @@ in
       # 環境を絞った systemd service にして初めて表面化する。procps の件と同じ罠。
       SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
       NIX_SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+
+      # フロントエンドを Cloudflare Access モードでビルドする。
+      #
+      # これはバックエンドの CF_ACCESS_AUD とは別物で、**ビルド時に SPA へ焼き込まれる**フラグ
+      # (workshop-frontend/src/useAuth.ts:5 が import.meta.env.VITE_CF_ACCESS_MODE を見る)。
+      # false のままだと、バックエンドが Access 待ち受けでもフロントは
+      # authenticateFromCfAccess() を一度も呼ばず、ひたすらユーザー名/パスワード画面を出す。
+      # 「バックエンドを直したのに直らない」という症状の正体がこれだった。
+      #
+      # 上流の公式リリースビルド (scripts/release/build-release.mjs) は同じ変数を "true" にして
+      # Access 版フロントを作っている。run-local の vite build には渡されないだけで、
+      # 仕組みとしては上流が用意したもの。vite は VITE_ 接頭辞の環境変数を拾うので
+      # ここで渡せば足りる (リポジトリ側の改変は不要)。
+      #
+      # 注意: run-local.mjs はソースのハッシュが変わらないとビルドを飛ばす。この変数を
+      # 足しただけではハッシュが変わらず古いバンドルが使われ続けるので、初回は
+      # .run-local-stamp を消して強制リビルドすること。
+      VITE_CF_ACCESS_MODE = "true";
     };
 
     serviceConfig = {
