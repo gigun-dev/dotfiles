@@ -225,6 +225,44 @@ in
     };
   };
 
+  # Cloudflare named tunnel。Cloudflare OS の公開経路を tailnet から Cloudflare へ移す。
+  #
+  # 狙い: 認証の境界を Cloudflare Access (エッジ) に置く。tailscale serve だと境界が
+  # 「tailnet に居るかどうか」になり、Cloudflare アカウントでのログインにならなかった。
+  # トンネルを張るとエッジが前段に立つので Access が使える。Tailscale は ssh 用に残す。
+  #
+  # Access 側は API で作成済み:
+  #   アプリ  Cloudflare OS (mini-vm) / os.097969.xyz / self_hosted / session 168h
+  #   ポリシー gigun-dev account members (include: cloudflare_account_member)
+  #   aud     171feed26a9a959a47baea51a250993280867e6a264baca9328220dc93fbf419
+  # Cloudflare OS 自身が Access を一級の認証方式として持ち、Access の verified email で
+  # UserDurableObject を引く (docs/oauth-signin.md: "the same scheme as Cloudflare Access")。
+  # そのためアプリ内 OAuth gatekeeper を足さなくてもログインが完結する。
+  #
+  # 積み残し: cloudflared 側で Cf-Access-Jwt-Assertion を検証する originRequest.access は
+  # NixOS モジュールが公開していない (originRequest に access オプションが無い)。
+  # 多層防御の 1 枚を諦めている。主境界であるエッジの Access は効いているので実害は小さいが、
+  # Access の設定を消すと素通しになる点は覚えておくこと。
+  #
+  # config_src は local を選んだ。ingress を Cloudflare 側の管理画面ではなくこのファイルに
+  # 置きたいため (宣言的管理の方針)。remote 管理にすると ingress が git の外へ出る。
+  services.cloudflared = {
+    enable = true;
+    tunnels."5b8ec787-4730-4b2b-87b8-e86acbd3954b" = {
+      # 秘密なので git には入れない。root 所有 0400 で置き、systemd の LoadCredential が
+      # DynamicUser へ渡す (モジュールが serviceConfig.LoadCredential を設定している)。
+      credentialsFile = "/var/lib/cloudflared/cloudflare-os.json";
+      ingress."os.097969.xyz".service = "http://127.0.0.1:8787";
+      # 宣言していないホスト名は原点まで通さない。トンネルを他用途へ流用されないための既定。
+      default = "http_status:404";
+    };
+  };
+
+  # 認証情報がまだ置かれていないマシンで LoadCredential が失敗して騒がしくなるのを防ぐ。
+  # cloudflare-os / codex-openai-bridge と同じ考え方 (条件不成立なら静かにスキップ)。
+  systemd.services."cloudflared-tunnel-5b8ec787-4730-4b2b-87b8-e86acbd3954b".unitConfig.ConditionPathExists =
+    "/var/lib/cloudflared/cloudflare-os.json";
+
   # ChatGPT サブスク枠を OpenAPI 互換エンドポイントとして生やすブリッジ。
   #
   # 狙い: Cloudflare OS の AI プロバイダに ChatGPT の Codex 枠を使う。Cloudflare OS の
