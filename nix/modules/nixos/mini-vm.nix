@@ -293,22 +293,20 @@ in
       # 変換対象は Workers AI のモデルを使わない形式に絞られていて課金は発生しない。
       # 画像だけは意図的に除外されている (有料モデルを使うため)。
       #
-      # 2026-08-10: 一度有効化したが戻した。バインディングは `AI / remote` として
-      # リモート実行され、wrangler がリモートセッションを張る際に認証に失敗する:
+      # **必要な権限に注意**: Workers AI バインディングは `AI / remote` としてリモート実行され、
+      # wrangler がリモートセッションを張る。このセッション生成には Workers AI の権限だけでは
+      # 足りず、**Workers Scripts: Edit** が別途要る。無いとサービスが起動時に落ちる:
       #   This Worker uses bindings that need to run remotely, even when developing
       #   locally, but the remote session could not be authenticated.
-      # トークン自体は有効 (Workers AI の REST は 200) なので、不足しているのは
-      # Workers AI 以外の権限 (リモートセッション生成に要る Workers Scripts 系と思われる)。
-      # 有効化するとサービスがクラッシュループするため、権限を足すか諦めるかを決めるまで無効。
+      # トークンが有効でも (Workers AI の REST は 200 を返していた) この症状が出るので、
+      # 「トークンが壊れている」と誤診しやすい。
+      # 上流の既知の制約で、狭い権限で動くようにする要望が上がっている:
+      #   https://github.com/cloudflare/workers-sdk/issues/10091
       #
-      # 諦めた場合の影響: webFetch の文書→Markdown 変換が使えない (HTML/PDF/DOCX で
-      # TypeError)。ただし `raw: true` を指定すれば変換せず生バイトを取れるので、
-      # エージェントが Web を読む道が完全に閉じるわけではない。
-      #
-      # 権限を足す判断には注意が要る。Workers Scripts: Edit はアカウント内の Worker を
-      # デプロイ・改変できる強い権限で、このトークンは無期限かつ 24/365 の機械に置いてある。
-      # webFetch の変換機能と引き換えにする価値があるかは別途判断すること。
-      ExecStart = "${pkgs.pnpm}/bin/pnpm run-local";
+      # 引き換えに影響範囲は広がっている。Workers Scripts: Edit はアカウント内の Worker を
+      # デプロイ・改変・削除できる権限で、このトークンは無期限かつ 24/365 の機械にある。
+      # webFetch の文書→Markdown 変換と引き換えに受け入れた判断であることを覚えておくこと。
+      ExecStart = "${pkgs.pnpm}/bin/pnpm run-local --use-workers-ai-binding";
       Restart = "always";
       RestartSec = 10;
 
