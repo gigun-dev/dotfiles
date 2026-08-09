@@ -211,9 +211,26 @@ in
       # "Error: spawn ps ENOENT" でサービスごと落ちる。対話 shell では
       # 常に PATH にあるため、systemd 化して初めて表面化した。
       procps
+      # workerd が外向き HTTPS を張るのに要る (下の SSL_CERT_FILE 参照)。
+      cacert
     ];
 
-    environment.HOME = "/home/${username}";
+    environment = {
+      HOME = "/home/${username}";
+
+      # 2026-08-10 障害修正: これが無いと workerd の外向き HTTPS が全滅する。
+      #   kj/compat/tls.c++:269: failed: TLS peer's certificate is not trusted;
+      #   reason = unable to get local issuer certificate
+      # 最初に踏んだのは Cloudflare Access の JWKS 取得
+      # (https://<team>.cloudflareaccess.com/cdn-cgi/access/certs) で、画面には
+      # "Can't reach the server. Retrying..." としか出ず原因が見えなかった。
+      # AI プロバイダへの推論リクエストも同じ経路なので、どのみち踏む地雷だった。
+      #
+      # 対話シェルでは NixOS が SSL_CERT_FILE を自動で入れるため手動起動では再現せず、
+      # 環境を絞った systemd service にして初めて表面化する。procps の件と同じ罠。
+      SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+      NIX_SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+    };
 
     serviceConfig = {
       Type = "simple";
