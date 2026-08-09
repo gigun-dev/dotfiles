@@ -131,6 +131,30 @@
       → 2026-08-06 / 2ff15f4 / `sudo reboot` 後、「macOS 自動ログイン → LaunchAgent → Lima 起動 →
         VM の tailscaled 復帰」が手を触れず通ることを確認。46 秒で mini へ、その直後に mini-vm へも
         ssh 成立。boot 時は `networking.hostName` が効きゲストの hostname も `mini-vm` になる
+- [x] `DF-16` Cloudflare OS の公開経路を named tunnel に移し、認証境界を Access にする
+      → 2026-08-09 / 6d7decd / `tailscale serve` だと境界が「tailnet に居るかどうか」になり、
+        要件の「Cloudflare アカウントでログイン」にならなかった。トンネルを張るとエッジが
+        前段に立つので Access が使える。Tailscale は ssh 用に残す。
+        作ったもの: トンネル `cloudflare-os` (5b8ec787-4730-4b2b-87b8-e86acbd3954b、config_src=local)、
+        DNS `os.097969.xyz` CNAME → `<id>.cfargotunnel.com` (proxied)、
+        Access アプリ `Cloudflare OS (mini-vm)` (self_hosted / 168h /
+        aud 171feed26a9a959a47baea51a250993280867e6a264baca9328220dc93fbf419)、
+        ポリシー `cloudflare_account_member` (= gigun-dev のアカウントメンバー)。
+        **アプリ内 OAuth gatekeeper は足さない判断をした。** Cloudflare OS は Access を一級の
+        認証方式として持ち、Access の verified email で UserDurableObject を引く
+        (docs/oauth-signin.md が "the same scheme as Cloudflare Access" と明記) ため、
+        Access だけでログインが完結し二重ログインにならない。後から gatekeeper を connect
+        しても email が同じなのでアカウントは分裂しない。
+        検証: 未認証の GET が 302 で `gigun.cloudflareaccess.com` へ飛び、`kid` が aud と一致。
+        cloudflared は 4 本 (kix06/nrt09/kix05/nrt09) で接続。
+        **積み残し**: cloudflared 側で `Cf-Access-Jwt-Assertion` を検証する
+        `originRequest.access` は NixOS モジュールが公開しておらず設定できない。多層防御の
+        1 枚が欠けている (主境界のエッジ Access は効いているので実害は小さいが、Access 設定を
+        消すと素通しになる)。
+        **共有の設計**: Access ポリシーは `cloudflare_account_member` 以外に `email` /
+        `email_domain` も書けるので、外部の人に共有するのにアカウントメンバー化も REALBIND への
+        移設も要らない。共有は 2 層 (Access = URL に到達できるか / Cloudflare OS の collaborator =
+        到達後に何が見えるか) で、両方通らないと見えない。`use` ロールは UI のみでコードは見えない。
 - [x] `DF-9` mini-vm の名前解決が全滅していたのを直す
       → 2026-08-09 / 7ac7a24 / `nix run .#switch` が github.com を引けず発覚。tailscaled が
         `dns: resolver: forward: no upstream resolvers set, returning SERVFAIL` を吐き続けていた。
