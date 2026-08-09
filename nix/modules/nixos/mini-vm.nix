@@ -254,6 +254,35 @@ in
       Type = "simple";
       User = username;
       WorkingDirectory = "/home/${username}/ghq/github.com/cloudflare/cloudflare-os";
+
+      # 各 gatekeeper に BASE_URL を配る。
+      #
+      # gatekeeper は OAuth の redirect URI と、UI に返す接続用 URL を BASE_URL から組み立てる。
+      # 既定は `http://localhost:8787/gatekeeper/<name>` で、トンネルの後ろに置いた構成では
+      # ブラウザから開けず Not Found になる (Slack 接続で実際に踏んだ)。
+      #
+      # 上流のリリースビルドは `$PUBLIC_BASE_URL/gatekeeper/<name>` を各 gatekeeper に
+      # 設定している (scripts/release/manifest-lib.mjs)。仕組みは上流のものだが、
+      # run-dev-server.js は面倒を見ない — ローカル実行は localhost が本物の origin である
+      # 前提で組まれているため。VITE_CF_ACCESS_MODE と同じ「本番用の配線が dev に無い」類型。
+      #
+      # リポジトリを patch せず、起動のたびに各 gatekeeper の .dev.vars を生成して埋める。
+      # wrangler は設定ファイルと同じディレクトリの .dev.vars を自分で読むので、これで届く。
+      # .dev.vars は gitignore 済みなので checkout の差分はゼロのまま保てる。
+      ExecStartPre = pkgs.writeShellScript "cloudflare-os-gatekeeper-base-urls" ''
+        set -eu
+        root=/home/${username}/ghq/github.com/cloudflare/cloudflare-os
+        base=https://os.097969.xyz
+        for dir in "$root"/packages/gatekeeper-*/; do
+          [ -d "$dir" ] || continue
+          pkg=$(basename "$dir")
+          # パッケージ名 gatekeeper-slack → URL 上の短縮名 slack
+          # (router のパス走査もこの短縮名で行われる)
+          short=''${pkg#gatekeeper-}
+          printf 'BASE_URL=%s/gatekeeper/%s\n' "$base" "$short" > "$dir/.dev.vars"
+        done
+      '';
+
       ExecStart = "${pkgs.pnpm}/bin/pnpm run-local";
       Restart = "always";
       RestartSec = 10;
