@@ -130,6 +130,18 @@
       `codex.097969.xyz` は公開網に出ていて、守りは 40 文字の api_key 1 枚だけ。Access は
       張れない (理由は `DF-19`)。総当たりを鈍らせる WAF のレート制限を入れたい。
       → 完了条件: 認証失敗が続く送信元に制限がかかること
+- [ ] `DF-24` Langfuse を codex 経由の推論に挟む
+      Claude Code 側は既に Langfuse を入れている (e6f0bd5)。Cloudflare OS も可能な範囲で観測したい。
+      **できる範囲とできない範囲がはっきりしている**:
+      - **openai プロバイダ**は `apiUrl` を差し替えられるので
+        `Cloudflare OS → LiteLLM (Langfuse callback) → codex ブリッジ` と数珠つなぎにできる。
+        全部 mini の中で完結する。
+      - **cloudflare プロバイダ (Workers AI) は baseUrl がコード内で固定**されていて
+        (`getModelDirect` の `case "cloudflare"`)、プロキシを挟む余地が無い。
+      - AI Gateway なら Workers AI も観測できるが、**codex ブリッジと排他** (`DF-13` 参照。
+        `CF_AI_GATEWAY` を設定すると全モデルがゲートウェイ経由になり apiUrl が無視される)。
+      よって「Langfuse で codex 側、Cloudflare ダッシュボードで Workers AI 側」の二本立てになる。
+      → 完了条件: codex 経由の推論が Langfuse のトレースに出ること
 - [ ] `DF-12` 「到達性テスト」に機能確認を含める型を決める
       DF-7 は ssh が通ることを確認して合格としたが、その裏で DNS が全滅していた (`DF-9`)。
       ping/ssh が通ることと使えることは別。最低限 DNS 解決と主要サービスの HTTP 応答まで
@@ -152,6 +164,22 @@
       → 2026-08-06 / 2ff15f4 / `sudo reboot` 後、「macOS 自動ログイン → LaunchAgent → Lima 起動 →
         VM の tailscaled 復帰」が手を触れず通ることを確認。46 秒で mini へ、その直後に mini-vm へも
         ssh 成立。boot 時は `networking.hostName` が効きゲストの hostname も `mini-vm` になる
+- [x] `DF-25` Workers AI バインディングを有効化して webFetch の文書変換を通す
+      → 2026-08-10 / (mini-vm.nix) / `--use-workers-ai-binding` を付けて `env.WORKERS_AI` を生やした。
+        使うのは webFetch の文書→Markdown 変換だけ (HTML/PDF/DOCX/XLSX/CSV/XML など)。
+        無い状態では `WebFetchEnv.ai` が undefined のまま `env.ai.toMarkdown()` が呼ばれて
+        TypeError になり、**エージェントが普通の Web ページを読めない**。ガードは無い
+        (`web-fetch.ts:26` の `ai: Ai` は必須フィールド)。変換対象はモデルを使わない形式に
+        絞られているので課金は発生せず、画像だけ意図的に除外されている。
+        **踏んだ罠**: バインディングは `AI / remote` としてリモート実行され、wrangler が
+        リモートセッションを張る。その生成には Workers AI の権限では足りず
+        **`Workers Scripts: Edit` が別途要る**。無いと起動時に
+        `remote session could not be authenticated` で落ちてクラッシュループする。
+        紛らわしいのは、トークンが有効でもこれが出ること (Workers AI の REST も AI Gateway も
+        200 を返していた) — 「トークンが壊れている」と誤診しやすい。上流の既知の制約で
+        狭い権限で動かす要望が cloudflare/workers-sdk#10091 に上がっている。
+        **代償**: この権限はアカウント内の Worker をデプロイ・改変・削除できる。トークンは
+        無期限で 24/365 の機械にある。webFetch の変換機能と引き換えに受け入れた判断。
 - [x] `DF-19` codex ブリッジを mini の外から使えるようにする
       → 2026-08-10 / (mini-vm.nix) / `codex.097969.xyz` を既存トンネルの ingress に追加
         (新しいトンネルは張らず、cloudflared は 1 プロセスのまま)。
