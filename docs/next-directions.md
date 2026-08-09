@@ -117,7 +117,22 @@
       (差分ゼロ) は再現できるのに、**エッジ層だけが再現できない**という非対称がある。
       Terraform か Pulumi の Cloudflare provider が候補。秘密は `DF-21` と同じ扱いで外に出す。
       → 完了条件: VM とアカウントを作り直しても、宣言から同じ構成を再現できること
-- [ ] `DF-21` 秘密を宣言管理下に置く (sops-nix / agenix)
+- [x] `DF-21` 秘密を宣言管理下に置く (agenix)
+      → 2026-08-10 / `secrets/` + flake input + mini-vm.nix / agenix を採用。sops-nix ではなく
+        agenix にしたのは規模が合うため (秘密 3〜4 個、ホスト 1 台、ユーザー 1 人)。既存の
+        SSH ホスト鍵をそのまま復号鍵に使えるので新しい鍵管理が発生せず、出力も
+        「指定パスに owner/mode 付きでファイルを置く」形なので既存の `credentialsFile` /
+        `EnvironmentFile` の書き方を変えずに済んだ。
+        管理下: トンネル認証情報 / Cloudflare API トークン / codex ブリッジの api_key。
+        **`~/.codex/auth.json` は意図的に対象外**。OAuth のリフレッシュトークンは codex 自身が
+        書き換える可変状態で、activation のたびに古い暗号文で上書きすると認証が壊れる。
+        VM 再作成時は `codex login` をやり直す (secrets.nix に明記)。
+        ついでに非秘密の設定 (`PUBLIC_BASE_URL` / `CF_ACCESS_AUD` / `CF_ACCESS_ISS` /
+        gatekeeper の `BASE_URL`) も ExecStartPre で生成する形にし、手で置いた設定をゼロにした。
+        検証: 復号後にブリッジが鍵なし 401 / 鍵あり 200、Cloudflare OS 200、
+        `os.097969.xyz` 302 (Access)、`codex.097969.xyz` 401。全サービス restarts=0。
+        **注意**: `path` を指定した秘密は実体へのシンボリックリンクになるため、`stat` は
+        `777` に見える。所有権と権限は `/run/agenix.d/<n>/<name>` 側で確認すること。
       現在 mini に手で置いた秘密が 4 つあり、**VM を作り直すと全部消えて手作業でやり直し**になる:
       `/var/lib/cloudflared/cloudflare-os.json` (トンネル認証情報)、
       `/var/lib/cloudflare-os/env` (Cloudflare API トークン)、
