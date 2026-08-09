@@ -109,6 +109,27 @@
       3〜7 倍軽い」。ただし **WebGL / 動画再生 / ボット検出ハンドシェイク / 永続状態が要る長時間
       セッションは未対応**なので、ログインが要る操作はローカル Chromium 側に残す使い分けになる。
       → 完了条件: mini から Kitesurf 経由でページを取得・スクショできること
+- [ ] `DF-20` Cloudflare 側のリソースを宣言管理下に置く
+      2026-08-09〜10 に API で作ったものが、どこにも宣言されていない: トンネル `cloudflare-os`、
+      DNS `os.097969.xyz` / `codex.097969.xyz`、Access アプリとポリシー、Cloudflare IdP、
+      AI Gateway `cloudflare-os`。再現手段は `DF-16` `DF-17` `DF-19` に書いた文章だけで、
+      事故ったら手で作り直すことになる。mini-vm.nix (OS 層) と cloudflare-os の checkout
+      (差分ゼロ) は再現できるのに、**エッジ層だけが再現できない**という非対称がある。
+      Terraform か Pulumi の Cloudflare provider が候補。秘密は `DF-21` と同じ扱いで外に出す。
+      → 完了条件: VM とアカウントを作り直しても、宣言から同じ構成を再現できること
+- [ ] `DF-21` 秘密を宣言管理下に置く (sops-nix / agenix)
+      現在 mini に手で置いた秘密が 4 つあり、**VM を作り直すと全部消えて手作業でやり直し**になる:
+      `/var/lib/cloudflared/cloudflare-os.json` (トンネル認証情報)、
+      `/var/lib/cloudflare-os/env` (Cloudflare API トークン)、
+      `packages/workshop-backend/.dev.vars` (CF_ACCESS_AUD/ISS)、
+      `~/.config/openai-api-server-via-codex/config.toml` (ブリッジの api_key)。
+      dotfiles が public なので平文では置けないが、sops-nix / agenix なら暗号化したまま
+      git に入れられ、activation 時にホスト鍵で復号できる。`DF-20` と一緒にやると効率が良い。
+      → 完了条件: VM 作り直し後、`nix run .#switch` だけで秘密が揃うこと
+- [ ] `DF-22` codex エンドポイントにレート制限を入れる
+      `codex.097969.xyz` は公開網に出ていて、守りは 40 文字の api_key 1 枚だけ。Access は
+      張れない (理由は `DF-19`)。総当たりを鈍らせる WAF のレート制限を入れたい。
+      → 完了条件: 認証失敗が続く送信元に制限がかかること
 - [ ] `DF-12` 「到達性テスト」に機能確認を含める型を決める
       DF-7 は ssh が通ることを確認して合格としたが、その裏で DNS が全滅していた (`DF-9`)。
       ping/ssh が通ることと使えることは別。最低限 DNS 解決と主要サービスの HTTP 応答まで
