@@ -225,5 +225,59 @@ in
     };
   };
 
+  # ChatGPT サブスク枠を OpenAPI 互換エンドポイントとして生やすブリッジ。
+  #
+  # 狙い: Cloudflare OS の AI プロバイダに ChatGPT の Codex 枠を使う。Cloudflare OS の
+  # openai プロバイダは `openai-responses` を喋り、このブリッジは `/v1/responses` を
+  # 実装しているので形式が合う。モデル登録側は provider=openai +
+  # apiUrl=http://127.0.0.1:18080/v1 になる。
+  #
+  # なぜ mini でなければならないか: workshop-backend の compatibility_flags には
+  # `global_fetch_strictly_public` が入っており、本番 Worker からは localhost や
+  # プライベート IP へ fetch できない (SSRF 対策)。`wrangler dev` だけが意図的に
+  # この制限を外している。つまりブリッジを使う構成は run-local と同居させるしかない。
+  #
+  # 127.0.0.1 に閉じているので --api-key は付けない。ブリッジ自身の README も
+  # 「公開ネットワークに晒すなら --api-key 必須」としており、裏を返せばローカル限定なら不要。
+  # tailscale serve が外に出しているのは 8787 だけで、このポートは出していない。
+  #
+  # ConditionPathExists は cloudflare-os と同じ理由。`codex login` がまだなら
+  # ~/.codex/auth.json が無く、起動しても認証できずに Restart=always と噛み合って
+  # 無限再起動になる。ログイン後に systemctl start すれば上がる。
+  systemd.services.codex-openai-bridge = {
+    description = "ChatGPT (Codex) 枠を OpenAI 互換 API として出すブリッジ";
+    wantedBy = [ "multi-user.target" ];
+    wants = [ "network-online.target" ];
+    after = [ "network-online.target" ];
+
+    unitConfig.ConditionPathExists = "/home/${username}/.codex/auth.json";
+
+    # uvx は実行時に PyPI から取ってくる。nixpkgs に無いツールなので uv 経由にしている
+    # (CLAUDE.md の「~/.local/bin は例外レーン」と同じ発想で、宣言できないものを一箇所に隔離する)。
+    # TODO: バージョンを固定していないので上流の破壊的変更をそのまま踏む。
+    #       安定して使うと決めたら openai-api-server-via-codex==X.Y.Z に固定すること。
+    path = with pkgs; [
+      uv
+      cacert # uv が PyPI へ HTTPS で取りに行くのに要る
+    ];
+
+    environment = {
+      HOME = "/home/${username}";
+      SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+    };
+
+    serviceConfig = {
+      Type = "simple";
+      User = username;
+      WorkingDirectory = "/home/${username}";
+      ExecStart =
+        "${pkgs.uv}/bin/uvx openai-api-server-via-codex serve"
+        + " --host 127.0.0.1 --port 18080"
+        + " --auth-json /home/${username}/.codex/auth.json";
+      Restart = "always";
+      RestartSec = 10;
+    };
+  };
+
   system.stateVersion = "26.05";
 }
