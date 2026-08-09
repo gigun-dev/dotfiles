@@ -293,9 +293,22 @@ in
       # 変換対象は Workers AI のモデルを使わない形式に絞られていて課金は発生しない。
       # 画像だけは意図的に除外されている (有料モデルを使うため)。
       #
-      # バインディングにはローカルエミュレーションが無く実際の Workers AI へ出るので、
-      # CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID が要る (上の EnvironmentFile 参照)。
-      ExecStart = "${pkgs.pnpm}/bin/pnpm run-local --use-workers-ai-binding";
+      # 2026-08-10: 一度有効化したが戻した。バインディングは `AI / remote` として
+      # リモート実行され、wrangler がリモートセッションを張る際に認証に失敗する:
+      #   This Worker uses bindings that need to run remotely, even when developing
+      #   locally, but the remote session could not be authenticated.
+      # トークン自体は有効 (Workers AI の REST は 200) なので、不足しているのは
+      # Workers AI 以外の権限 (リモートセッション生成に要る Workers Scripts 系と思われる)。
+      # 有効化するとサービスがクラッシュループするため、権限を足すか諦めるかを決めるまで無効。
+      #
+      # 諦めた場合の影響: webFetch の文書→Markdown 変換が使えない (HTML/PDF/DOCX で
+      # TypeError)。ただし `raw: true` を指定すれば変換せず生バイトを取れるので、
+      # エージェントが Web を読む道が完全に閉じるわけではない。
+      #
+      # 権限を足す判断には注意が要る。Workers Scripts: Edit はアカウント内の Worker を
+      # デプロイ・改変できる強い権限で、このトークンは無期限かつ 24/365 の機械に置いてある。
+      # webFetch の変換機能と引き換えにする価値があるかは別途判断すること。
+      ExecStart = "${pkgs.pnpm}/bin/pnpm run-local";
       Restart = "always";
       RestartSec = 10;
 
