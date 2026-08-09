@@ -154,6 +154,21 @@ in
   environment.systemPackages = with pkgs; [
     gitMinimal
     vim
+
+    # ブラウザ自動化 (chrome-devtools-mcp / Playwright) の実体。
+    #
+    # なぜ packages.nix ではなくここか: packages.nix は
+    # homeConfigurations.gigun-x86_64-linux として WSL と共用されている。WSL 側は
+    # 「ブラウザ操作は Windows ネイティブの Chrome に localhost:9222 で繋ぐ」方針
+    # (CLAUDE.md の Windows 規約) なので chromium は不要で、共用モジュールに置くと
+    # WSL に数百 MB の死蔵が生まれる。mini-vm だけに効かせられる場所がここしかない。
+    #
+    # chrome-devtools-mcp は実行ファイルを環境変数では受け取らない (--executablePath /
+    # --browserUrl / --wsEndpoint のみ。`bunx chrome-devtools-mcp@latest --help` で確認済み)。
+    # よって MCP 登録時に絶対パスを渡す必要があるが、nix store パスは更新のたびに変わるため
+    # /run/current-system/sw/bin/chromium という安定パスを指すこと。
+    # systemPackages に置くのはこの安定パスを得るためでもある。
+    chromium
   ];
 
   system.stateVersion = "26.05";
