@@ -37,6 +37,37 @@ in
   # tailnet の独立ノードとして参加させ、host の macOS を経由せず直接 ssh する
   services.tailscale.enable = true;
 
+  # 上流 DNS を明示する。MagicDNS への依存を断ち切るための固定値。
+  #
+  # 2026-08-09 障害修正: 2026-08-06 の再起動 (DF-7 検証) 以降、この VM は名前解決が
+  # 全滅していた。tailscaled のログは一貫して
+  #   dns: resolver: forward: no upstream resolvers set, returning SERVFAIL
+  # を吐いていた。仕組みはこうだった:
+  #   1. tailnet 側は global nameserver を配っておらず「system default を使え」と指示する
+  #   2. tailscaled は起動時に /etc/resolv.conf を読んで上流を決める
+  #   3. しかし boot 直後は dhcpcd がまだ resolv.conf を書いておらず、空を掴む
+  #   4. その後 tailscaled 自身が resolv.conf を 100.100.100.100 (=自分) で上書きする
+  #   5. 以降、上流ゼロのまま誰も再読み込みしないので、公開名は永久に SERVFAIL
+  # つまり dhcpcd と tailscaled の起動順レースで、負けると恒久的に壊れる。
+  # ping は通り ssh も通るので、到達性テストでは検出できない (DF-7 はこれをすり抜けた)。
+  #
+  # ここで静的な nameserver を宣言すると resolvconf の固定エントリになり、DHCP の
+  # タイミングに関係なく tailscaled が具体的な上流を読める。レース自体が消える。
+  #
+  # 却下案:
+  #   - tailnet の admin console に global nameserver を設定する → 効くが tailnet 全体に
+  #     効いてしまう上に dotfiles の外に出るので、この VM の構成として再現できなくなる。
+  #     (併用は有効。あちらは他デバイスの保険になる)
+  #   - --accept-dns=false で MagicDNS を捨てる → 一番簡単だが、VM から tailnet 名
+  #     (mini など) が引けなくなる。ホスト側へ ssh し返す用途を潰すので採らない。
+  #
+  # Lima のゲートウェイ (192.168.5.2) も DNS を返すが、Lima のネットワーク実装に
+  # 依存する値なので採らない。1.1.1.1 なら VM を作り直しても、Lima 以外へ移しても効く。
+  networking.nameservers = [
+    "1.1.1.1"
+    "1.0.0.1"
+  ];
+
   security.sudo.wheelNeedsPassword = false;
 
   # nix 設定は darwin/system.nix と揃える (キャッシュを共有するため)
