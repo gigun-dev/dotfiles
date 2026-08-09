@@ -67,6 +67,38 @@
       Workers AI は Workers Paid でも 10,000 Neurons/日までで超過は $0.011/1,000 Neurons なので
       「$5 に収まる」前提は成り立たない。
       → 完了条件: Cloudflare OS のチャットでモデルが応答すること
+
+> **2026-08-09 更新:** codex 側は通った。`systemd.services.codex-openai-bridge` として mini に常駐
+> (`~/.codex/auth.json` を `ConditionPathExists` にしてあるので `codex login` 前は静かにスキップ)。
+> `gpt-5.6-sol` / `gpt-5.4-mini` が `/v1/responses` で応答することを実測済み。
+> **ブリッジが出すモデル ID (`gpt-5.6-sol`/`luna`/`terra`) は Cloudflare OS の `SUGGESTED_MODELS`
+> の openai 欄と完全一致する**ので、カスタムモデル登録すら要らずピッカーから選べる。
+>
+> Workers AI 側は **モデル選択が支配的**と判明した。API から取れた USD/1M トークン単価:
+> `qwen3-30b-a3b-fp8` $0.0509/$0.335、`gemma-4-26b-a4b-it` $0.10/$0.30、
+> `gpt-oss-120b` $0.35/$0.75、`kimi-k2.7-code` $0.95/$4.00、`glm-5.2` $1.40/$4.40。
+> 1日1万 Neurons = $0.11 なので、既定の Kimi だと入力 8万トークン/日で尽きるが
+> **`qwen3-30b-a3b-fp8` なら入力 130万/日 — 同じ無料枠で 16 倍使える**
+> (Llama 3.2 3B と同額なのに 30B MoE)。Kimi/GLM には cached input 価格 ($0.19/$0.26 per M) も
+> あるので、文脈が安定する用途では実効値がさらに良くなる。
+>
+> 計測用に AI Gateway `cloudflare-os` を作成済み (collect_logs 有効、sliding 60s/120req の
+> レート上限、`workers_ai_billing_mode=postpaid`)。AI Gateway のクレジット残高は $0 で
+> auto top-up 未設定なので、勝手に課金が走る状態ではない。
+>
+> **残りはダッシュボード作業待ち**: OAuth client の作成には `OAuth Clients Write` 権限が要り、
+> プラグインの OAuth セッションでは `10000: Authentication error` / API トークン作成も
+> `9109: Unauthorized` で弾かれる。ここは人手が要る。
+- [ ] `DF-15` Claude / opencode のサブスク枠もブリッジできるか調べる
+      codex 枠は `openai-api-server-via-codex` で通った (`DF-13`)。同じことを Claude でやりたいが
+      難度が違う。Cloudflare OS の anthropic プロバイダは pi の `anthropic-messages` 実装を使い
+      拡張思考 (adaptive thinking) まで前提にしているので、ブリッジ側は **Messages API の形と
+      SSE ストリーミングを本物として実装**する必要がある。`claude -p` が返すのはテキストか
+      `stream-json` なので、codex のときのように既存実装を借りる形にならず翻訳層を自作することになる。
+      opencode のサーバモードが OpenAI/Anthropic 互換エンドポイントを出せるかは未調査 (出せるなら
+      そちらが現実的)。規約上の扱いは利用者判断で、ブリッジの README 自身も
+      「アカウント共有・再販は禁止、ToS に従え」としている。
+      → 完了条件: 実装するか見送るかを、翻訳層の分量を見積もった上で決めること
 - [ ] `DF-14` Kitesurf を chrome-devtools-mcp から使えるか試す
       Kitesurf (2026-08-06 リリース、beta 無料) は OSS ではなくローカルには持ってこられないが、
       CDP を WebSocket で外部公開しており、ローカルから接続できる:
