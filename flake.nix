@@ -48,6 +48,14 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # 秘密の宣言管理。暗号文 (secrets/*.age) を git に置き、mini-vm のホスト鍵で
+    # activation 時に復号する。dotfiles を public のまま保てるのが要点。
+    # 受信者の定義は secrets/secrets.nix。
+    agenix = {
+      url = "github:ryantm/agenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     llm-agents.url = "github:numtide/llm-agents.nix";
 
     # cclens (Claude Code の使用状況診断ツール, Rust)。llm-agents と同じ理由で
@@ -262,6 +270,7 @@
             system = "x86_64-linux";
             modules = [
               inputs.nixos-lima.nixosModules.lima
+              inputs.agenix.nixosModules.default
               ./nix/modules/nixos/mini-vm.nix
             ];
           };

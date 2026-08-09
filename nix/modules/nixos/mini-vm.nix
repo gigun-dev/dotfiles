@@ -322,6 +322,43 @@ in
     };
   };
 
+  # 秘密の宣言管理 (agenix)。暗号文は secrets/*.age として git に入っており、
+  # このホストの SSH ホスト鍵で activation 時に復号される。受信者は secrets/secrets.nix。
+  #
+  # これを入れる前は 4 つの秘密を手で置いており、VM を作り直すと全部消えて手作業に
+  # 戻る状態だった。置き場所を忘れたら復旧できないという意味で、宣言管理から最も遠い部分だった。
+  #
+  # path を明示しているのは、既存のサービス定義 (credentialsFile / EnvironmentFile) を
+  # 書き換えずに済ませるため。agenix の既定は /run/agenix/<name>。
+  age.secrets = {
+    cloudflared-cloudflare-os = {
+      file = ../../../secrets/cloudflared-cloudflare-os.json.age;
+      path = "/var/lib/cloudflared/cloudflare-os.json";
+      owner = "root";
+      group = "root";
+      mode = "0400";
+    };
+
+    cloudflare-os-env = {
+      file = ../../../secrets/cloudflare-os-env.age;
+      path = "/var/lib/cloudflare-os/env";
+      owner = "root";
+      group = "root";
+      mode = "0400";
+    };
+
+    # ブリッジは既定で ~/.config/openai-api-server-via-codex/config.toml を読むが、
+    # home 配下へ agenix で配ると activation の順序と所有権が絡んで面倒なので、
+    # /var/lib 配下に置いて ExecStart で --config を明示する形にした。
+    codex-bridge-config = {
+      file = ../../../secrets/codex-bridge-config.toml.age;
+      path = "/var/lib/codex-bridge/config.toml";
+      owner = username;
+      group = "users";
+      mode = "0400";
+    };
+  };
+
   # Cloudflare named tunnel。Cloudflare OS の公開経路を tailnet から Cloudflare へ移す。
   #
   # 狙い: 認証の境界を Cloudflare Access (エッジ) に置く。tailscale serve だと境界が
@@ -423,8 +460,11 @@ in
       Type = "simple";
       User = username;
       WorkingDirectory = "/home/${username}";
+      # --config は agenix が復号した設定 (api_key を含む) を指す。既定の
+      # ~/.config/... ではなく /var/lib 配下に置いているため明示が要る。
       ExecStart =
         "${pkgs.uv}/bin/uvx openai-api-server-via-codex serve"
+        + " --config /var/lib/codex-bridge/config.toml"
         + " --host 127.0.0.1 --port 18080"
         + " --auth-json /home/${username}/.codex/auth.json";
       Restart = "always";
