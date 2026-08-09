@@ -257,6 +257,16 @@ in
       ExecStart = "${pkgs.pnpm}/bin/pnpm run-local";
       Restart = "always";
       RestartSec = 10;
+
+      # 秘密の受け渡し口。dotfiles は public なので、トークン類は git に入れず
+      # root 所有 0400 のこのファイルへ置き、systemd 経由で環境変数として渡す。
+      # (Cloudflare の API トークン等。書式は KEY=VALUE の 1 行 1 件)
+      #
+      # 先頭の "-" は「無ければ黙って無視する」指定。まだ配置していないマシンや
+      # VM 作り直し直後でもサービスが起動できるようにするため
+      # (cloudflare-os 本体は ConditionPathExists で守っているが、こちらは
+      #  秘密が無くても動く機能があるので、起動そのものは止めない方が良い)。
+      EnvironmentFile = "-/var/lib/cloudflare-os/env";
     };
   };
 
