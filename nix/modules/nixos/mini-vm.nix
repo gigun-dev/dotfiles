@@ -297,7 +297,25 @@ in
       # 秘密なので git には入れない。root 所有 0400 で置き、systemd の LoadCredential が
       # DynamicUser へ渡す (モジュールが serviceConfig.LoadCredential を設定している)。
       credentialsFile = "/var/lib/cloudflared/cloudflare-os.json";
-      ingress."os.097969.xyz".service = "http://127.0.0.1:8787";
+      ingress = {
+        "os.097969.xyz".service = "http://127.0.0.1:8787";
+
+        # ChatGPT サブスク枠を mini の外からも使えるようにする口。
+        #
+        # ここには **Access を張らない**。Access で守ると
+        # CF-Access-Client-Id / CF-Access-Client-Secret ヘッダが要るが、Cloudflare OS の
+        # Add Model 画面は apiUrl と apiToken (= Authorization: Bearer) しか送れず、
+        # カスタムヘッダを足す口が無いため噛み合わない。
+        # 代わりにブリッジ自身の api_key で守る (Authorization ヘッダに乗るので噛み合う)。
+        # 鍵は ~/.config/openai-api-server-via-codex/config.toml (0600) にあり git には無い。
+        #
+        # **ローカルの Cloudflare OS はこの URL を使わないこと。** 同じ mini に居るので
+        # http://127.0.0.1:18080/v1 へループバックで届く。トンネル経由にすると
+        # mini → Cloudflare エッジ → mini と往復する上、エッジやトンネルの不調が
+        # ローカルの AI まで巻き込む。ループバックは落ちない。
+        # この口の価値は「mini の外から使えること」だけ。
+        "codex.097969.xyz".service = "http://127.0.0.1:18080";
+      };
       # 宣言していないホスト名は原点まで通さない。トンネルを他用途へ流用されないための既定。
       default = "http_status:404";
     };
