@@ -1,0 +1,33 @@
+{
+  "_metadata": {
+    "major_version": 1,
+    "minor_version": 1
+  },
+  "display_information": {
+    "name": "Cloudflare OS (mini-vm)",
+    "description": "Read-only Slack access for Cloudflare OS gadgets"
+  },
+  "oauth_config": {
+    "redirect_urls": [
+      "https://os.097969.xyz/gatekeeper/slack/oauth"
+    ],
+    "scopes": {
+      "user": [
+        "users:read",
+        "team:read",
+        "search:read",
+        "channels:read",
+        "channels:history",
+        "groups:read",
+        "groups:history",
+        "im:read",
+        "im:history",
+        "mpim:read",
+        "mpim:history"
+      ]
+    }
+  },
+  "settings": {
+    "token_rotation_enabled": true
+  }
+}
