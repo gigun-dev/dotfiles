@@ -55,6 +55,15 @@ in
       "postman"
       "proxyman"
       "slack"
+      # Slack app 開発用 platform CLI (`slack` コマンド)。デスクトップアプリの "slack" とは別物。
+      # nixpkgs の slack-cli は rockymadden/slack-cli (メッセージ投稿用シェルスクリプト) という
+      # 完全な別プロジェクトなので nix では入らない。公式インストーラ (~/.slack/bin) は
+      # 宣言管理できないため cask を採用した。CLI だが「brew は GUI アプリのみ」の例外扱い
+      # (tailscale / cloudflared と同じ列)。
+      # 2026-08-10 移行: それまで公式 install.sh の ~/.slack/bin を ~/.local/bin から
+      # symlink していた (v3.14.0 で固着)。self-update 抑止は home/default.nix の
+      # SLACK_SKIP_UPDATE を参照。
+      "slack-cli"
       "tableplus"
       "thaw"
       "zed"
