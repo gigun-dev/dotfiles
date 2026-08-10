@@ -77,6 +77,15 @@
 - [ ] `DF-29` マーカー以降の行数警告 (417行/閾値250) をどう畳むか決める
       完了記録は追記専用で増える一方なのに、上限は頭を降ろす先と同じ領域にかかっている。
       → 完了条件: 毎セッション出る警告が消えるか、消せない理由が正典に書かれていること
+- [ ] `DF-30` cloudflare-os へ gatekeeper-mcp の固定 client_id 対応を起票する
+      動的クライアント登録 (RFC 7591) しか対応しておらず、事前登録必須の認可サーバー
+      (Slack MCP など) に 502 で繋がらない。下書き: `docs/drafts/gatekeeper-mcp-static-client-id.md`
+      (一度「今は投稿しない」で保留 — 再確認してから出すこと)。
+      → 完了条件: issue を投稿する(Slack MCP を再現手順に使う)
+- [ ] `DF-31` Slack 書き込み gatekeeper は upstream PR #95 待ち
+      PR #95 (approval-gated Google Drive/Sheets writes) が唯一の設計手本。2026-08-10 時点で
+      draft・conflicting・レビュー0件・CLA 未署名で停滞中。
+      → 完了条件: PR #95 の動向を見て、着手 / 見送り / 自前実装を判断する
 <!-- session-head-end: ここから下は SessionStart フックが注入しないオンデマンド領域。着手する節をそのとき読む -->
 
 ## 完了記録(着手順から降ろしたもの)
