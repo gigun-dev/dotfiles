@@ -28,6 +28,7 @@
     ],
     "defaultMode": "auto"
   },
+  "model": "sonnet",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -149,7 +150,8 @@
     "cman@cman": true,
     "harness@gigun": true,
     "cclens@cclens": true,
-    "telemetry@gigun": true
+    "telemetry@gigun": true,
+    "agy-mcp@gigun": true
   },
   "extraKnownMarketplaces": {
     "better-auth-agent-skills": {
