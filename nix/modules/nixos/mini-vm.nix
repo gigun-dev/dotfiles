@@ -7,6 +7,22 @@
 }:
 let
   username = "gigun";
+
+  # Cloudflare OS のチェックアウト。3 箇所 (ConditionPathExists / WorkingDirectory /
+  # ExecStartPre) から参照するので 1 箇所に括り出す。
+  #
+  # **パスが `cloudflare/` ではなく `gigun-dev/` なのは意図的**。2026-08-11 に
+  # gigun-dev/cloudflare-os へ fork し、origin=fork / upstream=本家 の 2 本立てにした。
+  # ghq はディレクトリのパスと origin の URL を一致させる規約なので、fork を持つ以上
+  # ここも fork 側へ寄せないと `ghq list` の意味が壊れる。
+  #
+  # fork にした理由: gatekeeper は自作・改造できる拡張点で (backend は env を
+  # `GATEKEEPER_` 接頭辞で走査するだけ。特定の gatekeeper を名前で参照しない)、
+  # 上流に取り込まれるまでの間ローカルで当てておきたいパッチがある。
+  # 運用は「main は upstream/main を追うだけ、自前パッチは mini ブランチに積み、
+  # 追従は merge ではなく rebase」。rebase なら上流に取り込まれたパッチが
+  # 自動的に空になって消えるので、要否を手で判断しなくて済む。
+  cloudflareOsDir = "/home/${username}/ghq/github.com/gigun-dev/cloudflare-os";
 in
 {
   # Mac Mini (Intel) 上の Lima VM。
@@ -33,6 +49,19 @@ in
   services.lima.enable = true;
 
   services.openssh.enable = true;
+
+  # 公開鍵認証だけに絞る。2026-08-11 のセキュリティ監査 (M-1) で、既定の
+  # `PasswordAuthentication = yes` のまま sshd が 0.0.0.0:22 で待ち受けていることが判明した。
+  #
+  # **現時点では実害は無い** — `gigun` も `root` も /etc/shadow のパスワード欄が `!`
+  # (ロック済み) なので、パスワード認証は実際には成立しない。塞ぐのは「将来 `passwd` で
+  # パスワードを設定した瞬間に、総当たり可能な口が開く」という時限式の穴を消すため。
+  # 宣言しておけば、誰かが後からパスワードを付けても入口は開かない。
+  #
+  # このホストは agenix の受信者 (SSH ホスト鍵が復号鍵) なので、侵入されると public repo に
+  # ある `secrets/*.age` を全部復号できる。入口はできる限り狭くしておく。
+  services.openssh.settings.PasswordAuthentication = false;
+  services.openssh.settings.KbdInteractiveAuthentication = false;
 
   # tailnet の独立ノードとして参加させ、host の macOS を経由せず直接 ssh する
   services.tailscale.enable = true;
@@ -192,7 +221,7 @@ in
     wants = [ "network-online.target" ];
     after = [ "network-online.target" ];
 
-    unitConfig.ConditionPathExists = "/home/${username}/ghq/github.com/cloudflare/cloudflare-os/package.json";
+    unitConfig.ConditionPathExists = "${cloudflareOsDir}/package.json";
 
     # home-manager の profile には依存させない。nixpkgs の node/pnpm だけで完結させることで、
     # home 層の switch 状況に関係なくこのサービスが成立するようにする。
@@ -253,7 +282,7 @@ in
     serviceConfig = {
       Type = "simple";
       User = username;
-      WorkingDirectory = "/home/${username}/ghq/github.com/cloudflare/cloudflare-os";
+      WorkingDirectory = cloudflareOsDir;
 
       # 各 gatekeeper に BASE_URL を配る。
       #
@@ -280,7 +309,7 @@ in
       # checkout の差分もゼロのまま保てる)。
       ExecStartPre = pkgs.writeShellScript "cloudflare-os-generate-dev-vars" ''
         set -eu
-        root=/home/${username}/ghq/github.com/cloudflare/cloudflare-os
+        root=${cloudflareOsDir}
         base=https://os.097969.xyz
 
         # ルート: run-dev-server.js が自前で読み、allowlist にある変数だけを worker へ渡す。

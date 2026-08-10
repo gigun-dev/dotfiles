@@ -1,18 +1,51 @@
 #!/bin/sh
-# harness-template v0.3.0 (配布元: gigun-dev/claude-code plugins/harness)
+# harness-template v0.4.0 (配布元: gigun-dev/claude-code plugins/harness)
 # =============================================================================
 # pre-push フック — main への push 時だけ、CI と同一の検証をローカルで実行する
+# =============================================================================
+#
+# 追記(2026-08-10・H-27 修正・issue #2):
+#   旧実装は `if ! {{CHECK_COMMAND}}; then` だった。{{CHECK_COMMAND}} に
+#   `--check-cmd 'a && b'` のような複合コマンドを渡すと、シェルは
+#   `! a && b` と解釈する(`!` は直後の単純コマンド a だけに掛かる)。
+#   つまり a が失敗しても `! a` が偽になるだけで if 全体としては
+#   「then へ入らない」= 検証失敗が握りつぶされて push が通ってしまう
+#   —— 関門としての機能が死んでいた実在バグ(issue #2、2026-08-05 起票)。
+#   直し方は `{ ...; }` でコマンド全体をグループ化し、`!` をグループに
+#   掛ける(`if ! { a && b; }; then`)。POSIX sh の `{ }` は中身の前後に
+#   `;` と空白が必須なので `{ nix flake check --no-build && nix fmt -- --ci .; }` の形にする。
+#
+# 追記(2026-08-10・H-30 ゲート自己テスト):
+#   HARNESS_PREPUSH_SELFTEST が非空のとき、check コマンドの代わりに
+#   その中身を実行する口を用意した(doctor が関門の生死を検査するための
+#   ものであり、通常の push では未設定なので既定動作に影響しない)。
+#   差し替えは「実行するコマンド文字列」だけに留め、下の
+#   `if ! { eval "$check_cmd"; }; then` という if 構造自体は自己テスト時も
+#   共有する —— ここを分岐で迂回すると、まさに検査したい「グループ化が
+#   壊れていないか」を自己テストがすり抜けてしまい、H-27 のような
+#   壊れ方(本体だけ壊れて自己テストは無関係に通る)を検出できなくなる。
+#
+# 追記(2026-08-11・v0.3.0 → v0.4.0 移行の経緯):
+#   このリポジトリは長く v0.3.0 のままで、H-27 修正(グループ化)は取り込み済みだが
+#   HARNESS_PREPUSH_SELFTEST の口だけが無かった。その結果 `/harness:doctor` の
+#   自己テストが「must-fail なのに push が通る」と**誤報**していた —— 環境変数が
+#   無視され、本物の check コマンド(下の nix flake check)が走って成功したため。
+#   指摘文は「グループ化を確認せよ」と誘導するので、**正しいフックを壊しに行かせる**
+#   形になっていた。誤報を消すためだけでなく、ゲートの生死が実際に検査される状態に
+#   戻すために更新した。配布元 check.sh 側のバージョンゲート欠落は別途起票済み。
 # =============================================================================
 # 【なぜ pre-push か / 何を守るか】
 #   守りたいのは「悪意」ではなく「壊れたコードを事故で main に push すること」。
 #   個人開発では main の branch protection があっても admin(=自分/Claude Code)が
 #   bypass できるので、サーバー側の ruleset は実効的な歯止めにならない。
+#   ローカルの pre-push で型・テストを止めるのが最も効く。
 #
 #   pre-commit ではなく pre-push なのは、手元のコミットは細かく刻みたい一方で、
 #   共有される瞬間(push)だけ品質を保証すれば十分だから。
 #
-# 【スコープ】main への push のときだけ走らせる。緊急時は `git push --no-verify` で
-#   意図的にスキップ可能 — 回避は「明示的に --no-verify を打ったときだけ」という設計。
+# 【スコープ】main への push のときだけ走らせる(feature ブランチの push は CI に任せ、
+#   手元は軽く保つ)。緊急時は `git push --no-verify` で意図的にスキップ可能
+#   — 回避は「明示的に --no-verify を打ったときだけ」という設計。
 #
 # 【配置が .githooks ではなく git/hooks なのはなぜか】
 #   harness の既定は .githooks だが、このリポジトリは既に core.hooksPath = git/hooks で
@@ -45,9 +78,19 @@ done
 [ "$run_check" -eq 0 ] && exit 0
 
 echo "pre-push: main へ push するため検証を実行します…"
-# `{ ...; }` のグループ化は必須。`! a && b` は `(! a) && b` と解釈されるため、
-# 括らないと flake check が失敗したときに nix fmt の結果で上書きされて素通りする。
-if ! { nix flake check --no-build && nix fmt -- --ci .; }; then
+
+# 自己テスト口: doctor が関門の生死を検査するときだけ使う(H-30)。
+# 本来の check コマンドと同じ位置・同じ if 構造を通すことが目的なので、
+# eval で差し替える(グループ化の外で分岐すると、まさに検査したい構造を迂回してしまう)
+if [ -n "${HARNESS_PREPUSH_SELFTEST:-}" ]; then
+	check_cmd="$HARNESS_PREPUSH_SELFTEST"
+else
+	check_cmd='nix flake check --no-build && nix fmt -- --ci .'
+fi
+
+# 本来の check コマンド(や自己テストの中身)が `a && b` のような複合コマンドでも、
+# `{ ...; }` でグループ化してから `!` を掛ける(H-27 修正)。
+if ! { eval "$check_cmd"; }; then
 	echo ""
 	echo "✗ 検証に失敗しました。main への push を中止します。"
 	echo "  どうしても push する場合のみ: git push --no-verify"
