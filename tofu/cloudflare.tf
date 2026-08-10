@@ -69,18 +69,52 @@ resource "cloudflare_zero_trust_access_application" "cloudflare_os" {
   http_only_cookie_attribute = true
   options_preflight_bypass   = false
 
-  # このアプリ専用ポリシー (reusable = false)。**中身が id 参照だけなのは意図的ではなく
-  # provider の制約**: 非 reusable ポリシーは独立した cloudflare_zero_trust_access_policy
-  # として import できず、ここでは id でしか指せない。
-  # 実際の中身は「decision = allow / include = [cloudflare_account_member]」つまり
-  # gigun-dev アカウントのメンバーなら通す、というもの。
-  # → このポリシーを誤って消すと、コードからは復元できない。DF-20 の残課題。
+  # ポリシーは独立リソースとして定義し、ここでは id 参照だけにする (下の
+  # cloudflare_zero_trust_access_policy.account_members のコメントに経緯)。
   policies = [
     {
-      id         = "10ac8b2d-171c-424f-b76a-1ef2fa271a95"
+      id         = cloudflare_zero_trust_access_policy.account_members.id
       precedence = 1
     },
   ]
+}
+
+# 「gigun-dev アカウントのメンバーなら通す」ポリシー。
+#
+# **なぜアプリの policies ブロックに直接書かないのか** (2026-08-10 に実測して判明):
+# provider v5.23.0 の `cloudflare_zero_trust_access_application` は、内蔵 policies の
+# include に `cloudflare_account_member` を**持っていない**。独立リソースである
+# `cloudflare_zero_trust_access_policy` と `..._access_group` には存在するのに、
+# 内蔵版のスキーマからだけ抜け落ちている (provider 側の実装漏れ)。
+# `tofu providers schema -json` で include のメンバー一覧を突き合わせて確認した。
+#
+# 内蔵に書こうとすると 2 段階で失敗する:
+#   1. id と include を併記 → `Invalid Attribute Combination` (排他)
+#   2. id を外して include だけ → plan は通るが apply が API に空の include を送り、
+#      `access.api.error.invalid_request: include field should not be empty` で落ちる
+#      (スキーマに無い属性が静かに捨てられるため)
+#
+# 元はダッシュボードが作った reusable = false のアプリ専用ポリシーで、その形だと
+# 独立リソースとして import できず id 参照しか書けなかった = ポリシーを消したら
+# コードから復元できなかった。ここで**再利用可能ポリシーとして作り直す**ことで、
+# 中身がコードに載り DF-20 の完了条件 (アカウントを作り直しても再現できる) を満たす。
+resource "cloudflare_zero_trust_access_policy" "account_members" {
+  account_id = local.account_id
+  name       = "gigun-dev account members"
+  decision   = "allow"
+
+  # これ 1 つが実質の認可条件。gigun-dev のアカウントメンバーであること。
+  # Cloudflare IdP の restrict_to_account_members = true と二重にかけている
+  # (IdP 側で手前で弾き、ここで最終判定する)。
+  include = [
+    { cloudflare_account_member = {} },
+  ]
+
+  # 明示しないと provider が既定値の "24h" を入れる。ポリシー側の session_duration は
+  # アプリ側 (168h) を上書きするので、黙って再認証が 7 日 → 1 日に縮む。
+  # 元のアプリ専用ポリシーはこの項目を持っていなかった (= アプリ側が効いていた) ので、
+  # 実効の挙動を変えないためにアプリと同じ 168h を明示する。
+  session_duration = "168h"
 }
 
 # Cloudflare 自身を IdP にする設定。type = "cloudflare" がこれ。
