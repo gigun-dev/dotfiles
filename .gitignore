@@ -13,3 +13,17 @@ Thumbs.db
 
 # claude local settings(個人環境の設定。プロジェクト共有の設定は .claude/settings.json に置く)
 .claude/plans/
+
+# OpenTofu (tofu/)
+# .terraform/ は provider バイナリのキャッシュで数十MB。init すれば再取得できる。
+# 逆に .terraform.lock.hcl は**コミットする** — provider のバージョンとハッシュを
+# 固定するファイルで、これが無いとマシンごとに違う provider が入りうる。
+tofu/.terraform/
+# state は R2 backend にあるのでローカルには出ないはずだが、backend 設定を外した
+# ときの事故 (state を平文で git に入れる) を防ぐため保険で無視する。
+tofu/*.tfstate
+tofu/*.tfstate.*
+tofu/.terraform.tfstate.lock.info
+# -generate-config-out の出力先。取り込み後は中身を精査して手書きの .tf へ移すので、
+# 生成物そのものは残さない。
+tofu/generated.tf

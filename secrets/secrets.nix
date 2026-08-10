@@ -34,6 +34,17 @@ in
   # codex ブリッジの設定。api_key が入っているので全体を暗号化している。
   "codex-bridge-config.toml.age".publicKeys = all;
 
+  # OpenTofu 用。他の秘密と違い NixOS の activation では復号しない — 使うのは
+  # Mac 上の `nix run .#tofu` で、ラッパが実行時に復号して環境変数へ流し込む。
+  # 平文の環境変数を手で管理しないための箱。中身は KEY=VALUE 形式で:
+  #   CLOUDFLARE_API_TOKEN   ... アカウント所有トークン (DNS / Access / AI Gateway)
+  #   AWS_ACCESS_KEY_ID      ... R2 の S3 認証情報 (state backend 用)
+  #   AWS_SECRET_ACCESS_KEY  ...   同上
+  #
+  # mini-vm の cloudflare-os が使う CLOUDFLARE_API_TOKEN (Workers AI + Workers
+  # Scripts) とは**別のトークン**。名前が衝突するので同じファイルに混ぜないこと。
+  "tofu-env.age".publicKeys = all;
+
   # 管理しないもの:
   #   ~/.codex/auth.json — ChatGPT の OAuth 認証。codex 自身がリフレッシュで書き換える
   #     可変状態なので、activation のたびに古い暗号文で上書きすると認証が壊れる。

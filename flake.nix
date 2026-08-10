@@ -196,6 +196,45 @@
                 nix flake update llm-agents claude-code-overlay cclens
                 echo "Done! Run 'nix run .#switch' to apply changes."
               '';
+
+              # Cloudflare リソースの IaC (tofu/)。`nix run .#tofu -- plan` のように使う。
+              #
+              # ラッパにしている理由は認証情報の扱い。素の `tofu` を叩けるようにすると
+              # CLOUDFLARE_API_TOKEN / AWS_* をシェルの rc か direnv に平文で置くことになる。
+              # ここで secrets/tofu-env.age を**実行のたびにその場で復号**して環境変数へ
+              # 流し込めば、平文はプロセスの寿命しか生きない。
+              #
+              # なお mini-vm の cloudflare-os が使う CLOUDFLARE_API_TOKEN (Workers AI +
+              # Workers Scripts) とは別のトークン。名前が同じなので、間違えて同じ .age に
+              # 混ぜないこと (権限も用途も違う)。
+              tofu = mkApp "tofu" ''
+                root=$(${pkgs.git}/bin/git rev-parse --show-toplevel)
+                key="$HOME/.ssh/id_ed25519"
+
+                if [ ! -f "$key" ]; then
+                  echo "error: $key が無い。secrets/secrets.nix の受信者鍵が必要" >&2
+                  exit 1
+                fi
+
+                # コマンド置換なので age が失敗すれば set -e でここで止まる。
+                # `< <(age ...)` だと復号失敗でも空を読んで素通りしてしまうため避けている。
+                env_content=$(${pkgs.age}/bin/age -d -i "$key" "$root/secrets/tofu-env.age")
+                # here-string を使う (here-doc だと nix のインデント文字列剥がしと
+                # 終端マーカーの位置がぶつかって壊れやすい)。
+                while IFS='=' read -r k v; do
+                  [ -n "$k" ] || continue
+                  # shellcheck disable=SC2163  # "k=v" の形なので正しく export される
+                  export "$k=$v"
+                done <<< "$env_content"
+
+                # R2 にリージョンは無いが S3 バックエンドが必須項目として要求する。
+                # versions.tf の `region = "auto"` と揃えておく。
+                export AWS_REGION=auto
+                export AWS_DEFAULT_REGION=auto
+
+                cd "$root/tofu" || exit 1
+                exec ${pkgs.opentofu}/bin/tofu "$@"
+              '';
             };
         };
 
