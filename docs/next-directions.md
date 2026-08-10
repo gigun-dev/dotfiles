@@ -402,6 +402,25 @@ Slack は **read-only** で、bot token ではなく user token (`xoxp-`) を使
   `~/.lima/` 配下のディレクトリを rename → `limactl start` で改名できた
   (公式サポートされた操作ではないが動く。autostart は名前が変わるので登録し直しが要る)
 - **`~/.local/bin`**: PATH 末尾の例外レーン。self-update 前提のツールや nixpkgs にない uv tool 用
+  > **2026-08-10 更新:** Slack platform CLI をこのレーンから外し、brew cask へ移した (b3c33b8)。
+  > 公式インストーラの `~/.slack/bin` を symlink する形で、新規 Mac で再現できず v3.14.0 に固着していた。
+  > **教訓 1**: 「self-update 前提だからこのレーン」は理由にならない。`SLACK_SKIP_UPDATE=1` のような
+  > 更新抑止の口があれば宣言管理下に置ける (既存の `AGY_CLI_DISABLE_AUTO_UPDATE` と同じ形)。
+  > 抑止しないと自己更新が Caskroom の実体を上書きし、brew の記録とズレて `brew upgrade` が効かなくなる。
+  > **教訓 2**: nixpkgs に同名パッケージがあっても別プロジェクトのことがある。nixpkgs の `slack-cli`
+  > (0.18.0) は rockymadden/slack-cli というメッセージ投稿用シェルスクリプトで、公式 platform CLI とは無関係。
+  > **他のツールを移す前に確認すること**: (1) 同名 cask/nixpkgs が本当に同じものか (homepage を見る)、
+  > (2) 更新抑止の環境変数があるか (`strings <bin> | grep -oE 'SLACK_[A-Z0-9_]+'` の要領)、
+  > (3) 設定・認証の置き場所が実体と分離しているか (Slack CLI は `~/.slack` が config dir なので再ログイン不要だった)。
+  > **残りの住人 (2026-08-10 実測)**: uv tool 群 12 コマンド (`hf` `huggingface-cli` `tiny-agents` `idb`
+  > `it2` `kimi` `kimi-cli` `majin` `mlx_whisper` `plamo-translate` `skills-ref` `yt-dlp`) + `python3.12`
+  > = 下記「保留中の課題」の本体 / 自己更新バイナリ `coderabbit` (+ alias `cr`) / 自作スクリプト `npx_safe` /
+  > uv installer が置く `env` `env.fish`。
+  > **そのうち `sheldon` と `claude` は既に死蔵**: どちらも nix 管理下 (`packages.nix:49` sheldon /
+  > `packages.nix:21` claude-code) にあり `/etc/profiles/per-user/gigun/bin` が PATH で先に来るため、
+  > `~/.local/bin` 側は呼ばれていない。claude は nix 側 2.1.226 が走る一方 `~/.local/bin` 側は 2.1.207 で
+  > 取り残されていた (`which -a` と両方の `--version` で確認)。消しても影響しないはずだが、
+  > **claude は自分自身を実行中なので消すのは別セッションで**。
 - **cloudflare-os のチェックアウト**: `~/ghq/github.com/cloudflare/cloudflare-os` に clone してあるだけで
   宣言外。systemd 側は `ConditionPathExists` で不在を許容する作りなので、VM を作り直したら
   clone し直すまでサービスは静かにスキップされる (壊れはしない)
