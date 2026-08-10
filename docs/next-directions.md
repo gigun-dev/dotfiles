@@ -31,6 +31,17 @@
 > なお 2026-08-08 に Langfuse フックの作り直し (e6f0bd5) と claude-devtools の cask 導入 (03bd4df)
 > が入っているが、このファイルには未反映のまま。次の棚卸しで拾うこと。
 
+> **2026-08-10 更新:** Cloudflare OS の公開境界を Tailscale から **Cloudflare** へ移した。
+> `https://os.097969.xyz` (named tunnel + Access、Cloudflare アカウントでログイン / `DF-16` `DF-17`)、
+> `https://codex.097969.xyz` (mini のローカル codex を OpenAI 互換 API として外へ / `DF-19`)。
+> Tailscale は **SSH 専用**に戻した (`tailscale serve` は撤去)。
+> あわせて**手で置いていた秘密を全廃**し (`DF-21` agenix)、**エッジ層を IaC 化**した
+> (`DF-20` OpenTofu + R2 state)。これで「VM を作り直しても `nix run .#switch`」「アカウントを
+> 作り直しても `nix run .#tofu -- apply`」で戻せる状態に近づいた — ただし Access の
+> アプリ専用ポリシーだけコードから復元できない穴が残っている (`DF-26`)。
+> 未着手のまま残っているのは Workers AI の実測 (`DF-13`)、Langfuse (`DF-24`)、
+> codex エンドポイントのレート制限 (`DF-22`)、Kitesurf (`DF-14`)。
+
 ## 着手順(次にやること)
 
 - [ ] `DF-2` SPEC.md の扱いを決める
@@ -109,7 +120,33 @@
       3〜7 倍軽い」。ただし **WebGL / 動画再生 / ボット検出ハンドシェイク / 永続状態が要る長時間
       セッションは未対応**なので、ログインが要る操作はローカル Chromium 側に残す使い分けになる。
       → 完了条件: mini から Kitesurf 経由でページを取得・スクショできること
-- [ ] `DF-20` Cloudflare 側のリソースを宣言管理下に置く
+- [x] ~~`DF-20` Cloudflare 側のリソースを宣言管理下に置く~~ ✅
+      → 2026-08-10 / `tofu/` + `nix run .#tofu` / **OpenTofu** を採用。Terraform ではないのは
+        nixpkgs の `terraform` が BUSL 1.1 で unfree なため (OpenTofu は MPL 2.0 で free、
+        provider レジストリは互換)。Pulumi は言語ランタイムを持ち込む分が重く、この規模に合わない。
+        取り込み方は `tofu import` コマンドではなく **`import` ブロック + `-generate-config-out`**。
+        provider v5 は v4 から大規模にリソース名が変わっており (`cloudflare_record` →
+        `cloudflare_dns_record`、`cloudflare_access_*` → `cloudflare_zero_trust_access_*`)、
+        属性名を手で当てるのは無理筋だった。生成させてから null を削って整理する手順が速い。
+        管理下: DNS `os` / `codex`、Access アプリ、Cloudflare IdP、AI Gateway。
+        **state は R2 (`tofu-state` バケット) の S3 互換バックエンド**。ローカルに置くと Mac と
+        mini-vm で食い違い、失うと import からやり直しになる。`skip_credentials_validation` 等の
+        skip フラグ群が必須 (AWS 前提の検証が全部落ちる)。ロックは OpenTofu 1.10+ の
+        `use_lockfile = true` で、R2 の条件付き書き込みだけで済む (DynamoDB 不要)。
+        認証情報は agenix (`secrets/tofu-env.age`) に入れ、`nix run .#tofu` が実行のたびに
+        復号して環境変数へ流す。**mini-vm の cloudflare-os が使う `CLOUDFLARE_API_TOKEN`
+        (Workers AI + Workers Scripts) とは別トークン**。名前が同じなので混同注意。
+        検証: `tofu plan` が `No changes`。apply は `5 imported, 0 added, 0 changed, 0 destroyed`。
+        **残った穴**: Access のポリシー `gigun-dev account members` は `reusable = false` の
+        アプリ専用ポリシーで、独立リソースとして import できない。いまは id 参照だけなので
+        **消すとコードから復元できない**。中身 (`decision = allow` /
+        `include = [cloudflare_account_member]`) は `tofu/cloudflare.tf` のコメントに残した。
+        → `DF-26`
+      **管理対象外にしたもの**: トンネル本体 (`tunnel_secret` が state に平文で入る。state は
+        R2 にあり暗号化していない)、`os` / `codex` 以外の DNS 22 件 (nextcloud / vikunja /
+        supabase / kurrier / trmnl / forwardemail の MX・SPF・DKIM・DMARC など別プロジェクトの
+        もの。ゾーン全体を宣言すると apply が消しにかかる)、`Warp Login App` (Cloudflare が
+        自動生成するもの)。
       2026-08-09〜10 に API で作ったものが、どこにも宣言されていない: トンネル `cloudflare-os`、
       DNS `os.097969.xyz` / `codex.097969.xyz`、Access アプリとポリシー、Cloudflare IdP、
       AI Gateway `cloudflare-os`。再現手段は `DF-16` `DF-17` `DF-19` に書いた文章だけで、
@@ -157,6 +194,17 @@
         `CF_AI_GATEWAY` を設定すると全モデルがゲートウェイ経由になり apiUrl が無視される)。
       よって「Langfuse で codex 側、Cloudflare ダッシュボードで Workers AI 側」の二本立てになる。
       → 完了条件: codex 経由の推論が Langfuse のトレースに出ること
+- [ ] `DF-26` Access のアプリ専用ポリシーをコードから復元可能にする
+      `DF-20` の残り。`Cloudflare OS (mini-vm)` のポリシー `gigun-dev account members` は
+      `reusable = false` のアプリ専用ポリシーで、`cloudflare_zero_trust_access_policy` として
+      独立に import できない。いま `tofu/cloudflare.tf` は `id` と `precedence` を書いているだけで、
+      **ポリシーの中身はコードに無い**。消えたら手で作り直すしかなく、`DF-20` の完了条件
+      「アカウントを作り直しても再現できる」を厳密には満たしていない。
+      案: (A) ダッシュボードで再利用可能ポリシーとして作り直し、独立リソースとして import する。
+      (B) `policies` ブロックに `name` / `decision` / `include` を直接書いて plan が
+      差分ゼロのままか試す (provider が既存ポリシーを更新する形で吸収できる可能性)。
+      (B) が通るなら作り直し不要なので先に試す価値がある。
+      → 完了条件: ポリシーを削除しても `tofu apply` だけで同じものが復元できること
 - [ ] `DF-12` 「到達性テスト」に機能確認を含める型を決める
       DF-7 は ssh が通ることを確認して合格としたが、その裏で DNS が全滅していた (`DF-9`)。
       ping/ssh が通ることと使えることは別。最低限 DNS 解決と主要サービスの HTTP 応答まで
