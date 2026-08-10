@@ -37,8 +37,8 @@
 > Tailscale は **SSH 専用**に戻した (`tailscale serve` は撤去)。
 > あわせて**手で置いていた秘密を全廃**し (`DF-21` agenix)、**エッジ層を IaC 化**した
 > (`DF-20` OpenTofu + R2 state)。これで「VM を作り直しても `nix run .#switch`」「アカウントを
-> 作り直しても `nix run .#tofu -- apply`」で戻せる状態に近づいた — ただし Access の
-> アプリ専用ポリシーだけコードから復元できない穴が残っている (`DF-26`)。
+> 作り直しても `nix run .#tofu -- apply`」で戻せる状態になった (Access のポリシーだけ
+> 復元できない穴が残ったが、再利用可能ポリシーへ移して解消済み / `DF-26`)。
 > 未着手のまま残っているのは Workers AI の実測 (`DF-13`)、Langfuse (`DF-24`)、
 > codex エンドポイントのレート制限 (`DF-22`)、Kitesurf (`DF-14`)。
 
@@ -141,7 +141,7 @@
         アプリ専用ポリシーで、独立リソースとして import できない。いまは id 参照だけなので
         **消すとコードから復元できない**。中身 (`decision = allow` /
         `include = [cloudflare_account_member]`) は `tofu/cloudflare.tf` のコメントに残した。
-        → `DF-26`
+        → `DF-26` で解消済み。
       **管理対象外にしたもの**: トンネル本体 (`tunnel_secret` が state に平文で入る。state は
         R2 にあり暗号化していない)、`os` / `codex` 以外の DNS 22 件 (nextcloud / vikunja /
         supabase / kurrier / trmnl / forwardemail の MX・SPF・DKIM・DMARC など別プロジェクトの
@@ -194,17 +194,22 @@
         `CF_AI_GATEWAY` を設定すると全モデルがゲートウェイ経由になり apiUrl が無視される)。
       よって「Langfuse で codex 側、Cloudflare ダッシュボードで Workers AI 側」の二本立てになる。
       → 完了条件: codex 経由の推論が Langfuse のトレースに出ること
-- [ ] `DF-26` Access のアプリ専用ポリシーをコードから復元可能にする
-      `DF-20` の残り。`Cloudflare OS (mini-vm)` のポリシー `gigun-dev account members` は
-      `reusable = false` のアプリ専用ポリシーで、`cloudflare_zero_trust_access_policy` として
-      独立に import できない。いま `tofu/cloudflare.tf` は `id` と `precedence` を書いているだけで、
-      **ポリシーの中身はコードに無い**。消えたら手で作り直すしかなく、`DF-20` の完了条件
-      「アカウントを作り直しても再現できる」を厳密には満たしていない。
-      案: (A) ダッシュボードで再利用可能ポリシーとして作り直し、独立リソースとして import する。
-      (B) `policies` ブロックに `name` / `decision` / `include` を直接書いて plan が
-      差分ゼロのままか試す (provider が既存ポリシーを更新する形で吸収できる可能性)。
-      (B) が通るなら作り直し不要なので先に試す価値がある。
-      → 完了条件: ポリシーを削除しても `tofu apply` だけで同じものが復元できること
+- [x] ~~`DF-26` Access のアプリ専用ポリシーをコードから復元可能にする~~ ✅
+      → 2026-08-10 / (tofu/cloudflare.tf) / 案 (A) を採用。独立した
+        `cloudflare_zero_trust_access_policy.account_members` (reusable) を作り、アプリからは
+        id 参照だけにした。旧アプリ専用ポリシーは切り離しと同時に Cloudflare 側で消えた。
+        **案 (B) は provider の実装漏れで不可能**だった。`cloudflare_zero_trust_access_application`
+        の内蔵 `policies` の include には **`cloudflare_account_member` が無い** — 独立リソースの
+        `..._access_policy` と `..._access_group` には有るのに、内蔵版のスキーマからだけ落ちている。
+        `tofu providers schema -json` で include のメンバー一覧を突き合わせて確認した (v5.23.0)。
+        失敗の出方が 2 段階で分かりにくい: id と include を併記すると
+        `Invalid Attribute Combination` (排他)、id を外すと plan は通るのに apply が
+        `include field should not be empty` で落ちる (スキーマに無い属性が静かに捨てられる)。
+        **落とし穴**: ポリシー側の `session_duration` は明示しないと provider が既定値 "24h" を
+        入れ、アプリ側の 168h を上書きする。旧ポリシーはこの項目を持たなかったので、
+        黙って再認証が 7 日 → 1 日に縮むところだった。アプリと同じ 168h を明示している。
+        検証: `tofu plan` が No changes。`aud` は不変 (= mini の `CF_ACCESS_AUD` の再設定不要)、
+        `allowed_idps` も不変、`os.097969.xyz` 302 / `codex.097969.xyz` 401。
 - [ ] `DF-12` 「到達性テスト」に機能確認を含める型を決める
       DF-7 は ssh が通ることを確認して合格としたが、その裏で DNS が全滅していた (`DF-9`)。
       ping/ssh が通ることと使えることは別。最低限 DNS 解決と主要サービスの HTTP 応答まで
