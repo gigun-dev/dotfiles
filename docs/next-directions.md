@@ -1,160 +1,102 @@
-# 次セッションの方向性(2026-08-06 棚卸し・第1版)
+# 次セッションの方向性(2026-08-10 棚卸し・第2版)
 
-> **位置づけ**: 恒久ドキュメント(セッション引き継ぎの正典)。セッション開始時に SessionStart フック
-> (`.claude/settings.json`)がこのファイルの「頭」(`session-head-end` マーカーまで)を自動注入する。
-> **更新ルール**: 計画は消さない。完了は打ち消し線 + ✅、状況変化は該当箇所の直下に
-> `> **YYYY-MM-DD 更新:** ...` の引用ブロックを積層する。大きな節目でタイトルの日付を更新し
-> 全体を棚卸しする(積層を本文へ溶かし込む。生記録が必要な規模なら docs/log.md へ追記)。
-> **作業の区切りごとに必ず更新する。**
+> **位置づけ**: セッション引き継ぎの正典。SessionStart フックが `session-head-end` まで注入する。
+> **頭は予算制**(10,000 字超で無言に切り詰められる)。書くのは「いまどこか」「次に何をするか」だけで、
+> 詳細はマーカー以降へ。**計画は消さない。着手順を手で編集しない**(書き手は `nd-tasks.sh` だけ)。
+> 完了は `--done`(証拠行が必須)、状況変化は `> **YYYY-MM-DD 更新:**` を積層し、嵩んだら棚卸し。
 
-## 現在地(2026-08-06)
+## 現在地(2026-08-10)
 
-- **Mac Mini (Intel) のエージェント基盤を Lima ゲスト (NixOS) へ移し、稼働中**。macOS 側は nix 管理を
-  凍結し、Finder 経由の iPhone バックアップ・画面共有・Xcode 26.3 専用にした。M4 Pro から
-  `ssh gigun@mini-vm` で直接入れる (Tailscale SSH / `tag:server`)。経緯はカタログの該当節。
+- **エージェント基盤は mini-vm** (Mac Mini 上の Lima ゲスト / NixOS)。macOS 側は nix 管理を凍結し
+  iPhone バックアップ・画面共有・Xcode 26.3 専用。`ssh gigun@mini-vm` (Tailscale SSH / `tag:server`)。
   インスタンス名・tailnet 名・hostname はすべて `mini-vm`(`mini` は macOS 側を指す)。
 
-- **未検証の危険**: apple/container の再起動後の復帰。Apple Silicon 限定なので mini では確認できず、
+- **Cloudflare OS が mini-vm に常駐し、公開境界は Cloudflare**。`https://os.097969.xyz`
+  (named tunnel + Access、Cloudflare アカウントでログイン)と `https://codex.097969.xyz`
+  (ローカル codex を OpenAI 互換 API として外へ。Access は張れず守りはブリッジの api_key のみ
+  → `DF-22`)。Tailscale は SSH 専用に戻した。
+
+- **秘密とエッジ構成は宣言管理下**。秘密は agenix (`secrets/*.age`)、Cloudflare のリソースは
+  OpenTofu (`tofu/`、state は R2)。VM を作り直しても `nix run .#switch`、アカウントを作り直しても
+  `nix run .#tofu -- apply` で戻せる。**トンネル本体だけ管理外**(`tunnel_secret` が state に
+  平文で入るため。詳細は完了記録の `DF-20`)。
+
+- **未検証の危険**: apple/container の再起動後の復帰。Apple Silicon 限定で mini では確認できず、
   M4 Pro を再起動しないと分からない (apiserver は launchd 登録済み)。→ `DF-5`
 
-- **裁定待ち**: SPEC.md の扱いと CLAUDE.md「ディレクトリ構造」節の圧縮。どちらも下に理由付きで書いた。
-  あわせて「やってみて分かった手順知識」の置き場所が決まっていない (CLAUDE.md は 200 行制限があり
-  不適、log.md は時系列なので引きにくい)。→ `DF-2` `DF-3` `DF-6`
+- **繰り返している失敗の形**: **検知器自身が壊れていると、壊れていることに気づけない**
+  (切り詰め警告が切り詰めで消える / ssh 到達性で DNS 全滅を素通り)。「確認した」と書くときは
+  確認手段が生きているかを別経路で疑う。→ `DF-12`・カタログ「正典の頭が…」節
 
-> **2026-08-09 更新:** mini-vm が **3日間まるごと名前解決できていなかった**ことが判明し、直した
-> (`DF-9`)。DF-7 の再起動検証が ssh 到達性しか見ていなかったため素通りしていた。
-> 到達性が通っていても機能していないことがある、という教訓は `DF-12` に落とした。
-> あわせて mini-vm を **Cloudflare OS の常駐ホスト**にした (`DF-10`) — nix-ld で npm 配布の
-> プリビルド ELF (workerd) を動かせるようにし、`pnpm run-local` を systemd で常駐させ、
-> `tailscale serve` で `https://mini-vm.tailbf83fe.ts.net/` に出してある。
-> ブラウザ自動化も mini で完結するようにした (`DF-11`)。
-> なお 2026-08-08 に Langfuse フックの作り直し (e6f0bd5) と claude-devtools の cask 導入 (03bd4df)
-> が入っているが、このファイルには未反映のまま。次の棚卸しで拾うこと。
-
-> **2026-08-10 更新:** Cloudflare OS の公開境界を Tailscale から **Cloudflare** へ移した。
-> `https://os.097969.xyz` (named tunnel + Access、Cloudflare アカウントでログイン / `DF-16` `DF-17`)、
-> `https://codex.097969.xyz` (mini のローカル codex を OpenAI 互換 API として外へ / `DF-19`)。
-> Tailscale は **SSH 専用**に戻した (`tailscale serve` は撤去)。
-> あわせて**手で置いていた秘密を全廃**し (`DF-21` agenix)、**エッジ層を IaC 化**した
-> (`DF-20` OpenTofu + R2 state)。これで「VM を作り直しても `nix run .#switch`」「アカウントを
-> 作り直しても `nix run .#tofu -- apply`」で戻せる状態になった (Access のポリシーだけ
-> 復元できない穴が残ったが、再利用可能ポリシーへ移して解消済み / `DF-26`)。
-> 未着手のまま残っているのは Workers AI の実測 (`DF-13`)、Langfuse (`DF-24`)、
-> codex エンドポイントのレート制限 (`DF-22`)、Kitesurf (`DF-14`)。
+- **裁定待ち**: SPEC.md の扱い、CLAUDE.md「ディレクトリ構造」節の圧縮、確定した決定 (ADR) の
+  置き場所。→ `DF-2` `DF-3` `DF-6`
 
 ## 着手順(次にやること)
 
+**順序の理由**: `DF-13` が主線(Cloudflare OS を使える状態にする)、`DF-24` `DF-22` はその周辺。
+`DF-12` は今日の教訓を型にする作業で、後回しだと同じ事故を繰り返す。以降は裁定待ちか随伴作業。
+
+- [ ] `DF-13` Cloudflare OS に AI プロバイダを繋いで実際に使う
+      codex 側は通っている(mini に常駐、モデル ID が `SUGGESTED_MODELS` と一致するので登録不要)。
+      残りは Workers AI 側で、**モデル選択が支配的** — 同じ無料枠で `qwen3-30b-a3b-fp8` は既定の
+      Kimi の 16 倍使える。単価表と経緯はカタログ「AI プロバイダ」節。
+      → 完了条件: Cloudflare OS のチャットでモデルが応答し、Neurons 消費が実測できること
+- [ ] `DF-24` Langfuse を codex 経由の推論に挟む
+      Claude Code 側は導入済み (e6f0bd5)。**openai プロバイダだけ観測できる**(`apiUrl` を
+      差し替えて LiteLLM を挟む)。Workers AI は baseUrl 固定、AI Gateway は codex と排他。
+      → 完了条件: codex 経由の推論が Langfuse のトレースに出ること
+- [ ] `DF-22` codex エンドポイントにレート制限を入れる
+      公開網に出ていて守りは 40 文字の api_key 1 枚だけ。Access は張れない(OpenAI 互換 API に
+      ブラウザログインを挟むとクライアントが使えなくなる)。
+      → 完了条件: 認証失敗が続く送信元に制限がかかること
+- [ ] `DF-12` 「到達性テスト」に機能確認を含める型を決める
+      `DF-7` は ssh 到達性で合格としたが、その裏で DNS が全滅していた。最低限 DNS 解決と主要
+      サービスの HTTP 応答まで見る形にしたい。スクリプト化するか手順として書くかは未定。
+      → 完了条件: 再起動検証の手順が「上がったか」ではなく「使えるか」を見る形になること
+- [ ] `DF-14` Kitesurf を chrome-devtools-mcp から使えるか試す
+      CDP を WebSocket で公開しており `--wsEndpoint` でそのまま刺さるはず。狙いは軽さと
+      「エージェントごとにブラウザ」。接続 URL と未対応の機能はカタログ「Kitesurf」節。
+      → 完了条件: mini から Kitesurf 経由でページを取得・スクショできること
+- [ ] `DF-15` Claude / opencode のサブスク枠もブリッジできるか調べる
+      codex は既存実装を借りて通ったが、Claude は Messages API と SSE の自作になり難度が段違い。
+      opencode のサーバモードが互換エンドポイントを出せるなら、そちらが現実的。
+      → 完了条件: 実装するか見送るかを、翻訳層の分量を見積もった上で決めること
 - [ ] `DF-2` SPEC.md の扱いを決める
-      2026-04-10 の初期コミット以降まったく更新されておらず、Windows 対応も Lima VM も入っていない。
-      現行仕様として読まれると事故る。案: (A) 冒頭に「初期設計の記録」と注記して凍結 (推奨)、
-      (B) 削除して CLAUDE.md に一本化、(C) 現状に追従。`docs/SPEC-initial.md` へ移す手もある。
+      2026-04-10 以降未更新で Windows も Lima VM も無い。現行仕様と誤読されると事故る。
+      案: (A) 凍結を明記 (推奨) / (B) CLAUDE.md へ一本化 / (C) 追従。
       → 完了条件: 3案のどれかを実施し、現行仕様と誤読されない状態にする
 - [ ] `DF-3` CLAUDE.md の「ディレクトリ構造」節を圧縮する
-      `zsh/.zshrc # メイン設定` のような同語反復を削り、`zsh/functions/ # permission は 755 必須`
-      のような非自明な制約だけ残す。`windows/` 配下の詳細は `windows/README.md` に委ねる。
+      同語反復を削り、非自明な制約 (`permission は 755 必須`) だけ残す。
       → 完了条件: 39 行 → 15 行程度にし、doctor の「長い節」指摘が消えること
 - [ ] `DF-5` apple/container の再起動後の復帰を確認する
-      M4 Pro を再起動する機会に `container system status` を見るだけ。単独で再起動する必要はない。
+      M4 Pro を再起動する機会に `container system status` を見るだけ。
       → 完了条件: 再起動後に手を触れず apiserver が running であること
 - [ ] `DF-6` 意思決定 (ADR) の置き場所について harness の結論を取り込む
-      確定した決定を残す場所が無い。カタログは可変の方向性、log.md は時系列、コメントはコード必須、
-      コミットログは却下案が残らない (revert すれば消える)、CLAUDE.md は 200 行制限。
-      配布元へ起票済み: gigun-dev/claude-code#3。ADR を docs/adr/ に置き rules の `paths:` で
-      スコープする案を出してある (agent-optimized ADR の推奨は番号ファイリングでなく file glob)。
-      なお手順知識 (Lima のリネーム等) は ADR とは別問題で、頻度が低ければ永続化しない判断もある。
+      確定した決定を残す場所が無い。配布元へ起票済み: gigun-dev/claude-code#3。
       → 完了条件: #3 の裁定が出て、このリポジトリで ADR を使うか否かが決まること
-- [ ] `DF-13` Cloudflare OS に AI プロバイダを繋いで実際に使う
-      現状は器が立っているだけでモデルが繋がっていない。`AiModelConfig.apiUrl` は
-      「互換 API を提供する別プロバイダ用」と型定義に明記されており、UI では
-      Add Model の **Advanced Settings** に "API URL" として出る (ollama/cloudflare 以外、
-      かつ Gateway モードでないとき)。provider ごとの既定と喋る形式は
-      anthropic=`anthropic-messages` / openai=**`openai-responses`** / google=`google-generative-ai` /
-      ollama=`openai-completions` (apiToken 空なら Authorization ヘッダ自体を送らない)。
-      サブスク枠を使うなら hotchpotch/openai-api-server-via-codex (`/v1/responses` 実装) を
-      mini に立てて provider=openai + apiUrl=`http://127.0.0.1:18080/v1` が第一候補。
-      **mini で動かす必然性**: `global_fetch_strictly_public` により本番 Worker からは
-      localhost/プライベート IP に届かない。`wrangler dev` だけが意図的に例外
-      (workshop-backend/wrangler.jsonc のコメントに明記)。
-      Workers AI は Workers Paid でも 10,000 Neurons/日までで超過は $0.011/1,000 Neurons なので
-      「$5 に収まる」前提は成り立たない。
-      → 完了条件: Cloudflare OS のチャットでモデルが応答すること
-
-> **2026-08-09 更新:** codex 側は通った。`systemd.services.codex-openai-bridge` として mini に常駐
-> (`~/.codex/auth.json` を `ConditionPathExists` にしてあるので `codex login` 前は静かにスキップ)。
-> `gpt-5.6-sol` / `gpt-5.4-mini` が `/v1/responses` で応答することを実測済み。
-> **ブリッジが出すモデル ID (`gpt-5.6-sol`/`luna`/`terra`) は Cloudflare OS の `SUGGESTED_MODELS`
-> の openai 欄と完全一致する**ので、カスタムモデル登録すら要らずピッカーから選べる。
->
-> Workers AI 側は **モデル選択が支配的**と判明した。API から取れた USD/1M トークン単価:
-> `qwen3-30b-a3b-fp8` $0.0509/$0.335、`gemma-4-26b-a4b-it` $0.10/$0.30、
-> `gpt-oss-120b` $0.35/$0.75、`kimi-k2.7-code` $0.95/$4.00、`glm-5.2` $1.40/$4.40。
-> 1日1万 Neurons = $0.11 なので、既定の Kimi だと入力 8万トークン/日で尽きるが
-> **`qwen3-30b-a3b-fp8` なら入力 130万/日 — 同じ無料枠で 16 倍使える**
-> (Llama 3.2 3B と同額なのに 30B MoE)。Kimi/GLM には cached input 価格 ($0.19/$0.26 per M) も
-> あるので、文脈が安定する用途では実効値がさらに良くなる。
->
-> 計測用に AI Gateway `cloudflare-os` を作成済み (collect_logs 有効、sliding 60s/120req の
-> レート上限、`workers_ai_billing_mode=postpaid`)。AI Gateway のクレジット残高は $0 で
-> auto top-up 未設定なので、勝手に課金が走る状態ではない。
->
-> **残りはダッシュボード作業待ち**: OAuth client の作成には `OAuth Clients Write` 権限が要り、
-> プラグインの OAuth セッションでは `10000: Authentication error` / API トークン作成も
-> `9109: Unauthorized` で弾かれる。ここは人手が要る。
-- [ ] `DF-15` Claude / opencode のサブスク枠もブリッジできるか調べる
-      codex 枠は `openai-api-server-via-codex` で通った (`DF-13`)。同じことを Claude でやりたいが
-      難度が違う。Cloudflare OS の anthropic プロバイダは pi の `anthropic-messages` 実装を使い
-      拡張思考 (adaptive thinking) まで前提にしているので、ブリッジ側は **Messages API の形と
-      SSE ストリーミングを本物として実装**する必要がある。`claude -p` が返すのはテキストか
-      `stream-json` なので、codex のときのように既存実装を借りる形にならず翻訳層を自作することになる。
-      opencode のサーバモードが OpenAI/Anthropic 互換エンドポイントを出せるかは未調査 (出せるなら
-      そちらが現実的)。規約上の扱いは利用者判断で、ブリッジの README 自身も
-      「アカウント共有・再販は禁止、ToS に従え」としている。
-      → 完了条件: 実装するか見送るかを、翻訳層の分量を見積もった上で決めること
-- [ ] `DF-14` Kitesurf を chrome-devtools-mcp から使えるか試す
-      Kitesurf (2026-08-06 リリース、beta 無料) は OSS ではなくローカルには持ってこられないが、
-      CDP を WebSocket で外部公開しており、ローカルから接続できる:
-      `wss://api.cloudflare.com/client/v4/accounts/<ACCOUNT_ID>/browser-run/devtools/browser?browser=kitesurf`
-      + `Authorization: Bearer <API_TOKEN>`。chrome-devtools-mcp には
-      `--wsEndpoint` と `--wsHeaders '{"Authorization":"Bearer ..."}'` があるので、そのまま刺さるはず。
-      狙いは「エージェントごとにブラウザを用意する」「ローカルポート競合を消す」「Chromium より
-      3〜7 倍軽い」。ただし **WebGL / 動画再生 / ボット検出ハンドシェイク / 永続状態が要る長時間
-      セッションは未対応**なので、ログインが要る操作はローカル Chromium 側に残す使い分けになる。
-      → 完了条件: mini から Kitesurf 経由でページを取得・スクショできること
-- [ ] `DF-22` codex エンドポイントにレート制限を入れる
-      `codex.097969.xyz` は公開網に出ていて、守りは 40 文字の api_key 1 枚だけ。Access は
-      張れない (理由は `DF-19`)。総当たりを鈍らせる WAF のレート制限を入れたい。
-      → 完了条件: 認証失敗が続く送信元に制限がかかること
-- [ ] `DF-24` Langfuse を codex 経由の推論に挟む
-      Claude Code 側は既に Langfuse を入れている (e6f0bd5)。Cloudflare OS も可能な範囲で観測したい。
-      **できる範囲とできない範囲がはっきりしている**:
-      - **openai プロバイダ**は `apiUrl` を差し替えられるので
-        `Cloudflare OS → LiteLLM (Langfuse callback) → codex ブリッジ` と数珠つなぎにできる。
-        全部 mini の中で完結する。
-      - **cloudflare プロバイダ (Workers AI) は baseUrl がコード内で固定**されていて
-        (`getModelDirect` の `case "cloudflare"`)、プロキシを挟む余地が無い。
-      - AI Gateway なら Workers AI も観測できるが、**codex ブリッジと排他** (`DF-13` 参照。
-        `CF_AI_GATEWAY` を設定すると全モデルがゲートウェイ経由になり apiUrl が無視される)。
-      よって「Langfuse で codex 側、Cloudflare ダッシュボードで Workers AI 側」の二本立てになる。
-      → 完了条件: codex 経由の推論が Langfuse のトレースに出ること
-- [ ] `DF-12` 「到達性テスト」に機能確認を含める型を決める
-      DF-7 は ssh が通ることを確認して合格としたが、その裏で DNS が全滅していた (`DF-9`)。
-      ping/ssh が通ることと使えることは別。最低限 DNS 解決と主要サービスの HTTP 応答まで
-      見るチェックを、再起動検証の定型にしたい。スクリプト化するか手順として書くかは未定。
-      → 完了条件: 再起動検証の手順が「上がったか」ではなく「使えるか」を見る形になること
-- [ ] `DF-27` next-directions.md の頭を棚卸しして注入コストを下げる
-      2026-08-10 に 23,191 字まで膨れ **SessionStart の注入が無言で切り詰められていた**
-      (#70460)。`--archive` で完了 15 件を降ろし解消済みだが、まだ予算の倍ある。
-      残る嵩は `> 更新:` ブロック 2 つと `DF-13` の注記 — 降ろすのではなく本文へ
-      溶かし込む棚卸しが要る (タイトルの日付も 2026-08-06 のまま)。
-      → 完了条件: 頭が 3000 tok 以下になり、--lint の head-costly 警告が消えること
-  > **2026-08-10 更新:** session-start.sh を v0.2.1 → v0.7.0 に更新したところ、警告が3つ見えるようになった: 頭 8089字 (目安8000)、カタログ 328行 (閾値250)、現在地の日付 2026-08-06 がコミット 2026-08-10 より古い。カタログ超過は --archive で完了15件を降ろした副作用で、意図した交換 (カタログは注入されないので実費ゼロ・閾値は人が読み通せる長さの管理)。3つとも棚卸しで一度に解ける。
-
+- [ ] `DF-29` マーカー以降の行数警告 (417行/閾値250) をどう畳むか決める
+      完了記録は追記専用で増える一方なのに、上限は頭を降ろす先と同じ領域にかかっている。
+      → 完了条件: 毎セッション出る警告が消えるか、消せない理由が正典に書かれていること
 <!-- session-head-end: ここから下は SessionStart フックが注入しないオンデマンド領域。着手する節をそのとき読む -->
 
 ## 完了記録(着手順から降ろしたもの)
 
 頭は予算制なので、完了した項目はここへ降ろす。**ID は再利用しない**(log.md から参照されるため)。
 
+- ~~`DF-27` next-directions.md の頭を棚卸しして注入コストを下げる~~ ✅ 2026-08-10
+  → 2026-08-10 / (docs/next-directions.md 第2版) / 頭を 23,191 字 → 約 4,000 字にした。
+    二段構えで、まず `nd-tasks.sh --archive` で完了 15 件を `## 完了記録` へ降ろし
+    (23,191 → 7,752 字、これで切り詰めは解消)、次に積層していた `> 更新:` ブロック 2 つを
+    現在地の本文へ溶かし込み、着手順の各項目から調査メモをカタログへ移した。
+    移した先: 「Cloudflare OS の AI プロバイダ」「Kitesurf」「正典の頭が切り詰められていた話」。
+    **降ろすのと溶かし込むのは別物** — アーカイブは完了項目にしか効かないので、未完了項目が
+    抱える調査メモはカタログへ移すしかない。ここが今回の嵩の主因だった (`DF-13` 単独で約 2,400 字)。
+    あわせて `session-start.sh` を v0.2.1 → v0.7.0 に更新した。旧版は警告を頭の**後**に出す
+    構造で、切り詰められると警告ごと消えていた (この事故が長く見つからなかった直接の原因)。
+    検証: `nd-tasks.sh --lint` が警告 0 件、フックの実出力は 3,966 字(切り詰め閾値 10,000)。
+    **ただしカタログ側の行数警告は残っている** (417 行 / 閾値 250)。頭から降ろした先が
+    マーカー以降なので、頭を減らすとカタログが増えるのは構造上避けられない。→ `DF-29`(採番は DF-28 を飛ばした — 証拠行に先に `DF-28` と書いてしまい、
+    採番器が使用済みと判定したため。ID は再利用しないので欠番のままにする)
 - ~~`DF-20` Cloudflare 側のリソースを宣言管理下に置く~~ ✅ 2026-08-10
   → 2026-08-10 / `tofu/` + `nix run .#tofu` / **OpenTofu** を採用。Terraform ではないのは
     nixpkgs の `terraform` が BUSL 1.1 で unfree なため (OpenTofu は MPL 2.0 で free、
@@ -478,3 +420,80 @@ Slack は **read-only** で、bot token ではなく user token (`xoxp-`) を使
 - **uv tools の宣言管理**: mlx_whisper 等の uv tool 群を nix か宣言スクリプトで管理したい。未着手
 - **Taildrive**: mini の `~/Storage` を中央ストレージにする構想だったがほぼ使われていない。
   VM 移行で mini の役割が変わったので、続けるか畳むか要判断
+
+### Cloudflare OS の AI プロバイダ (2026-08-09〜10 調査)
+
+**プロバイダごとの既定と喋る形式**: anthropic=`anthropic-messages` / openai=**`openai-responses`** /
+google=`google-generative-ai` / ollama=`openai-completions`(apiToken 空なら Authorization ヘッダ
+自体を送らない)。`AiModelConfig.apiUrl` は「互換 API を提供する別プロバイダ用」と型定義に明記されて
+おり、UI では Add Model の **Advanced Settings** に "API URL" として出る(ollama/cloudflare 以外、
+かつ Gateway モードでないとき)。
+
+**codex ブリッジ (通っている)**: hotchpotch/openai-api-server-via-codex を
+`systemd.services.codex-openai-bridge` として mini に常駐させた。`~/.codex/auth.json` を
+`ConditionPathExists` にしてあるので `codex login` 前は静かにスキップする。
+`gpt-5.6-sol` / `gpt-5.4-mini` が `/v1/responses` で応答することを実測済み。
+**ブリッジが出すモデル ID (`gpt-5.6-sol`/`luna`/`terra`) は Cloudflare OS の `SUGGESTED_MODELS` の
+openai 欄と完全一致する**ので、カスタムモデル登録すら要らずピッカーから選べる。
+
+**mini で動かす必然性**: `global_fetch_strictly_public` により本番 Worker からは localhost /
+プライベート IP に届かない。`wrangler dev` だけが意図的な例外
+(workshop-backend/wrangler.jsonc のコメントに明記)。
+
+**Workers AI はモデル選択が支配的**。API から取れた USD/1M トークン単価(入力/出力):
+`qwen3-30b-a3b-fp8` $0.0509/$0.335、`gemma-4-26b-a4b-it` $0.10/$0.30、`gpt-oss-120b` $0.35/$0.75、
+`kimi-k2.7-code` $0.95/$4.00、`glm-5.2` $1.40/$4.40。
+Workers Paid でも 10,000 Neurons/日までで超過は $0.011/1,000 Neurons なので「$5 に収まる」前提は
+成り立たない。1日1万 Neurons = $0.11 で、既定の Kimi だと入力 8万トークン/日で尽きるが
+**`qwen3-30b-a3b-fp8` なら入力 130万/日 — 同じ無料枠で 16 倍使える**(Llama 3.2 3B と同額なのに
+30B MoE)。Kimi/GLM には cached input 価格 ($0.19/$0.26 per M) もあるので、文脈が安定する用途では
+実効値がさらに良くなる。
+
+**AI Gateway**: `cloudflare-os` を作成済み(collect_logs 有効、sliding 60s/120req、
+`workers_ai_billing_mode=postpaid`)。クレジット残高 $0・auto top-up 未設定なので勝手に課金は走らない。
+**ただし codex ブリッジと排他** — `CF_AI_GATEWAY` を設定すると全モデルがゲートウェイ経由になり
+`apiUrl` が無視される。どちらか一方しか使えない。
+
+**Langfuse を挟める範囲 (`DF-24`)**: openai プロバイダは `apiUrl` を差し替えられるので
+`Cloudflare OS → LiteLLM (Langfuse callback) → codex ブリッジ` と数珠つなぎにできる(全部 mini 内で
+完結する)。**cloudflare プロバイダ (Workers AI) は baseUrl がコード内で固定**されていて
+(`getModelDirect` の `case "cloudflare"`)、プロキシを挟む余地が無い。よって「Langfuse で codex 側、
+Cloudflare ダッシュボードで Workers AI 側」の二本立てになる。
+
+**Claude のブリッジが難しい理由 (`DF-15`)**: Cloudflare OS の anthropic プロバイダは pi の
+`anthropic-messages` 実装を使い拡張思考 (adaptive thinking) まで前提にしているので、ブリッジ側は
+**Messages API の形と SSE ストリーミングを本物として実装**する必要がある。`claude -p` が返すのは
+テキストか `stream-json` なので、codex のときのように既存実装を借りる形にならず翻訳層を自作する
+ことになる。opencode のサーバモードが互換エンドポイントを出せるかは未調査(出せるならそちらが現実的)。
+規約上の扱いは利用者判断で、ブリッジの README 自身も「アカウント共有・再販は禁止、ToS に従え」としている。
+
+**使用状況の可視化は期待できない**: アプリは AI 使用の内訳を記録していない(analytics に
+トークン/コストのイベントが無く、`totalCost` はワークスペースごとの単純な累計)。codex(カタログ上の
+架空のドル)と Workers AI(実際のドル)を混ぜると `totalCost` は意味を失うので、**ワークスペースを分ける**こと。
+
+### Kitesurf (2026-08-06 リリース、beta 無料)
+
+OSS ではなくローカルには持ってこられないが、CDP を WebSocket で外部公開しており接続できる:
+`wss://api.cloudflare.com/client/v4/accounts/<ACCOUNT_ID>/browser-run/devtools/browser?browser=kitesurf`
++ `Authorization: Bearer <API_TOKEN>`。chrome-devtools-mcp には `--wsEndpoint` と
+`--wsHeaders '{"Authorization":"Bearer ..."}'` があるので、そのまま刺さるはず。
+**WebGL / 動画再生 / ボット検出ハンドシェイク / 永続状態が要る長時間セッションは未対応**なので、
+ログインが要る操作はローカル Chromium 側に残す使い分けになる。
+
+### 正典の頭が切り詰められていた話 (2026-08-10)
+
+**症状**: `docs/next-directions.md` の頭が 23,191 字まで膨れ、SessionStart の stdout が無言で
+切り詰められていた。10,000 字を超えると先頭 2KB のプレビューだけが注入される
+(anthropics/claude-code#70460 / #84021)。数セッション分、正典は「注入したつもりで届いていない」状態だった。
+
+**なぜ気づけなかったか**: 当時の `session-start.sh` (v0.2.1) は**頭を全部出してから末尾に警告を
+付ける**構造だった。切り詰めが起きた瞬間、末尾にある「切り詰められています」の警告が真っ先に消える。
+**切り詰めを知らせる検知器が、切り詰めによって死ぬ。**
+
+**直し方**: v0.7.0 は順序を「(1) 全部計測 → (2) 警告 → (3) 頭」に変えてある。警告は必ず先頭 2KB に
+入るので、頭の後半が消えることは避けられなくても、**消えたことが分からない**状態は避けられる。
+あわせて予算の単位が行から文字になった(行数は日本語率で 2 倍以上ぶれるため、複数リポジトリへ配る
+予算の単位として成立しない)。
+
+**この形の失敗は再発している**: 再起動検証が ssh 到達性しか見ず DNS 全滅を素通りしたのも同じ
+(`DF-12`)。「確認した」と書くときは、確認手段自体が生きているかを別経路で疑うこと。
