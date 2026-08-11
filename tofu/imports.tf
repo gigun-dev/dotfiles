@@ -29,7 +29,18 @@ locals {
 
   # mini-vm の named tunnel。トンネル本体は上記のとおり管理対象外 (tunnel_secret が
   # state に平文で入るため) だが、DNS レコードの向き先として ID は必要なのでここに置く。
-  # ID 自体は秘密ではない — cfargotunnel.com のホスト名として公開 DNS に出ている。
+  #
+  # **この ID を public repo に置いてよい根拠** (2026-08-11 に実測して訂正):
+  # 以前ここには「cfargotunnel.com のホスト名として公開 DNS に出ているから秘密ではない」と
+  # 書いていたが**それは誤り**だった。レコードは proxied なので、公開 DNS が返すのは
+  # Cloudflare の anycast IP だけで `<uuid>.cfargotunnel.com` は外から見えない
+  # (`dig os.097969.xyz CNAME` は空。A は 104.21.x / 172.67.x)。
+  #
+  # 正しい根拠は「ID だけでは何もできない」こと。トンネルへ接続するコネクタを名乗るには
+  # tunnel_secret を含む認証情報 JSON が要り、それは agenix
+  # (secrets/cloudflared-cloudflare-os.json.age) にしか無い。UUID は宛先の名前であって
+  # 鍵ではない。とはいえ「見えない情報を晒す必要も無い」ので、積極的に公開する価値は無く、
+  # ここに書いているのは DNS レコードを宣言するのに不可欠だから、という消極的な理由。
   tunnel_id = "5b8ec787-4730-4b2b-87b8-e86acbd3954b"
 }
 
