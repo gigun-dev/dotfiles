@@ -3,6 +3,7 @@
   modulesPath,
   pkgs,
   lib,
+  llmAgents, # inputs.llm-agents.packages.x86_64-linux (flake.nix の specialArgs)
   ...
 }:
 let
@@ -527,6 +528,62 @@ in
         + " --config /var/lib/codex-bridge/config.toml"
         + " --host 127.0.0.1 --port 18080"
         + " --auth-json /home/${username}/.codex/auth.json";
+      Restart = "always";
+      RestartSec = 10;
+    };
+  };
+
+  # スマホ (ChatGPT アプリ) から mini-vm の Codex を実行環境として使うための常駐。
+  #
+  # 狙い: ssh も公開ポートも無しでスマホから Codex を回す。app-server は
+  # chatgpt.com 側のリレー (backend-api/wham/remote/control/server) へ **アウトバウンドで**
+  # WebSocket を張り、スマホはリレー越しに繋ぐ。受け口を開けないので、隣の
+  # codex-openai-bridge (codex.097969.xyz) が抱えている「守りが api_key 1 枚」問題が
+  # 構造的に発生しない。
+  #
+  # 用途は codex-openai-bridge と別物なので両方残す。あちらは Cloudflare OS から叩く
+  # OpenAI 互換 API、こちらは Codex そのものをスマホから操作する口。
+  #
+  # **Why not `codex remote-control start` / `codex app-server daemon bootstrap`**:
+  # 上流が案内する起動方法はこれだが、どちらも
+  # `~/.codex/packages/standalone/current/codex` の standalone install を必須にする
+  # (実際 `remote-control start` はそれが無いと "managed standalone Codex install not
+  # found" で落ちる)。bootstrap はそこへ install.sh 経由で別バイナリを落とし、
+  # **1 時間ごとに自己更新するループを回す**。つまり flake.lock を見ても実際に動いている
+  # 版が分からなくなり、上流の変更が予告なく降ってくる。さらに daemon 化は pidfile 方式で
+  # systemd に登録しないため、VM 再起動で消え更新ループも戻らない。
+  # → 「常駐と再起動耐性」は systemd がやればよく、standalone install は要らない。
+  #
+  # **Why `--listen unix://` (not `off`)**: `off` でもリレーには繋がるが、
+  # `codex remote-control pair` が探す既定パスの control socket
+  # (~/.codex/app-server-control/app-server-control.sock) が作られず、ペアリングコードを
+  # 発行できない (前景起動は一時ディレクトリの rc.sock を使うため)。`unix://` を渡すと
+  # 既定パスに作られ、daemon 無しで pair が通る。ここが daemon を回避できた分岐点。
+  # なおこの socket は 0600 / ユーザー所有で、ネットワークには一切出ない。
+  #
+  # ペアリングは手動の一度きりの作業: `codex remote-control pair` でコードを出し、
+  # スマホ側で入力する。コードは短命なので、切れたら叩き直す。
+  #
+  # ConditionPathExists は codex-openai-bridge と同じ理由 (`codex login` 前は
+  # auth.json が無く、Restart=always と噛み合って無限再起動になる)。
+  systemd.services.codex-remote-control = {
+    description = "Codex app-server (remote control) — スマホから mini-vm の Codex を使う口";
+    wantedBy = [ "multi-user.target" ];
+    wants = [ "network-online.target" ];
+    after = [ "network-online.target" ];
+
+    unitConfig.ConditionPathExists = "/home/${username}/.codex/auth.json";
+
+    environment = {
+      HOME = "/home/${username}";
+      SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+    };
+
+    serviceConfig = {
+      Type = "simple";
+      User = username;
+      WorkingDirectory = "/home/${username}";
+      ExecStart = "${llmAgents.codex}/bin/codex app-server --remote-control --listen unix://";
       Restart = "always";
       RestartSec = 10;
     };

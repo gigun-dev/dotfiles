@@ -307,6 +307,14 @@
           # 要るため、home 層を NixOS module 側へ統合はしない。
           nixosConfigurations."mini-vm" = inputs.nixpkgs.lib.nixosSystem {
             system = "x86_64-linux";
+            # codex を OS 層の systemd unit (codex-remote-control) から参照するため、
+            # home 層と同じ standalone packages を渡す。home 側と同一 derivation なので
+            # 実体は共有され、numtide キャッシュにも同じくヒットする (二重ビルドにならない)。
+            # Why not `/home/gigun/.nix-profile/bin/codex`: home-manager の activation
+            # 順序に system unit が依存してしまう上、版が固定されない。
+            specialArgs = {
+              llmAgents = llmAgentsFor "x86_64-linux";
+            };
             modules = [
               inputs.nixos-lima.nixosModules.lima
               inputs.agenix.nixosModules.default
