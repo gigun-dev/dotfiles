@@ -230,5 +230,39 @@
   "inputNeededNotifEnabled": true,
   "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
-  "voiceEnabled": true
+  "autoMode": {
+    "soft_deny": [
+      "$defaults",
+      "Bash(wrangler deploy:*) — scoped to this repo's wrangler.prod.jsonc / production config",
+      "Bash(rm:*) in spike/loader-limits-tails/ — path names suggest throwaway experiment data but files include prod-named configs"
+    ],
+    "environment": [
+      "### Org-wide",
+      "**Organization**: None configured",
+      "**Cloud provider(s)**: Cloudflare (Workers, D1) — per README; Firebase/GCP and RevenueCat (OAuth integration targets per README)",
+      "**Repository visibility**: private (gigun-dev/cf-fireboard, confirmed via gh)",
+      "**Internal sharing / snippet hosting**: None configured — treat public paste/gist services as outside the trust boundary",
+      "**Secrets management**: None configured",
+      "**Default / protected branches**: main (default); no branch protection rules or rulesets listed via gh — treat as unprotected",
+      "**CI/CD deploy targets**: None configured",
+      "**Network posture**: None configured",
+      "**Source control**: The trusted repo (gigun-dev/cf-fireboard) and its remotes only — origin (github.com:gigun-dev/cf-fireboard.git) and realbind (github.com/realbind/cf-fireboard.git, referenced in README as the template origin)",
+      "**Trusted internal domains**: None configured",
+      "**Trusted cloud buckets**: None configured",
+      "**Key internal services**: None configured",
+      "**Internal package registry**: None configured",
+      "**Sensitive data locations & audiences**: any file or store holding personal data, confidential business data, credentials, regulated data, or similarly sensitive material; preserve exact handles when known and share only with audiences cleared at the [named+specifics] bar. Repo paths flagged by filename scan warrant care: spike/loader-limits-tails/transcript-prod.json, spike/loader-limits-tails/verify-prod.mjs, spike/loader-limits-tails/wrangler.prod.jsonc",
+      "**Data retention / declassification**: None configured",
+      "**Sensitive remote targets**: any namespace, host, or container whose name carries `prod` or `production` as a whole word or name segment (hyphen/underscore/dot-delimited — e.g. matches `prod-db`, not `producer`); this repo's spike/loader-limits-tails/*prod* files match this pattern",
+      "**Protected deployment namespaces / environments**: None configured — fall back to the Sensitive remote targets heuristic",
+      "**Protected IaC scopes**: IAM, RBAC, networking, quota, and node-pool resources; anything whose name or tag carries `prod` or `production` as a whole word or name segment (wrangler.prod.jsonc in this repo matches)",
+      "### User-specific",
+      "**Primary use of Claude Code**: software development",
+      "**Trusted repo**: /Users/gigun/ghq/github.com/gigun-dev/cf-fireboard (gigun-dev/cf-fireboard, private) and its remotes origin and realbind; since the repo is private, confidential material native to this repo is fine to commit/push here, but secrets and sensitive data (personal & entrusted) are never cleared into it by visibility alone",
+      "**Org-specific CLIs**: None configured",
+      "routine under gigun-dev/ prefix qualifiers: none configured beyond the trusted repo itself"
+    ]
+  },
+  "voiceEnabled": true,
+  "model": "claude-fable-5[1m]"
 }

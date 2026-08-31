@@ -97,6 +97,22 @@
         "type": "github"
       }
     },
+    "cloudflare-os": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1787950645,
+        "narHash": "sha256-NR9CD5XkXibknP6lsBfNfB9mCwE0ncqTAnn2zEi4Xo8=",
+        "owner": "cloudflare",
+        "repo": "cloudflare-os",
+        "rev": "af56a9d79d8a60ebed8dabb11b075cd88efc1b87",
+        "type": "github"
+      },
+      "original": {
+        "owner": "cloudflare",
+        "repo": "cloudflare-os",
+        "type": "github"
+      }
+    },
     "crane": {
       "locked": {
         "lastModified": 1781825982,
@@ -437,6 +453,7 @@
         "agenix": "agenix",
         "cclens": "cclens",
         "claude-code-overlay": "claude-code-overlay",
+        "cloudflare-os": "cloudflare-os",
         "flake-parts": "flake-parts",
         "git-hooks": "git-hooks",
         "home-manager": "home-manager_2",

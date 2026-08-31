@@ -4,26 +4,26 @@
   pkgs,
   lib,
   llmAgents, # inputs.llm-agents.packages.x86_64-linux (flake.nix の specialArgs)
+  cloudflareOsRev, # inputs.cloudflare-os.rev (flake.nix の specialArgs)
   ...
 }:
 let
   username = "gigun";
 
-  # Cloudflare OS のチェックアウト。3 箇所 (ConditionPathExists / WorkingDirectory /
-  # ExecStartPre) から参照するので 1 箇所に括り出す。
+  # Cloudflare OS のチェックアウト。4 箇所 (ConditionPathExists / WorkingDirectory /
+  # ExecStartPre 2 本) から参照するので 1 箇所に括り出す。
   #
-  # **パスが `cloudflare/` ではなく `gigun-dev/` なのは意図的**。2026-08-11 に
-  # gigun-dev/cloudflare-os へ fork し、origin=fork / upstream=本家 の 2 本立てにした。
-  # ghq はディレクトリのパスと origin の URL を一致させる規約なので、fork を持つ以上
-  # ここも fork 側へ寄せないと `ghq list` の意味が壊れる。
+  # **2026-09-01 に fork を畳んで本家直結に戻した**。2026-08-11 に gigun-dev へ fork し
+  # 「main は upstream を追い、自前パッチは mini ブランチへ」という運用を敷いたが、
+  # 3 週間経って独自コミットは 1 本も積まれなかった (upstream/main..HEAD が空)。
+  # 担っていない構造を維持すると、ghq のパスが本家と食い違う分だけ読み違いを誘う。
+  # gatekeeper に手を入れたくなったらそのとき fork し直せばいい (パスもそのとき戻す)。
   #
-  # fork にした理由: gatekeeper は自作・改造できる拡張点で (backend は env を
-  # `GATEKEEPER_` 接頭辞で走査するだけ。特定の gatekeeper を名前で参照しない)、
-  # 上流に取り込まれるまでの間ローカルで当てておきたいパッチがある。
-  # 運用は「main は upstream/main を追うだけ、自前パッチは mini ブランチに積み、
-  # 追従は merge ではなく rebase」。rebase なら上流に取り込まれたパッチが
-  # 自動的に空になって消えるので、要否を手で判断しなくて済む。
-  cloudflareOsDir = "/home/${username}/ghq/github.com/gigun-dev/cloudflare-os";
+  # ここは**編集する作業コピーではない**。ExecStartPre が毎起動時に
+  # `git checkout --force --detach <flake.lock の rev>` で強制的に合わせるので、
+  # 手で加えた変更は黙って消える。直したいことがあれば upstream へ PR を出すか、
+  # 一時的に fork を復活させること。
+  cloudflareOsDir = "/home/${username}/ghq/github.com/cloudflare/cloudflare-os";
 in
 {
   # Mac Mini (Intel) 上の Lima VM。
@@ -233,7 +233,11 @@ in
     path = with pkgs; [
       nodejs
       pnpm
-      git # run-local.mjs が git ls-files でソースのハッシュを取るのに使う
+      # git は ExecStartPre (1) が rev を合わせるのに要る。
+      # かつては run-local.mjs 自身が `git ls-files` でソースのハッシュを取っていたが、
+      # 上流の af56a9d 時点では run-local.ts に git 参照は無い (Vite+ がキャッシュを持つ)。
+      # 理由は変わったが必要性は残っているので、消さないこと。
+      git
       bash
       coreutils
       # ps は wrangler のビルドパイプラインが子プロセスの掃除に使う
@@ -274,9 +278,13 @@ in
       # 仕組みとしては上流が用意したもの。vite は VITE_ 接頭辞の環境変数を拾うので
       # ここで渡せば足りる (リポジトリ側の改変は不要)。
       #
-      # 注意: run-local.mjs はソースのハッシュが変わらないとビルドを飛ばす。この変数を
-      # 足しただけではハッシュが変わらず古いバンドルが使われ続けるので、初回は
-      # .run-local-stamp を消して強制リビルドすること。
+      # 注意: ビルドはキャッシュされるので、この変数を足しただけでは古いバンドルが
+      # 使われ続けることがある。効いていないと思ったらキャッシュを捨てて作り直すこと。
+      #
+      # (2026-09-01 更新) キャッシュの持ち主が変わった。以前は run-local.mjs が
+      # `git ls-files` でソースのハッシュを取り `.run-local-stamp` と突き合わせていたが、
+      # 上流の af56a9d 時点では run-local.ts が Vite+ (`vp run --cache`) に委ねている。
+      # よって「.run-local-stamp を消す」という以前の逃げ道はもう無い。
       VITE_CF_ACCESS_MODE = "true";
     };
 
@@ -308,33 +316,71 @@ in
       # wrangler は設定ファイルと同じディレクトリの .dev.vars を自分で読む。この性質を使えば
       # 上流リポジトリを patch せずに値を届けられる (.dev.vars は gitignore 済みなので
       # checkout の差分もゼロのまま保てる)。
-      ExecStartPre = pkgs.writeShellScript "cloudflare-os-generate-dev-vars" ''
-        set -eu
-        root=${cloudflareOsDir}
-        base=https://os.097969.xyz
+      ExecStartPre = [
+        # (1) 作業コピーを flake.lock が指す rev へ合わせる。
+        #
+        # **これが「版の宣言管理」の実体**。以前は誰も版を固定しておらず、mini-vm の
+        # 作業コピーの HEAD がたまたまの版だった。実際 2026-09-01 に upstream から
+        # 106 コミット (3 週間) 遅れているのを偶然見つけている。遅れそのものより
+        # 「気づけない」ことが問題で、pin すれば上流は自分が更新したときにしか動かない。
+        #
+        # 更新の手順は codex (llm-agents) と同じレーンに乗る:
+        #   dotfiles で `nix flake update cloudflare-os` → lock を commit/push
+        #   → mini-vm で `git pull && nix run .#switch`
+        # nix はソースをビルドしない (`flake = false`)。運ぶのは rev だけで、
+        # 実際に checkout するのはここ。
+        #
+        # **Why not derivation 化**: run-local.ts は実行時に `pnpm install` +
+        # Vite+ のビルドを回す (27 ワークスペース / node_modules 874MB)。これを Nix に
+        # 載せると上流が lockfile を触るたびに壊れるのに、得られるのは dev サーバの
+        # 起動の再現性という薄い利益しかない。動かしているのは wrangler dev であって
+        # 配布物ではないので、版だけ固定してビルドは実行時に任せるのが釣り合う。
+        #
+        # **`git clean` はしないこと**。node_modules (874MB) を毎起動時に取り直すことになる。
+        # .dev.vars は gitignore 済みなので `checkout --force` でも消えない。
+        (pkgs.writeShellScript "cloudflare-os-sync-rev" ''
+          set -eu
+          root=${cloudflareOsDir}
+          rev=${cloudflareOsRev}
+          cd "$root"
 
-        # ルート: run-dev-server.js が自前で読み、allowlist にある変数だけを worker へ渡す。
-        printf 'PUBLIC_BASE_URL=%s\n' "$base" > "$root/.dev.vars"
+          # 既に目的の rev なら fetch も要らない (再起動のたびにネットワークを叩かない)。
+          if [ "$(git rev-parse HEAD)" != "$rev" ]; then
+            git fetch --quiet origin
+            git checkout --quiet --force --detach "$rev"
+          fi
+        '')
 
-        # backend: Cloudflare Access 認証の有効化。この 2 つが揃って初めて有効になる。
-        # ここに置くのは、ルートの .dev.vars では run-dev-server.js の allowlist
-        # (OPTIONAL_FEATURE_VARS) に CF_ACCESS_* が無く worker まで届かないため。
-        {
-          printf 'CF_ACCESS_AUD=%s\n' "171feed26a9a959a47baea51a250993280867e6a264baca9328220dc93fbf419"
-          printf 'CF_ACCESS_ISS=%s\n' "https://gigun.cloudflareaccess.com"
-        } > "$root/packages/workshop-backend/.dev.vars"
+        # (2) 非秘密の設定を .dev.vars として生成する。
+        # rev を合わせた**後**に走らせること。gatekeeper パッケージの構成は rev で変わる。
+        (pkgs.writeShellScript "cloudflare-os-generate-dev-vars" ''
+          set -eu
+          root=${cloudflareOsDir}
+          base=https://os.097969.xyz
 
-        # gatekeeper: OAuth の redirect URI と接続 URL の組み立てに使う。
-        # 既定は http://localhost:8787/gatekeeper/<name> で、トンネルの後ろでは開けない。
-        for dir in "$root"/packages/gatekeeper-*/; do
-          [ -d "$dir" ] || continue
-          pkg=$(basename "$dir")
-          # パッケージ名 gatekeeper-slack → URL 上の短縮名 slack
-          # (router のパス走査もこの短縮名で行われる)
-          short=''${pkg#gatekeeper-}
-          printf 'BASE_URL=%s/gatekeeper/%s\n' "$base" "$short" > "$dir/.dev.vars"
-        done
-      '';
+          # ルート: run-dev-server.js が自前で読み、allowlist にある変数だけを worker へ渡す。
+          printf 'PUBLIC_BASE_URL=%s\n' "$base" > "$root/.dev.vars"
+
+          # backend: Cloudflare Access 認証の有効化。この 2 つが揃って初めて有効になる。
+          # ここに置くのは、ルートの .dev.vars では run-dev-server.js の allowlist
+          # (OPTIONAL_FEATURE_VARS) に CF_ACCESS_* が無く worker まで届かないため。
+          {
+            printf 'CF_ACCESS_AUD=%s\n' "171feed26a9a959a47baea51a250993280867e6a264baca9328220dc93fbf419"
+            printf 'CF_ACCESS_ISS=%s\n' "https://gigun.cloudflareaccess.com"
+          } > "$root/packages/workshop-backend/.dev.vars"
+
+          # gatekeeper: OAuth の redirect URI と接続 URL の組み立てに使う。
+          # 既定は http://localhost:8787/gatekeeper/<name> で、トンネルの後ろでは開けない。
+          for dir in "$root"/packages/gatekeeper-*/; do
+            [ -d "$dir" ] || continue
+            pkg=$(basename "$dir")
+            # パッケージ名 gatekeeper-slack → URL 上の短縮名 slack
+            # (router のパス走査もこの短縮名で行われる)
+            short=''${pkg#gatekeeper-}
+            printf 'BASE_URL=%s/gatekeeper/%s\n' "$base" "$short" > "$dir/.dev.vars"
+          done
+        '')
+      ];
 
       # --use-workers-ai-binding を付けると生成される worker 設定に
       # `ai: { binding: "WORKERS_AI" }` が入り、env.WORKERS_AI が生える。

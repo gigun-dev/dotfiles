@@ -67,6 +67,22 @@
       url = "github:ryoppippi/claude-code-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # Cloudflare OS。mini-vm が wrangler dev で常駐させている。
+    #
+    # **`flake = false` で、ここから運ぶのは rev だけ**。ビルドはしない。
+    # 実行形態が `pnpm run-local` (実行時に pnpm install + Vite+ ビルド、27 ワークスペース /
+    # node_modules 874MB) なので derivation 化は割に合わない。詳細は mini-vm.nix の
+    # ExecStartPre のコメント。
+    #
+    # 狙いは版の固定。以前は誰も版を決めておらず、mini-vm の作業コピーの HEAD が
+    # たまたまの版だった (2026-09-01 に 106 コミット遅れているのを偶然発見)。
+    # ここに置けば `nix flake update cloudflare-os` が更新の起点になり、
+    # codex (llm-agents) と同じ手順に揃う。
+    cloudflare-os = {
+      url = "github:cloudflare/cloudflare-os";
+      flake = false;
+    };
   };
 
   outputs =
@@ -314,6 +330,8 @@
             # 順序に system unit が依存してしまう上、版が固定されない。
             specialArgs = {
               llmAgents = llmAgentsFor "x86_64-linux";
+              # ソースではなく rev だけを渡す。ExecStartPre がこの rev へ checkout する。
+              cloudflareOsRev = inputs.cloudflare-os.rev;
             };
             modules = [
               inputs.nixos-lima.nixosModules.lima
