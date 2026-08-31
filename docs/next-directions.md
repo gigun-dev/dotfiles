@@ -103,6 +103,17 @@
       DF-12 の「到達性ではなく機能を見る」型の具体例でもある。
       → 完了条件: 再起動後に手を触れず、スマホの ChatGPT アプリから mini-vm が CLI として見え、実際にタスクが通ること
   > **2026-09-01 更新:** enrollment の保存先は判明した — ~/.codex/state_5.sqlite の remote_control_enrollments テーブル(文字列を grep して確認)。VM 内の通常ファイルなので再起動で消えない。残る未検証は (1) systemd が実際に起動するか (is-enabled は enabled)、(2) macOS ホスト再起動時に Lima VM 自体が上がるか(自動ログイン依存)。
+- [ ] `DF-34` cloudflare-os を宣言管理下に置き、あわせて fork を畳む
+      いまは ghq の imperative なチェックアウトを systemd が WorkingDirectory にしているだけで、
+      版は誰も固定していない。実際 2026-09-01 に 106 コミット (3 週間) 遅れているのを
+      たまたま気づいた。flake input として pin すれば更新は nix flake update + switch に
+      統合され、flake.lock が唯一の真実という既存の原則に乗り、generation でロールバックも効く。
+      難所: 実行形態が pnpm run-local (install とビルドを実行時にやる) なので、
+      素直に derivation にはならない。pin だけして checkout は残す折衷もありうる。
+      fork (gigun-dev/cloudflare-os) は独自コミット 0 本で実質何も担っていないため同時に畳む。
+      畳むと cloudflareOsDir と fork 運用のコメント (mini-vm.nix:14-25) が変わる。
+      自動更新まで踏み込むのはこれができてから (戻せないものを無人で上げない)。
+      → 完了条件: cloudflare-os の版が flake.lock か同等の宣言で固定され、更新が nix run .#update / switch の経路に乗ること
 <!-- session-head-end: ここから下は SessionStart フックが注入しないオンデマンド領域。着手する節をそのとき読む -->
 
 ## 完了記録(着手順から降ろしたもの)
