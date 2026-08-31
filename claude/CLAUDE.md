@@ -14,4 +14,5 @@
   リポジトリに `.claude/rules/comments.md` があればそちらが正。
 - **恒久情報は Claude メモリーではなくリポジトリ内ファイルへ**(git 管理・マシン非依存・
   他エージェント可視)。セッション引き継ぎは docs/next-directions.md 方式。
-  未導入リポジトリへの導入は `/harness:init`(gigun マーケットプレイスの harness プラグイン)。
+  未導入リポジトリへの導入は `/harness:doctor`(gigun マーケットプレイスの harness プラグイン)。
+  doctor は既定では診断のみ、導入・修復は承認を取ってから実行する。
