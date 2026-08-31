@@ -5,7 +5,7 @@
 > 詳細はマーカー以降へ。**計画は消さない。着手順を手で編集しない**(書き手は `nd-tasks.sh` だけ)。
 > 完了は `--done`(証拠行が必須)、状況変化は `> **YYYY-MM-DD 更新:**` を積層し、嵩んだら棚卸し。
 
-## 現在地(2026-08-10)
+## 現在地(2026-09-01)
 
 - **エージェント基盤は mini-vm** (Mac Mini 上の Lima ゲスト / NixOS)。macOS 側は nix 管理を凍結し
   iPhone バックアップ・画面共有・Xcode 26.3 専用。`ssh gigun@mini-vm` (Tailscale SSH / `tag:server`)。
@@ -21,8 +21,15 @@
   `nix run .#tofu -- apply` で戻せる。**トンネル本体だけ管理外**(`tunnel_secret` が state に
   平文で入るため。詳細は完了記録の `DF-20`)。
 
-- **未検証の危険**: apple/container の再起動後の復帰。Apple Silicon 限定で mini では確認できず、
-  M4 Pro を再起動しないと分からない (apiserver は launchd 登録済み)。→ `DF-5`
+- **スマホから mini-vm の Codex を使える** (2026-09-01)。`codex-remote-control.service` が
+  chatgpt.com 側のリレーへ**アウトバウンドで**繋ぐだけなので受け口が無い。上流が案内する
+  `daemon bootstrap` は使っていない — standalone バイナリを落として毎時自己更新するため
+  flake.lock が真実でなくなる。`--listen unix://` を渡せば daemon 無しで
+  `codex remote-control pair` が通る、が鍵だった (`bd3f14b`)。
+
+- **未検証の危険**: (1) apple/container の再起動後の復帰。Apple Silicon 限定で mini では
+  確認できず、M4 Pro を再起動しないと分からない (apiserver は launchd 登録済み) → `DF-5`。
+  (2) mini-vm 再起動後に codex-remote-control が復帰しスマホから使えるか → `DF-33`。
 
 - **繰り返している失敗の形**: **検知器自身が壊れていると、壊れていることに気づけない**
   (切り詰め警告が切り詰めで消える / ssh 到達性で DNS 全滅を素通り)。「確認した」と書くときは
@@ -49,6 +56,7 @@
       公開網に出ていて守りは 40 文字の api_key 1 枚だけ。Access は張れない(OpenAI 互換 API に
       ブラウザログインを挟むとクライアントが使えなくなる)。
       → 完了条件: 認証失敗が続く送信元に制限がかかること
+  > **2026-09-01 更新:** スマホから Codex を叩く用途は codex-remote-control (リレー経由・受け口なし)へ移せる。ブリッジの公開が本当に要るのは Cloudflare OS から OpenAI 互換 API として叩く経路だけ、という切り分けになった。
 - [ ] `DF-12` 「到達性テスト」に機能確認を含める型を決める
       `DF-7` は ssh 到達性で合格としたが、その裏で DNS が全滅していた。最低限 DNS 解決と主要
       サービスの HTTP 応答まで見る形にしたい。スクリプト化するか手順として書くかは未定。
@@ -61,6 +69,7 @@
       codex は既存実装を借りて通ったが、Claude は Messages API と SSE の自作になり難度が段違い。
       opencode のサーバモードが互換エンドポイントを出せるなら、そちらが現実的。
       → 完了条件: 実装するか見送るかを、翻訳層の分量を見積もった上で決めること
+  > **2026-09-01 更新:** codex については決着した — 自作ブリッジは要らず、公式の codex app-server --remote-control が使える(mini-vm で常駐、スマホから CLI として接続確認済み / bd3f14b)。残る問いは Claude / opencode だけ。
 - [ ] `DF-2` SPEC.md の扱いを決める
       2026-04-10 以降未更新で Windows も Lima VM も無い。現行仕様と誤読されると事故る。
       案: (A) 凍結を明記 (推奨) / (B) CLAUDE.md へ一本化 / (C) 追従。
@@ -88,6 +97,11 @@
       → 完了条件: PR #95 の動向を見て、着手 / 見送り / 自前実装を判断する
 - [ ] `DF-32` CLAUDE.md の常時ロード量を予算内へ落とす (≒6352 tok / 予算 2000)
       → 完了条件: doctor の CLAUDE.md 肥大指摘が消えるか、超過を許容する理由が正典に書かれていること
+- [ ] `DF-33` mini-vm 再起動後に codex-remote-control が復帰し、スマホから繋がるか確認する
+      systemd unit なので上がるはずだが、実測は未。enrollment (ペアリング済みの状態) が
+      auth.json 以外のどこに載っているかも未確認で、消えると手で pair し直しになる。
+      DF-12 の「到達性ではなく機能を見る」型の具体例でもある。
+      → 完了条件: 再起動後に手を触れず、スマホの ChatGPT アプリから mini-vm が CLI として見え、実際にタスクが通ること
 <!-- session-head-end: ここから下は SessionStart フックが注入しないオンデマンド領域。着手する節をそのとき読む -->
 
 ## 完了記録(着手順から降ろしたもの)
