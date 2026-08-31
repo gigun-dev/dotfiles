@@ -31,6 +31,12 @@ in
   # KEY=VALUE 形式で、cloudflare-os サービスの EnvironmentFile として渡す。
   "cloudflare-os-env.age".publicKeys = all;
 
+  # GitHub gatekeeper の OAuth App 資格情報。KEY=VALUE 形式で CLIENT_ID / CLIENT_SECRET。
+  # 起動時に packages/gatekeeper-github/.dev.vars へ追記される (mini-vm.nix の
+  # dev-vars 生成スクリプト)。他の gatekeeper を繋ぐときは
+  # gatekeeper-<short>-env.age という名前で同じ形を増やす。
+  "gatekeeper-github-env.age".publicKeys = all;
+
   # codex ブリッジの設定。api_key が入っているので全体を暗号化している。
   "codex-bridge-config.toml.age".publicKeys = all;
 

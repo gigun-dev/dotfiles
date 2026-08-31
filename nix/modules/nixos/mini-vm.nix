@@ -378,6 +378,37 @@ in
             # (router のパス走査もこの短縮名で行われる)
             short=''${pkg#gatekeeper-}
             printf 'BASE_URL=%s/gatekeeper/%s\n' "$base" "$short" > "$dir/.dev.vars"
+
+            # OAuth の client id / secret など、gatekeeper 固有の秘密を継ぎ足す。
+            #
+            # 秘密なので agenix 側から来る (age.secrets.gatekeeper-<short>-env)。ここが
+            # 追記 (>>) なのは、直前の BASE_URL を消さないため。
+            #
+            # **命名が規約になっている**: 短縮名 <short> の gatekeeper が秘密を要るなら
+            # /var/lib/cloudflare-os/gatekeeper-<short>.env に置けばよく、このスクリプトは
+            # 触らずに済む。新しい gatekeeper を繋ぐときの作業は
+            #   (1) 提供元で OAuth App を作る (ブラウザ必須。GitHub の場合 REST API に
+            #       OAuth App 作成の口が無く gh CLI でも作れない)
+            #   (2) `agenix -e secrets/gatekeeper-<short>-env.age` に KEY=VALUE で書く
+            #   (3) secrets.nix と下の age.secrets に 1 エントリ足す
+            # の 3 つだけになる。
+            #
+            # **Why not EnvironmentFile**: サービス全体の環境変数にすると、全 gatekeeper が
+            # 同じ CLIENT_ID / CLIENT_SECRET を見ることになる (変数名が gatekeeper 間で
+            # 共通のため、github の値を slack が拾う)。.dev.vars は wrangler が設定ファイルと
+            # 同じディレクトリのものだけを読むので、worker 単位に閉じ込められる。
+            secret="/var/lib/cloudflare-os/gatekeeper-$short.env"
+            # -r で見るのは、存在しても読めない (所有権ミス) 場合に静かに素通りさせないため —
+            # と言いたいところだが set -eu 下でも [ ] は失敗しても止まらないので、
+            # 読めなければ「未設定」として扱われ gatekeeper 側が Not Configured 画面を出す。
+            # 症状から遡れるように、ここでは黙らずログへ落としておく。
+            if [ -e "$secret" ]; then
+              if [ -r "$secret" ]; then
+                cat "$secret" >> "$dir/.dev.vars"
+              else
+                echo "warning: $secret exists but is not readable by $(id -un); $short will report Not Configured" >&2
+              fi
+            fi
           done
         '')
       ];
@@ -443,6 +474,22 @@ in
       path = "/var/lib/cloudflare-os/env";
       owner = "root";
       group = "root";
+      mode = "0400";
+    };
+
+    # GitHub gatekeeper の OAuth App 資格情報 (CLIENT_ID / CLIENT_SECRET)。
+    #
+    # owner が root ではなく username なのは、これを読むのが ExecStartPre の
+    # dev-vars 生成スクリプトで、そのスクリプトが serviceConfig.User = username で
+    # 走るため。root 0400 にすると読めず、gatekeeper は Not Configured 画面のまま
+    # 何も言わずに沈黙する (ExecStartPre が失敗するわけではないので気づきにくい)。
+    #
+    # ファイル名の -env は「KEY=VALUE 形式」の目印。cloudflare-os-env と同じ規約。
+    gatekeeper-github-env = {
+      file = ../../../secrets/gatekeeper-github-env.age;
+      path = "/var/lib/cloudflare-os/gatekeeper-github.env";
+      owner = username;
+      group = "users";
       mode = "0400";
     };
 
