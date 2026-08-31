@@ -496,8 +496,16 @@ in
 
     # uvx は実行時に PyPI から取ってくる。nixpkgs に無いツールなので uv 経由にしている
     # (CLAUDE.md の「~/.local/bin は例外レーン」と同じ発想で、宣言できないものを一箇所に隔離する)。
-    # TODO: バージョンを固定していないので上流の破壊的変更をそのまま踏む。
-    #       安定して使うと決めたら openai-api-server-via-codex==X.Y.Z に固定すること。
+    # バージョンは意図的に固定しない。こちらは fork も改造もしておらず、上流の最新を
+    # そのまま使いたい (軽量化や codex 側 API 追従の恩恵を取りこぼさない) ため。
+    # Why not 固定: ピン留めすると「上流が動いたら手で上げる」作業が発生し、
+    # 放置すると codex バックエンドの仕様変更に取り残されて逆に壊れる。
+    # 代償として破壊的変更は再起動時にそのまま踏む。実際 v0.2.0 で Python/FastAPI から
+    # Go 実装へ全面置換されたが、serve / --config / --host / --port / --auth-json と
+    # config.toml のキー ([server].api_key 等) は据え置きだったのでこの unit は無変更で通った
+    # (2026-09-01 に再起動して 0.2.0 で疎通確認済み)。
+    # 壊れたときの逃げ道: ExecStart の引数を
+    # `uvx openai-api-server-via-codex@X.Y.Z serve ...` にすれば即座に版を戻せる。
     path = with pkgs; [
       uv
       cacert # uv が PyPI へ HTTPS で取りに行くのに要る
