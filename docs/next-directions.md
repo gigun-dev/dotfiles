@@ -102,6 +102,7 @@
       auth.json 以外のどこに載っているかも未確認で、消えると手で pair し直しになる。
       DF-12 の「到達性ではなく機能を見る」型の具体例でもある。
       → 完了条件: 再起動後に手を触れず、スマホの ChatGPT アプリから mini-vm が CLI として見え、実際にタスクが通ること
+  > **2026-09-01 更新:** enrollment の保存先は判明した — ~/.codex/state_5.sqlite の remote_control_enrollments テーブル(文字列を grep して確認)。VM 内の通常ファイルなので再起動で消えない。残る未検証は (1) systemd が実際に起動するか (is-enabled は enabled)、(2) macOS ホスト再起動時に Lima VM 自体が上がるか(自動ログイン依存)。
 <!-- session-head-end: ここから下は SessionStart フックが注入しないオンデマンド領域。着手する節をそのとき読む -->
 
 ## 完了記録(着手順から降ろしたもの)
