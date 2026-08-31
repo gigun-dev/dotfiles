@@ -385,7 +385,7 @@ in
             # 追記 (>>) なのは、直前の BASE_URL を消さないため。
             #
             # **命名が規約になっている**: 短縮名 <short> の gatekeeper が秘密を要るなら
-            # /var/lib/cloudflare-os/gatekeeper-<short>.env に置けばよく、このスクリプトは
+            # age.secrets.gatekeeper-<short>-env を足せばよく、このスクリプトは
             # 触らずに済む。新しい gatekeeper を繋ぐときの作業は
             #   (1) 提供元で OAuth App を作る (ブラウザ必須。GitHub の場合 REST API に
             #       OAuth App 作成の口が無く gh CLI でも作れない)
@@ -397,7 +397,16 @@ in
             # 同じ CLIENT_ID / CLIENT_SECRET を見ることになる (変数名が gatekeeper 間で
             # 共通のため、github の値を slack が拾う)。.dev.vars は wrangler が設定ファイルと
             # 同じディレクトリのものだけを読むので、worker 単位に閉じ込められる。
-            secret="/var/lib/cloudflare-os/gatekeeper-$short.env"
+            # agenix の既定の置き場 (/run/agenix) をそのまま使う。
+            #
+            # 当初は他の秘密に合わせて /var/lib/cloudflare-os/gatekeeper-<short>.env へ
+            # path を切ったが、**そのディレクトリは agenix が root 0700 で作る**ため
+            # User=${username} で走るこのスクリプトから辿れず、秘密は届かないのに
+            # ExecStartPre は成功し、gatekeeper だけが Not Configured のまま黙る、
+            # という一番たちの悪い形になった (実測)。
+            # /run/agenix.d は root:keys 0751 で others に x があるので、パスを直接
+            # 指定すれば (listing はできなくても) 読める。
+            secret="/run/agenix/gatekeeper-$short-env"
             # -r で見るのは、存在しても読めない (所有権ミス) 場合に静かに素通りさせないため —
             # と言いたいところだが set -eu 下でも [ ] は失敗しても止まらないので、
             # 読めなければ「未設定」として扱われ gatekeeper 側が Not Configured 画面を出す。
@@ -485,9 +494,12 @@ in
     # 何も言わずに沈黙する (ExecStartPre が失敗するわけではないので気づきにくい)。
     #
     # ファイル名の -env は「KEY=VALUE 形式」の目印。cloudflare-os-env と同じ規約。
+    #
+    # path を指定していないのは既定 (/run/agenix/<name>) で足りるから。他の秘密に
+    # 合わせて /var/lib/cloudflare-os/ へ置こうとすると、agenix がそのディレクトリを
+    # root 0700 で作るせいで username から読めなくなる (上の生成スクリプト参照)。
     gatekeeper-github-env = {
       file = ../../../secrets/gatekeeper-github-env.age;
-      path = "/var/lib/cloudflare-os/gatekeeper-github.env";
       owner = username;
       group = "users";
       mode = "0400";
