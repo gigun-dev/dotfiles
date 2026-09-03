@@ -36,6 +36,16 @@ export LC_ALL="${LC_ALL:-en_US.UTF-8}"
 # Bun global bin
 export PATH="${XDG_CACHE_HOME}/.bun/bin:$PATH"
 
+# Takumi Guard (GMO Flatt Security の PyPI レジストリプロキシ、匿名モード) を uv/pip に効かせる。
+# npm 側は ~/.npmrc (npm/npmrc を symlink) で対応済み。PyPI には .npmrc に相当する設定ファイルが
+# 無いため、uv/pip はここで環境変数から向ける。匿名モード採用の理由・外し方は npm/npmrc のコメント
+# 参照 (トークン付き監査ログより秘密ゼロでの宣言管理を優先)。
+# UV_INDEX_URL は uv 0.12 で deprecated (現行は UV_DEFAULT_INDEX)。両方置くのは、
+# 新しい uv には UV_DEFAULT_INDEX が効き、古い uv が残る環境では UV_INDEX_URL が効くため。
+export UV_DEFAULT_INDEX=https://pypi.flatt.tech/simple/
+export UV_INDEX_URL=https://pypi.flatt.tech/simple/
+export PIP_INDEX_URL=https://pypi.flatt.tech/simple/
+
 # ~/.local/bin — nix/brew で管理できない例外ツール用（末尾=低優先度）
 export PATH="$PATH:$HOME/.local/bin"
 

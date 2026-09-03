@@ -1,0 +1,25 @@
+# ~/.npmrc として symlink される (nix/modules/home/dotfiles.nix / bootstrap.sh / Windows DSC の
+# 3 経路)。npm install 全般を Takumi Guard (GMO Flatt Security) 経由にする。
+#
+# Takumi Guard は npm レジストリのプロキシで、既知の悪性パッケージ (typosquatting・
+# supply chain 攻撃で報告済みのもの) を 403 で弾いてから npmjs 本家へフォワードする。
+# https://npm.flatt.tech/left-pad のような正規パッケージは 200 で通り、
+# https://npm.flatt.tech/@panda-guard/test-malicious のようなテスト用悪性パッケージは 403 になる
+# (実測済み)。
+#
+# なぜ匿名モード(トークン無し)か:
+# Takumi Guard はトークンを付けると監査ログ・ダッシュボードが有効になるが、そのトークンを
+# git 管理下の dotfiles に平文で置くわけにはいかない。agenix (mini-vm) や Keychain (Mac) で
+# 秘密を配る仕組みを新設する手もあるが、匿名モードでも registry URL を向けるだけで
+# ブロック自体は機能する (実測: 悪性テストパッケージは匿名でも 403)。監査ログを諦める代わりに
+# 秘密ゼロで宣言管理が完結する方を優先した。監査ログが要る場面が出たらトークン化を再検討する。
+#
+# プライベートパッケージを使う場合: 該当 scope だけ本家 npmjs に逃がせる。
+#   @yourscope:registry=https://registry.npmjs.org/
+# (Takumi Guard は公開パッケージのプロキシなのでプライベート scope は素通りしない)
+#
+# 外し方: この registry 行を削除するだけでよい。lockfile 側の修正は不要
+# (npm は resolved URL が変わっても再インストール時に registry 設定から解決し直す)。
+#
+# 動作確認: `npm install @panda-guard/test-malicious` が 403 で失敗すること。
+registry=https://npm.flatt.tech/

@@ -752,6 +752,10 @@ properties:
               Wezterm   = (Get-Item "$env:USERPROFILE\.wezterm.lua" -Force -ErrorAction SilentlyContinue).LinkType
               Kanata    = (Get-Item "$env:USERPROFILE\.config\kanata\kanata.kbd" -Force -ErrorAction SilentlyContinue).LinkType
               Gitconfig = (Get-Item "$env:USERPROFILE\.gitconfig" -Force -ErrorAction SilentlyContinue).LinkType
+              # Takumi Guard (GMO Flatt Security の npm/PyPI レジストリプロキシ、匿名モード)。
+              # 理由・外し方は npm/npmrc のコメント参照
+              Npmrc     = (Get-Item "$env:USERPROFILE\.npmrc" -Force -ErrorAction SilentlyContinue).LinkType
+              Bunfig    = (Get-Item "$env:USERPROFILE\.bunfig.toml" -Force -ErrorAction SilentlyContinue).LinkType
             }
           }
         TestScript: |
@@ -762,6 +766,8 @@ properties:
             "$env:USERPROFILE\.config\kanata\kanata.kbd"       = "$dotfiles\windows\kanata\kanata.kbd"
             "$env:USERPROFILE\.gitconfig"                      = "$dotfiles\git\gitconfig"
             "$env:APPDATA\Zed\keymap.json"                     = "$dotfiles\zed\keymap.json"
+            "$env:USERPROFILE\.npmrc"                          = "$dotfiles\npm\npmrc"
+            "$env:USERPROFILE\.bunfig.toml"                    = "$dotfiles\bun\bunfig.toml"
           }
           foreach ($link in $checks.Keys) {
             $item = Get-Item $link -Force -ErrorAction SilentlyContinue
@@ -776,6 +782,8 @@ properties:
             "$env:USERPROFILE\.config\kanata\kanata.kbd" = "$dotfiles\windows\kanata\kanata.kbd"
             "$env:USERPROFILE\.gitconfig"                = "$dotfiles\git\gitconfig"
             "$env:APPDATA\Zed\keymap.json"               = "$dotfiles\zed\keymap.json"
+            "$env:USERPROFILE\.npmrc"                    = "$dotfiles\npm\npmrc"
+            "$env:USERPROFILE\.bunfig.toml"              = "$dotfiles\bun\bunfig.toml"
           }
           foreach ($link in $map.Keys) {
             $parent = Split-Path -Parent $link
