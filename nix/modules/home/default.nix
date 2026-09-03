@@ -14,6 +14,7 @@
     ./dotfiles.nix
     ./programs/zsh
     ./programs/git
+    ./programs/ssh
   ];
 
   programs.home-manager.enable = true;

@@ -56,6 +56,19 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Secure Enclave の中に SSH 鍵を作り、それを Git のコミット署名鍵として使う。
+    # 秘密鍵はチップから一切出ない (~/.ssh/id_enclave_key はスタブで、実体は
+    # Secure Enclave 内)。upstream の `systems` が aarch64-darwin のみなので
+    # 事実上 M4 Pro 専用。Intel Mac / Linux (mini-vm, WSL) には homeManagerModules
+    # を足さない (flake.nix の mkDarwinSystem 参照)。
+    # follows を付けてよい理由: llm-agents / cclens と違いこちらは中身が Nushell
+    # スクリプト (package.nix 参照) でビルドが軽く、専用キャッシュに当たるかを
+    # 気にする必要が無い。follows してもソースビルドのコストが無視できる。
+    nix-secure-enclave-key = {
+      url = "github:ryoppippi/nix-secure-enclave-key";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     llm-agents.url = "github:numtide/llm-agents.nix";
 
     # cclens (Claude Code の使用状況診断ツール, Rust)。llm-agents と同じ理由で
@@ -277,9 +290,29 @@
             # キャッシュヒットでビルドが走らず、ハングも起きない。
           ];
 
-          # 両アーキテクチャで同一モジュールを共有
+          # 両アーキテクチャで同一モジュールを共有。
+          #
+          # 第 2 引数は**役割**。アーキテクチャとは別の軸として明示的に渡す。
+          #   alwaysOn: 24/365 で置きっぱなしにする拠点か (現状は Mac Mini だけ)。
+          #             人が前に座っていないので、落ちても誰も気づかない。だから
+          #             証拠を残す番人 (network-watchdog) を入れる対象になる。
+          #
+          # ⚠️ いま「x86_64-darwin = mini = alwaysOn」が 1:1 なのは**偶然**。mini が
+          # Intel なのは買った時期の話で、常時起動であることとは何の関係も無い。
+          # だから番人の有無を `system == "x86_64-darwin"` では分岐させない
+          # (そう書くと mini を Apple Silicon に置き換えた日に、誰にも気づかれずに
+          # 番人が消える)。機械を入れ替えるときは、arch ではなくこの alwaysOn を
+          # 新しいホストへ付け替えること。
+          #
+          # Why not ホスト名で分岐: darwinConfigurations のキーは
+          # `${username}-${system}` で、nix run .#switch がこの形で自動選択している
+          # (下のコメント参照)。キーにホスト名を入れると switch が壊れるため、
+          # キーの形は変えずに、生成側の引数で役割を渡す形にした。
           mkDarwinSystem =
             system:
+            {
+              alwaysOn ? false,
+            }:
             inputs.nix-darwin.lib.darwinSystem {
               inherit system;
               modules = [
@@ -289,6 +322,16 @@
                 ./nix/modules/darwin/system.nix
                 ./nix/modules/darwin/homebrew.nix
                 ./nix/modules/darwin/apple-container.nix
+              ]
+              # 常時起動ホストにだけ入れる番人。2026-09-03 に mini が 7 時間
+              # 外部と通信できなくなり (詳細は network-watchdog.sh の冒頭)、
+              # 何が起きたかを示す記録が 1 行も残っていなかったことへの答え。
+              # MacBook には入れない: 蓋を閉じれば落ちるのが当たり前の機械で
+              # 「届かない」を記録しても、証拠にもノイズ源にしかならない。
+              ++ inputs.nixpkgs.lib.optionals alwaysOn [
+                ./nix/modules/darwin/network-watchdog.nix
+              ]
+              ++ [
                 inputs.home-manager.darwinModules.home-manager
                 {
                   home-manager = {
@@ -300,7 +343,20 @@
                       cclens = cclensFor system;
                     };
                     users.${username} = {
-                      imports = [ ./nix/modules/home ];
+                      # nix-secure-enclave-key の upstream `systems` は aarch64-darwin
+                      # のみ (packages.default が aarch64-darwin でしかビルドされない)。
+                      # x86_64-darwin (Intel Mac Mini) で homeManagerModules.default を
+                      # 無条件 import すると `self.packages.${pkgs.system}.default` の
+                      # 評価自体が存在しない attr で落ちる。optionals で system 分岐して
+                      # Intel Mac ではこの import 自体を評価させない (`nix eval` すら
+                      # 通らないので mkIf では防げない — import するかどうかのレベルで切る)。
+                      imports = [
+                        ./nix/modules/home
+                      ]
+                      ++ inputs.nixpkgs.lib.optionals (system == "aarch64-darwin") [
+                        inputs.nix-secure-enclave-key.homeManagerModules.default
+                        ./nix/modules/darwin/secure-enclave-key.nix
+                      ];
                       nixpkgs.overlays = overlays;
                     };
                   };
@@ -311,9 +367,12 @@
         {
           # system 別の darwinConfiguration を生成
           # nix run .#switch が perSystem の system で自動選択
+          # ⭐️ キーの形 (`${username}-${system}`) は変えないこと。役割は第 2 引数で渡す。
           darwinConfigurations = {
-            "${username}-aarch64-darwin" = mkDarwinSystem "aarch64-darwin";
-            "${username}-x86_64-darwin" = mkDarwinSystem "x86_64-darwin";
+            # MacBook Pro (M4 Pro)。手元機なので alwaysOn ではない。
+            "${username}-aarch64-darwin" = mkDarwinSystem "aarch64-darwin" { };
+            # Mac Mini (Intel)。Lima ゲスト (mini-vm) を載せた 24/365 の拠点。
+            "${username}-x86_64-darwin" = mkDarwinSystem "x86_64-darwin" { alwaysOn = true; };
           };
 
           # Mac Mini (Intel) 上の Lima ゲスト。

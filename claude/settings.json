@@ -212,6 +212,12 @@
         "source": "github",
         "repo": "lambdalisue/cclens"
       }
+    },
+    "gvzdv-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "gvzdv/claudish-to-english"
+      }
     }
   },
   "language": "Japanese",
@@ -263,6 +269,5 @@
       "routine under gigun-dev/ prefix qualifiers: none configured beyond the trusted repo itself"
     ]
   },
-  "voiceEnabled": true,
-  "model": "claude-fable-5[1m]"
+  "voiceEnabled": true
 }

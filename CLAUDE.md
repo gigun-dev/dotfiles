@@ -34,6 +34,11 @@ nixpkgs 26.11 が x86_64-darwin を drop したため。26.05 固定での延命
 
 macOS 側は generation 26 で凍結。設定変更は手で当てる。Xcode 26.3 + iOS 26.2 SDK は動くので iOS ビルドには使える（26.4 以降は Tahoe 必須なのでここが上限）。
 
+**手で当てたものの現在地**（凍結ホストに在るものはこの一覧から辿る。増やしたらここに足す）:
+
+- **Lima / Tailscale** — brew で手で導入（tailscale は brews に宣言あり・lima は無し [検査: nix/modules/darwin/homebrew.nix]。宣言は M チップ化した日に効く予約で、凍結中の mini には届かない。手順は「Mac Mini / Lima VM 規約」節）
+- **network-watchdog（番人）** — `./bootstrap.sh --net-watchdog` で user agent として導入（`~/Library/LaunchAgents/dev.gigun.net-watchdog.plist`、ログ `~/Library/Logs/net-watchdog/`）。nix 側 `network-watchdog.nix`（system daemon / `/var/log/net-watchdog`）とは意図的な二本立て — nix 側は M チップ化した日に `alwaysOn` でそのまま効くので消さない。user agent の弱点は **OS 起動〜自動ログインの数十秒だけ**（[実測 2026-09-04 mini を `sudo shutdown -r now` で再起動] 自動ログインが効き（autoLoginUser=gigun / FileVault Off）、`launchctl` を叩き直さずに `RunAtLoad` で番人が起動、`StartInterval` も 30 秒間隔で正常に回復した。ネットワーク復帰 23 秒 / ssh はその 3 秒後）。⚠️ この窓を消したいならを消すには sudo 1 回: `sudo bash nix/modules/darwin/net-watchdog-system-install.sh`（ログは `/var/log/net-watchdog` へ移る。旧ログは残置）
+
 ## ディレクトリ構造
 
 ```

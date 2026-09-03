@@ -1,0 +1,8 @@
+# ~/.bunfig.toml として symlink される (npm/npmrc と同じ 3 経路)。
+# ccstatusline 等を `bunx` で都度実行しているため、bun 自身のパッケージ取得も
+# Takumi Guard (GMO Flatt Security の npm レジストリプロキシ) 経由にする。
+#
+# 匿名モード採用の理由・外し方・動作確認は npm/npmrc のコメントを参照
+# (bun は npm レジストリプロトコル互換なので挙動・注意点は同一)。
+[install]
+registry = "https://npm.flatt.tech/"
