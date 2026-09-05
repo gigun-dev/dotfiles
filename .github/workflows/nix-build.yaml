@@ -56,8 +56,15 @@ jobs:
         with:
           github_access_token: ${{ github.token }}
 
+      # `--no-build` を付けないこと。ESP-IDF の devShell は
+      # `builtins.readFile "${src}/tools/tools.json"` でソースを読む (IFD) ため、
+      # 評価に fetch が要る。`--no-build` だとそれが禁じられ
+      # `error: path '...-source.drv' is not valid` で必ず落ちる。
+      # 2026-09-05 に esp-idf の devShell が入って以降、CI はずっとこれで赤だった
+      # (nix を触らない PR では paths-filter に弾かれて job 自体が走らず、
+      #  赤いことに気づけなかった)。
       - name: Nix flake check
-        run: nix flake check --no-build
+        run: nix flake check
 
       - name: Nix fmt check
         run: nix fmt -- --ci .
