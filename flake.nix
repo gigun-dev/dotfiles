@@ -96,6 +96,11 @@
       url = "github:cloudflare/cloudflare-os";
       flake = false;
     };
+
+    # ESP-IDF と OS 別の公式 toolchain を hash 固定する上流実装。
+    # nixpkgs は follows しない: 上流の Python 3.13 依存セットと
+    # Intel Mac 対応を保つ。dotfiles の基盤パッケージへ overlay は適用しない。
+    esp-dev.url = "github:mirrexagon/nixpkgs-esp-dev";
   };
 
   outputs =
@@ -105,6 +110,7 @@
         "aarch64-darwin"
         "x86_64-darwin"
         "x86_64-linux"
+        "aarch64-linux"
       ];
 
       imports = [
@@ -145,6 +151,13 @@
 
           devShells.default = pkgs.mkShell {
             inputsFrom = [ config.pre-commit.devShell ];
+          };
+
+          # 全ホスト共通の opt-in 開発環境。switch 時の SDK 自動導入や
+          # プロジェクト名に依存するグローバル環境変数は不要。
+          devShells.esp-idf = import ./nix/devshells/esp-idf.nix {
+            inherit system;
+            espDev = inputs.esp-dev;
           };
 
           # Apps — perSystem の system で正しい構成を選択
