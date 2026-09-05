@@ -763,6 +763,23 @@ in
     };
   };
 
+  # root が gigun 所有の dotfiles を flake として読めるようにする。
+  #
+  # 2026-09-06 に実機で判明。自動更新は nixos-rebuild を root で走らせるが、
+  # **nix 自身 (libgit2) が所有者を検証して弾く**:
+  #   repository path '...' is not owned by current user (libgit2 error code = 7)
+  # git の safe.directory 保護と同じ仕組みが nix 側にもある。git コマンドの方は
+  # sudo -u gigun で回避したが、nixos-rebuild は root でしか動かせないので
+  # ここで許可するしかない。
+  #
+  # 却下案: --flake path:... で git を介さずディレクトリごとコピーさせる →
+  # 通るが「nix は git index から評価する」という前提が崩れ、手動 switch
+  # (CLAUDE.md の `git add` 必須ルール) と挙動が食い違う。
+  programs.git = {
+    enable = true;
+    config.safe.directory = dotfilesDir;
+  };
+
   # dotfiles を毎日取り込んで switch する。**この機械は無人運用**で、手で
   # `git pull && nix run .#switch` を打つ機会が無いと、push 済みの変更が
   # 何週間も届かないまま気づけない (cloudflare-os で実際に 106 コミット遅れた)。
