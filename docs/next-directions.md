@@ -7,6 +7,8 @@
 
 ## 現在地(2026-09-01)
 
+> **2026-09-05 更新:** ESP-IDF 5.5.1/Xtensa を `nix develop .#esp-idf` で使う共通開発shellを追加。SDK・OS別toolchain・Python依存はNixとlockで固定。手順と検証範囲は `docs/esp-idf.md`。OS全体のswitchは不要。
+
 - **エージェント基盤は mini-vm** (Mac Mini 上の Lima ゲスト / NixOS)。macOS 側は nix 管理を凍結し
   iPhone バックアップ・画面共有・Xcode 26.3 専用。`ssh gigun@mini-vm` (Tailscale SSH / `tag:server`)。
   インスタンス名・tailnet 名・hostname はすべて `mini-vm`(`mini` は macOS 側を指す)。
