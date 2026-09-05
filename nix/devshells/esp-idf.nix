@@ -36,7 +36,7 @@ pkgs.mkShell {
   # lock を更新せず、端末固有 cache 内へ同期する（初回のみ download）。
   shellHook = ''
     unset PYTHONPATH
-    ${pkgs.lib.optionalString pkgs.stdenv.isLinux ''
+    ${pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isLinux ''
       # PyPI manylinux wheel が参照する標準 C++/zlib を NixOS でも見つける。
       export LD_LIBRARY_PATH="${
         pkgs.lib.makeLibraryPath [

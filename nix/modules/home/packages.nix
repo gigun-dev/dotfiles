@@ -61,7 +61,7 @@
       pgcli
       litecli
     ]
-    ++ lib.optionals pkgs.stdenv.isDarwin [
+    ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
       # iOS / Swift 開発 — darwin 限定
       cocoapods
       xcodegen # project.yml から .xcodeproj 生成
@@ -69,7 +69,7 @@
       swiftlint # Swift リンタ
       idb-companion # iOS Simulator 自動操作の gRPC companion。CLI 側 fb-idb は nixpkgs に無く uv 管理 (uv tool install fb-idb)
     ]
-    ++ lib.optionals (!(pkgs.stdenv.isDarwin && pkgs.stdenv.isx86_64)) [
+    ++ lib.optionals (!(pkgs.stdenv.hostPlatform.isDarwin && pkgs.stdenv.hostPlatform.isx86_64)) [
       llmAgents.codex # Intel Mac のみ brew cask (Rust build 回避)、それ以外は nix
       # agy (Google Antigravity CLI)。公式バイナリを $out/bin/agy に置くだけでソースビルド無し。
       # 同じ条件だが理由は別: llm-agents が x86_64-darwin を未収録のため Intel Mac Mini では入らない
