@@ -206,7 +206,8 @@ let
       "mini-vm がこの lock で nixosConfigurations.mini-vm と homeConfigurations.gigun-x86_64-linux のビルドを確認済み。" \
       "$(cat "$log")")
 
-    if [ -n "$(gh pr list --head "$branch" --state open --json number --jq '.[0].number')" ]; then
+    # `.[0].number` ではなく `.[].number`。前者は PR が無いとき空ではなく "null" を出す。
+    if [ -n "$(gh pr list --head "$branch" --state open --json number --jq '.[].number')" ]; then
       gh pr edit "$branch" --body "$body"
     else
       gh pr create --base main --head "$branch" \
