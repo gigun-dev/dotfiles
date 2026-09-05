@@ -96,6 +96,129 @@ let
 
     exit "$fail"
   '';
+
+  # unit の失敗を Bark (iOS プッシュ) へ届ける。$1 = journal を読む unit、$2 = 通知タイトル。
+  # 呼び出し側は `EnvironmentFile = "-/run/agenix/bark-env"` で BARK_* を渡すこと。
+  #
+  # 括り出してあるのは、暗号化の手順を unit ごとに写すと Bark アプリ側の復号設定
+  # (鍵と IV は 1 組しか持てない) と食い違ったときの直す場所が増えるため。形式
+  # (AES-256-CBC、ciphertext と iv を form で POST) は macOS 側の
+  # claude/hooks/bark-notify.sh と必ず揃えること。
+  #
+  # 依存は store パスで直接呼ぶ。呼び出し側 unit に `path` を書かせると、それも
+  # 写しの対象になる。
+  barkNotifyUnitFailure = pkgs.writeShellScript "bark-notify-unit-failure" ''
+    set -u
+    unit=$1
+    title=$2
+
+    # 秘密が無い機械では黙って終わる (失敗自体は journal に残る)。
+    [ -n "''${BARK_DEVICE_KEY:-}" ] || exit 0
+    [ -n "''${BARK_ENCRYPT_KEY:-}" ] || exit 0
+    [ -n "''${BARK_ENCRYPT_IV:-}" ] || exit 0
+
+    export SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
+
+    # 本文は journal の末尾。Bark の本文長に収まるよう切る。
+    body=$(${config.systemd.package}/bin/journalctl -u "$unit" -n 30 --no-pager -o cat 2>/dev/null \
+      | ${pkgs.coreutils}/bin/tail -c 900)
+    [ -n "$body" ] || body="(journal を取得できなかった)"
+
+    payload=$(${pkgs.jq}/bin/jq -n \
+      --arg title "$title" \
+      --arg body "$body" \
+      --arg group "mini-vm" \
+      --arg level "timeSensitive" \
+      '{title: $title, body: $body, group: $group, level: $level}')
+
+    key_hex=$(printf '%s' "$BARK_ENCRYPT_KEY" | ${pkgs.coreutils}/bin/od -An -tx1 | tr -d ' \n')
+    iv_hex=$(printf '%s' "$BARK_ENCRYPT_IV" | ${pkgs.coreutils}/bin/od -An -tx1 | tr -d ' \n')
+
+    ciphertext=$(printf '%s' "$payload" \
+      | ${pkgs.openssl}/bin/openssl enc -aes-256-cbc -K "$key_hex" -iv "$iv_hex" -base64 -A)
+
+    ${pkgs.curl}/bin/curl -sS -m 30 --retry 3 \
+      --data-urlencode "ciphertext=$ciphertext" \
+      --data-urlencode "iv=$BARK_ENCRYPT_IV" \
+      "https://api.day.app/$BARK_DEVICE_KEY" > /dev/null
+  '';
+
+  # flake.lock の更新を「提案」する本体。$1 がレーン名で、更新する input が変わる。
+  # 呼ぶのは dotfiles-lock-propose@<lane>.service (下の unit にレーンの設計を書いてある)。
+  dotfilesLockPropose = pkgs.writeShellScript "dotfiles-lock-propose" ''
+    set -eu
+    set -o pipefail
+
+    lane=$1
+    case "$lane" in
+      # AI ツール。上流が速く動くので日次で追う (codex を早く受け取るのがこの仕組みの動機)。
+      fast) targets="llm-agents claude-code-overlay cclens" ;;
+      # 引数を渡さない `nix flake update` は全 input が対象。
+      slow) targets="" ;;
+      *)
+        echo "未知のレーン: $lane" >&2
+        exit 1
+        ;;
+    esac
+
+    # systemd が StateDirectory で用意する。手で叩くときのために既定値も持たせる。
+    state=''${STATE_DIRECTORY:-/var/lib/dotfiles-lock-trial}
+    trial="$state/$lane"
+    log="$state/$lane.log"
+    branch="auto/lock-$lane"
+
+    # **dotfilesDir の作業コピーには触らない**。ここで `nix flake update` すると
+    # dotfiles-autoswitch の dirty ガードと `git pull --ff-only` の両方を踏み、毎朝の
+    # 自動更新が恒久停止する。使い捨ての worktree に隔離するのはそのため
+    # (worktree の作成は .git 配下にしか書かないので、作業コピーは clean のまま)。
+    cd ${dotfilesDir}
+    git fetch --quiet origin
+
+    rm -rf "$trial"
+    git worktree prune # VM が落ちて trap を逃した前回分の登録を消す
+    git worktree add --quiet --detach "$trial" origin/main
+    trap 'cd ${dotfilesDir}; git worktree remove --force "$trial" > /dev/null 2>&1 || rm -rf "$trial"' EXIT
+
+    cd "$trial"
+    # shellcheck disable=SC2086  # 空なら「全 input」の意味なので、あえて分割展開させる
+    nix flake update $targets 2>&1 | tee "$log"
+
+    if git diff --quiet -- flake.lock; then
+      echo "$lane: lock に差分なし"
+      exit 0
+    fi
+
+    # ビルドの**前**に commit する。dirty なまま build すると nix が見るのは作業ツリー
+    # だが、merge されるのは commit の中身。検証対象と提案物を同一にする。
+    git add flake.lock
+    git commit --quiet -m "chore(deps): flake.lock を更新 ($lane)" -m "$(cat "$log")"
+
+    # 本番と同じ機械・同じ構成で検証する。これがこの設計の主な利点で、GitHub Actions の
+    # ubuntu runner でのビルドに勝る点。
+    nix build --no-link '.#nixosConfigurations.mini-vm.config.system.build.toplevel'
+    nix build --no-link '.#homeConfigurations.gigun-x86_64-linux.activationPackage'
+
+    # 毎回 origin/main から作り直すので force で上書きする。PR が開いていれば
+    # この push だけで中身が入れ替わる (作り直さない)。
+    git push --quiet --force origin "HEAD:refs/heads/$branch"
+
+    body=$(printf '%s\n\n```\n%s\n```\n' \
+      "mini-vm がこの lock で nixosConfigurations.mini-vm と homeConfigurations.gigun-x86_64-linux のビルドを確認済み。" \
+      "$(cat "$log")")
+
+    if [ -n "$(gh pr list --head "$branch" --state open --json number --jq '.[0].number')" ]; then
+      gh pr edit "$branch" --body "$body"
+    else
+      gh pr create --base main --head "$branch" \
+        --title "chore(deps): flake.lock を更新 ($lane)" --body "$body"
+    fi
+
+    # CI (.github/workflows/nix-build.yaml) が green になったら GitHub が squash merge する。
+    # 有効化済みの PR に再度掛けると gh がエラーを返すので、状態を見てから叩く。
+    if [ "$(gh pr view "$branch" --json autoMergeRequest --jq '.autoMergeRequest // "off"')" = "off" ]; then
+      gh pr merge --auto --squash "$branch"
+    fi
+  '';
 in
 {
   # Mac Mini (Intel) 上の Lima VM。
