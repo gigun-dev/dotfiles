@@ -5,121 +5,105 @@
 > 詳細はマーカー以降へ。**計画は消さない。着手順を手で編集しない**(書き手は `nd-tasks.sh` だけ)。
 > 完了は `--done`(証拠行が必須)、状況変化は `> **YYYY-MM-DD 更新:**` を積層し、嵩んだら棚卸し。
 
-## 現在地(2026-09-01)
-
-> **2026-09-05 更新:** CoreS3へIDF 6.1 + Newlib版PoCを書き込み、約84秒/566件のAWDL受信を確認。既定PicolibcではUSBログ停止、PoCのsdkconfig.defaultsでNewlibを明示。SDKは6.1維持。dotfilesと非公開esp32-airdrop-pocをpush済み。AirDrop転送はまだ未実装。
-
-> **2026-09-05 更新:** ESP-IDFを公式stable 6.1へ更新。SDK/native tools/Python本体はNix、Pythonパッケージはuv.lockで管理しshell起動時に `uv sync --locked`。Apple SiliconでPoC clean build・公式Python条件・6テスト成功。Mac/Linux 4系はNix評価済み、他ホストの実ビルドは未実施。詳細 `docs/esp-idf.md`。
-
-> **2026-09-05 更新:** ESP-IDF 5.5.1/Xtensa を `nix develop .#esp-idf` で使う共通開発shellを追加。SDK・OS別toolchain・Python依存はNixとlockで固定。手順と検証範囲は `docs/esp-idf.md`。OS全体のswitchは不要。
+## 現在地(2026-09-06)
 
 - **エージェント基盤は mini-vm** (Mac Mini 上の Lima ゲスト / NixOS)。macOS 側は nix 管理を凍結し
   iPhone バックアップ・画面共有・Xcode 26.3 専用。`ssh gigun@mini-vm` (Tailscale SSH / `tag:server`)。
   インスタンス名・tailnet 名・hostname はすべて `mini-vm`(`mini` は macOS 側を指す)。
 
-- **Cloudflare OS が mini-vm に常駐し、公開境界は Cloudflare**。`https://os.097969.xyz`
-  (named tunnel + Access、Cloudflare アカウントでログイン)と `https://codex.097969.xyz`
-  (ローカル codex を OpenAI 互換 API として外へ。Access は張れず守りはブリッジの api_key のみ
-  → `DF-22`)。Tailscale は SSH 専用に戻した。
+- **mini-vm は毎日自動で更新される** (2026-09-06)。`dotfiles-autoswitch.timer` が 04:00 帯に
+  dirty ガード → `git pull --ff-only` → system + home switch → 健全性ゲート → 失敗なら rollback。
+  **自動化したのは適用だけで `nix flake update` はしない**(lock の更新は手元でレビューを通す)。
+  失敗は Bark で iPhone へ飛ぶ。**沈黙は検出できない**(timer 不発 / VM 停止 / 通知経路の死)
+  → `DF-35`。再起動は入れていない → `DF-33`。
 
-- **秘密とエッジ構成は宣言管理下**。秘密は agenix (`secrets/*.age`)、Cloudflare のリソースは
-  OpenTofu (`tofu/`、state は R2)。VM を作り直しても `nix run .#switch`、アカウントを作り直しても
-  `nix run .#tofu -- apply` で戻せる。**トンネル本体だけ管理外**(`tunnel_secret` が state に
-  平文で入るため。詳細は完了記録の `DF-20`)。
+- **Cloudflare OS が mini-vm に常駐し、公開境界は Cloudflare**。`https://os.097969.xyz`
+  (named tunnel + Access)と `https://codex.097969.xyz`(ローカル codex を OpenAI 互換 API として
+  外へ。Access は張れず守りはブリッジの api_key のみ → `DF-22`)。Tailscale は SSH 専用。
+
+- **秘密とエッジ構成は宣言管理下**。秘密は agenix (`secrets/*.age`)、Cloudflare は OpenTofu
+  (`tofu/`、state は R2)。VM を作り直しても `nix run .#switch`、アカウントを作り直しても
+  `nix run .#tofu -- apply` で戻せる。2026-09-06 に **state 暗号化 (PBKDF2 + AES-GCM)** を入れ、
+  トンネル本体を管理外にしていた理由(`tunnel_secret` が state に平文で載る)を解消した → `DF-36`。
+  agenix の受信者は 3 つで、**保管用鍵は iPhone の「パスワード」アプリ**にある。
 
 - **スマホから mini-vm の Codex を使える** (2026-09-01)。`codex-remote-control.service` が
-  chatgpt.com 側のリレーへ**アウトバウンドで**繋ぐだけなので受け口が無い。上流が案内する
-  `daemon bootstrap` は使っていない — standalone バイナリを落として毎時自己更新するため
-  flake.lock が真実でなくなる。`--listen unix://` を渡せば daemon 無しで
-  `codex remote-control pair` が通る、が鍵だった (`bd3f14b`)。
+  chatgpt.com 側のリレーへ**アウトバウンドで**繋ぐので受け口が無い。上流が案内する
+  `daemon bootstrap` は使わない(standalone を毎時自己更新し flake.lock が真実でなくなる)。
+  `--listen unix://` で daemon 無しに `pair` が通るのが鍵だった (`bd3f14b`)。
 
-- **未検証の危険**: (1) apple/container の再起動後の復帰。Apple Silicon 限定で mini では
-  確認できず、M4 Pro を再起動しないと分からない (apiserver は launchd 登録済み) → `DF-5`。
-  (2) mini-vm 再起動後に codex-remote-control が復帰しスマホから使えるか → `DF-33`。
+- **ESP-IDF は 6.1 を `nix develop .#esp-idf` で使う** (2026-09-05)。SDK / native tools /
+  Python 本体は Nix、Python パッケージは `uv.lock`(shell 起動時に `uv sync --locked`)。
+  CoreS3 で実機検証済み(AWDL 受信 566 件/84 秒。既定 Picolibc では USB ログが止まるので
+  PoC 側で Newlib を明示)。AirDrop 転送は未実装。他ホストの実ビルドは未実施。→ `docs/esp-idf.md`
+
+- **未検証の危険**: (1) apple/container の再起動後の復帰 → `DF-5`。(2) mini-vm 再起動後に
+  codex-remote-control が復帰しスマホから使えるか → `DF-33`。
 
 - **繰り返している失敗の形**: **検知器自身が壊れていると、壊れていることに気づけない**
-  (切り詰め警告が切り詰めで消える / ssh 到達性で DNS 全滅を素通り)。「確認した」と書くときは
-  確認手段が生きているかを別経路で疑う。→ `DF-12`・カタログ「正典の頭が…」節
+  (切り詰め警告が切り詰めで消える / ssh 到達性で DNS 全滅を素通り / 2026-09-06 も頭が
+  12,686B で無言に切り詰められていた)。「確認した」と書くときは確認手段が生きているかを
+  別経路で疑う。→ `DF-12`・カタログ「正典の頭が…」節
 
-- **裁定待ち**: SPEC.md の扱い、CLAUDE.md「ディレクトリ構造」節の圧縮、確定した決定 (ADR) の
-  置き場所。→ `DF-2` `DF-3` `DF-6`
+- **裁定待ち**: SPEC.md の扱い、CLAUDE.md「ディレクトリ構造」節の圧縮、ADR の置き場所。
+  → `DF-2` `DF-3` `DF-6`
 
 ## 着手順(次にやること)
 
-**順序の理由**: `DF-13` が主線(Cloudflare OS を使える状態にする)、`DF-24` `DF-22` はその周辺。
-`DF-12` は今日の教訓を型にする作業で、後回しだと同じ事故を繰り返す。以降は裁定待ちか随伴作業。
+**順序の理由**: 先頭 3 つは 2026-09-06 に入れた自動更新の**穴を塞ぐ作業**。無人機が自分で
+更新するようになった以上、`DF-33`(再起動して壊れないか)と `DF-35`(黙って止まったら気づくか)は
+放置すると事故になる。`DF-36` は前提が済んで残りが機械的。以降は Cloudflare OS の主線
+(`DF-13` `DF-24` `DF-22`)、その後は裁定待ちか随伴作業。
+**各項目の詳細**はカタログ「着手順から降ろした詳細」節。
 
+- [ ] `DF-33` mini-vm 再起動後に codex-remote-control が復帰し、スマホから繋がるか確認する
+      **自動更新の再起動を解禁する前提**(mini-vm.nix がこの ID を参照している)。詳細はカタログ。
+      → 完了条件: 再起動後に手を触れず、スマホの ChatGPT アプリから mini-vm が CLI として見え、実際にタスクが通ること
+- [ ] `DF-35` 自動更新の「沈黙」を検出する(dead-man's switch)
+      いまは失敗したら Bark が鳴るだけで、timer 不発 / VM 停止 / 通知経路の死は無音。
+      成功のたびに外部へ ping し、途絶を外部に鳴らさせる。置き場は `tofu/` の Worker(cron + KV)。
+      → 完了条件: 更新が 2 日以上途絶えたら iPhone に通知が来ること
+- [ ] `DF-36` Cloudflare トンネル本体を OpenTofu の管理下へ入れる
+      state 暗号化 (2026-09-06) で前提は済んだ。あとは import するだけ。
+      → 完了条件: `tofu plan` が No changes のままトンネルが state に入っていること
 - [ ] `DF-13` Cloudflare OS に AI プロバイダを繋いで実際に使う
-      codex 側は通っている(mini に常駐、モデル ID が `SUGGESTED_MODELS` と一致するので登録不要)。
-      残りは Workers AI 側で、**モデル選択が支配的** — 同じ無料枠で `qwen3-30b-a3b-fp8` は既定の
-      Kimi の 16 倍使える。単価表と経緯はカタログ「AI プロバイダ」節。
+      残りは Workers AI 側で**モデル選択が支配的**。単価表はカタログ「AI プロバイダ」節。
       → 完了条件: Cloudflare OS のチャットでモデルが応答し、Neurons 消費が実測できること
 - [ ] `DF-24` Langfuse を codex 経由の推論に挟む
-      Claude Code 側は導入済み (e6f0bd5)。**openai プロバイダだけ観測できる**(`apiUrl` を
-      差し替えて LiteLLM を挟む)。Workers AI は baseUrl 固定、AI Gateway は codex と排他。
+      Claude Code 側は導入済み (e6f0bd5)。openai プロバイダだけ観測できる。
       → 完了条件: codex 経由の推論が Langfuse のトレースに出ること
 - [ ] `DF-22` codex エンドポイントにレート制限を入れる
-      公開網に出ていて守りは 40 文字の api_key 1 枚だけ。Access は張れない(OpenAI 互換 API に
-      ブラウザログインを挟むとクライアントが使えなくなる)。
+      公開網に出ていて守りは api_key 1 枚だけ。Access は張れない(API クライアントが使えなくなる)。
       → 完了条件: 認証失敗が続く送信元に制限がかかること
-  > **2026-09-01 更新:** スマホから Codex を叩く用途は codex-remote-control (リレー経由・受け口なし)へ移せる。ブリッジの公開が本当に要るのは Cloudflare OS から OpenAI 互換 API として叩く経路だけ、という切り分けになった。
 - [ ] `DF-12` 「到達性テスト」に機能確認を含める型を決める
-      `DF-7` は ssh 到達性で合格としたが、その裏で DNS が全滅していた。最低限 DNS 解決と主要
-      サービスの HTTP 応答まで見る形にしたい。スクリプト化するか手順として書くかは未定。
+      mini-vm の健全性ゲート (2026-09-06) が最初の実装。これを型として書き出すかは未決。
       → 完了条件: 再起動検証の手順が「上がったか」ではなく「使えるか」を見る形になること
 - [ ] `DF-14` Kitesurf を chrome-devtools-mcp から使えるか試す
-      CDP を WebSocket で公開しており `--wsEndpoint` でそのまま刺さるはず。狙いは軽さと
-      「エージェントごとにブラウザ」。接続 URL と未対応の機能はカタログ「Kitesurf」節。
+      接続 URL と未対応の機能はカタログ「Kitesurf」節。
       → 完了条件: mini から Kitesurf 経由でページを取得・スクショできること
 - [ ] `DF-15` Claude / opencode のサブスク枠もブリッジできるか調べる
-      codex は既存実装を借りて通ったが、Claude は Messages API と SSE の自作になり難度が段違い。
-      opencode のサーバモードが互換エンドポイントを出せるなら、そちらが現実的。
+      codex は決着済み(公式の remote-control)。残る問いは Claude / opencode だけ。
       → 完了条件: 実装するか見送るかを、翻訳層の分量を見積もった上で決めること
-  > **2026-09-01 更新:** codex については決着した — 自作ブリッジは要らず、公式の codex app-server --remote-control が使える(mini-vm で常駐、スマホから CLI として接続確認済み / bd3f14b)。残る問いは Claude / opencode だけ。
 - [ ] `DF-2` SPEC.md の扱いを決める
-      2026-04-10 以降未更新で Windows も Lima VM も無い。現行仕様と誤読されると事故る。
-      案: (A) 凍結を明記 (推奨) / (B) CLAUDE.md へ一本化 / (C) 追従。
+      2026-04-10 以降未更新。案: (A) 凍結を明記 (推奨) / (B) CLAUDE.md へ一本化 / (C) 追従。
       → 完了条件: 3案のどれかを実施し、現行仕様と誤読されない状態にする
 - [ ] `DF-3` CLAUDE.md の「ディレクトリ構造」節を圧縮する
-      同語反復を削り、非自明な制約 (`permission は 755 必須`) だけ残す。
       → 完了条件: 39 行 → 15 行程度にし、doctor の「長い節」指摘が消えること
 - [ ] `DF-5` apple/container の再起動後の復帰を確認する
-      M4 Pro を再起動する機会に `container system status` を見るだけ。
       → 完了条件: 再起動後に手を触れず apiserver が running であること
 - [ ] `DF-6` 意思決定 (ADR) の置き場所について harness の結論を取り込む
-      確定した決定を残す場所が無い。配布元へ起票済み: gigun-dev/claude-code#3。
+      配布元へ起票済み: gigun-dev/claude-code#3。
       → 完了条件: #3 の裁定が出て、このリポジトリで ADR を使うか否かが決まること
-- [ ] `DF-29` マーカー以降の行数警告 (417行/閾値250) をどう畳むか決める
+- [ ] `DF-29` マーカー以降の行数警告をどう畳むか決める
       完了記録は追記専用で増える一方なのに、上限は頭を降ろす先と同じ領域にかかっている。
       → 完了条件: 毎セッション出る警告が消えるか、消せない理由が正典に書かれていること
 - [ ] `DF-30` cloudflare-os へ gatekeeper-mcp の固定 client_id 対応を起票する
-      動的クライアント登録 (RFC 7591) しか対応しておらず、事前登録必須の認可サーバー
-      (Slack MCP など) に 502 で繋がらない。下書き: `docs/drafts/gatekeeper-mcp-static-client-id.md`
-      (一度「今は投稿しない」で保留 — 再確認してから出すこと)。
+      下書き: `docs/drafts/gatekeeper-mcp-static-client-id.md`(一度保留。再確認してから出す)。
       → 完了条件: issue を投稿する(Slack MCP を再現手順に使う)
 - [ ] `DF-31` Slack 書き込み gatekeeper は upstream PR #95 待ち
-      PR #95 (approval-gated Google Drive/Sheets writes) が唯一の設計手本。2026-08-10 時点で
-      draft・conflicting・レビュー0件・CLA 未署名で停滞中。
       → 完了条件: PR #95 の動向を見て、着手 / 見送り / 自前実装を判断する
 - [ ] `DF-32` CLAUDE.md の常時ロード量を予算内へ落とす (≒6352 tok / 予算 2000)
       → 完了条件: doctor の CLAUDE.md 肥大指摘が消えるか、超過を許容する理由が正典に書かれていること
-- [ ] `DF-33` mini-vm 再起動後に codex-remote-control が復帰し、スマホから繋がるか確認する
-      systemd unit なので上がるはずだが、実測は未。enrollment (ペアリング済みの状態) が
-      auth.json 以外のどこに載っているかも未確認で、消えると手で pair し直しになる。
-      DF-12 の「到達性ではなく機能を見る」型の具体例でもある。
-      → 完了条件: 再起動後に手を触れず、スマホの ChatGPT アプリから mini-vm が CLI として見え、実際にタスクが通ること
-  > **2026-09-01 更新:** enrollment の保存先は判明した — ~/.codex/state_5.sqlite の remote_control_enrollments テーブル(文字列を grep して確認)。VM 内の通常ファイルなので再起動で消えない。残る未検証は (1) systemd が実際に起動するか (is-enabled は enabled)、(2) macOS ホスト再起動時に Lima VM 自体が上がるか(自動ログイン依存)。
-- [ ] `DF-34` cloudflare-os を宣言管理下に置き、あわせて fork を畳む
-      いまは ghq の imperative なチェックアウトを systemd が WorkingDirectory にしているだけで、
-      版は誰も固定していない。実際 2026-09-01 に 106 コミット (3 週間) 遅れているのを
-      たまたま気づいた。flake input として pin すれば更新は nix flake update + switch に
-      統合され、flake.lock が唯一の真実という既存の原則に乗り、generation でロールバックも効く。
-      難所: 実行形態が pnpm run-local (install とビルドを実行時にやる) なので、
-      素直に derivation にはならない。pin だけして checkout は残す折衷もありうる。
-      fork (gigun-dev/cloudflare-os) は独自コミット 0 本で実質何も担っていないため同時に畳む。
-      畳むと cloudflareOsDir と fork 運用のコメント (mini-vm.nix:14-25) が変わる。
-      自動更新まで踏み込むのはこれができてから (戻せないものを無人で上げない)。
-      → 完了条件: cloudflare-os の版が flake.lock か同等の宣言で固定され、更新が nix run .#update / switch の経路に乗ること
 <!-- session-head-end: ここから下は SessionStart フックが注入しないオンデマンド領域。着手する節をそのとき読む -->
 
 ## 完了記録(着手順から降ろしたもの)
@@ -380,8 +364,70 @@
   → 2026-08-06 / 2ff15f4 / `limactl stop` → `~/.lima/nixos` を rename → `limactl start` で改名でき、
     VM 作り直し (nix store 9.5GB の再取得) は不要だった。autostart は名前が変わるので登録し直し。
     `limactl list` が `mini-vm Running`、LaunchAgent も `io.lima-vm.autostart.mini-vm.plist` に
+- ~~`DF-34` cloudflare-os を宣言管理下に置き、あわせて fork を畳む~~ ✅ 2026-09-06
+  いまは ghq の imperative なチェックアウトを systemd が WorkingDirectory にしているだけで、
+  版は誰も固定していない。実際 2026-09-01 に 106 コミット (3 週間) 遅れているのを
+  たまたま気づいた。flake input として pin すれば更新は nix flake update + switch に
+  統合され、flake.lock が唯一の真実という既存の原則に乗り、generation でロールバックも効く。
+  難所: 実行形態が pnpm run-local (install とビルドを実行時にやる) なので、
+  素直に derivation にはならない。pin だけして checkout は残す折衷もありうる。
+  fork (gigun-dev/cloudflare-os) は独自コミット 0 本で実質何も担っていないため同時に畳む。
+  畳むと cloudflareOsDir と fork 運用のコメント (mini-vm.nix:14-25) が変わる。
+  自動更新まで踏み込むのはこれができてから (戻せないものを無人で上げない)。
+  → 完了条件: cloudflare-os の版が flake.lock か同等の宣言で固定され、更新が nix run .#update / switch の経路に乗ること
+  → cloudflare-os は flake input として rev を pin 済み (flake.nix:95, flake=false) で、ExecStartPre が毎起動時に flake.lock の rev へ checkout する (mini-vm.nix)。fork も 2026-09-01 に畳み済み。2026-09-06 に現物を確認し、実質完了していたと判断
 
 ## 方向性カタログ
+
+### 着手順から降ろした詳細 (2026-09-06 棚卸し)
+
+頭が予算を超えていた(12,686B / 上限 10,000B。**無言に切り詰められていた**)ので、着手順の各項目は
+「1 行の概要 + 完了条件」に縮めた。そこから外した調査結果をここに置く。**計画は消していない。**
+
+- **`DF-33` (再起動後の復帰)** — enrollment (ペアリング済みの状態) の保存先は判明済み:
+  `~/.codex/state_5.sqlite` の `remote_control_enrollments` テーブル(文字列 grep で確認)。
+  VM 内の通常ファイルなので再起動では消えない。残る未検証は (1) systemd が実際に起動するか
+  (`is-enabled` は enabled)、(2) macOS ホスト再起動時に Lima VM 自体が上がるか(自動ログイン依存)。
+  DF-12 の「到達性ではなく機能を見る」型の具体例でもある。
+- **`DF-24` (Langfuse)** — **openai プロバイダだけ観測できる**。`apiUrl` を差し替えて LiteLLM を
+  挟む形になるため。Workers AI は baseUrl 固定で挟めず、AI Gateway は codex と排他。
+- **`DF-22` (レート制限)** — 2026-09-01 の切り分け: スマホから Codex を叩く用途は
+  codex-remote-control (リレー経由・受け口なし) へ移せる。ブリッジの公開が本当に要るのは
+  **Cloudflare OS から OpenAI 互換 API として叩く経路だけ**。
+- **`DF-15` (Claude/opencode のブリッジ)** — codex は既存実装を借りて通ったが、Claude は
+  Messages API と SSE の自作になり難度が段違い。opencode のサーバモードが互換エンドポイントを
+  出せるなら、そちらが現実的。
+- **`DF-13` (AI プロバイダ)** — codex 側は通っている(mini に常駐、モデル ID が `SUGGESTED_MODELS`
+  と一致するので登録不要)。同じ無料枠で `qwen3-30b-a3b-fp8` は既定の Kimi の 16 倍使える。
+- **`DF-30` (gatekeeper-mcp)** — 動的クライアント登録 (RFC 7591) しか対応しておらず、事前登録
+  必須の認可サーバー (Slack MCP など) に 502 で繋がらない。
+- **`DF-31` (Slack 書き込み)** — PR #95 (approval-gated Google Drive/Sheets writes) が唯一の
+  設計手本。2026-08-10 時点で draft・conflicting・レビュー 0 件・CLA 未署名で停滞中。
+- **`DF-12` (機能確認の型)** — `DF-7` は ssh 到達性で合格としたが、その裏で DNS が全滅していた。
+  2026-09-06 の健全性ゲート (mini-vm.nix の `healthGate`) が最初の実装で、名前解決 /
+  cloudflare-os の HTTP 応答 / 常駐 unit / control socket の 4 項目を見る。
+
+### mini-vm の自動更新 (2026-09-06 実装)
+
+**動機**: 無人機なので手で `pull && switch` を打つ機会が無く、push 済みの変更が届かないまま
+気づけない(cloudflare-os で実際に 106 コミット遅れた)。
+
+**設計の要点**(実装は `mini-vm.nix` の `dotfiles-autoswitch`):
+
+- **`nix flake update` はしない。** 適用だけを自動化し、lock の更新は手元でレビューを通す。
+  「autoUpgrade なのに update しないのは不完全」と見えるが、これは意図的な一線。
+- **`system.autoUpgrade` は使わない。** home 層が視野の外(`nixos-rebuild` しか叩かない)で、
+  pre/post フックが無いため健全性ゲートも dirty ガードも挟めない。nixpkgs の
+  `nixos/modules/tasks/auto-upgrade.nix` を読んで確認した。提供価値は timer 1 本分。
+- **`--flake github:...` の直接参照も却下。** 手動 switch(作業コピー)と自動更新(github:)で
+  真実が二重になり、「いま動いている rev」を作業コピーから読めなくなる。ローカル pull なら
+  食い違いが dirty ガードで鳴る。
+- **dirty ガードは検知器**。作業コピーが汚れている = 誰かが VM 上でいじって放置した、なので
+  踏み潰さず止めて通知する。
+- **駆動スクリプトは現 generation のものが走る**。新しいツリーが更新器自身を壊しても、次回は
+  壊れる前の更新器で回る(自己更新は 1 サイクル遅れる)。
+
+**残っている穴**: 失敗は鳴るが**沈黙は検出できない** → `DF-35`。再起動は未実装 → `DF-33`。
 
 ### Mac Mini の Intel 打ち切り対応 (2026-08-05 実施)
 
