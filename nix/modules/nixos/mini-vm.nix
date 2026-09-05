@@ -1086,6 +1086,10 @@ in
       curl
       openssl
       cacert
+      # git が内部で `env bash` を起動する (2026-09-06 に commit の段で
+      # `env: 'bash': No such file or directory` を踏んだ)。差分が無い日は
+      # commit まで到達しないので、実際に更新がある日まで表面化しなかった。
+      bash
     ];
 
     environment = {
