@@ -823,7 +823,8 @@ in
       curl
       coreutils
       gnugrep
-      glibc # 健全性ゲートの getent (名前解決の確認)
+      getent # 健全性ゲートの名前解決確認。pkgs.glibc の out には入っていない
+      nix # nix-env --rollback (下の rollback 手順で使う)
     ];
 
     environment.NIX_SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
@@ -868,7 +869,12 @@ in
         # 戻した先でもゲートを回してから落ちる (戻して直ったのかを記録に残すため)。
         if ! ${healthGate}; then
           echo "健全性ゲートが失敗。rollback する" >&2
-          nixos-rebuild switch --rollback
+          # **`nixos-rebuild switch --rollback` は使えない** (2026-09-06 実測)。
+          # flake モードでは実装されておらず `<nixpkgs/nixos>` を NIX_PATH に
+          # 探しに行って失敗する。profile を 1 つ戻して switch-to-configuration を
+          # 直接叩くのが flake 環境での正しい手順。
+          nix-env --rollback -p /nix/var/nix/profiles/system
+          /nix/var/nix/profiles/system/bin/switch-to-configuration switch
           if ${healthGate}; then
             echo "rollback 後はゲートを通過した" >&2
           else
