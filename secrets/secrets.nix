@@ -6,6 +6,7 @@
 # 復号できるのは以下の鍵の持ち主だけ:
 #   - mini-vm のホスト鍵 ... activation 時に NixOS が自動で復号するのに使う
 #   - M4 Pro のユーザー鍵 ... `agenix -e` で中身を編集するのに使う
+#   - 保管用 age 鍵     ... 上の 2 つを失ったときの復旧用 (下記 backup)
 #
 # 鍵を足すとき (新しいマシンを増やす等) は publicKeys に追記して
 # `agenix -r` で全ファイルを再暗号化すること。追記しただけでは既存の暗号文は
@@ -18,9 +19,16 @@ let
   # M4 Pro のユーザー鍵 (~/.ssh/id_ed25519.pub)。編集用。
   gigun = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICg8t7n8SvetqxFxe9blWFfXUxPe/S47zzFl041aOZ+z";
 
+  # 保管用 (2026-09-05 作成)。上の 2 つを同時に失ったときだけ使う。日常では触らない。
+  # 秘密鍵は iPhone の「パスワード」アプリ (iCloud Keychain, E2E)。人間が手で 1 回
+  # 取り出すだけの秘密なので Keychain でよい (機械が読む秘密は agenix 側で管理する)。
+  # パスフレーズ無し: 掛けるとその置き場で同じ問題が再発する。
+  backup = "age1hgxrp2tm5n3hf76py9smr6px4cdfsc8g3c2630wu8pxr9qd4vv2qtp47nq";
+
   all = [
     mini-vm
     gigun
+    backup
   ];
 in
 {
