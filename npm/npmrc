@@ -22,4 +22,11 @@
 # (npm は resolved URL が変わっても再インストール時に registry 設定から解決し直す)。
 #
 # 動作確認: `npm install @panda-guard/test-malicious` が 403 で失敗すること。
+#
+# pnpm にも効く: pnpm は独自の設定ファイルを持つが registry 解決時に ~/.npmrc も読むため、
+# このファイルだけで npm/pnpm 両方が Takumi Guard 経由になる (実測: `pnpm config get registry`
+# が https://npm.flatt.tech/ を返す。2026-09-05, pnpm は mise 経由)。
+# ボツ案: pnpm 専用に ~/.config/pnpm/rc を新設する案は却下。registry 宣言が 2 ファイルに散ると
+# 片方だけ変更 (例: 外し方の手順を npmrc にだけ適用) して守りが片方だけ外れる事故になるため、
+# 宣言は npmrc 1 箇所に保つ。
 registry=https://npm.flatt.tech/
