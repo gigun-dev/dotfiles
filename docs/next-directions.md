@@ -103,6 +103,7 @@
       → 完了条件: doctor の CLAUDE.md 肥大指摘が消えるか、超過を許容する理由が正典に書かれていること
 - [ ] `DF-37` mini-vm の gh トークンを絞る (いま admin: true)
       → 完了条件: mini-vm から branch protection を変更できない状態になり、lock 提案の PR は従来どおり作れること
+  > **2026-09-06 更新:** A/B は対立しない。二段でやる (無人経路に dotfiles 限定 PAT → 対話用を縮める)。詳細はカタログ「mini-vm のトークンを絞る」節。
 <!-- session-head-end: ここから下は SessionStart フックが注入しないオンデマンド領域。着手する節をそのとき読む -->
 
 ## 完了記録(着手順から降ろしたもの)
@@ -415,6 +416,39 @@
 - **`DF-12` (機能確認の型)** — `DF-7` は ssh 到達性で合格としたが、その裏で DNS が全滅していた。
   2026-09-06 の健全性ゲート (mini-vm.nix の `healthGate`) が最初の実装で、名前解決 /
   cloudflare-os の HTTP 応答 / 常駐 unit / control socket の 4 項目を見る。
+
+### mini-vm のトークンを絞る (2026-09-06 調査)
+
+mini-vm の `gh` トークンは `repo` scope で、dotfiles に対して **`admin: true`**(branch protection の
+変更まで可能)。無人で毎日 push する経路に乗っている資格としては広すぎる。
+
+**A(1 本を絞る)と B(無人経路だけ専用トークン)は対立しない。二段でやる。**
+mini-vm には性質の違う 2 つの信頼経路があり、1 本に両方を担がせているのが根本の問題:
+
+| 経路 | 必要権限 | ライフサイクル |
+|---|---|---|
+| 無人(`dotfiles-lock-propose@`) | dotfiles に contents + PR だけ | 無期限に安定していてほしい |
+| 対話(ssh して realbind で作業) | 広い | いつでも失効・再ログインできる |
+
+- **段 1(今すぐ・可逆)**: dotfiles 限定の fine-grained PAT を発行し、agenix 経由で
+  `GH_TOKEN` として `EnvironmentFile` から注入。**gigun-dev 個人所有なので org ポリシーと
+  無関係に今日できる**。`GH_TOKEN` は hosts.yml より優先され、remote が HTTPS なら
+  `git push` にも効く(`gh auth git-credential` が同じ解決系を通るため。実機の remote は HTTPS)。
+- **段 2**: 対話用の `gho_` を縮める。**ただし classic PAT では `admin: true` を消せない** —
+  `repo` scope は分割不能で、権限は「scope ∩ 本人の権限」なので repo admin である限り
+  admin API が付く。`public_repo` にすると realbind(private)が全滅する。構造的に不可。
+  fine-grained へ移すには **realbind org が fine-grained PAT を許可しているか**の確認が要る
+  (GitHub の既定は管理者承認必須)。
+
+**B の効用は侵入対策ではない**(hosts.yml を読める侵入者には無力)。守るのは
+**confused deputy と事故** — このホストはエージェント基盤で、LLM が ambient な `gh` 認証を
+継承して動く。誤動作で `gh api -X DELETE` や branch protection 変更が飛ぶ確率は侵入より高い。
+専用トークンなら最悪でも「変な PR が立つ」で止まる(required CI と squash merge が受け皿)。
+もう一つは**ライフサイクル分離** — 広いトークンを revoke してもパイプラインが死なない。
+
+**別の課題**: realbind の業務コードと agenix のホスト鍵が同じ機械に同居している。トークンを
+絞っても clone 自体はディスクに在るので緩和できない。分離するなら別 Lima ゲストか別 Unix
+ユーザー。優先度は上記より下(可逆性とコストの差)。
 
 ### 通知基盤は hub に寄せる (2026-09-06 決定)
 
