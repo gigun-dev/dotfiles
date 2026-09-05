@@ -57,3 +57,53 @@ terraform {
 # ここに書かないのはもちろん、シェルの rc ファイルにも置かないための仕組み。
 # 直接 `tofu` を叩くと必ず認証エラーになる — それは意図した挙動。
 provider "cloudflare" {}
+
+# state の暗号化。**トンネル本体を管理下に置くための前提**だった。
+#
+# cloudflare_zero_trust_tunnel_cloudflared は tunnel_secret を state に平文で持つ。
+# state は R2 にあり、これを暗号化しないままトンネルを import すると、コネクタを
+# 名乗れる資格そのものが R2 に平文で置かれることになる。だから DF-20 では
+# トンネルだけ管理外にしていた。ここを埋めたので取り込める。
+#
+# パスフレーズは他の認証情報と同じく tofu-env.age から TF_VAR_passphrase として来る。
+# **これを失うと state を復号できない** = 「何を管理しているか」の台帳が読めなくなる
+# (リソース自体は無事だが import からやり直しになる)。agenix の受信者は 3 つあり、
+# 保管用鍵は iPhone の「パスワード」アプリにある (secrets/secrets.nix)。
+variable "passphrase" {
+  description = "state 暗号化のパスフレーズ。tofu ラッパが TF_VAR_passphrase で渡す"
+  type        = string
+  sensitive   = true
+  # default を置かない。未設定なら失敗させる — 弱い既定値で暗号化されるより、
+  # 暗号化できないと分かる方がいい。
+}
+
+terraform {
+  encryption {
+    key_provider "pbkdf2" "main" {
+      passphrase = var.passphrase
+    }
+
+    method "aes_gcm" "main" {
+      keys = key_provider.pbkdf2.main
+    }
+
+    # enforced: 平文での書き込みを拒否する。移行時は fallback に
+    # method "unencrypted" を足して平文 state を読ませ、暗号化して書き戻した後で
+    # 外す (2026-09-06 に実施済み)。fallback を残すと平文へ戻れてしまう。
+    method "unencrypted" "migrate" {}
+
+    state {
+      method = method.aes_gcm.main
+      fallback {
+        method = method.unencrypted.migrate
+      }
+    }
+
+    plan {
+      method = method.aes_gcm.main
+      fallback {
+        method = method.unencrypted.migrate
+      }
+    }
+  }
+}
