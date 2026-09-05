@@ -65,7 +65,11 @@ checkout位置が違う場合のみ `DOTFILES_ROOT` を指定する。
 - SDKの公式条件checkerと `uv pip check` が成功。Pythonの6テストも成功。
 - 2回目のshell起動は既存の65パッケージを監査するだけで再インストールなし。
 - Mac/LinuxのARM64・x86_64向けNix評価が成功。Linux・Intel Macの実ビルドは未実施。
-- OS全体のswitchと実機への書き込みは実施していない。
+- 環境構築時点ではOS全体のswitchと実機書き込みは未実施。
+- 後続のCoreS3実機検証では6.1既定PicolibcでUSBログ停止を確認。PoC側で
+  `CONFIG_LIBC_NEWLIB=y` を選ぶと起動・AWDL受信が成功した（約84秒、566フレーム）。
+  libc選択はファームのsdkconfig.defaultsの責務。dotfilesのSDKは6.1を維持する。
+  詳細: https://github.com/gigun-dev/esp32-airdrop-poc/blob/main/docs/hardware-validation.md
 
 ## 旧5.5.1環境の検証（2026-09-05）
 
