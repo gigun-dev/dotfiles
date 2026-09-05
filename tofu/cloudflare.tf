@@ -5,6 +5,28 @@
 # `null` は「未設定」と等価なので落として問題ないが、**落とすたびに plan を回して
 # 差分が出ないことを確認する**こと (computed 属性は落とすと逆に差分が出ることがある)。
 
+# --- Cloudflare Tunnel ------------------------------------------------------
+# mini-vm の named tunnel。下の DNS レコード 2 件の向き先で、公開経路の実体。
+#
+# **`tunnel_secret` は宣言しない**。optional かつ computed ではないので、書かなければ
+# state に載らない (import 直後の値も null)。コネクタの認証情報は agenix
+# (secrets/cloudflared-cloudflare-os.json.age) が持ったままで、ここが管理するのは
+# 「トンネルという入れ物が存在すること」だけ。
+#
+# 2026-09-06 に取り込んだ。それまで管理外だったのは、state が平文の R2 にあり
+# tunnel_secret を持ち込みたくなかったため。state 暗号化 (versions.tf) で前提が消えた。
+# 取り込みには API トークンへ `Cloudflare Tunnel Write` の追加が要った (401 で判明)。
+# ダッシュボードの編集画面では `Argo Tunnel (Legacy)` と表示されるが、確認画面と
+# 公式ドキュメントでは `Cloudflare Tunnel` で、同一の権限グループ。
+#
+# ingress の定義はここではなく mini-vm.nix 側 (`config_src = "local"` なので
+# cloudflared が読む設定ファイルが真実)。Cloudflare 側の管理画面には無い。
+resource "cloudflare_zero_trust_tunnel_cloudflared" "mini_vm" {
+  account_id = local.account_id
+  name       = "cloudflare-os"
+  config_src = "local"
+}
+
 # --- DNS -------------------------------------------------------------------
 # どちらも mini-vm の named tunnel (5b8ec787-…) を指す CNAME。
 # `<uuid>.cfargotunnel.com` は Cloudflare エッジがトンネルへ転送するための特殊ホスト名で、
