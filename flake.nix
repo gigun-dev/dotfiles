@@ -98,7 +98,7 @@
     };
 
     # ESP-IDF と OS 別の公式 toolchain を hash 固定する上流実装。
-    # nixpkgs は follows しない: 上流の Python 3.13 依存セットと
+    # nixpkgs は follows しない: 上流の native tools の基盤と
     # Intel Mac 対応を保つ。dotfiles の基盤パッケージへ overlay は適用しない。
     esp-dev.url = "github:mirrexagon/nixpkgs-esp-dev";
   };

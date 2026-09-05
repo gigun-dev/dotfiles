@@ -1,0 +1,28 @@
+[project]
+name = "dotfiles-esp-idf-python"
+version = "6.1.0"
+requires-python = ">=3.13,<3.14"
+# ESP-IDF v6.1 tools/requirements/requirements.core.txt を元にする。
+# SDK の Python API は nixpkgs の更新周期と異なるため uv.lock で独立に固定。
+dependencies = [
+  "setuptools>=64", "packaging", "click>=7,<8.5", "rich-click~=1.9.0",
+  "pyserial>=3.3,<4", "cryptography>=2.1.4,<49", "pyparsing>=3.1,<3.4",
+  "pyelftools", "idf-component-manager~=3.0", "esp-coredump~=1.14,!=1.17.0",
+  "esptool>=5.3,<6", "esp-idf-kconfig>=3.11.1,<4", "esp-idf-monitor>=1.6.2,<2",
+  "esp-idf-nvs-partition-gen~=0.1.9", "esp-idf-size>=2,<3", "esp-idf-diag",
+  "esp-idf-panic-decoder", "esp-idf-sbom", "pyclang", "construct", "rich", "psutil!=7.2.2",
+  "tree-sitter~=0.25", "tree-sitter-c~=0.24", "freertos-gdb~=1.0", "idf-drivers-gdb",
+]
+
+[tool.uv]
+package = false
+no-build-package = ["cryptography"]
+# 開発版の esptool を許す公式下限を、ここでは公開済み stable 5.3 以上へ狭める。
+# 依存の解決は更新時だけ行い、通常の setup は --locked を必須にする。
+environments = ["sys_platform == 'darwin'", "sys_platform == 'linux'"]
+required-environments = [
+  "sys_platform == 'darwin' and platform_machine == 'arm64'",
+  "sys_platform == 'darwin' and platform_machine == 'x86_64'",
+  "sys_platform == 'linux' and platform_machine == 'aarch64'",
+  "sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
