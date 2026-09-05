@@ -13,7 +13,7 @@ nix run .#update               # flake update + switch
 
 **重要**: nix は git index から評価するため、`nix run .#switch` の前に必ず `git add` すること。
 
-**`flake.lock` はコミットして push すること**: 手元は worktree の lock で switch できるが、mini VM は clone なので HEAD の lock しか見ず、update しただけでは反映されない。マシン間を揃える手順は「手元で update → lock をコミット・push → VM で `git pull && nix run .#switch`」。
+**`flake.lock` はコミットして push すること**: 手元は worktree の lock で switch できるが、mini VM は clone なので HEAD の lock しか見ず、update しただけでは反映されない。mini-vm は lock 更新を定期的に PR で提案し、実機ビルドと required CI を通して自動 merge した後、別の定期処理で pull・switch する。手元で lock を更新する場合もコミット・push が必要。現在の運用と残課題は `docs/next-directions.md` を参照。
 
 **iTerm2 初回 bootstrap 順序**: `LoadPrefsFromCustomFolder` / `PrefsCustomFolder` は nix 側 (`system.defaults.CustomUserPreferences."com.googlecode.iterm2"`) で system plist に宣言する設計のため、**iTerm2 を起動する前に最初の `nix run .#switch` を完了させる**こと。先に iTerm2 を立ち上げると bootstrap meta key が無く、repo 内 plist が source of truth として読まれない（system plist に書かれた古い設定が継続使用される）。
 
