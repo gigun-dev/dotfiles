@@ -794,14 +794,19 @@ in
       OnFailure = [ "dotfiles-autoswitch-notify-failure.service" ];
     };
 
+    # systemd の unit は対話 shell の PATH を継承しない。ここに挙げたものだけが
+    # 見える。2026-09-06 に実機で nixos-rebuild と getent の欠落を踏んだ
+    # (前者は status=127 で即死、後者は健全性ゲートが黙って落ちる)。
     path = with pkgs; [
       git
       openssh # git pull が SSH remote を使う場合に要る
       nix
+      nixos-rebuild # system 層の switch 本体
       systemd
       curl
       coreutils
       gnugrep
+      glibc # 健全性ゲートの getent (名前解決の確認)
     ];
 
     environment.NIX_SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
