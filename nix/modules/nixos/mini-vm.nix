@@ -1033,53 +1033,119 @@ in
   systemd.services.dotfiles-autoswitch-notify-failure = {
     description = "dotfiles-autoswitch の失敗を Bark へ通知する";
 
-    path = with pkgs; [
-      curl
-      jq
-      openssl
-      systemd
-      coreutils
+    serviceConfig = {
+      Type = "oneshot";
+      User = "root";
+      EnvironmentFile = "-/run/agenix/bark-env";
+      ExecStart = "${barkNotifyUnitFailure} dotfiles-autoswitch.service 'mini-vm 自動更新 失敗'";
+    };
+  };
+
+  # flake.lock の更新を提案する。**適用はしない** — PR を出して CI に通し、merge されたら
+  # 翌朝の dotfiles-autoswitch が普通の main の変更として拾う。
+  #
+  # 何を埋めるか: dotfiles-autoswitch は main を適用するだけなので、`nix flake update` を
+  # 誰も叩かない限り上流の新版 (codex 等) は永久に届かない。実測で lock の更新は 2〜4 週間
+  # 空いていた。ここは「更新を提案する側」を無人機に持たせて、判断 (merge) は CI と人に残す。
+  #
+  # 却下案:
+  #   - GitHub Actions の update-flake-lock + PAT → 既存 workflow は secrets ゼロ・token
+  #     read-only。そこへ書き込み可能な秘密を置くのは量ではなく質の変化。加えて ubuntu
+  #     runner でのビルドは、実際に適用される機械そのもので検証するのに劣る。
+  #   - mini-vm が main へ直接 commit/push → 共有 lock の生産者が無人機になり、M4 Pro が
+  #     「無人機が決めた lock」を pull する側に回る。
+  #   - dotfilesDir の作業コピーで直接 `nix flake update` → autoswitch が恒久停止する
+  #     (スクリプト側のコメント参照)。
+  #
+  # テンプレート unit にしたのは、fast/slow の差が「更新対象の input」と「発火間隔」だけで、
+  # 手順が完全に同じため。instance 名がそのままレーン名になる。
+  systemd.services."dotfiles-lock-propose@" = {
+    description = "flake.lock を更新・検証して PR を出す (%i レーン)";
+    wants = [ "network-online.target" ];
+    after = [
+      "network-online.target"
+      "tailscaled.service"
     ];
 
-    environment.SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+    unitConfig = {
+      ConditionPathExists = "${dotfilesDir}/flake.nix";
+      OnFailure = [ "dotfiles-lock-propose-notify-failure@%i.service" ];
+    };
+
+    # 対話 shell の PATH は継承されない。2026-09-06 に autoswitch で nixos-rebuild と
+    # getent の欠落を踏んでいるので、ここは実際に使うものを全部並べる。
+    path = with pkgs; [
+      git
+      openssh
+      nix
+      gh
+      coreutils
+      gnugrep
+      jq
+      curl
+      openssl
+      cacert
+    ];
+
+    environment = {
+      # git の user.* と gh の認証情報は gigun の home にしか無い。
+      HOME = "/home/${username}";
+      SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+      NIX_SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+    };
+
+    serviceConfig = {
+      Type = "oneshot";
+      # root は要らない (ビルドと git 操作だけ)。リポジトリの所有者で走らせれば
+      # autoswitch が踏んだ safe.directory / libgit2 の所有者検証も起きない。
+      User = username;
+      # 使い捨て worktree の置き場。systemd が作って STATE_DIRECTORY で渡す。
+      StateDirectory = "dotfiles-lock-trial";
+      # 全 input 更新 (slow) は substituter が効かず素のビルドになることがある。
+      TimeoutStartSec = "90min";
+      ExecStart = "${dotfilesLockPropose} %i";
+    };
+  };
+
+  systemd.services."dotfiles-lock-propose-notify-failure@" = {
+    description = "dotfiles-lock-propose@%i の失敗を Bark へ通知する";
 
     serviceConfig = {
       Type = "oneshot";
       User = "root";
       EnvironmentFile = "-/run/agenix/bark-env";
+      ExecStart = "${barkNotifyUnitFailure} 'dotfiles-lock-propose@%i.service' 'mini-vm lock 更新 (%i) 失敗'";
+    };
+  };
 
-      # 暗号化の形式は macOS 側の claude/hooks/bark-notify.sh と同じ (AES-256-CBC、
-      # ciphertext と iv を form で POST)。Bark アプリ側の復号設定が 1 つなので、
-      # 両者は必ず同じ形式である必要がある。
-      ExecStart = pkgs.writeShellScript "dotfiles-autoswitch-notify-failure" ''
-        set -u
-        # 秘密が無い機械では黙って終わる (更新の失敗自体は journal に残る)。
-        [ -n "''${BARK_DEVICE_KEY:-}" ] || exit 0
-        [ -n "''${BARK_ENCRYPT_KEY:-}" ] || exit 0
-        [ -n "''${BARK_ENCRYPT_IV:-}" ] || exit 0
+  # 発火は autoswitch (04:00 + 最大 30 分) より前に置く。同時刻に回すと switch 中の nix と
+  # 競合する上、その日に出した PR が翌日まで適用されない。propose → CI → merge を先に
+  # 済ませ、04:00 の autoswitch がその結果を拾う流れにする。
+  # 遅延を足しても 03:00 を越えない値にしてあるので、間隔を詰めるときはここを見ること。
+  #
+  # timer 名に `@` を入れていないのは、`foo@fast.timer` という実体ファイルが
+  # テンプレート `foo@.timer` の instance と紛らわしいため。対象は Unit= で明示する。
+  systemd.timers.dotfiles-lock-propose-fast = {
+    description = "AI ツールの lock 更新提案を毎日回す";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      Unit = "dotfiles-lock-propose@fast.service";
+      OnCalendar = "*-*-* 01:00:00";
+      RandomizedDelaySec = 1800;
+      Persistent = true;
+    };
+  };
 
-        # 本文は journal の末尾。Bark の本文長に収まるよう切る。
-        body=$(journalctl -u dotfiles-autoswitch -n 30 --no-pager -o cat 2>/dev/null | tail -c 900)
-        [ -n "$body" ] || body="(journal を取得できなかった)"
-
-        payload=$(jq -n \
-          --arg title "mini-vm 自動更新 失敗" \
-          --arg body "$body" \
-          --arg group "mini-vm" \
-          --arg level "timeSensitive" \
-          '{title: $title, body: $body, group: $group, level: $level}')
-
-        key_hex=$(printf '%s' "$BARK_ENCRYPT_KEY" | od -An -tx1 | tr -d ' \n')
-        iv_hex=$(printf '%s' "$BARK_ENCRYPT_IV" | od -An -tx1 | tr -d ' \n')
-
-        ciphertext=$(printf '%s' "$payload" \
-          | openssl enc -aes-256-cbc -K "$key_hex" -iv "$iv_hex" -base64 -A)
-
-        curl -sS -m 30 --retry 3 \
-          --data-urlencode "ciphertext=$ciphertext" \
-          --data-urlencode "iv=$BARK_ENCRYPT_IV" \
-          "https://api.day.app/$BARK_DEVICE_KEY" > /dev/null
-      '';
+  # 全 input はビルドが重く、壊れたときの原因切り分けも広い。日次で回すと fast の PR と
+  # 毎日衝突するので週次に留める (衝突した側は次回 origin/main から作り直されて解消する)。
+  systemd.timers.dotfiles-lock-propose-slow = {
+    description = "全 input の lock 更新提案を毎週回す";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      Unit = "dotfiles-lock-propose@slow.service";
+      OnCalendar = "Sun *-*-* 02:00:00";
+      RandomizedDelaySec = 1800;
+      Persistent = true;
     };
   };
 
