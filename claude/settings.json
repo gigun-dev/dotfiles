@@ -3,7 +3,8 @@
   "cleanupPeriodDays": 9999,
   "env": {
     "EDITOR": "zed --wait",
-    "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1"
+    "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1",
+    "CLAUDE_CODE_THRIFTY_SONIC": "false"
   },
   "permissions": {
     "allow": [
@@ -217,6 +218,12 @@
       "source": {
         "source": "github",
         "repo": "gvzdv/claudish-to-english"
+      }
+    },
+    "skills": {
+      "source": {
+        "source": "github",
+        "repo": "humanlayer/skills"
       }
     }
   },
