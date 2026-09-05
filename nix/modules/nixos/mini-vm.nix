@@ -295,27 +295,17 @@ in
 
       # 各 gatekeeper に BASE_URL を配る。
       #
-      # gatekeeper は OAuth の redirect URI と、UI に返す接続用 URL を BASE_URL から組み立てる。
-      # 既定は `http://localhost:8787/gatekeeper/<name>` で、トンネルの後ろに置いた構成では
-      # ブラウザから開けず Not Found になる (Slack 接続で実際に踏んだ)。
-      #
-      # 上流のリリースビルドは `$PUBLIC_BASE_URL/gatekeeper/<name>` を各 gatekeeper に
-      # 設定している (scripts/release/manifest-lib.mjs)。仕組みは上流のものだが、
+      # gatekeeper は OAuth の redirect URI と接続用 URL を BASE_URL から組み立てる。既定の
+      # `http://localhost:8787/gatekeeper/<name>` はトンネルの後ろではブラウザから開けず
+      # Not Found になる (Slack 接続で実際に踏んだ)。上流のリリースビルドは
+      # `$PUBLIC_BASE_URL/gatekeeper/<name>` を配っている (scripts/release/manifest-lib.mjs) が
       # run-dev-server.js は面倒を見ない — ローカル実行は localhost が本物の origin である
-      # 前提で組まれているため。VITE_CF_ACCESS_MODE と同じ「本番用の配線が dev に無い」類型。
+      # 前提のため。VITE_CF_ACCESS_MODE と同じ「本番用の配線が dev に無い」類型。
       #
-      # リポジトリを patch せず、起動のたびに各 gatekeeper の .dev.vars を生成して埋める。
-      # wrangler は設定ファイルと同じディレクトリの .dev.vars を自分で読むので、これで届く。
-      # .dev.vars は gitignore 済みなので checkout の差分はゼロのまま保てる。
-      # 非秘密の設定を毎起動時に生成する。
-      #
-      # ここで扱う値はどれも秘密ではない (Access の aud は全ての JWT ヘッダに入っており、
-      # iss は公開の team ドメイン)。よって agenix ではなく宣言から生成する方が適切で、
-      # VM を作り直しても手作業が要らなくなる。
-      #
-      # wrangler は設定ファイルと同じディレクトリの .dev.vars を自分で読む。この性質を使えば
-      # 上流リポジトリを patch せずに値を届けられる (.dev.vars は gitignore 済みなので
-      # checkout の差分もゼロのまま保てる)。
+      # 届け方: wrangler は設定ファイルと同じディレクトリの .dev.vars を自分で読む。これを
+      # 起動のたびに生成する (上流を patch しない。.dev.vars は gitignore 済みなので
+      # checkout の差分もゼロ)。扱う値はどれも秘密ではない (Access の aud は全 JWT ヘッダに
+      # 入り、iss は公開の team ドメイン) ので、agenix ではなく宣言から生成する。
       ExecStartPre = [
         # (1) 作業コピーを flake.lock が指す rev へ合わせる。
         #
@@ -589,9 +579,8 @@ in
   # 「公開ネットワークに晒すなら --api-key 必須」としており、裏を返せばローカル限定なら不要。
   # tailscale serve が外に出しているのは 8787 だけで、このポートは出していない。
   #
-  # ConditionPathExists は cloudflare-os と同じ理由。`codex login` がまだなら
-  # ~/.codex/auth.json が無く、起動しても認証できずに Restart=always と噛み合って
-  # 無限再起動になる。ログイン後に systemctl start すれば上がる。
+  # ConditionPathExists は cloudflare-os と同じ理由 (`codex login` 前は auth.json が無い)。
+  # ログイン後に systemctl start すれば上がる。
   systemd.services.codex-openai-bridge = {
     description = "ChatGPT (Codex) 枠を OpenAI 互換 API として出すブリッジ";
     wantedBy = [ "multi-user.target" ];
@@ -669,8 +658,7 @@ in
   # ペアリングは手動の一度きりの作業: `codex remote-control pair` でコードを出し、
   # スマホ側で入力する。コードは短命なので、切れたら叩き直す。
   #
-  # ConditionPathExists は codex-openai-bridge と同じ理由 (`codex login` 前は
-  # auth.json が無く、Restart=always と噛み合って無限再起動になる)。
+  # ConditionPathExists は codex-openai-bridge と同じ理由。
   systemd.services.codex-remote-control = {
     description = "Codex app-server (remote control) — スマホから mini-vm の Codex を使う口";
     wantedBy = [ "multi-user.target" ];
