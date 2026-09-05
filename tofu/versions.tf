@@ -90,20 +90,14 @@ terraform {
     # enforced: 平文での書き込みを拒否する。移行時は fallback に
     # method "unencrypted" を足して平文 state を読ませ、暗号化して書き戻した後で
     # 外す (2026-09-06 に実施済み)。fallback を残すと平文へ戻れてしまう。
-    method "unencrypted" "migrate" {}
-
     state {
-      method = method.aes_gcm.main
-      fallback {
-        method = method.unencrypted.migrate
-      }
+      method   = method.aes_gcm.main
+      enforced = true
     }
 
     plan {
-      method = method.aes_gcm.main
-      fallback {
-        method = method.unencrypted.migrate
-      }
+      method   = method.aes_gcm.main
+      enforced = true
     }
   }
 }
