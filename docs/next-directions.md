@@ -7,6 +7,8 @@
 
 ## 現在地(2026-09-01)
 
+> **2026-09-05 更新:** ESP-IDFを公式stable 6.1へ更新。SDK/native tools/Python本体はNix、Pythonパッケージはuv.lockで管理しshell起動時に `uv sync --locked`。Apple SiliconでPoC clean build・公式Python条件・6テスト成功。Mac/Linux 4系はNix評価済み、他ホストの実ビルドは未実施。詳細 `docs/esp-idf.md`。
+
 > **2026-09-05 更新:** ESP-IDF 5.5.1/Xtensa を `nix develop .#esp-idf` で使う共通開発shellを追加。SDK・OS別toolchain・Python依存はNixとlockで固定。手順と検証範囲は `docs/esp-idf.md`。OS全体のswitchは不要。
 
 - **エージェント基盤は mini-vm** (Mac Mini 上の Lima ゲスト / NixOS)。macOS 側は nix 管理を凍結し
