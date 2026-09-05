@@ -817,17 +817,23 @@ in
         set -eu
         cd ${dotfilesDir}
 
+        # git はリポジトリの所有者 (gigun) で叩く。2026-09-06 に実機で判明:
+        # root で叩くと `detected dubious ownership` (safe.directory 保護) で
+        # 即死する。加えて pull の認証情報 (gh credential helper) は gigun の
+        # 設定にしか無いので、どのみち root では引けない。
+        as_user() { ${pkgs.sudo}/bin/sudo -u ${username} "$@"; }
+
         # dirty ガード。**これは弱点ではなく検知器**。作業コピーが汚れているのは
         # 「誰かが VM 上で dotfiles をいじって放置した」ということなので、
         # 黙って踏み潰さず、更新を止めて通知する (翌朝それを知れる)。
-        if [ -n "$(${pkgs.git}/bin/git status --porcelain)" ]; then
+        if [ -n "$(as_user ${pkgs.git}/bin/git status --porcelain)" ]; then
           echo "作業コピーが dirty。更新を中止する" >&2
-          ${pkgs.git}/bin/git status --short >&2
+          as_user ${pkgs.git}/bin/git status --short >&2
           exit 1
         fi
 
         # --ff-only。分岐していたら人間の裁定事項なので、ここでは止める。
-        ${pkgs.git}/bin/git pull --ff-only
+        as_user ${pkgs.git}/bin/git pull --ff-only
 
         # system 層 → home 層の順。system unit は home profile に依存しない設計
         # (cloudflare-os / codex-* は store パスを直接参照) なので、home 側が
