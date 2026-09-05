@@ -5,6 +5,7 @@
   lib,
   llmAgents, # inputs.llm-agents.packages.x86_64-linux (flake.nix の specialArgs)
   cloudflareOsRev, # inputs.cloudflare-os.rev (flake.nix の specialArgs)
+  homeManager, # inputs.home-manager.packages.x86_64-linux.home-manager (flake.nix の specialArgs)
   ...
 }:
 let
@@ -24,6 +25,77 @@ let
   # 手で加えた変更は黙って消える。直したいことがあれば upstream へ PR を出すか、
   # 一時的に fork を復活させること。
   cloudflareOsDir = "/home/${username}/ghq/github.com/cloudflare/cloudflare-os";
+
+  # 自動更新 (dotfiles-autoswitch) が switch する dotfiles の作業コピー。
+  # cloudflareOsDir と違い**これは編集する作業コピー**で、自動更新は
+  # `git pull --ff-only` しかしない (手で書きかけたものを踏み潰さないため)。
+  dotfilesDir = "/home/${username}/ghq/github.com/gigun-dev/dotfiles";
+
+  # 更新後にこの VM が「使える状態か」を見るゲート。switch 直後と rollback 直後の
+  # 2 回呼ぶので独立したスクリプトにしてある。
+  #
+  # 項目はこのリポジトリで実際に起きた壊れ方から引いた。抽象的な網羅ではなく、
+  # 「ssh は通るのに使えない」を検出することが目的 (DF-12 の教訓)。
+  healthGate = pkgs.writeShellScript "mini-vm-health-gate" ''
+    set -u
+    fail=0
+
+    # (1) 名前解決。2026-08-09 の障害 (dhcpcd と tailscaled の起動順レース、
+    #     networking.nameservers のコメント参照) は ping も ssh も通ったまま
+    #     名前解決だけが恒久的に死んでいて、到達性テストをすり抜けた。
+    if ! getent hosts github.com > /dev/null; then
+      echo "gate: 名前解決に失敗 (github.com)" >&2
+      fail=1
+    fi
+
+    # ConditionPathExists で起動をスキップされた unit は inactive のままになる。
+    # その場合 Result は success なので、異常 (落ちた/起動失敗) と区別できる。
+    unit_ok() {
+      systemctl is-active --quiet "$1" && return 0
+      [ "$(systemctl show -p Result --value "$1")" = "success" ]
+    }
+
+    # (2) cloudflare-os が実際に応答するか。unit が active でも中では実行時の
+    #     pnpm install + Vite ビルドが走っているので、開くまで最大 5 分待つ。
+    #     スキップされている機械 (チェックアウトが無い) では待たずに飛ばす。
+    if [ "$(systemctl show -p ConditionResult --value cloudflare-os)" = "no" ]; then
+      echo "gate: cloudflare-os は条件不成立でスキップ" >&2
+    else
+      deadline=$(( $(date +%s) + 300 ))
+      until curl -sf -o /dev/null http://127.0.0.1:8787; do
+        if [ "$(date +%s)" -ge "$deadline" ]; then
+          echo "gate: cloudflare-os が 5 分以内に応答しない (127.0.0.1:8787)" >&2
+          fail=1
+          break
+        fi
+        sleep 10
+      done
+    fi
+
+    # (3) 常駐 unit の状態。cloudflared の unit 名は tunnel ID から決まる
+    #     (services.cloudflared.tunnels の宣言と対で、片方だけ変えると素通りする)。
+    for unit in \
+      cloudflare-os \
+      codex-openai-bridge \
+      codex-remote-control \
+      cloudflared-tunnel-5b8ec787-4730-4b2b-87b8-e86acbd3954b; do
+      if ! unit_ok "$unit"; then
+        echo "gate: $unit が異常 ($(systemctl show -p ActiveState -p Result --value "$unit" | tr '\n' ' '))" >&2
+        fail=1
+      fi
+    done
+
+    # (4) codex-remote-control の control socket。スマホから実際に使えるかは機械では
+    #     見られないので、pair が探す既定パスに口が開いていることまでを見る。
+    #     unit がスキップされている (codex login 前) 機械では socket も無いので見ない。
+    if systemctl is-active --quiet codex-remote-control \
+      && [ ! -S "/home/${username}/.codex/app-server-control/app-server-control.sock" ]; then
+      echo "gate: codex-remote-control の control socket が無い" >&2
+      fail=1
+    fi
+
+    exit "$fail"
+  '';
 in
 {
   # Mac Mini (Intel) 上の Lima VM。
@@ -505,6 +577,15 @@ in
       group = "users";
       mode = "0400";
     };
+
+    # Bark (iOS プッシュ通知) の宛先と暗号鍵。自動更新の失敗通知が読む。
+    # 読むのが root で走る unit なので既定の root 0400 のまま。
+    bark-env = {
+      file = ../../../secrets/bark-env.age;
+      owner = "root";
+      group = "root";
+      mode = "0400";
+    };
   };
 
   # Cloudflare named tunnel。Cloudflare OS の公開経路を tailnet から Cloudflare へ移す。
@@ -679,6 +760,169 @@ in
       ExecStart = "${llmAgents.codex}/bin/codex app-server --remote-control --listen unix://";
       Restart = "always";
       RestartSec = 10;
+    };
+  };
+
+  # dotfiles を毎日取り込んで switch する。**この機械は無人運用**で、手で
+  # `git pull && nix run .#switch` を打つ機会が無いと、push 済みの変更が
+  # 何週間も届かないまま気づけない (cloudflare-os で実際に 106 コミット遅れた)。
+  #
+  # 自動化するのは**適用だけ**。`nix flake update` はここでは絶対にやらない —
+  # lock の更新はレビューを通す (手元で update → commit/push) 経路に閉じる。
+  # ここが破られると、無人機がレビュー無しで世界の変化を取り込むことになる。
+  #
+  # 却下案:
+  #   - system.autoUpgrade → home 層が視野の外 (nixos-rebuild しか叩かない) で、
+  #     pre/post フックが無いため健全性ゲートも dirty ガードも挟めない。
+  #     提供されるのは timer 1 本分だけなので、自前で書いた方が読める。
+  #   - --flake github:gigun-dev/dotfiles の直接参照 → 手動 switch (作業コピー) と
+  #     自動更新 (github:) で真実が二重になり、「いま動いている rev」を作業コピーから
+  #     読めなくなる。ローカル pull なら食い違いが下の dirty ガードで鳴る。
+  #
+  # 駆動スクリプトは**現 generation のもの**が走る。新しいツリーが更新器自身を
+  # 壊しても、次回は壊れる前の更新器で回る (自己更新は 1 サイクル遅れる)。
+  systemd.services.dotfiles-autoswitch = {
+    description = "dotfiles を pull して system + home を switch する";
+    wants = [ "network-online.target" ];
+    after = [
+      "network-online.target"
+      "tailscaled.service"
+    ];
+
+    unitConfig = {
+      ConditionPathExists = "${dotfilesDir}/flake.nix";
+      OnFailure = [ "dotfiles-autoswitch-notify-failure.service" ];
+    };
+
+    path = with pkgs; [
+      git
+      openssh # git pull が SSH remote を使う場合に要る
+      nix
+      systemd
+      curl
+      coreutils
+      gnugrep
+    ];
+
+    environment.NIX_SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+
+    serviceConfig = {
+      Type = "oneshot";
+      # nixos-rebuild に root が要る。home 層だけは下で sudo -u gigun に落とす。
+      User = "root";
+      # switch は substituter 待ちで長引くことがある。既定の 90 秒では足りない。
+      TimeoutStartSec = "60min";
+
+      ExecStart = pkgs.writeShellScript "dotfiles-autoswitch" ''
+        set -eu
+        cd ${dotfilesDir}
+
+        # dirty ガード。**これは弱点ではなく検知器**。作業コピーが汚れているのは
+        # 「誰かが VM 上で dotfiles をいじって放置した」ということなので、
+        # 黙って踏み潰さず、更新を止めて通知する (翌朝それを知れる)。
+        if [ -n "$(${pkgs.git}/bin/git status --porcelain)" ]; then
+          echo "作業コピーが dirty。更新を中止する" >&2
+          ${pkgs.git}/bin/git status --short >&2
+          exit 1
+        fi
+
+        # --ff-only。分岐していたら人間の裁定事項なので、ここでは止める。
+        ${pkgs.git}/bin/git pull --ff-only
+
+        # system 層 → home 層の順。system unit は home profile に依存しない設計
+        # (cloudflare-os / codex-* は store パスを直接参照) なので、home 側が
+        # 失敗しても常駐サービスは巻き添えにならない。
+        nixos-rebuild switch --flake "${dotfilesDir}#mini-vm"
+        ${pkgs.sudo}/bin/sudo -u ${username} ${homeManager}/bin/home-manager \
+          switch --flake "${dotfilesDir}#${username}-x86_64-linux"
+
+        # 「switch は成功したが使えない」を検出する。失敗したら 1 世代戻して、
+        # 戻した先でもゲートを回してから落ちる (戻して直ったのかを記録に残すため)。
+        if ! ${healthGate}; then
+          echo "健全性ゲートが失敗。rollback する" >&2
+          nixos-rebuild switch --rollback
+          if ${healthGate}; then
+            echo "rollback 後はゲートを通過した" >&2
+          else
+            echo "rollback してもゲートが失敗している" >&2
+          fi
+          exit 1
+        fi
+      '';
+    };
+  };
+
+  # **再起動はしない**。boot.kernelPackages = linuxPackages_latest なので kernel は
+  # 頻繁に上がり、稼働カーネルと /run/current-system はズレ続けるが、無人で再起動を
+  # 掛ける前に DF-33 (再起動後に codex-remote-control が復帰し、スマホから繋がるか)
+  # の実測が要る。解禁は DF-33 の完了条件に紐付けてある。
+  systemd.timers.dotfiles-autoswitch = {
+    description = "dotfiles-autoswitch を毎日回す";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "*-*-* 04:00:00";
+      # 4 時ちょうどに substituter へ殺到しないよう散らす。
+      RandomizedDelaySec = 1800;
+      # VM が止まっていて発火を逃した分は、次に上がったときに 1 回だけ回す。
+      Persistent = true;
+    };
+  };
+
+  # 失敗を人へ届ける。無人機なので、これが無いと更新が何週間止まっても気づけない。
+  #
+  # 積み残し: これは「失敗したら鳴らす」だけで、**沈黙は検出できない**
+  # (timer が発火しない / VM ごと落ちる / 通知経路が死ぬ)。成功のたびに外部へ
+  # ping を打ち、途絶を外部に鳴らさせる形が要る。
+  systemd.services.dotfiles-autoswitch-notify-failure = {
+    description = "dotfiles-autoswitch の失敗を Bark へ通知する";
+
+    path = with pkgs; [
+      curl
+      jq
+      openssl
+      systemd
+      coreutils
+    ];
+
+    environment.SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+
+    serviceConfig = {
+      Type = "oneshot";
+      User = "root";
+      EnvironmentFile = "-/run/agenix/bark-env";
+
+      # 暗号化の形式は macOS 側の claude/hooks/bark-notify.sh と同じ (AES-256-CBC、
+      # ciphertext と iv を form で POST)。Bark アプリ側の復号設定が 1 つなので、
+      # 両者は必ず同じ形式である必要がある。
+      ExecStart = pkgs.writeShellScript "dotfiles-autoswitch-notify-failure" ''
+        set -u
+        # 秘密が無い機械では黙って終わる (更新の失敗自体は journal に残る)。
+        [ -n "''${BARK_DEVICE_KEY:-}" ] || exit 0
+        [ -n "''${BARK_ENCRYPT_KEY:-}" ] || exit 0
+        [ -n "''${BARK_ENCRYPT_IV:-}" ] || exit 0
+
+        # 本文は journal の末尾。Bark の本文長に収まるよう切る。
+        body=$(journalctl -u dotfiles-autoswitch -n 30 --no-pager -o cat 2>/dev/null | tail -c 900)
+        [ -n "$body" ] || body="(journal を取得できなかった)"
+
+        payload=$(jq -n \
+          --arg title "mini-vm 自動更新 失敗" \
+          --arg body "$body" \
+          --arg group "mini-vm" \
+          --arg level "timeSensitive" \
+          '{title: $title, body: $body, group: $group, level: $level}')
+
+        key_hex=$(printf '%s' "$BARK_ENCRYPT_KEY" | od -An -tx1 | tr -d ' \n')
+        iv_hex=$(printf '%s' "$BARK_ENCRYPT_IV" | od -An -tx1 | tr -d ' \n')
+
+        ciphertext=$(printf '%s' "$payload" \
+          | openssl enc -aes-256-cbc -K "$key_hex" -iv "$iv_hex" -base64 -A)
+
+        curl -sS -m 30 --retry 3 \
+          --data-urlencode "ciphertext=$ciphertext" \
+          --data-urlencode "iv=$BARK_ENCRYPT_IV" \
+          "https://api.day.app/$BARK_DEVICE_KEY" > /dev/null
+      '';
     };
   };
 

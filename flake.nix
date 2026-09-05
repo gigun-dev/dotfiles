@@ -406,6 +406,10 @@
               llmAgents = llmAgentsFor "x86_64-linux";
               # ソースではなく rev だけを渡す。ExecStartPre がこの rev へ checkout する。
               cloudflareOsRev = inputs.cloudflare-os.rev;
+              # 自動更新 (dotfiles-autoswitch) が home 層を switch するのに使う。
+              # apps.switch と同じ input を参照し、手動 switch と同じ home-manager で
+              # 回るようにする (バージョン差で片方だけ壊れるのを避ける)。
+              homeManager = inputs.home-manager.packages."x86_64-linux".home-manager;
             };
             modules = [
               inputs.nixos-lima.nixosModules.lima
