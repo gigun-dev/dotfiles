@@ -11,11 +11,13 @@
   iPhone バックアップ・画面共有・Xcode 26.3 専用。`ssh gigun@mini-vm` (Tailscale SSH / `tag:server`)。
   インスタンス名・tailnet 名・hostname はすべて `mini-vm`(`mini` は macOS 側を指す)。
 
-- **mini-vm は毎日自動で更新される** (2026-09-06)。`dotfiles-autoswitch.timer` が 04:00 帯に
-  dirty ガード → `git pull --ff-only` → system + home switch → 健全性ゲート → 失敗なら rollback。
-  **自動化したのは適用だけで `nix flake update` はしない**(lock の更新は手元でレビューを通す)。
-  失敗は Bark で iPhone へ飛ぶ。**沈黙は検出できない**(timer 不発 / VM 停止 / 通知経路の死)
-  → `DF-35`。再起動は入れていない → `DF-33`。
+- **mini-vm が自分で更新を提案し、適用する** (2026-09-06)。2 段構え:
+  01:00 に `dotfiles-lock-propose@fast`(AI ツール。slow は日曜 02:00 に全 input)が
+  使い捨て worktree で `nix flake update` →**本番と同じ機械でビルド検証**→ PR を出して
+  auto-merge を有効化 → CI(`check`+`build`、branch protection で required)が green なら
+  GitHub が squash merge。04:00 に `dotfiles-autoswitch` が pull → switch → 健全性ゲート
+  → 失敗なら rollback。**人は PR を見ない**(lock の差分は人には判定できない。ゲートは CI)。
+  失敗は Bark で iPhone へ飛ぶ。**沈黙は検出できない** → `DF-35`。再起動は入れていない。
 
 - **Cloudflare OS が mini-vm に常駐し、公開境界は Cloudflare**。`https://os.097969.xyz`
   (named tunnel + Access)と `https://codex.097969.xyz`(ローカル codex を OpenAI 互換 API として
@@ -99,6 +101,8 @@
       → 完了条件: PR #95 の動向を見て、着手 / 見送り / 自前実装を判断する
 - [ ] `DF-32` CLAUDE.md の常時ロード量を予算内へ落とす (≒6352 tok / 予算 2000)
       → 完了条件: doctor の CLAUDE.md 肥大指摘が消えるか、超過を許容する理由が正典に書かれていること
+- [ ] `DF-37` mini-vm の gh トークンを絞る (いま admin: true)
+      → 完了条件: mini-vm から branch protection を変更できない状態になり、lock 提案の PR は従来どおり作れること
 <!-- session-head-end: ここから下は SessionStart フックが注入しないオンデマンド領域。着手する節をそのとき読む -->
 
 ## 完了記録(着手順から降ろしたもの)
