@@ -1,11 +1,27 @@
 name: 'CI: Nix check'
 
+# 何を守るか: main に入る前に「eval が通る」「フォーマット済み」「**実際にビルドできる**」を確認する。
+#
+# ビルドまで見るのは、この CI が lock 自動更新の**merge ゲート**だから。mini-vm は
+# 毎日 04:00 に main を無条件で適用するので、ここを通った lock だけが無人機に届く、
+# という不変条件を作る。eval だけ通る lock を merge すると、初回ビルドの失敗が
+# 04:00 の VM 上で起きることになる。
+#
+# **外部 action は commit SHA で固定する**。タグは書き換えられるので、上流が乗っ取られると
+# 任意のコードが CI で走る。いまこの workflow は secrets を 1 つも使わず token も read-only
+# なので実害は小さいが、盗るものが無いことに依存した安全は脆い。
+# 版を上げるときは `gh api repos/<owner>/<repo>/git/ref/tags/<tag>` で SHA を引き直すこと。
+
 on:
   push:
     branches:
       - main
   pull_request:
   workflow_dispatch:
+
+# この workflow は読むだけ。書き込みは一切しない (lock 更新の PR は mini-vm が出す)。
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -17,8 +33,8 @@ jobs:
     outputs:
       nix: ${{ steps.filter.outputs.nix }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
         id: filter
         with:
           filters: |
@@ -34,9 +50,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: cachix/install-nix-action@v31
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
         with:
           github_access_token: ${{ github.token }}
 
@@ -45,3 +61,31 @@ jobs:
 
       - name: Nix fmt check
         run: nix fmt -- --ci .
+
+  # ビルドするのは x86_64-linux だけ。**無人で適用されるのがそこだけ**だから。
+  # M4 Pro (aarch64-darwin) は人が前に座って switch するので失敗はその場で見えるし、
+  # x86_64-darwin は nix 管理を凍結済みで switch しない (CLAUDE.md 参照)。
+  #
+  # substituter は flake.nix の nixConfig にあるものを使う。llm-agents / cclens は
+  # あえて nixpkgs.follows を付けていないので、上流の専用 cachix に直ヒットして
+  # ほぼダウンロードだけで済む (follows を付けると自前 nixpkgs でリビルドされ、
+  # ここが Rust のフルビルドになって時間切れする)。
+  build:
+    needs: changes
+    if: needs.changes.outputs.nix == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
+        with:
+          github_access_token: ${{ github.token }}
+          extra_nix_config: |
+            accept-flake-config = true
+
+      - name: Build mini-vm (NixOS)
+        run: nix build --no-link --print-out-paths '.#nixosConfigurations.mini-vm.config.system.build.toplevel'
+
+      - name: Build home (x86_64-linux)
+        run: nix build --no-link --print-out-paths '.#homeConfigurations.gigun-x86_64-linux.activationPackage'
