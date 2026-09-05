@@ -32,10 +32,9 @@
   `daemon bootstrap` は使わない(standalone を毎時自己更新し flake.lock が真実でなくなる)。
   `--listen unix://` で daemon 無しに `pair` が通るのが鍵だった (`bd3f14b`)。
 
-- **ESP-IDF は 6.1 を `nix develop .#esp-idf` で使う** (2026-09-05)。SDK / native tools /
-  Python 本体は Nix、Python パッケージは `uv.lock`(shell 起動時に `uv sync --locked`)。
-  CoreS3 で実機検証済み(AWDL 受信 566 件/84 秒。既定 Picolibc では USB ログが止まるので
-  PoC 側で Newlib を明示)。AirDrop 転送は未実装。他ホストの実ビルドは未実施。→ `docs/esp-idf.md`
+- **ESP-IDF は 6.1 を `nix develop .#esp-idf` で使う** (2026-09-05)。CoreS3 で実機検証済み
+  (AWDL 受信 566 件/84 秒)。AirDrop 転送は未実装、他ホストの実ビルドも未実施。
+  → `docs/esp-idf.md`
 
 - **未検証の危険**: (1) apple/container の再起動後の復帰 → `DF-5`。(2) mini-vm 再起動後に
   codex-remote-control が復帰しスマホから使えるか → `DF-33`。
@@ -59,10 +58,12 @@
 - [ ] `DF-33` mini-vm 再起動後に codex-remote-control が復帰し、スマホから繋がるか確認する
       **自動更新の再起動を解禁する前提**(mini-vm.nix がこの ID を参照している)。詳細はカタログ。
       → 完了条件: 再起動後に手を触れず、スマホの ChatGPT アプリから mini-vm が CLI として見え、実際にタスクが通ること
-- [ ] `DF-35` 自動更新の「沈黙」を検出する(dead-man's switch)
-      いまは失敗したら Bark が鳴るだけで、timer 不発 / VM 停止 / 通知経路の死は無音。
-      成功のたびに外部へ ping し、途絶を外部に鳴らさせる。置き場は `tofu/` の Worker(cron + KV)。
-      → 完了条件: 更新が 2 日以上途絶えたら iPhone に通知が来ること
+- [ ] `DF-35` 通知を hub に寄せ、沈黙を検出できるようにする
+      いまは失敗時に Bark を直叩きするだけで、timer 不発 / VM 停止 / 通知経路の死は無音。
+      **自前 Worker は作らない** — `gigun-dev/hub` が同じものを先に設計している(沈黙検知は
+      hub 側の責務)。dotfiles 側は Bark 直叩き 2 箇所を `/notify` へ向けるだけ。
+      着手は hub の H1 が動いてから。詳細はカタログ「通知基盤は hub に寄せる」節。
+      → 完了条件: 更新が途絶えたら iPhone に通知が来ること
 - [ ] `DF-36` Cloudflare トンネル本体を OpenTofu の管理下へ入れる
       state 暗号化 (2026-09-06) で前提は済んだ。あとは import するだけ。
       → 完了条件: `tofu plan` が No changes のままトンネルが state に入っていること
@@ -407,6 +408,38 @@
 - **`DF-12` (機能確認の型)** — `DF-7` は ssh 到達性で合格としたが、その裏で DNS が全滅していた。
   2026-09-06 の健全性ゲート (mini-vm.nix の `healthGate`) が最初の実装で、名前解決 /
   cloudflare-os の HTTP 応答 / 常駐 unit / control socket の 4 項目を見る。
+
+### 通知基盤は hub に寄せる (2026-09-06 決定)
+
+**当初 `DF-35` は「dotfiles の `tofu/` に dead-man's switch の Worker を作る」計画だったが、
+それは `gigun-dev/hub` の再発明だった**。hub を読んで撤回した。
+
+hub に既にあるもの: `/notify`(curl 1 行で叩ける共通受付)、`level` × 配信先の対応表
+(`info`/`warn`/`critical`。`critical` は Bark のサイレント貫通 + Slack メンション)、
+D1 + outbox による履歴・試行回数・エラー記録、**7 日ごとの生存確認**で沈黙を検出する設計。
+動機も同一で、pve の SSD 障害 (2026-05-20 発生 → 8/1 発覚、2 ヶ月半気づかず) で
+**通知先が無かった**こと。
+
+**所有境界は hub 側が定義済み**(`hub/docs/infra-ownership-2026-09-06.md`):
+配信 API・認証・履歴・Bark backend・Slack adapter は hub、
+**通知元 hook・利用 URL・個人の資格情報は dotfiles**。よって dotfiles 側の作業は 2 つだけ:
+
+1. mini-vm の失敗通知を Bark 直叩きから hub の `/notify` へ向ける
+2. `claude/hooks/bark-notify.sh` も同様に寄せる (いま Bark を叩く実装が 2 箇所に重複している)
+
+着手は hub の H1 (共通受付と永続化) が動いてから。沈黙検知は hub の責務。
+
+**通知履歴の見せ方は Cloudflare OS の gadget**(2026-09-06 に現物 `plans/multi-gadget.md` を確認)。
+gadget は workspace 内の第一級オブジェクトで UI とファイルを持ち、gatekeeper への binding も
+張れる。エージェントが `createGadget` で作る前提の設計なので、用途ごとに足すのが想定された
+使い方。**専用 MCP を作る案は却下** — gadget で UI ごと書けるなら、保守する部品を 1 つ増やす
+理由が無い。なお `DF-30` (gatekeeper-mcp の RFC 7591 問題) は外部 MCP サーバーに繋ぐ話で、
+gadget が自前 API を叩く経路とは別物。
+
+**認証は Cloudflare Access に寄せる**。hub の Worker をドメインに載せ、`/notify`(機械が叩く)は
+Bearer、`/history`(人が見る)は Access、とパスで分ける。codex ブリッジで「Access を張れない」
+となった問題 (`DF-22`) は API クライアントがブラウザログインできないのが理由なので、
+人が見る口だけ Access にすれば両立する。
 
 ### mini-vm の自動更新 (2026-09-06 実装)
 
