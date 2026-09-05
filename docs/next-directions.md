@@ -57,11 +57,10 @@ mini-vm が自分で更新するようになったので、その周りの穴を
 **各項目の詳細**はカタログ「着手順から降ろした詳細」節。
 
 - [ ] `DF-35` 通知を hub に寄せ、沈黙を検出できるようにする
-      いまは失敗時に Bark を直叩きするだけで、timer 不発 / VM 停止 / 通知経路の死は無音。
-      **自前 Worker は作らない** — `gigun-dev/hub` が同じものを先に設計している(沈黙検知は
-      hub 側の責務)。dotfiles 側は Bark 直叩き 2 箇所を `/notify` へ向けるだけ。
-      着手は hub の H1 が動いてから。詳細はカタログ「通知基盤は hub に寄せる」節。
-      → 完了条件: 更新が途絶えたら iPhone に通知が来ること
+      hub H0 は実機通知まで確認済み。共通受付 H1・監視 H1b の受け入れ後に切り替える。
+      失敗通知と Claude hook の移行に加え、autoswitch・lock-fast・lock-slow の成功 heartbeat が必要。
+      所有境界・監視周期・移行条件はカタログ「通知基盤は hub に寄せる」節。
+      → 完了条件: 3 系統の成功確認が途絶えたら iPhone に通知され、復旧・計画停止・二重配信防止も検証できること
 - [ ] `DF-13` Cloudflare OS に AI プロバイダを繋いで実際に使う
       残りは Workers AI 側で**モデル選択が支配的**。単価表はカタログ「AI プロバイダ」節。
       → 完了条件: Cloudflare OS のチャットでモデルが応答し、Neurons 消費が実測できること
@@ -456,54 +455,54 @@ mini-vm には性質の違う 2 つの信頼経路があり、1 本に両方を�
 **当初 `DF-35` は「dotfiles の `tofu/` に dead-man's switch の Worker を作る」計画だったが、
 それは `gigun-dev/hub` の再発明だった**。hub を読んで撤回した。
 
-hub に既にあるもの: `/notify`(curl 1 行で叩ける共通受付)、`level` × 配信先の対応表
-(`info`/`warn`/`critical`。`critical` は Bark のサイレント貫通 + Slack メンション)、
-D1 + outbox による履歴・試行回数・エラー記録、**7 日ごとの生存確認**で沈黙を検出する設計。
-動機も同一で、pve の SSD 障害 (2026-05-20 発生 → 8/1 発覚、2 ヶ月半気づかず) で
-**通知先が無かった**こと。
+**実装済みは H0 の Bark backend 検証 Worker**。OpenTofu で公開し、D1 への端末登録と
+APNs 配信を検証済み。本人が iPhone で通常通知・AES 暗号化通知を両方読めたと確認し、
+成立性ゲートを通過した。URL タップ・group・level の表示挙動や鍵更新などの受け入れは残る。
 
-**所有境界は hub 側が定義済み**(`hub/docs/infra-ownership-2026-09-06.md`):
+**共通受付 `/notify`、履歴・outbox・再試行は H1、heartbeat による沈黙検知は H1b の計画**で、
+まだ実装されていない。Slack 配信も未実装。`level` と配信先の対応は今後の設計対象とする。
+pve の SSD 障害に長期間気づけなかった反省は引き継ぐが、7 日ごとの一律確認ではなく、
+通知元ごとの実行周期に応じて成功確認の遅延を検出する。
+
+**所有境界**([hub の定義](../../hub/docs/infra-ownership-2026-09-06.md)):
 配信 API・認証・履歴・Bark backend・Slack adapter は hub、
-**通知元 hook・利用 URL・個人の資格情報は dotfiles**。よって dotfiles 側の作業は 2 つだけ:
+**通知元 hook・利用 URL・個人の資格情報は dotfiles**。
+H0 は Worker/version/deployment と D1 を hub の OpenTofu で管理し、暗号化した独立 state を使う。
+Wrangler は bundle と migration に使う。dotfiles の共通インフラと state へ混ぜない。
 
-1. mini-vm の失敗通知を Bark 直叩きから hub の `/notify` へ向ける
-2. `claude/hooks/bark-notify.sh` も同様に寄せる (いま Bark を叩く実装が 2 箇所に重複している)
+**dotfiles 側の移行範囲**(現時点では既存の Bark 直送を維持):
 
-着手は hub の H1 (共通受付と永続化) が動いてから。沈黙検知は hub の責務。
+1. mini-vm の共通失敗通知と `claude/hooks/bark-notify.sh` を hub の共通受付へ移行する。
+2. `dotfiles-autoswitch`・`dotfiles-lock-propose@fast`・`@slow` の **3 系統**に成功 heartbeat を足す。
+   lock に差分が無い正常終了も報告する。Claude hook はイベント駆動なので同じ周期監視に含めない。
+3. 通知元 ID・認証・監視周期を宣言管理し、30 分の起動ジッターと処理時間を猶予に含める。
+   日次と週次を区別し、不発・復旧・計画停止と移行時の二重配信防止を検証する。
 
-**通知履歴の見せ方は Cloudflare OS の gadget**(2026-09-06 に現物 `plans/multi-gadget.md` を確認)。
-gadget は workspace 内の第一級オブジェクトで UI とファイルを持ち、gatekeeper への binding も
-張れる。エージェントが `createGadget` で作る前提の設計なので、用途ごとに足すのが想定された
-使い方。**専用 MCP を作る案は却下** — gadget で UI ごと書けるなら、保守する部品を 1 つ増やす
-理由が無い。なお `DF-30` (gatekeeper-mcp の RFC 7591 問題) は外部 MCP サーバーに繋ぐ話で、
-gadget が自前 API を叩く経路とは別物。
+共通受付への切替は H1 の受け入れ後。**DF-35 完了には H1b の監視と H2 の移行検証も必要**。
+「成功確認が届かない」ことを知らせる設計であり、通知だけで VM 障害の原因を断定しない。
 
-**認証は Cloudflare Access に寄せる**。hub の Worker をドメインに載せ、`/notify`(機械が叩く)は
-Bearer、`/history`(人が見る)は Access、とパスで分ける。codex ブリッジで「Access を張れない」
-となった問題 (`DF-22`) は API クライアントがブラウザログインできないのが理由なので、
-人が見る口だけ Access にすれば両立する。
+**UI と MCP は両立する**。通知履歴を見る Cloudflare OS gadget は候補、エージェントによる
+hub 操作には MCP を検討する。どちらも未実装で、専用 MCP を一律に却下しない。
+外部 MCP の認証互換性 (`DF-30`) は gadget が API を呼ぶ経路とは別途検証する。
 
-**hub 側の裁定との食い違い**(2026-09-06 時点。hub を読んで確認した。決めるのは hub 側):
+**認証案は実装済み構成と分ける**。機械向け `/notify` は Bearer、人向け `/history` は
+Cloudflare Access で守る案を持つが、H0 は workers.dev 上の秘密のパス接頭辞による構成。
+共通 API・履歴 UI の認証と独自ドメインは hub 側で確定する。
 
-- **MCP を作らない、は言い過ぎだった。** hub の着手順には `/mcp`(cloudflare-os から使う)が
-  あり、裁定にも「着手前に CIMD / DCR のどちらを話すか実測すること」と書かれている。
-  用途が違うので**両立する** — 履歴を「見る」だけなら gadget、Cloudflare OS の
-  エージェントに hub を「操作させる」なら MCP。上で却下したのは前者の用途に限った話。
-- **Worker を tofu で管理するかは hub 内部で更新途中。** 「守るべき裁定」節は
-  「Worker 本体は tofu で管理しない」だが、`implementation-plan-2026-09-06.md` の R0 は
-  「固定条件とせず見直す」、`infra-ownership-2026-09-06.md` は「provider 5.23.0 で
-  Worker/version/deployment も管理可能」。dotfiles 側は関与しないが、**古い裁定が
-  残っている**ことは認識しておく (どちらが正かで hub の R0 の結論が変わる)。
+> **2026-09-06 更新:** 設計を「既にある」とした記述を訂正。H0 の実機成立性と OpenTofu 管理は確認済み、
+> H1/H1b/H2 は未完了。MCP の一律却下を撤回し、通知移行に lock 提案 2 系統の成功確認も含めた。
 
 ### mini-vm の自動更新 (2026-09-06 実装)
 
 **動機**: 無人機なので手で `pull && switch` を打つ機会が無く、push 済みの変更が届かないまま
 気づけない(cloudflare-os で実際に 106 コミット遅れた)。
 
-**設計の要点**(実装は `mini-vm.nix` の `dotfiles-autoswitch`):
+**設計の要点**(実装は `nix/modules/nixos/mini-vm.nix`):
 
-- **`nix flake update` はしない。** 適用だけを自動化し、lock の更新は手元でレビューを通す。
-  「autoUpgrade なのに update しないのは不完全」と見えるが、これは意図的な一線。
+- **lock 更新の提案と適用を分ける。** `dotfiles-lock-propose@fast`(毎日) / `@slow`(日曜)が
+  lock 更新 → 実機ビルド → PR・auto-merge 設定まで行い、required CI の成功で merge する。
+  人の lock 差分レビューは前提にしない。`dotfiles-autoswitch` 自体は lock を更新せず、
+  merge 済みの変更を pull → switch → 健全性確認し、失敗時は rollback する。
 - **`system.autoUpgrade` は使わない。** home 層が視野の外(`nixos-rebuild` しか叩かない)で、
   pre/post フックが無いため健全性ゲートも dirty ガードも挟めない。nixpkgs の
   `nixos/modules/tasks/auto-upgrade.nix` を読んで確認した。提供価値は timer 1 本分。
@@ -515,7 +514,11 @@ Bearer、`/history`(人が見る)は Access、とパスで分ける。codex ブ�
 - **駆動スクリプトは現 generation のものが走る**。新しいツリーが更新器自身を壊しても、次回は
   壊れる前の更新器で回る(自己更新は 1 サイクル遅れる)。
 
-**残っている穴**: 失敗は鳴るが**沈黙は検出できない** → `DF-35`。再起動は未実装 → `DF-33`。
+**残っている穴**: 失敗は鳴るが**沈黙は検出できない** → `DF-35`。自動再起動は導入していない。
+`DF-33` のホスト再起動後の復帰検証は完了済みで、自動再起動の導入とは区別する。
+
+> **2026-09-06 更新:** 手元レビュー前提から、lock 提案と CI ゲートによる自動 merge・適用へ更新。
+> fast の PR #1 の merge と CI 成功を確認済み。未実装の沈黙監視は引き続き DF-35 で扱う。
 
 ### Mac Mini の Intel 打ち切り対応 (2026-08-05 実施)
 
