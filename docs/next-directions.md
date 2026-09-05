@@ -55,10 +55,6 @@
 (`DF-13` `DF-24` `DF-22`)、その後は裁定待ちか随伴作業。
 **各項目の詳細**はカタログ「着手順から降ろした詳細」節。
 
-- [ ] `DF-33` mini-vm 再起動後に codex-remote-control が復帰し、スマホから繋がるか確認する
-      **自動更新の再起動を解禁する前提**(mini-vm.nix がこの ID を参照している)。詳細はカタログ。
-      → 完了条件: 再起動後に手を触れず、スマホの ChatGPT アプリから mini-vm が CLI として見え、実際にタスクが通ること
-  > **2026-09-06 更新:** macOS ホストごと再起動して実測。復帰 51 秒、Lima VM は autostart + 自動ログインで自動起動。常駐 5 サービスが手を触れず active、timer 再登録、健全性ゲート 4 項目通過、公開エンドポイントは再起動前と同じ (os=302 / codex=404)、enrollment と control socket も残存。**機械で見える範囲は全て合格。残るはスマホからの実操作のみ**。
 - [ ] `DF-35` 通知を hub に寄せ、沈黙を検出できるようにする
       いまは失敗時に Bark を直叩きするだけで、timer 不発 / VM 停止 / 通知経路の死は無音。
       **自前 Worker は作らない** — `gigun-dev/hub` が同じものを先に設計している(沈黙検知は
@@ -380,6 +376,11 @@
       → 完了条件: `tofu plan` が No changes のままトンネルが state に入っていること
       → ae6ba93 / tofu plan が No changes、apply は 1 imported / 0 added / 0 changed / 0 destroyed。state 内の tunnel_secret は null (宣言しないので載らない) で、コネクタの認証情報は agenix のまま。state 自体も PBKDF2 + AES-GCM で暗号化済み
   > **2026-09-06 更新:** 2026-09-06: state 暗号化は完了。だが import は 401 Unauthorized で止まった — tofu-env.age の CLOUDFLARE_API_TOKEN に Cloudflare Tunnel の読み取り権限が無い。次の一手はダッシュボードでトークンに Account / Cloudflare Tunnel:Read を足すこと(手作業)。その後 import ブロックを書いて plan -generate-config-out で HCL を起こす。tunnel_secret は optional かつ computed でないので、設定に書かなければ state には入らない(秘密は agenix のまま)。
+- ~~`DF-33` mini-vm 再起動後に codex-remote-control が復帰し、スマホから繋がるか確認する~~ ✅ 2026-09-06
+      **自動更新の再起動を解禁する前提**(mini-vm.nix がこの ID を参照している)。詳細はカタログ。
+      → 完了条件: 再起動後に手を触れず、スマホの ChatGPT アプリから mini-vm が CLI として見え、実際にタスクが通ること
+      → 2026-09-06 に macOS ホストごと再起動して実測。機械側は全て合格 (Lima VM が autostart + 自動ログインで自動起動、常駐 5 サービスが手を触れず active、timer 再登録、健全性ゲート 4 項目通過、公開エンドポイントは再起動前と同じ、enrollment と control socket も残存)。**スマホの ChatGPT アプリから mini-vm が見え、接続済みになることも本人が確認**。これで自動更新の再起動解禁の前提が揃った
+  > **2026-09-06 更新:** macOS ホストごと再起動して実測。復帰 51 秒、Lima VM は autostart + 自動ログインで自動起動。常駐 5 サービスが手を触れず active、timer 再登録、健全性ゲート 4 項目通過、公開エンドポイントは再起動前と同じ (os=302 / codex=404)、enrollment と control socket も残存。**機械で見える範囲は全て合格。残るはスマホからの実操作のみ**。
 
 ## 方向性カタログ
 
