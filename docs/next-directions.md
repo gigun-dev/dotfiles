@@ -66,6 +66,7 @@
 - [ ] `DF-36` Cloudflare トンネル本体を OpenTofu の管理下へ入れる
       state 暗号化 (2026-09-06) で前提は済んだ。あとは import するだけ。
       → 完了条件: `tofu plan` が No changes のままトンネルが state に入っていること
+  > **2026-09-06 更新:** 2026-09-06: state 暗号化は完了。だが import は 401 Unauthorized で止まった — tofu-env.age の CLOUDFLARE_API_TOKEN に Cloudflare Tunnel の読み取り権限が無い。次の一手はダッシュボードでトークンに Account / Cloudflare Tunnel:Read を足すこと(手作業)。その後 import ブロックを書いて plan -generate-config-out で HCL を起こす。tunnel_secret は optional かつ computed でないので、設定に書かなければ state には入らない(秘密は agenix のまま)。
 - [ ] `DF-13` Cloudflare OS に AI プロバイダを繋いで実際に使う
       残りは Workers AI 側で**モデル選択が支配的**。単価表はカタログ「AI プロバイダ」節。
       → 完了条件: Cloudflare OS のチャットでモデルが応答し、Neurons 消費が実測できること
