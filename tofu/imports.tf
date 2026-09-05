@@ -86,3 +86,9 @@ import {
   to = cloudflare_ai_gateway.cloudflare_os
   id = "${local.account_id}/cloudflare-os"
 }
+
+# --- Cloudflare Tunnel ------------------------------------------------------
+import {
+  to = cloudflare_zero_trust_tunnel_cloudflared.mini_vm
+  id = "${local.account_id}/${local.tunnel_id}"
+}
