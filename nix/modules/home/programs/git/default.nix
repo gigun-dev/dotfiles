@@ -22,7 +22,7 @@
       # Windows は GCM (Git Credential Manager) が標準、別途
       credential.helper = "!${pkgs.gh}/bin/gh auth git-credential";
     }
-    // lib.optionalAttrs pkgs.stdenv.isDarwin {
+    // lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
       # plist を XML 変換して diff 可能にする (plutil は macOS のみ)
       diff.plist.textconv = "plutil -convert xml1 -o -";
     };

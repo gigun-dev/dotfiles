@@ -164,7 +164,7 @@
           # darwin: darwin-rebuild で system + home 両方適用
           # linux:  home-manager standalone で home のみ適用 (WSL 想定)
           apps =
-            pkgs.lib.optionalAttrs pkgs.stdenv.isDarwin {
+            pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
               switch = mkApp "darwin-switch" ''
                 sudo ${inputs.nix-darwin.packages.${system}.darwin-rebuild}/bin/darwin-rebuild \
                   switch --flake ".#${username}-${system}" "$@"
@@ -191,7 +191,7 @@
                 fi
               '';
             }
-            // pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+            // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
               # Linux は 2 種類ある: WSL (home-manager standalone のみ) と
               # Mac Mini の Lima ゲスト (NixOS なので OS 層も管理する)。
               # /etc/NIXOS の有無で判別し、darwin の switch が system + home を
@@ -327,9 +327,11 @@
               alwaysOn ? false,
             }:
             inputs.nix-darwin.lib.darwinSystem {
-              inherit system;
               modules = [
                 {
+                  # プラットフォームは darwinSystem の `system` 引数ではなく
+                  # nixpkgs.hostPlatform で宣言する (nix-darwin の推奨形)
+                  nixpkgs.hostPlatform = system;
                   nixpkgs.overlays = overlays;
                 }
                 ./nix/modules/darwin/system.nix

@@ -55,7 +55,7 @@
     # Include 先 (~/.orbstack/ssh/config, ~/.colima/ssh_config) は macOS でしか存在しない。
     # Linux (mini-vm / WSL) でこの Include を出すと、参照先が無いディレクトリのため
     # ssh 起動時に警告 (または Include できずエラー) になる。darwin 限定にする。
-    includes = lib.optionals pkgs.stdenv.isDarwin [
+    includes = lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
       "~/.orbstack/ssh/config"
       "/Users/gigun/.colima/ssh_config"
     ];
