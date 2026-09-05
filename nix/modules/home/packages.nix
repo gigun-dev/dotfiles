@@ -30,6 +30,10 @@
 
       # Nix
       cachix # 個人キャッシュ (gigun.cachix.org) への push に必須。初回 `cachix authtoken <token>`
+      # age: secrets/*.age を実行時に復号する側で要る (claude/hooks/bark-notify.sh)。
+      # NixOS は activation で自動復号するが、macOS には agenix モジュールを入れて
+      # いないため、tofu ラッパと同じ「その場で復号して環境変数へ」方式を採っている。
+      age
 
       # Git
       gh

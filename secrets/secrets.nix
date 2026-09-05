@@ -45,6 +45,16 @@ in
   # gatekeeper-<short>-env.age という名前で同じ形を増やす。
   "gatekeeper-github-env.age".publicKeys = all;
 
+  # Bark (iOS プッシュ通知) の宛先と暗号鍵。KEY=VALUE 形式で BARK_DEVICE_KEY /
+  # BARK_ENCRYPT_KEY / BARK_ENCRYPT_IV。
+  #
+  # 2026-09-05 に macOS Keychain から移した。Keychain には設定手順の記録が無く、
+  # M4 Pro を失うと復旧できないうえ mini-vm から読めなかった (機械が読む秘密は
+  # agenix 側で管理する、という切り分け。cf. backup 鍵のコメント)。
+  # 読み手は 2 つ: macOS の claude/hooks/bark-notify.sh (実行時に age で復号) と、
+  # mini-vm の自動更新の失敗通知 (activation で /run/agenix へ)。
+  "bark-env.age".publicKeys = all;
+
   # codex ブリッジの設定。api_key が入っているので全体を暗号化している。
   "codex-bridge-config.toml.age".publicKeys = all;
 
