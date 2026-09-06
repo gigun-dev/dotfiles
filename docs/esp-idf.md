@@ -8,15 +8,23 @@ ESP-IDF 6.1 / Xtensaを固定し、ESP32 / S2 / S3の開発に使う。
 
 ```sh
 # dotfiles checkout内
-nix develop .#esp-idf
+mkdir -p "${XDG_STATE_HOME:-$HOME/.local/state}/esp-idf"
+nix develop .#esp-idf --profile "${XDG_STATE_HOME:-$HOME/.local/state}/esp-idf/nix-profile"
 
 # firmwareプロジェクト内から、dotfilesの環境を指定
-nix develop /absolute/path/to/dotfiles#esp-idf --command idf.py --version
+nix develop /absolute/path/to/dotfiles#esp-idf \
+  --profile "${XDG_STATE_HOME:-$HOME/.local/state}/esp-idf/nix-profile" \
+  --command idf.py --version
 ```
 
 別のMac/Linuxでも同じdotfilesコミットをcheckoutして同じコマンドを使う。
 shellに入ると `uv sync --locked` が端末のcache内へPython環境を作る。
 初回はネット接続が必要。通常の起動で依存を更新せず、lockのhashごとに環境を分ける。
+`--profile`は開発環境のGC rootを保持する。flake/lockの宣言だけでは、終了したshellの
+依存を自動GCから保護しない。uvのcache内のPython symlinkもGC rootにはならない。
+macOSの毎日12時のGC後も、現在のprofileが参照するSDK/Pythonを保持する。
+同じprofileを使って入り直すと宣言から再評価され、更新後の環境を保持する。
+利用終了後にprofileのリンクと世代リンクを削除すると、次のGCで回収可能になる。
 Nixはホスト用のcompilerバイナリを選択する。ファームの対象は別途
 `idf.py set-target esp32s3` などで選ぶ。ビルドディレクトリは各ホストで作り直す。
 
@@ -54,6 +62,7 @@ Macで実ビルド、各OSのderivation評価、可能ならLinuxでも実ビル
 ## PoCからの利用
 
 `esp32-airdrop-poc/tools/with-idf.sh` はghqからdotfilesを探す。
+上記のstate配下のprofileも指定し、短いbuild/flashコマンド間で環境を保持する。
 checkout位置が違う場合のみ `DOTFILES_ROOT` を指定する。
 古い `.idf-env.local` やCodex作業フォルダへの依存は廃止。
 以前の手動導入物は今回削除せず、必要な成果物の確認後に別途整理する。
