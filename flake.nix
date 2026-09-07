@@ -324,6 +324,13 @@
           mkDarwinSystem =
             system:
             {
+              # HostName を宣言しないと `hostname` が DHCP 由来の一時名に流される
+              # (scutil の HostName 未設定時のフォールバック)。実際に 2026-09-07
+              # home 5G 導入でルーターが変わり MacBook の `hostname` が `Mac` に
+              # 化けた (ComputerName/LocalHostName は無傷)。zsh プロンプトの `%m`
+              # がこれを見ているため名前が飛んで見えた。デフォルト値を付けない
+              # 理由: 新ホストを足すときに書き忘れたら評価エラーで気づけるように。
+              hostName,
               alwaysOn ? false,
             }:
             inputs.nix-darwin.lib.darwinSystem {
@@ -333,6 +340,10 @@
                   # nixpkgs.hostPlatform で宣言する (nix-darwin の推奨形)
                   nixpkgs.hostPlatform = system;
                   nixpkgs.overlays = overlays;
+                  # localHostName は書かない: hostName から既定されるため
+                  # (nix-darwin の networking.localHostName の意味論)。
+                  networking.hostName = hostName;
+                  networking.computerName = hostName;
                 }
                 ./nix/modules/darwin/system.nix
                 ./nix/modules/darwin/homebrew.nix
@@ -385,9 +396,14 @@
           # ⭐️ キーの形 (`${username}-${system}`) は変えないこと。役割は第 2 引数で渡す。
           darwinConfigurations = {
             # MacBook Pro (M4 Pro)。手元機なので alwaysOn ではない。
-            "${username}-aarch64-darwin" = mkDarwinSystem "aarch64-darwin" { };
+            "${username}-aarch64-darwin" = mkDarwinSystem "aarch64-darwin" { hostName = "MBPM4Pro"; };
             # Mac Mini (Intel)。Lima ゲスト (mini-vm) を載せた 24/365 の拠点。
-            "${username}-x86_64-darwin" = mkDarwinSystem "x86_64-darwin" { alwaysOn = true; };
+            # macOS 側は nix 管理を凍結中なのでこの hostName 宣言は当たらない。
+            # network-watchdog / homebrew の brews と同じ「M チップ化した日に効く予約」。
+            "${username}-x86_64-darwin" = mkDarwinSystem "x86_64-darwin" {
+              hostName = "mini";
+              alwaysOn = true;
+            };
           };
 
           # Mac Mini (Intel) 上の Lima ゲスト。
