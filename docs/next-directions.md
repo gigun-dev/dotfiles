@@ -37,6 +37,14 @@
 - **ESP-IDF は 6.1 を `nix develop .#esp-idf` で使う** (2026-09-05)。CoreS3 で実機検証済み。
   AirDrop 転送は未実装、他ホストの実ビルドも未実施。→ `docs/esp-idf.md`
 
+> **2026-09-07 更新:** 比較用 `nix develop .#esp32drop` を追加。Arduino CLI は既存 lock、
+> M5Stack core 3.3.8 / M5Unified 0.2.21 / M5GFX 0.2.28 は checksum 付き index で固定。
+> ✅ StopWatch の 3 例と CoreS3 GreetingCard を clean build、26 archive の SHA-256 照合、
+> setup 冪等実行、`nix flake check` 成功。ESP-IDF・flake.lock・upstream は変更なし。
+> Apple Silicon + Rosetta 前提。実機書き込み・転送は未実施。→ `docs/esp32drop.md`
+
+> **2026-09-07 更新（実機）:** CoreS3はQSPI（`PSRAM=enabled`）で起動し、ESP32Drop比較harnessからMac保存SHA一致を確認。CoreS3例の誤OPI指定を訂正。StopWatch用OPI既定値は維持。測定値・機体割当・未検証範囲はesp32-airdrop-pocの`docs/airdrop-benchmark.md`を正典とする。
+
 - **繰り返している失敗の形**: **検知器自身が壊れていると、壊れていることに気づけない**
   (切り詰め警告が切り詰めで消える / ssh 到達性で DNS 全滅を素通り / 2026-09-06 は頭が
   12,686B で無言に切り詰められ、かつ **CI が丸一日赤いのに気づいていなかった** —

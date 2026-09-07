@@ -159,6 +159,8 @@
             inherit system;
             espDev = inputs.esp-dev;
           };
+          # 比較用 Arduino core は ESP-IDF 6.1 と別の SDK/cache を使う。
+          devShells.esp32drop = import ./nix/devshells/esp32drop.nix { inherit pkgs; };
 
           # Apps — perSystem の system で正しい構成を選択
           # darwin: darwin-rebuild で system + home 両方適用

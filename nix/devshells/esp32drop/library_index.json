@@ -1,0 +1,58 @@
+{
+  "libraries": [
+    {
+      "name": "M5GFX",
+      "version": "0.2.28",
+      "author": "M5Stack",
+      "maintainer": "M5Stack",
+      "sentence": "Library for M5Stack All Display",
+      "paragraph": "M5Stack, M5Stack Core2, M5Stack CoreInk, M5StickC, M5StickC-Plus, M5Paper, M5Tough, M5Station, M5ATOMS3, Unit OLED, Unit LCD, Unit RCA, ATOM Display, See more on http://M5Stack.com",
+      "website": "https://github.com/m5stack/M5GFX.git",
+      "category": "Display",
+      "architectures": [
+        "esp32"
+      ],
+      "types": [
+        "Contributed"
+      ],
+      "repository": "https://github.com/m5stack/M5GFX.git",
+      "providesIncludes": [
+        "M5GFX.h"
+      ],
+      "url": "https://downloads.arduino.cc/libraries/github.com/m5stack/M5GFX-0.2.28.zip",
+      "archiveFileName": "M5GFX-0.2.28.zip",
+      "size": 49275706,
+      "checksum": "SHA-256:536ee7602cfbe9116761221ea9ef839a66aa59ee9844e8533325bda58963484f"
+    },
+    {
+      "name": "M5Unified",
+      "version": "0.2.21",
+      "author": "M5Stack",
+      "maintainer": "M5Stack",
+      "sentence": "Unified library for M5Stack series",
+      "paragraph": "M5Stack, M5Stack Core2, M5Stack CoreInk, M5StickC, M5StickC-Plus, M5Paper, M5Tough, M5ATOM, M5STAMP, M5Station, See more on http://M5Stack.com",
+      "website": "https://github.com/m5stack/M5Unified.git",
+      "category": "Display",
+      "architectures": [
+        "esp32"
+      ],
+      "types": [
+        "Contributed"
+      ],
+      "repository": "https://github.com/m5stack/M5Unified.git",
+      "providesIncludes": [
+        "M5Unified.h"
+      ],
+      "dependencies": [
+        {
+          "name": "M5GFX",
+          "version": ">=0.2.28"
+        }
+      ],
+      "url": "https://downloads.arduino.cc/libraries/github.com/m5stack/M5Unified-0.2.21.zip",
+      "archiveFileName": "M5Unified-0.2.21.zip",
+      "size": 676941,
+      "checksum": "SHA-256:5e6b7b1525c278b194cb1e2814730c37cacd830a39fef103fa78065b23c94b19"
+    }
+  ]
+}
