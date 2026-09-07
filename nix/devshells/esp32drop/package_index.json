@@ -1,0 +1,334 @@
+{
+  "packages": [
+    {
+      "name": "arduino",
+      "maintainer": "Arduino",
+      "websiteURL": "https://www.arduino.cc/",
+      "email": "packages@arduino.cc",
+      "help": {
+        "online": "https://www.arduino.cc/en/Reference/HomePage"
+      },
+      "platforms": [],
+      "tools": [
+        {
+          "name": "dfu-util",
+          "version": "0.11.0-arduino5",
+          "systems": [
+            {
+              "host": "i386-apple-darwin11",
+              "url": "https://downloads.arduino.cc/tools/dfu-util-0.11-arduino5-darwin_amd64.tar.gz",
+              "archiveFileName": "dfu-util-0.11-arduino5-darwin_amd64.tar.gz",
+              "checksum": "SHA-256:9e576c6e44f54b1e921a43ea77bcc08ec99e0e4e0905f4b9acf9ab2c979f0a22",
+              "size": "72429"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "builtin",
+      "maintainer": "Arduino",
+      "websiteURL": "https://www.arduino.cc/",
+      "email": "packages@arduino.cc",
+      "help": {
+        "online": "https://www.arduino.cc/en/Reference/HomePage"
+      },
+      "platforms": [],
+      "tools": [
+        {
+          "name": "ctags",
+          "version": "5.8-arduino11",
+          "systems": [
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://downloads.arduino.cc/tools/ctags-5.8-arduino11-pm-x86_64-apple-darwin.zip",
+              "archiveFileName": "ctags-5.8-arduino11-pm-x86_64-apple-darwin.zip",
+              "checksum": "SHA-256:bf74807260ddf0e1fc94d67e9cd8a41b7c0a2f0bee03e254e6975139b37ef250",
+              "size": 118296
+            }
+          ]
+        },
+        {
+          "name": "dfu-discovery",
+          "version": "0.1.2",
+          "systems": [
+            {
+              "host": "arm64-apple-darwin",
+              "url": "https://downloads.arduino.cc/discovery/dfu-discovery/dfu-discovery_v0.1.2_macOS_ARM64.tar.gz",
+              "archiveFileName": "dfu-discovery_v0.1.2_macOS_ARM64.tar.gz",
+              "checksum": "SHA-256:50e04bf5d5aa2257a8029f9f4b52893e90272cd747c1059277708cb5eb0e5524",
+              "size": 1816821
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://downloads.arduino.cc/discovery/dfu-discovery/dfu-discovery_v0.1.2_macOS_64bit.tar.gz",
+              "archiveFileName": "dfu-discovery_v0.1.2_macOS_64bit.tar.gz",
+              "checksum": "SHA-256:7f22774d925a014d51b6e997e25dc78a721db91b67225263fbcb3de265209f25",
+              "size": 1895874
+            }
+          ]
+        },
+        {
+          "name": "mdns-discovery",
+          "version": "1.1.0",
+          "systems": [
+            {
+              "host": "arm64-apple-darwin",
+              "url": "https://downloads.arduino.cc/discovery/mdns-discovery/mdns-discovery_v1.1.0_macOS_ARM64.tar.gz",
+              "archiveFileName": "mdns-discovery_v1.1.0_macOS_ARM64.tar.gz",
+              "checksum": "SHA-256:f6a221b01024f15de3370a6f3a7efe75f3ac745aef4d8cbb623ddbd57b13526c",
+              "size": 3088630
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://downloads.arduino.cc/discovery/mdns-discovery/mdns-discovery_v1.1.0_macOS_64bit.tar.gz",
+              "archiveFileName": "mdns-discovery_v1.1.0_macOS_64bit.tar.gz",
+              "checksum": "SHA-256:6815f6d1fdee1472d2a5cbc52692ee899fcc6a5b340fb07005de390c9578ad20",
+              "size": 3327624
+            }
+          ]
+        },
+        {
+          "name": "mdns-discovery",
+          "version": "1.0.12",
+          "systems": [
+            {
+              "host": "arm64-apple-darwin",
+              "url": "https://downloads.arduino.cc/discovery/mdns-discovery/mdns-discovery_v1.0.12_macOS_ARM64.tar.gz",
+              "archiveFileName": "mdns-discovery_v1.0.12_macOS_ARM64.tar.gz",
+              "checksum": "SHA-256:52e0d277ec5812ee98475e14f2a11fca98520a0fe1cdd3f6357eda432c9d4ae9",
+              "size": 3103889
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://downloads.arduino.cc/discovery/mdns-discovery/mdns-discovery_v1.0.12_macOS_64bit.tar.gz",
+              "archiveFileName": "mdns-discovery_v1.0.12_macOS_64bit.tar.gz",
+              "checksum": "SHA-256:0e3859e030b6a9a997b8cc6b101bf05aac53123ac671eb18b26376fb2478a1c5",
+              "size": 3317356
+            }
+          ]
+        },
+        {
+          "name": "mdns-discovery",
+          "version": "1.0.10",
+          "systems": [
+            {
+              "host": "arm64-apple-darwin",
+              "url": "https://downloads.arduino.cc/discovery/mdns-discovery/mdns-discovery_v1.0.10_macOS_ARM64.tar.gz",
+              "archiveFileName": "mdns-discovery_v1.0.10_macOS_ARM64.tar.gz",
+              "checksum": "SHA-256:f643021082dc22601f23c5669b9a2f979e911da7e7ca8851a33924194f5da253",
+              "size": 2676041
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://downloads.arduino.cc/discovery/mdns-discovery/mdns-discovery_v1.0.10_macOS_64bit.tar.gz",
+              "archiveFileName": "mdns-discovery_v1.0.10_macOS_64bit.tar.gz",
+              "checksum": "SHA-256:7c0081cf1088b988f46abcc0a4fc619014074878b643a3c59714f54282a5888e",
+              "size": 2835181
+            }
+          ]
+        },
+        {
+          "name": "mdns-discovery",
+          "version": "1.0.9",
+          "systems": [
+            {
+              "host": "arm64-apple-darwin",
+              "url": "https://downloads.arduino.cc/discovery/mdns-discovery/mdns-discovery_v1.0.9_macOS_ARM64.tar.gz",
+              "archiveFileName": "mdns-discovery_v1.0.9_macOS_ARM64.tar.gz",
+              "checksum": "SHA-256:b13afa80c12e6faecc61e05901fce1649254997ed26d61e6c4a446b3a41c3b6d",
+              "size": 2370520
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://downloads.arduino.cc/discovery/mdns-discovery/mdns-discovery_v1.0.9_macOS_64bit.tar.gz",
+              "archiveFileName": "mdns-discovery_v1.0.9_macOS_64bit.tar.gz",
+              "checksum": "SHA-256:489b25ed06bd4e5150a66a396db3f0def76ad30fc08572506c215ed600c97a3e",
+              "size": 2477992
+            }
+          ]
+        },
+        {
+          "name": "mdns-discovery",
+          "version": "1.0.8",
+          "systems": [
+            {
+              "host": "arm64-apple-darwin",
+              "url": "https://downloads.arduino.cc/discovery/mdns-discovery/mdns-discovery_v1.0.8_macOS_ARM64.tar.gz",
+              "archiveFileName": "mdns-discovery_v1.0.8_macOS_ARM64.tar.gz",
+              "checksum": "SHA-256:3d75924b21ca2af697daae9b6bcd731f3d29cf5f48cef5d832673f571ca077c6",
+              "size": 2350031
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://downloads.arduino.cc/discovery/mdns-discovery/mdns-discovery_v1.0.8_macOS_64bit.tar.gz",
+              "archiveFileName": "mdns-discovery_v1.0.8_macOS_64bit.tar.gz",
+              "checksum": "SHA-256:73cf482b67060078c9a66c359ce15ad40bb3ce07d5b5ba9dc261e0cc533058ac",
+              "size": 2417751
+            }
+          ]
+        },
+        {
+          "name": "serial-discovery",
+          "version": "1.5.2",
+          "systems": [
+            {
+              "host": "arm64-apple-darwin",
+              "url": "https://downloads.arduino.cc/discovery/serial-discovery/serial-discovery_v1.5.2_macOS_ARM64.tar.gz",
+              "archiveFileName": "serial-discovery_v1.5.2_macOS_ARM64.tar.gz",
+              "checksum": "SHA-256:ab85fcd0f14207d97e9095831ce2ddc45718952b125a617695dd190a6a94272f",
+              "size": 2086245
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://downloads.arduino.cc/discovery/serial-discovery/serial-discovery_v1.5.2_macOS_64bit.tar.gz",
+              "archiveFileName": "serial-discovery_v1.5.2_macOS_64bit.tar.gz",
+              "checksum": "SHA-256:6950b82bdaf27ef43f65fc6a5039693807f49a5777deecfd434b66d8d57bef97",
+              "size": 2328318
+            }
+          ]
+        },
+        {
+          "name": "serial-discovery",
+          "version": "1.5.1",
+          "systems": [
+            {
+              "host": "arm64-apple-darwin",
+              "url": "https://downloads.arduino.cc/discovery/serial-discovery/serial-discovery_v1.5.1_macOS_ARM64.tar.gz",
+              "archiveFileName": "serial-discovery_v1.5.1_macOS_ARM64.tar.gz",
+              "checksum": "SHA-256:b548c0c9575e2f1390a309dbf45fa8a47b2818b6403d91e908ec2d4eb246f1ad",
+              "size": 2085081
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://downloads.arduino.cc/discovery/serial-discovery/serial-discovery_v1.5.1_macOS_64bit.tar.gz",
+              "archiveFileName": "serial-discovery_v1.5.1_macOS_64bit.tar.gz",
+              "checksum": "SHA-256:36643701920724359fc6c0c39c74ea18ca03c628dccc850aa717da79522c2870",
+              "size": 2324863
+            }
+          ]
+        },
+        {
+          "name": "serial-discovery",
+          "version": "1.5.0",
+          "systems": [
+            {
+              "host": "arm64-apple-darwin",
+              "url": "https://downloads.arduino.cc/discovery/serial-discovery/serial-discovery_v1.5.0_macOS_ARM64.tar.gz",
+              "archiveFileName": "serial-discovery_v1.5.0_macOS_ARM64.tar.gz",
+              "checksum": "SHA-256:3d86e7321f6145af0e993d3a377c72cb024044a68e4ff178de16eeae989a9fda",
+              "size": 2084404
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://downloads.arduino.cc/discovery/serial-discovery/serial-discovery_v1.5.0_macOS_64bit.tar.gz",
+              "archiveFileName": "serial-discovery_v1.5.0_macOS_64bit.tar.gz",
+              "checksum": "SHA-256:6b78f30c14b6cd638ee26c2854d03f6457a8be8c3435e40509722bb80cf4ab18",
+              "size": 2324860
+            }
+          ]
+        },
+        {
+          "name": "serial-discovery",
+          "version": "1.4.3",
+          "systems": [
+            {
+              "host": "arm64-apple-darwin",
+              "url": "https://downloads.arduino.cc/discovery/serial-discovery/serial-discovery_v1.4.3_macOS_ARM64.tar.gz",
+              "archiveFileName": "serial-discovery_v1.4.3_macOS_ARM64.tar.gz",
+              "checksum": "SHA-256:122bff989db02d0ae886fcf0ebd29be6e2f438dd1d939d7e0fb48597c64a7698",
+              "size": 1963468
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://downloads.arduino.cc/discovery/serial-discovery/serial-discovery_v1.4.3_macOS_64bit.tar.gz",
+              "archiveFileName": "serial-discovery_v1.4.3_macOS_64bit.tar.gz",
+              "checksum": "SHA-256:10d4f5992878216406a2c47a6591616f2312c36239fd5e012452183017000f1d",
+              "size": 2174468
+            }
+          ]
+        },
+        {
+          "name": "serial-discovery",
+          "version": "1.4.1",
+          "systems": [
+            {
+              "host": "arm64-apple-darwin",
+              "url": "https://downloads.arduino.cc/discovery/serial-discovery/serial-discovery_v1.4.1_macOS_ARM64.tar.gz",
+              "archiveFileName": "serial-discovery_v1.4.1_macOS_ARM64.tar.gz",
+              "checksum": "SHA-256:084275bf3fad14fd2709589ae872958526681b1f4bd8e12eb812f3cf081be54e",
+              "size": 1649104
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://downloads.arduino.cc/discovery/serial-discovery/serial-discovery_v1.4.1_macOS_64bit.tar.gz",
+              "archiveFileName": "serial-discovery_v1.4.1_macOS_64bit.tar.gz",
+              "checksum": "SHA-256:c02d0580a86f072ecad9863a12f73647018b7d184872ead53dcf4b6df5edf071",
+              "size": 1749974
+            }
+          ]
+        },
+        {
+          "name": "serial-discovery",
+          "version": "1.4.0",
+          "systems": [
+            {
+              "host": "arm64-apple-darwin",
+              "url": "https://downloads.arduino.cc/discovery/serial-discovery/serial-discovery_v1.4.0_macOS_ARM64.tar.gz",
+              "archiveFileName": "serial-discovery_v1.4.0_macOS_ARM64.tar.gz",
+              "checksum": "SHA-256:f50435404e1e3676826f30ad82a9399cdc53c501dd7dbc5a43ca28072f9284fb",
+              "size": 1649820
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://downloads.arduino.cc/discovery/serial-discovery/serial-discovery_v1.4.0_macOS_64bit.tar.gz",
+              "archiveFileName": "serial-discovery_v1.4.0_macOS_64bit.tar.gz",
+              "checksum": "SHA-256:acb2a9058314cef6d12c67c1660db06e06d90def15f9b9546350ba87839b151d",
+              "size": 1748706
+            }
+          ]
+        },
+        {
+          "name": "serial-monitor",
+          "version": "0.15.0",
+          "systems": [
+            {
+              "host": "arm64-apple-darwin",
+              "url": "https://downloads.arduino.cc/monitor/serial-monitor/serial-monitor_v0.15.0_macOS_ARM64.tar.gz",
+              "archiveFileName": "serial-monitor_v0.15.0_macOS_ARM64.tar.gz",
+              "checksum": "SHA-256:2b9c5e93f36b07d3a89f7f9a62fa5fe95242042733f39f72eb29b46eea2a4a53",
+              "size": 2276641
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://downloads.arduino.cc/monitor/serial-monitor/serial-monitor_v0.15.0_macOS_64bit.tar.gz",
+              "archiveFileName": "serial-monitor_v0.15.0_macOS_64bit.tar.gz",
+              "checksum": "SHA-256:862d642d5a7de4528b588b2aff7f958477e9a39161a80d30f7241356838f988c",
+              "size": 2381498
+            }
+          ]
+        },
+        {
+          "name": "serial-monitor",
+          "version": "0.14.1",
+          "systems": [
+            {
+              "host": "arm64-apple-darwin",
+              "url": "https://downloads.arduino.cc/monitor/serial-monitor/serial-monitor_v0.14.1_macOS_ARM64.tar.gz",
+              "archiveFileName": "serial-monitor_v0.14.1_macOS_ARM64.tar.gz",
+              "checksum": "SHA-256:724f5343a2e74d22866de39b16729ab1b37dc2178b01e83a51d2d3e429150ba4",
+              "size": 1993967
+            },
+            {
+              "host": "x86_64-apple-darwin",
+              "url": "https://downloads.arduino.cc/monitor/serial-monitor/serial-monitor_v0.14.1_macOS_64bit.tar.gz",
+              "archiveFileName": "serial-monitor_v0.14.1_macOS_64bit.tar.gz",
+              "checksum": "SHA-256:e002bfb25093a45911f9903ed6e99ad56d6cafc07fc7e77800e3afda9316e050",
+              "size": 2061766
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
