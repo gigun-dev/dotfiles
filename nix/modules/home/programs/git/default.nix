@@ -8,6 +8,10 @@
   programs.git = {
     enable = true;
 
+    # isolation: worktree のサブエージェントが全リポジトリで .claude/worktrees/ を作る。
+    # 各リポジトリの .gitignore に足して回らずに済ませるため、ここで一括して無視する
+    ignores = [ ".claude/worktrees/" ];
+
     settings = {
       user = {
         name = "gigun";
