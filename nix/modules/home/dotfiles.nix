@@ -135,6 +135,8 @@ in
     link_force "${dotfilesPath}/claude/settings.json" "${config.home.homeDirectory}/.claude/settings.json"
     link_force "${dotfilesPath}/claude/hooks" "${config.home.homeDirectory}/.claude/hooks"
     link_force "${dotfilesPath}/claude/commands" "${config.home.homeDirectory}/.claude/commands"
+    # 2026-07-12 から手で張られていて、新マシンでは再現しなかった
+    link_force "${dotfilesPath}/claude/agents" "${config.home.homeDirectory}/.claude/agents"
   '');
 
   # iTerm2 plist の同期は system.defaults.CustomUserPreferences."com.googlecode.iterm2"
