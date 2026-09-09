@@ -1,0 +1,1 @@
+2026-09-10 全体指示がホスト間で共有されていない。~/.codex/AGENTS.md は実体ファイルで dotfiles 管理外、claude/CLAUDE.md と内容が別物(委譲・todo.txt・docs/adr の3項目が Codex 側に無い)。ADR 0003(スキル本文と CLI をホスト間で共有する)の思想を全体指示にも適用するか決める +claude id:0001
