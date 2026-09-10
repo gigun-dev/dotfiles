@@ -1,1 +1,21 @@
-2026-09-10 全体指示がホスト間で共有されていない。~/.codex/AGENTS.md は実体ファイルで dotfiles 管理外、claude/CLAUDE.md と内容が別物(委譲・todo.txt・docs/adr の3項目が Codex 側に無い)。ADR 0003(スキル本文と CLI をホスト間で共有する)の思想を全体指示にも適用するか決める +claude id:0001
+2026-09-10 全体指示がホスト間で共有されていない。~/.codex/AGENTS.md は実体ファイルで dotfiles 管理外、claude/CLAUDE.md と内容が別物(委譲・todo.txt・docs/adr の3項目が Codex 側に無い)。gigun-dev/claude-code の ADR 0003(スキル本文と CLI をホスト間で共有する)の思想を全体指示にも適用するか決める +claude id:0001
+(A) 2026-09-10 mini-vm の gh トークンを dotfiles 限定の fine-grained PAT に替え、agenix 経由で GH_TOKEN として注入する(branch protection を変更できず、lock 提案 PR は従来どおり作れること) +mini-vm @unattended old:DF-37 see:docs/mini-vm.md id:0002
+(A) 2026-09-10 対話用の gho_ トークンを縮める。まず realbind org が fine-grained PAT を許可しているか確認する(classic PAT では repo admin である限り admin 権限が付いてしまう) +mini-vm old:DF-37 see:docs/mini-vm.md dep:0002 id:0003
+(A) 2026-09-10 main への直 push が required CI をバイパスする状態を塞ぐ(push で "Bypassed rule violations" が出ず、変更は PR + required CI 経由でしか main に入らない。自動 merge レーンは従来どおり動くこと) +mini-vm old:DF-40 see:docs/adr/0003-update-mini-vm-through-lock-proposal-prs.md id:0004
+(A) 2026-09-10 dotfiles-autoswitch と dotfiles-lock-propose@fast/@slow の 3 系統に成功 heartbeat を足し、hub の共通受付へ移す(成功確認が途絶えたら iPhone に通知され、復旧・計画停止・二重配信防止まで検証できること) +notify old:DF-35 see:docs/adr/0004-send-notifications-through-hub-instead-of-a-dotfiles-worker.md id:0005
+(B) 2026-09-10 realbind の業務コードを mini-vm から隔離する(別 Lima ゲストか別 Unix ユーザーを選び、選ばなかった理由も残す) +mini-vm old:DF-38 see:docs/mini-vm.md id:0006
+(B) 2026-09-10 Cloudflare OS に AI プロバイダを繋ぎ、チャットでモデルが応答して Neurons 消費が実測できる状態にする +cloudflare-os old:DF-13 see:docs/cloudflare-os.md id:0007
+(B) 2026-09-10 Langfuse を codex 経由の推論に挟み、トレースに出るところまで確認する +cloudflare-os old:DF-24 see:docs/cloudflare-os.md id:0008
+(B) 2026-09-10 codex.097969.xyz に、認証失敗が続く送信元へのレート制限を入れる +cloudflare-os old:DF-22 see:docs/cloudflare-os.md id:0009
+(C) 2026-09-10 再起動検証の手順を「上がったか」ではなく「使えるか」を見る型にする(健全性ゲートが最初の実装) +infra old:DF-12 see:docs/mini-vm.md id:0010
+(C) 2026-09-10 Kitesurf を chrome-devtools-mcp の --wsEndpoint から使えるか試す(mini からページ取得とスクショができること) +cloudflare-os old:DF-14 see:docs/cloudflare-os.md id:0011
+(C) 2026-09-10 Claude / opencode のサブスク枠をブリッジするかを、翻訳層の分量を見積もった上で決める +cloudflare-os old:DF-15 see:docs/cloudflare-os.md id:0012
+(C) 2026-09-10 SPEC.md の扱いを決めて実施する(案 A 凍結明記が推奨。現行仕様と誤読されない状態にする) +docs old:DF-2 id:0013
+(C) 2026-09-10 CLAUDE.md の「ディレクトリ構造」節を 39 行から 15 行程度へ圧縮する +docs old:DF-3 id:0014
+(C) 2026-09-10 CLAUDE.md の常時ロード量を予算内へ落とす(≒6352 tok / 予算 2000)。落とせないなら超過を許容する理由を書く +docs old:DF-32 id:0015
+(C) 2026-09-10 apple/container が再起動後に手を触れず apiserver running になることを確認する @device +infra old:DF-5 id:0016
+(C) 2026-09-10 cloudflare-os へ gatekeeper-mcp の固定 client_id 対応の issue を投稿する +cloudflare-os old:DF-30 see:docs/drafts/gatekeeper-mcp-static-client-id.md id:0017
+(C) 2026-09-10 Slack 書き込み gatekeeper を、upstream PR #95 の動向を見て着手・見送り・自前実装のどれかに決める +cloudflare-os old:DF-31 see:docs/cloudflare-os.md id:0018
+(C) 2026-09-10 pve の SSD を交換するか再インストールするか決める(データは mini へ退避済み。mini のストレージ整理と連動) @device +infra id:0019
+(C) 2026-09-10 uv tool 群(mlx_whisper 等)を nix か宣言スクリプトで管理下に入れる +infra id:0020
+(C) 2026-09-10 Taildrive(mini の ~/Storage を中央ストレージにする構想)を続けるか畳むか決める +infra id:0021
