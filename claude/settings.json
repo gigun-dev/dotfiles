@@ -288,5 +288,6 @@
       "routine under gigun-dev/ prefix qualifiers: none configured beyond the trusted repo itself"
     ]
   },
-  "voiceEnabled": true
+  "voiceEnabled": true,
+  "model": "claude-fable-5-1[1m]"
 }
