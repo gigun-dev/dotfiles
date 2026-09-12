@@ -24,7 +24,7 @@ mini-vm の systemd が `EnvironmentFile` で読み、`run-dev-server.js` の
 - **読み取り専用**: `chat:write` は入れていない。`gatekeeper-slack` の README が
   "This gatekeeper is read-only and never sends or modifies Slack data" と明言しており、
   書き込みスコープを足しても gatekeeper 側が使わないので無意味に権限が広がるだけ。
-  Slack への投稿が要るなら別の gatekeeper が要る (→ `docs/next-directions.md` の `DF-31`)。
+  Slack への投稿が要るなら別の gatekeeper が要る (→ `todo.txt` の `old:DF-31` の行)。
 - **`token_rotation_enabled: true`**: トークンが約 12 時間で失効し
   `oauth.v2.access?grant_type=refresh_token` で更新される。gatekeeper 側が対応済み
   (非ローテーションもフォールバックとして動くが、有効が推奨)。

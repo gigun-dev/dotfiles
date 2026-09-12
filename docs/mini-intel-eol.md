@@ -1,6 +1,6 @@
 # Mac Mini (Intel) の打ち切り対応
 
-> `docs/next-directions.md` の棚卸し(2026-09-08)で正典から降ろした。決着済みの経緯。
+> 旧 `docs/next-directions.md`(2026-09-10 に廃止)の棚卸し(2026-09-08)で正典から降ろした。決着済みの経緯。
 
 **背景**: nixpkgs 26.11 が x86_64-darwin を drop し、`nix run .#switch` が eval すら通らなくなった
 (実際 mini は 2026-04-25 の generation 26 で止まっていた)。26.05 への固定で延命するには

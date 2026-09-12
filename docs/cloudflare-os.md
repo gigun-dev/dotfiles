@@ -1,6 +1,6 @@
 # Cloudflare OS の自前ホスト
 
-> `docs/next-directions.md` の棚卸し(2026-09-08)で正典から降ろした。決着済みの経緯。
+> 旧 `docs/next-directions.md`(2026-09-10 に廃止)の棚卸し(2026-09-08)で正典から降ろした。決着済みの経緯。
 
 ## Cloudflare OS を mini-vm に置いた話 (2026-08-09)
 
@@ -87,3 +87,34 @@ Cloudflare ダッシュボードで Workers AI 側」の二本立てになる。
 **使用状況の可視化は期待できない**: アプリは AI 使用の内訳を記録していない(analytics に
 トークン/コストのイベントが無く、`totalCost` はワークスペースごとの単純な累計)。codex(カタログ上の
 架空のドル)と Workers AI(実際のドル)を混ぜると `totalCost` は意味を失うので、**ワークスペースを分ける**こと。
+
+## タスクの調査メモ
+
+旧 `docs/next-directions.md`(2026-09-10 に廃止)の「着手順から降ろした詳細」節から、
+Cloudflare OS 関連のタスク調査メモを移した。
+
+- **`DF-24` (Langfuse)** — Claude Code 側は導入済み (e6f0bd5)。残るは codex 経由で、
+  **openai プロバイダだけ観測できる**。`apiUrl` を差し替えて LiteLLM を挟む形になるため。
+  Workers AI は baseUrl 固定で挟めず、AI Gateway は codex と排他。
+- **`DF-22` (レート制限)** — 2026-09-01 の切り分け: スマホから Codex を叩く用途は
+  codex-remote-control (リレー経由・受け口なし) へ移せる。ブリッジの公開が本当に要るのは
+  **Cloudflare OS から OpenAI 互換 API として叩く経路だけ**。
+- **`DF-15` (Claude/opencode のブリッジ)** — codex は既存実装を借りて通ったが、Claude は
+  Messages API と SSE の自作になり難度が段違い。opencode のサーバモードが互換エンドポイントを
+  出せるなら、そちらが現実的。
+- **`DF-13` (AI プロバイダ)** — codex 側は通っている(mini に常駐、モデル ID が `SUGGESTED_MODELS`
+  と一致するので登録不要)。同じ無料枠で `qwen3-30b-a3b-fp8` は既定の Kimi の 16 倍使える。
+  単価表は上記「Cloudflare OS の AI プロバイダ」節。
+- **`DF-30` (gatekeeper-mcp)** — 動的クライアント登録 (RFC 7591) しか対応しておらず、事前登録
+  必須の認可サーバー (Slack MCP など) に 502 で繋がらない。
+- **`DF-31` (Slack 書き込み)** — PR #95 (approval-gated Google Drive/Sheets writes) が唯一の
+  設計手本。2026-08-10 時点で draft・conflicting・レビュー 0 件・CLA 未署名で停滞中。
+
+### Kitesurf (2026-08-06 リリース、beta 無料)
+
+OSS ではなくローカルには持ってこられないが、CDP を WebSocket で外部公開しており接続できる:
+`wss://api.cloudflare.com/client/v4/accounts/<ACCOUNT_ID>/browser-run/devtools/browser?browser=kitesurf`
++ `Authorization: Bearer <API_TOKEN>`。chrome-devtools-mcp には `--wsEndpoint` と
+`--wsHeaders '{"Authorization":"Bearer ..."}'` があるので、そのまま刺さるはず。
+**WebGL / 動画再生 / ボット検出ハンドシェイク / 永続状態が要る長時間セッションは未対応**なので、
+ログインが要る操作はローカル Chromium 側に残す使い分けになる。
