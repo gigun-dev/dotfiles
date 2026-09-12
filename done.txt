@@ -1,0 +1,1 @@
+x 2026-09-10 意思決定(ADR)の置き場所を決める。harness の結論待ちをやめ、このリポジトリで docs/adr を使うことにした +docs old:DF-6 see:docs/adr/0001-keep-tasks-in-todo-txt-and-decisions-in-docs-adr.md id:0022

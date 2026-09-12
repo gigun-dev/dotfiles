@@ -1,6 +1,7 @@
 # harness 運用のメモ
 
-> `docs/next-directions.md` の棚卸し(2026-09-08)で正典から降ろした。決着済みの経緯。
+> harness は 2026-09-10 に撤去した(→ `docs/adr/0001-keep-tasks-in-todo-txt-and-decisions-in-docs-adr.md`)。
+> 以下は撤去時点の記録であり、現行の運用ではない。
 
 ## 正典の頭が切り詰められていた話 (2026-08-10)
 

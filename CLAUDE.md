@@ -13,7 +13,7 @@ nix run .#update               # flake update + switch
 
 **重要**: nix は git index から評価するため、`nix run .#switch` の前に必ず `git add` すること。
 
-**`flake.lock` はコミットして push すること**: 手元は worktree の lock で switch できるが、mini VM は clone なので HEAD の lock しか見ず、update しただけでは反映されない。mini-vm は lock 更新を定期的に PR で提案し、実機ビルドと required CI を通して自動 merge した後、別の定期処理で pull・switch する。手元で lock を更新する場合もコミット・push が必要。現在の運用と残課題は `docs/next-directions.md` を参照。
+**`flake.lock` はコミットして push すること**: 手元は worktree の lock で switch できるが、mini VM は clone なので HEAD の lock しか見ず、update しただけでは反映されない。mini-vm は lock 更新を定期的に PR で提案し、実機ビルドと required CI を通して自動 merge した後、別の定期処理で pull・switch する。手元で lock を更新する場合もコミット・push が必要。現在の運用は `docs/mini-vm.md`、残課題は `todo.txt` を参照。
 
 **iTerm2 初回 bootstrap 順序**: `LoadPrefsFromCustomFolder` / `PrefsCustomFolder` は nix 側 (`system.defaults.CustomUserPreferences."com.googlecode.iterm2"`) で system plist に宣言する設計のため、**iTerm2 を起動する前に最初の `nix run .#switch` を完了させる**こと。先に iTerm2 を立ち上げると bootstrap meta key が無く、repo 内 plist が source of truth として読まれない（system plist に書かれた古い設定が継続使用される）。
 
@@ -162,11 +162,10 @@ Mac Mini (Intel) のエージェント基盤は macOS 上の Lima ゲスト (Nix
 - **コメントはコードと同量レベルでベッタベタに書く。** 詳細は `.claude/rules/comments.md`
   (コード編集時に自動ロード)。
 
-## 現在地・次の作業(セッション引き継ぎ)
+## タスクと決定
 
-- 正典は **`docs/next-directions.md`** — SessionStart フック(`.claude/settings.json`)が
-  頭(`session-head-end` マーカーまで)を自動注入する。作業の区切りごとに必ず更新
-  (完了は打ち消し線+✅、変化は `> **YYYY-MM-DD 更新:**` を積層。計画は消さない)。
+- タスクは `todo.txt` に置く。扱うときは todo スキルを使う。
+- 覆すのに費用のかかる決定は `docs/adr/` に置く。扱うときは adr スキルを使う。
 
 ## 参考
 

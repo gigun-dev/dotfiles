@@ -42,6 +42,7 @@ jobs:
               - 'flake.nix'
               - 'flake.lock'
               - 'nix/**'
+              - 'scripts/verify.sh'
               - '.github/workflows/nix-build.yaml'
 
   check:
@@ -63,11 +64,9 @@ jobs:
       # 2026-09-05 に esp-idf の devShell が入って以降、CI はずっとこれで赤だった
       # (nix を触らない PR では paths-filter に弾かれて job 自体が走らず、
       #  赤いことに気づけなかった)。
-      - name: Nix flake check
-        run: nix flake check
-
-      - name: Nix fmt check
-        run: nix fmt -- --ci .
+      # pre-push と入口を共有し、検証コマンドの片側だけが変わることを防ぐ。
+      - name: Nix flake and fmt check
+        run: sh scripts/verify.sh
 
   # ビルドするのは x86_64-linux だけ。**無人で適用されるのがそこだけ**だから。
   # M4 Pro (aarch64-darwin) は人が前に座って switch するので失敗はその場で見えるし、
