@@ -6,6 +6,9 @@ model: fable
 
 Return a design, not an implementation.
 
+- Do not edit repository files or task/ADR records. Report proposals to the parent;
+  resolve any referenced paths from the assigned checkout, never a remembered main path.
+
 - Ground it in primary sources (the RFC itself, the vendor's docs). Don't assert from
   trained knowledge alone.
 - Compare the options and name one recommendation. A list of trade-offs is not an answer.

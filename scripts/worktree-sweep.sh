@@ -1,76 +1,127 @@
 #!/usr/bin/env bash
-# サブエージェントが残した worktree を掃除する。
-#
-# なぜ手動か: Claude Code は cleanupPeriodDays より古い worktree を自動で消すが、
-# この設定はトランスクリプトの保持期間と共用で 9999 にしてある(cclens が読むため)。
-# 自動掃除を効かせると履歴が消えるので、掃除だけこちらへ分離した。
-# 放置すると溜まる —— esp32-airdrop-poc で 106 本 / 4.8GB まで育った実績がある。
-#
-# 消す条件は 2 つとも満たすもの:
-#   - 内容が既定ブランチへ取り込み済み (squash merge を見るため merge-base ではなく cherry)
-#   - 未コミット変更も未追跡ファイルも無い
-# 判定は削除の直前にやり直す。別セッションが同時に動いている前提。
-#
-# 使い方: worktree-sweep.sh [リポジトリ...]        判定だけ表示 (既定は $PWD)
-#         worktree-sweep.sh --all                  ghq 配下で worktree を持つ全リポジトリ
-#         worktree-sweep.sh --apply [...]          実際に削除
+# セッション履歴の保持 (cleanupPeriodDays=9999) と切り離して worktree を掃除する。
+# 削除対象は、既定ブランチの祖先で、未追跡・ignore を含めた残存変更が無いものだけ。
+# squash/cherry-pick 済みの推測はしない。判断できないものは残し、Git の失敗は終了値に返す。
+# 使い方: worktree-sweep.sh [--apply] [--all | リポジトリ...]
+# 既定は判定のみ。--apply も実行中の非 locked エージェントまでは検出できない。
 set -uo pipefail
 
 apply=0
 all=0
-for a in "$@"; do
-  case "$a" in
-    --apply) apply=1; shift ;;
-    --all) all=1; shift ;;
+repos=()
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --apply) apply=1 ;;
+    --all) all=1 ;;
+    --) shift; repos+=("$@"); break ;;
+    -*) echo "不明な引数: $1" >&2; exit 1 ;;
+    *) repos+=("$1") ;;
   esac
+  shift
 done
-
+if [ "$all" = 1 ] && [ "${#repos[@]}" -gt 0 ]; then
+  echo '--all と個別リポジトリは同時指定できません' >&2
+  exit 1
+fi
+scratch=$(mktemp -d) || exit 1
+trap 'rm -rf "$scratch"' EXIT
 if [ "$all" = 1 ]; then
-  # worktree を 1 本でも持つリポジトリだけを対象にする。ghq list は数百件あるので、
-  # .git/worktrees の有無で先に絞る (worktree が無ければ掃除するものも無い)
-  mapfile -t repos < <(ghq list --full-path | while read -r r; do
-    [ -d "$r/.git/worktrees" ] && echo "$r"
-  done)
-  [ "${#repos[@]}" = 0 ] && { echo "worktree を持つリポジトリなし"; exit 0; }
+  ghq list --full-path >"$scratch/repos" || exit 1
+  while IFS= read -r repo; do
+    [ ! -d "$repo/.git/worktrees" ] || repos+=("$repo")
+  done <"$scratch/repos"
 else
-  repos=("${@:-$PWD}")
+  [ "${#repos[@]}" -gt 0 ] || repos=("$PWD")
 fi
 
+failed=0
+inspect() {
+  # porcelain の先頭は primary worktree。linked worktree から呼んでも本体を消さない。
+  if [ "$first" = 1 ]; then first=0; return; fi
+  [ "$path" != "$root" ] || return
+  if [ "$locked" = 1 ] || [ "$prunable" = 1 ] || [ -z "$branch" ]; then
+    printf '  残す %s (locked / prunable / detached)\n' "$path"
+    return
+  fi
+  if ! dirty=$(git -C "$path" status --porcelain --untracked-files=all --ignored=matching); then
+    printf '  残す %s (Git status 失敗)\n' "$path"
+    failed=1
+    return
+  fi
+  if [ -n "$dirty" ]; then
+    printf '  残す %s (未コミット / 未追跡 / ignore 成果物)\n' "$path"
+    return
+  fi
+  # 一覧取得後の HEAD を検査する。merge-base の 1 は未取込、その他は判定エラー。
+  if ! head=$(git -C "$path" rev-parse --verify HEAD); then
+    printf '  残す %s (HEAD 判定失敗)\n' "$path"
+    failed=1
+    return
+  fi
+  git -C "$root" merge-base --is-ancestor "$head" "$base_oid"
+  rc=$?
+  if [ "$rc" -ne 0 ]; then
+    printf '  残す %s (未取込または祖先判定失敗)\n' "$path"
+    [ "$rc" -eq 1 ] || failed=1
+    return
+  fi
+  if [ "$apply" = 0 ]; then
+    printf '  消せる %s\n' "$path"
+    return
+  fi
+  # force は使わない。lock や追跡ファイルへの並行変更は Git にも拒否させる。
+  # ignore ファイル追加との競合は不可分に防げないため、稼働中の作業には --apply しない。
+  if ! git -C "$root" worktree remove "$path"; then
+    printf '  失敗 %s (worktree 削除失敗)\n' "$path"
+    failed=1
+    return
+  fi
+  # -D で強制しない。upstream など Git 側の判定で拒否されたブランチは残す。
+  if git -C "$root" branch -d -- "${branch#refs/heads/}"; then
+    printf '  削除 %s\n' "$path"
+  else
+    printf '  worktree のみ削除、ブランチは保持 %s\n' "$branch"
+    failed=1
+  fi
+}
+
 for repo in "${repos[@]}"; do
-  git -C "$repo" rev-parse --git-dir >/dev/null 2>&1 || { echo "skip $repo (git 管理外)"; continue; }
-  root=$(git -C "$repo" rev-parse --show-toplevel)
-  # 既定ブランチ。origin/HEAD が無いリポジトリでは main へ落とす
-  base=$(git -C "$root" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null) || base=main
-  echo "=== $root (基準: $base)"
-
-  git -C "$root" worktree list --porcelain \
-    | awk '/^worktree /{p=$2} /^branch /{print p"\t"$2}' \
-    | while IFS=$'\t' read -r path branch; do
-        [ "$path" = "$root" ] && continue
-        short=${branch#refs/heads/}
-
-        dirty=$(git -C "$path" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
-        # cherry は patch-id で比較するので、squash merge されたコミットも '-' になる。
-        # '+' が 1 つでもあれば取り込まれていない変更が残っている
-        pending=$(git -C "$root" cherry "$base" "$branch" 2>/dev/null | grep -c '^+')
-
-        if [ "$dirty" != 0 ] || [ "$pending" != 0 ]; then
-          printf '  残す %-40s 未コミット %s / 未取込 %s\n' "$short" "$dirty" "$pending"
-          continue
-        fi
-        if [ "$apply" = 0 ]; then
-          printf '  消せる %-38s %s\n' "$short" "$path"
-          continue
-        fi
-        # 実行中エージェントの worktree は lock されていて、ここで弾かれる
-        if git -C "$root" worktree remove "$path" 2>/dev/null; then
-          git -C "$root" branch -D "$short" >/dev/null 2>&1
-          echo "  削除 $short"
-        else
-          echo "  失敗 $short (lock 中か、外部から書き換えられている)"
-        fi
-      done
+  if ! root=$(git -C "$repo" rev-parse --show-toplevel); then
+    echo "skip $repo (Git 管理外または取得失敗)" >&2
+    failed=1
+    continue
+  fi
+  base=$(git -C "$root" symbolic-ref --quiet --short refs/remotes/origin/HEAD)
+  rc=$?
+  if [ "$rc" -eq 1 ]; then
+    base=main
+  elif [ "$rc" -ne 0 ]; then
+    echo "残す $root (既定ブランチ取得失敗)" >&2
+    failed=1
+    continue
+  fi
+  if ! base_oid=$(git -C "$root" rev-parse --verify "$base^{commit}"); then
+    echo "残す $root (基準 $base の取得失敗)" >&2
+    failed=1
+    continue
+  fi
+  printf '=== %s (基準: %s)\n' "$root" "$base"
+  if ! git -C "$root" worktree list --porcelain -z >"$scratch/worktrees"; then
+    failed=1
+    continue
+  fi
+  first=1
+  path= branch= locked=0 prunable=0
+  # -z により空白・改行入りパスを引用解除や awk の分割無しで読む。
+  while IFS= read -r -d '' field; do
+    case "$field" in
+      'worktree '*) path=${field#worktree } ;;
+      'branch '*) branch=${field#branch } ;;
+      locked*) locked=1 ;;
+      prunable*) prunable=1 ;;
+      '') inspect; path= branch= locked=0 prunable=0 ;;
+    esac
+  done <"$scratch/worktrees"
 done
-
-[ "$apply" = 0 ] && echo "(判定のみ。実際に消すには --apply)"
-exit 0
+[ "$apply" = 1 ] || echo '(判定のみ。実際に消すには --apply)'
+exit "$failed"
