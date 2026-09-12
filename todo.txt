@@ -19,22 +19,12 @@
 (C) 2026-09-10 pve の SSD を交換するか再インストールするか決める(データは mini へ退避済み。mini のストレージ整理と連動) @device +infra id:0019
 (C) 2026-09-10 uv tool 群(mlx_whisper 等)を nix か宣言スクリプトで管理下に入れる +infra id:0020
 (C) 2026-09-10 Taildrive(mini の ~/Storage を中央ストレージにする構想)を続けるか畳むか決める +infra id:0021
-2026-09-11 対象 repo と違う repo の worktree がサブエージェントに渡る。2026-09-11 に claude-code を触る 2 体が影響し、片方は本体チェックアウトで作業し、もう片方は自前で worktree を切った +claude @unattended id:0023
-2026-09-11 サブエージェントの検証と本線のマージ後検証でテストが二重に走る。2026-09-11 に esp32 で 8 体 x 90 秒 + マージ後 8 回で約 24 分。片方を省ける条件を決める +claude @unattended id:0024
-(A) 2026-09-11 codex への依頼文にバッククォートや表を入れるとシェルの引用符で壊れる。2026-09-11 に 1 回失敗して投げ直した。記号を落とすか、渡し方を直す +claude @unattended id:0025
-(A) 2026-09-11 並列でエージェントを回すとホストテストが 90 秒から 200〜764 秒(最大 8 倍)に伸びる。2026-09-11 の 60 分のセッションは 33.3 分が test.sh 4 回だった。並列度の上限を決めるか、検証の重複を削る id:0026 +claude @unattended
-2026-09-11 エージェントが同じテストを 4 回走らせている。1 回目以降は変更したぶんだけ回す形にできないか +claude @unattended id:0027
-2026-09-11 worktree の掃除を cleanupPeriodDays から切り離す。2026-09-11 に esp32 で 43 個 19GB、うち変更なしで畳めるものが 34 個 16.3GB。自動掃除の条件に cleanupPeriodDays が入っているが、この値は local の session log を残すため 9999 から動かせない(利用者の確約、2026-09-11)。定期的に畳む手順か道具を用意する +claude @unattended id:0028
-2026-09-11 並列の subagent が同じホストテストを取り合う。2026-09-11 の 32 体の実測で test.sh は単独なら中央 50 秒だが、重なると中央 94 秒・最大 764 秒。外れ値の 1 体は 60.4 分のうち Bash 77% で test.sh を 13 回走らせていた。並列度の上限か、テストの排他を決める +claude @unattended see:docs/telemetry/2026-09-11-subagent-time-breakdown.md id:0029
-2026-09-11 サブエージェントの実時間の 6 割が検証(ビルドとテスト)である。2026-09-11 の 4 体でツール数 39〜125 と 3 倍違うのに実時間はどれも 10 分前後。worktree に build/ が無いので毎回コールドビルドしている。ccache を効かせるか、本線でまとめて 1 回にするか決める +claude @unattended id:0030
+2026-09-11 別 repo の実委譲で cross-repo-implementer が対象 checkout を使い、呼出元に不要な worktree を作らないことを確認する +claude @unattended see:docs/adr/0005-scope-worktrees-to-target-repositories.md id:0023
+(A) 2026-09-11 Claude から Codex への実委譲で prompt-file が選ばれ、日本語・表・引用符・バッククォートが改変されず届くことを確認する +claude @unattended see:docs/agent-execution.md id:0025
+2026-09-11 実際の並列セッションで重い検証が1枠に収まり、単独/重複時の所要時間と失敗を再測定する +claude @unattended see:docs/agent-execution.md id:0029
+2026-09-11 ESP32 ホストテストの無条件再コンパイルによる所要を測定し、対象選択や ccache の導入が必要か決める +claude @unattended see:docs/agent-execution.md id:0030
 2026-09-11 セッションのログから体ごとの実時間・ツール数・Bash の内訳(build/test/git/その他)・同じコマンドの重複回数を出す道具を作る。2026-09-11 の時点で手で数えており、定期的な棚卸しができない +claude @unattended id:0031
-2026-09-11 cleanupPeriodDays が session log の保持と worktree の掃除を同じ 1 つの値で決めている。利用者は前者を無期限にしたく後者は短くしたい。Claude Code への要望として出すか、自前で回避するか決める +claude @unattended id:0032
 2026-09-11 CLAUDE.md に実データ駆動を足すか決める。2026-09-11 に 3 回、手元にあるデータを読まずに書いた(起動時刻を所要と読み違えて探索が遅くなっていると誤報、push の失敗を原因を追わずネットワークのせいにした、既定ビルドと文書の構成違いに気づかず実測を 2 本無駄にした)。既存の規約が足りないのか守れていないのかを見てから決める +claude @unattended id:0033
-2026-09-11 subagent の定義に「worktree では todo.txt と docs/adr を編集せず、起票してほしいことは報告に構造化して書く」を入れる。2026-09-11 に artisan が worktree で todo.txt を編集し、同じ日に投げた 4 体すべてで本線が依頼文に書き忘れていた。毎回書く前提の規約は漏れる +claude @unattended id:0034
-2026-09-11 subagent の報告から起票すべき項目を本線が必ず処理する型を決める。2026-09-11 の 4 体はどれも報告の末尾に未解決や聞けなかった問いを書いており素材は揃っているが、本線が読み落とすと消える +claude @unattended id:0035
 2026-09-11 codex に worktree を使わせる。2026-09-11 に codex とみられる別セッションが esp32 の本線ツリーで作業しており、本線からは誰が何を触っているか見えなかった。同じツリーを複数の主体が触ると、本線がビルドして実機で測る対象が汚染される +claude @unattended id:0036
 2026-09-11 worktree で「Claude Code が自動でやること」と「こちらが手動でやること」の境界を書き出す。2026-09-11 の実測では自動は作成だけで、agent の変更のコミット(4 体中 3 体)・本線へのマージ(4 回、うち競合 1 回)・掃除(一度も走らず 43 個 19GB)・.worktreeinclude の設定(未設定でゼロから)は全部手動だった。Codex は worktree に入らないので本線のツリーを直接触る +claude @unattended id:0037
-2026-09-11 subagent の定義(implementer / artisan / architect)に「書き込み先の絶対パスは worktree のパスから作る」を入れる。2026-09-11 の実測で worktree を持つ 8 体が本体チェックアウトへ書いており、main/seen_sample.h・main/send_spin.h・sdkconfig.defaults が含まれる +claude @unattended id:0038
-2026-09-11 別 repo の作業を subagent に投げるときの worktree の扱いを決める。worktree はセッションの repo の下に作られるので、esp32 のセッションから claude-code の作業を投げた体は worktree を一度も使わず本体チェックアウトを 13 ファイル・71 回編集した +claude @unattended id:0039
-2026-09-11 worktree に居るのに本体チェックアウトへ書く体がある。2026-09-11 の実測で cwd は 32 体とも 100% worktree 内なのに、8 体が本体へ書いた(うち 6 件が同日)。別 repo の作業を投げると worktree が呼び出し元の repo の下に作られ、一度も使われない +claude @unattended see:docs/telemetry/2026-09-11-subagent-time-breakdown.md id:0040
-(A) 2026-09-11 worktree の扱いを ADR で決める。同じ repo と repo 横断で分けること。同じ repo は隔離が黙って破れている問題(2026-09-11 の実測で cwd は 32 体とも 100% worktree 内なのに 8 体が本体へ書いた、うち 6 件が同日)なので仕組みで止める。repo 横断は隔離が無意味な問題(worktree が呼び出し元の repo の下に作られ一度も使われず 400〜900MB 残る)なので worktree を作らせない。依頼文で毎回指示する形は採らない —— 2026-09-11 に 4 体投げて 4 回とも書き忘れており、システムプロンプトも太る +claude @unattended see:docs/telemetry/2026-09-11-subagent-time-breakdown.md id:0041
+2026-09-11 Claude の実 subagent で worktree-write-guard が発火し、本体と兄弟 checkout への Edit/Write を拒否することを確認する +claude @unattended see:docs/adr/0005-scope-worktrees-to-target-repositories.md id:0040

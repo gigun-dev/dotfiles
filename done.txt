@@ -1,1 +1,12 @@
 x 2026-09-10 意思決定(ADR)の置き場所を決める。harness の結論待ちをやめ、このリポジトリで docs/adr を使うことにした +docs old:DF-6 see:docs/adr/0001-keep-tasks-in-todo-txt-and-decisions-in-docs-adr.md id:0022
+x 2026-09-12 2026-09-11 同一 repo と別 repo の worktree 運用、Edit/Write ガードの範囲、dotfiles の例外と成果物引継ぎを ADR に記録する +claude @unattended see:docs/adr/0005-scope-worktrees-to-target-repositories.md id:0041
+x 2026-09-12 2026-09-11 重い検証を同一ホストで1枠とし、子の対象検証と親の統合全検証を分担する規約を定義する +claude @unattended see:docs/agent-execution.md id:0026
+x 2026-09-12 2026-09-11 worktree の掃除を cleanupPeriodDays から切り離す。2026-09-11 に esp32 で 43 個 19GB、うち変更なしで畳めるものが 34 個 16.3GB。自動掃除の条件に cleanupPeriodDays が入っているが、この値は local の session log を残すため 9999 から動かせない(利用者の確約、2026-09-11)。定期的に畳む手順か道具を用意する +claude @unattended id:0028
+x 2026-09-12 2026-09-11 サブエージェントの検証と本線のマージ後検証でテストが二重に走る。2026-09-11 に esp32 で 8 体 x 90 秒 + マージ後 8 回で約 24 分。片方を省ける条件を決める +claude @unattended id:0024
+x 2026-09-12 2026-09-11 エージェントが同じテストを 4 回走らせている。1 回目以降は変更したぶんだけ回す形にできないか +claude @unattended id:0027
+x 2026-09-12 2026-09-11 cleanupPeriodDays が session log の保持と worktree の掃除を同じ 1 つの値で決めている。利用者は前者を無期限にしたく後者は短くしたい。Claude Code への要望として出すか、自前で回避するか決める +claude @unattended id:0032
+x 2026-09-12 2026-09-11 subagent の定義に「worktree では todo.txt と docs/adr を編集せず、起票してほしいことは報告に構造化して書く」を入れる。2026-09-11 に artisan が worktree で todo.txt を編集し、同じ日に投げた 4 体すべてで本線が依頼文に書き忘れていた。毎回書く前提の規約は漏れる +claude @unattended id:0034
+x 2026-09-12 2026-09-11 subagent の報告から起票すべき項目を本線が必ず処理する型を決める。2026-09-11 の 4 体はどれも報告の末尾に未解決や聞けなかった問いを書いており素材は揃っているが、本線が読み落とすと消える +claude @unattended id:0035
+x 2026-09-12 2026-09-11 subagent の定義(implementer / artisan / architect)に「書き込み先の絶対パスは worktree のパスから作る」を入れる。2026-09-11 の実測で worktree を持つ 8 体が本体チェックアウトへ書いており、main/seen_sample.h・main/send_spin.h・sdkconfig.defaults が含まれる +claude @unattended id:0038
+x 2026-09-12 2026-09-11 別 repo は専用 agent と対象 checkout を使う方針を ADR に記録する +claude @unattended see:docs/adr/0005-scope-worktrees-to-target-repositories.md id:0039
+x 2026-09-12 2026-09-11 worktree で作った gitignore 対象のファイルが本線へ来ない。2026-09-11 に esp32 で、鍵と証明書を再起動で消えない場所へ移す作業をサブエージェントに投げたところ、コードはマージで来たが証明書そのものは worktree 側に残り、本線には空のディレクトリすら無かった。.worktreeinclude は外から中へ配る向きしか無い。報告に「どの ignore 対象ファイルを作ったか」を書かせるか、本線へ運ぶ手段を用意する +claude @unattended id:0042
