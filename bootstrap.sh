@@ -118,6 +118,11 @@ link "${DOTFILES_DIR}/zsh/functions" "${HOME}/.config/zsh/functions"
 link "${DOTFILES_DIR}/npm/npmrc" "${HOME}/.npmrc"
 link "${DOTFILES_DIR}/bun/bunfig.toml" "${HOME}/.bunfig.toml"
 
+# Keep user-global agent instructions consistent with home-manager setup.
+mkdir -p "${HOME}/.claude" "${HOME}/.codex"
+link "${DOTFILES_DIR}/claude/CLAUDE.md" "${HOME}/.claude/CLAUDE.md"
+link "${DOTFILES_DIR}/codex/AGENTS.md" "${HOME}/.codex/AGENTS.md"
+
 # zsh/functions の permission を 755 に固定 (compinit insecure 対策)
 # 777 だと compinit が全補完スキップする
 chmod -R go-w "${DOTFILES_DIR}/zsh/functions" 2>/dev/null || true
