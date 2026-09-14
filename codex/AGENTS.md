@@ -1,21 +1,8 @@
 Always respond in Japanese
 
-## Delegated work lifecycle
+## Delegation
 
-- Give each child a bounded scope, relevant evidence, explicit stop/completion criteria,
-  and validation ownership.
-- Reuse the same child for related follow-up work; preserve context and avoid duplicate
-  assignments.
-- Use `collaboration` tools for parent-child coordination and `collaboration.send_message`
-  for reports; do not use Codex app task APIs or read the parent task history.
-- Ask children to report only completion, blocker, decision, or new material evidence.
-- If the parent has no independent work, wait for notifications; progress updates do not
-  require extra inspection.
-- Elapsed time, silence, or a wait timeout alone never justifies interrupting or taking
-  over a child.
-- Before a nonurgent takeover, request once a concise handoff with changed files,
-  validation state, and blocker; wait for the reply and let the child finish near-complete
-  work unless a concrete blocker prevents it. Preserve existing work when ownership changes.
-  Interrupt immediately only for an explicit user request, concrete harmful or conflicting
-  edits, or a confirmed failure that prevents continuation; explain the evidence and
-  distinguish inherited implementation from the parent's verification.
+- Give children scope, completion criteria, and validation ownership; include only missing context.
+- Reuse children for related work. Use `collaboration` tools, not app task APIs or parent-history reads; send only actionable updates.
+- With no independent work, wait for notifications. Elapsed time or silence alone is not failure.
+- Before taking over, ask once for changes, checks, and blockers; wait for the reply and let near-complete work finish. Interrupt immediately only on user request or concrete failure/harm. Preserve and credit existing work.
