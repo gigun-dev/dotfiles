@@ -125,6 +125,10 @@ in
 
     # Claude Code (~/.claude/ は memory/log 等があるので個別リンク)
     $DRY_RUN_CMD mkdir -p "${config.home.homeDirectory}/.claude"
+    link_force "${dotfilesPath}/claude/CLAUDE.md" "${config.home.homeDirectory}/.claude/CLAUDE.md"
+    # Global instructions must survive setup on a new host, not only manual edits.
+    $DRY_RUN_CMD mkdir -p "${config.home.homeDirectory}/.codex"
+    link_force "${dotfilesPath}/codex/AGENTS.md" "${config.home.homeDirectory}/.codex/AGENTS.md"
     # Claude Code は設定書き込み時に rename で置き換えるため symlink が実ファイル化する。
     # そのまま link_force すると最新設定が .backup 行きになり dotfiles 側の古い設定に
     # 巻き戻るので、実ファイル化していたら先に dotfiles 側へ吸い上げる
