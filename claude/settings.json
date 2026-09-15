@@ -25,7 +25,8 @@
       "WebFetch(domain:www.dotenv.org)",
       "WebFetch(domain:tailscale.com)",
       "Bash(nix eval:*)",
-      "Bash(defaults read:*)"
+      "Bash(defaults read:*)",
+      "Bash(sfsymbols:*)"
     ],
     "defaultMode": "auto"
   },

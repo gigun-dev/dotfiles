@@ -67,6 +67,25 @@ in
     ''
   );
 
+  # SF Symbols.app 同梱の CLI (search/export) をエージェントから叩けるようにする。
+  # cask 化しない: brew cask の公開版は 8.0 系で、手元に手で入れた 27.x を上書き
+  # すると CLI ごと downgrade する恐れがある (2026-09-15 時点で cask 版に CLI が
+  # 入っているか未確認)。~/.local/bin 経由にする理由: アプリパスに空白
+  # (`SF Symbols.app`) を含み、エージェントが直接パスを叩くと引用符の扱いで壊れる。
+  home.activation.linkSfSymbolsCLI = lib.mkIf isDarwin (
+    lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+      sfsymbols_bin="/Applications/SF Symbols.app/Contents/Executables/sfsymbols"
+      sfsymbols_link="${config.home.homeDirectory}/.local/bin/sfsymbols"
+      if [ -x "$sfsymbols_bin" ]; then
+        $DRY_RUN_CMD mkdir -p "${config.home.homeDirectory}/.local/bin"
+        $DRY_RUN_CMD ln -sf "$sfsymbols_bin" "$sfsymbols_link"
+      elif [ -L "$sfsymbols_link" ]; then
+        # アプリを消した後に壊れた symlink が PATH に残らないように掃除
+        $DRY_RUN_CMD rm "$sfsymbols_link"
+      fi
+    ''
+  );
+
   # Linux: bash ログイン時に zsh へ exec (chsh 不要で宣言的に zsh デフォルト化)
   # Mac 側は nix-darwin の users.users.${username}.shell = pkgs.zsh で設定済み
   programs.bash = lib.mkIf (!isDarwin) {
