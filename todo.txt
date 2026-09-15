@@ -1,8 +1,8 @@
 2026-09-10 全体指示がホスト間で共有されていない。~/.codex/AGENTS.md は実体ファイルで dotfiles 管理外、claude/CLAUDE.md と内容が別物(委譲・todo.txt・docs/adr の3項目が Codex 側に無い)。gigun-dev/claude-code の ADR 0003(スキル本文と CLI をホスト間で共有する)の思想を全体指示にも適用するか決める +claude id:0001
-(A) 2026-09-10 mini-vm の gh トークンを dotfiles 限定の fine-grained PAT に替え、agenix 経由で GH_TOKEN として注入する(branch protection を変更できず、lock 提案 PR は従来どおり作れること) +mini-vm @unattended old:DF-37 see:docs/mini-vm.md id:0002
+(B) 2026-09-10 mini-vm の gh トークンを dotfiles 限定の fine-grained PAT に替え、agenix 経由で GH_TOKEN として注入する(branch protection を変更できず、lock 提案 PR は従来どおり作れること) +mini-vm @unattended old:DF-37 see:docs/mini-vm.md id:0002
 (A) 2026-09-10 対話用の gho_ トークンを縮める。まず realbind org が fine-grained PAT を許可しているか確認する(classic PAT では repo admin である限り admin 権限が付いてしまう) +mini-vm old:DF-37 see:docs/mini-vm.md dep:0002 id:0003
-(A) 2026-09-10 main への直 push が required CI をバイパスする状態を塞ぐ(push で "Bypassed rule violations" が出ず、変更は PR + required CI 経由でしか main に入らない。自動 merge レーンは従来どおり動くこと) +mini-vm old:DF-40 see:docs/adr/0003-update-mini-vm-through-lock-proposal-prs.md id:0004
-(A) 2026-09-10 dotfiles-autoswitch と dotfiles-lock-propose@fast/@slow の 3 系統に成功 heartbeat を足し、hub の共通受付へ移す(成功確認が途絶えたら iPhone に通知され、復旧・計画停止・二重配信防止まで検証できること) +notify old:DF-35 see:docs/adr/0004-send-notifications-through-hub-instead-of-a-dotfiles-worker.md id:0005
+(B) 2026-09-10 main への直 push が required CI をバイパスする状態を塞ぐ(push で "Bypassed rule violations" が出ず、変更は PR + required CI 経由でしか main に入らない。自動 merge レーンは従来どおり動くこと) +mini-vm old:DF-40 see:docs/adr/0003-update-mini-vm-through-lock-proposal-prs.md id:0004
+(B) 2026-09-10 dotfiles-autoswitch と dotfiles-lock-propose@fast/@slow の 3 系統に成功 heartbeat を足し、hub の共通受付へ移す(成功確認が途絶えたら iPhone に通知され、復旧・計画停止・二重配信防止まで検証できること) +notify old:DF-35 see:docs/adr/0004-send-notifications-through-hub-instead-of-a-dotfiles-worker.md id:0005
 (B) 2026-09-10 realbind の業務コードを mini-vm から隔離する(別 Lima ゲストか別 Unix ユーザーを選び、選ばなかった理由も残す) +mini-vm old:DF-38 see:docs/mini-vm.md id:0006
 (B) 2026-09-10 Cloudflare OS に AI プロバイダを繋ぎ、チャットでモデルが応答して Neurons 消費が実測できる状態にする +cloudflare-os old:DF-13 see:docs/cloudflare-os.md id:0007
 (B) 2026-09-10 Langfuse を codex 経由の推論に挟み、トレースに出るところまで確認する +cloudflare-os old:DF-24 see:docs/cloudflare-os.md id:0008
@@ -28,3 +28,4 @@
 2026-09-11 codex に worktree を使わせる。2026-09-11 に codex とみられる別セッションが esp32 の本線ツリーで作業しており、本線からは誰が何を触っているか見えなかった。同じツリーを複数の主体が触ると、本線がビルドして実機で測る対象が汚染される +claude @unattended id:0036
 2026-09-11 worktree で「Claude Code が自動でやること」と「こちらが手動でやること」の境界を書き出す。2026-09-11 の実測では自動は作成だけで、agent の変更のコミット(4 体中 3 体)・本線へのマージ(4 回、うち競合 1 回)・掃除(一度も走らず 43 個 19GB)・.worktreeinclude の設定(未設定でゼロから)は全部手動だった。Codex は worktree に入らないので本線のツリーを直接触る +claude @unattended id:0037
 2026-09-11 Claude の実 subagent で worktree-write-guard が発火し、本体と兄弟 checkout への Edit/Write を拒否することを確認する +claude @unattended see:docs/adr/0005-scope-worktrees-to-target-repositories.md id:0040
+(C) 2026-09-15 brew cask の sf-symbols に sfsymbols CLI が入っているか確かめ、入っていれば cask 宣言へ寄せる(入っていなければ新規ホストは developer.apple.com から手で入れる必要がある旨を残す) +infra @device id:0043
