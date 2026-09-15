@@ -2,9 +2,9 @@
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "cleanupPeriodDays": 9999,
   "env": {
-    "EDITOR": "zed --wait",
     "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1",
-    "CLAUDE_CODE_THRIFTY_SONIC": "false"
+    "CLAUDE_CODE_THRIFTY_SONIC": "false",
+    "EDITOR": "zed --wait"
   },
   "permissions": {
     "allow": [
@@ -25,32 +25,36 @@
       "WebFetch(domain:www.dotenv.org)",
       "WebFetch(domain:tailscale.com)",
       "Bash(nix eval:*)",
-      "Bash(defaults read:*)",
-      "Bash(sfsymbols:*)"
+      "Bash(defaults read:*)"
     ],
     "defaultMode": "auto"
   },
   "hooks": {
-    "PreToolUse": [
+    "Notification": [
       {
-        "matcher": "Write|Edit",
+        "matcher": "permission_prompt|idle_prompt|elicitation_dialog",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/worktree-write-guard.py\"",
-            "timeout": 10
+            "command": "~/.claude/hooks/bark-notify.sh"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/gigun/.config/iterm2/cc-status"
           }
         ]
       }
     ],
-    "UserPromptSubmit": [
+    "PermissionRequest": [
       {
-        "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/langfuse-otlp.sh",
-            "timeout": 10
+            "command": "/Users/gigun/.config/iterm2/cc-status"
           }
         ]
       }
@@ -63,6 +67,14 @@
             "type": "command",
             "command": "~/.claude/hooks/langfuse-otlp.sh",
             "timeout": 10
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/gigun/.config/iterm2/cc-status"
           }
         ]
       }
@@ -79,14 +91,42 @@
         ]
       }
     ],
-    "SubagentStop": [
+    "PreToolUse": [
       {
-        "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/langfuse-otlp.sh",
+            "command": "/Users/gigun/.config/iterm2/cc-status"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/worktree-write-guard.py\"",
             "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/gigun/.config/iterm2/cc-status"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/gigun/.config/iterm2/cc-status"
           }
         ]
       }
@@ -105,15 +145,62 @@
             "timeout": 10
           }
         ]
-      }
-    ],
-    "Notification": [
+      },
       {
-        "matcher": "permission_prompt|idle_prompt|elicitation_dialog",
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/bark-notify.sh"
+            "command": "/Users/gigun/.config/iterm2/cc-status"
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/gigun/.config/iterm2/cc-status"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/langfuse-otlp.sh",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/gigun/.config/iterm2/cc-status"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/langfuse-otlp.sh",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/gigun/.config/iterm2/cc-status"
           }
         ]
       }
@@ -128,97 +215,55 @@
     "padding": 0
   },
   "enabledPlugins": {
-    "typescript-lsp@claude-plugins-official": true,
-    "hono-skill@hono-skill": true,
-    "lua-lsp@claude-plugins-official": false,
-    "deploy-on-aws@agent-plugins-for-aws": false,
-    "github@claude-plugins-official": false,
-    "code-simplifier@claude-plugins-official": true,
-    "skill-creator@claude-plugins-official": true,
-    "supabase@claude-plugins-official": false,
-    "stripe@claude-plugins-official": true,
-    "swift-lsp@claude-plugins-official": true,
-    "gopls-lsp@claude-plugins-official": true,
-    "coderabbit@claude-plugins-official": false,
-    "firecrawl@claude-plugins-official": false,
-    "postman@claude-plugins-official": false,
-    "dig@kuu-marketplace": true,
-    "fix-ci@kuu-marketplace": true,
-    "decomposition@kuu-marketplace": true,
-    "deslop@kuu-marketplace": true,
+    "agy-mcp@gigun": true,
     "auth-skills@better-auth-agent-skills": false,
-    "context7@claude-plugins-official": true,
+    "cclens@cclens": true,
+    "chrome-devtools-mcp@gigun": true,
     "clangd-lsp@claude-plugins-official": true,
     "cloudflare@cloudflare": true,
-    "frontend-design@claude-plugins-official": true,
-    "chrome-devtools-mcp@gigun": true,
+    "cman@cman": true,
+    "code-simplifier@claude-plugins-official": true,
+    "coderabbit@claude-plugins-official": false,
+    "codex@openai-codex": true,
+    "context7@claude-plugins-official": true,
+    "decomposition@kuu-marketplace": true,
     "deepwiki-mcp@gigun": true,
+    "deploy-on-aws@agent-plugins-for-aws": false,
+    "deslop@kuu-marketplace": true,
+    "dig@kuu-marketplace": true,
+    "figmate-mcp@gigun": true,
+    "firecrawl@claude-plugins-official": false,
+    "fix-ci@kuu-marketplace": true,
+    "frontend-design@claude-plugins-official": true,
+    "github@claude-plugins-official": false,
+    "gopls-lsp@claude-plugins-official": true,
+    "harness@gigun": true,
+    "hono-skill@hono-skill": true,
+    "ios-skills@gigun": false,
+    "lua-lsp@claude-plugins-official": false,
     "markitdown-mcp@gigun": true,
     "next-devtools-mcp@gigun": true,
+    "postman@claude-plugins-official": false,
+    "skill-creator@claude-plugins-official": true,
+    "stripe@claude-plugins-official": true,
+    "supabase@claude-plugins-official": false,
+    "swift-lsp@claude-plugins-official": true,
     "tableplus-mcp@gigun": false,
-    "codex@openai-codex": true,
-    "figmate-mcp@gigun": true,
-    "ios-skills@gigun": false,
-    "workers-fetch@gigun": true,
-    "cman@cman": true,
-    "harness@gigun": true,
-    "cclens@cclens": true,
     "telemetry@gigun": true,
-    "agy-mcp@gigun": true
+    "typescript-lsp@claude-plugins-official": true,
+    "workers-fetch@gigun": true
   },
   "extraKnownMarketplaces": {
-    "better-auth-agent-skills": {
-      "source": {
-        "source": "github",
-        "repo": "better-auth/skills"
-      }
-    },
-    "cman": {
-      "source": {
-        "source": "github",
-        "repo": "laiso/cman"
-      }
-    },
-    "openai-codex": {
-      "source": {
-        "source": "github",
-        "repo": "openai/codex-plugin-cc"
-      }
-    },
     "agent-browser": {
       "source": {
         "source": "github",
         "repo": "vercel-labs/agent-browser"
       }
     },
-    "claude-plugins-official": {
+    "better-auth-agent-skills": {
       "source": {
         "source": "github",
-        "repo": "anthropics/claude-plugins-official"
-      }
-    },
-    "supabase-agent-skills": {
-      "source": {
-        "source": "github",
-        "repo": "supabase/agent-skills"
-      }
-    },
-    "cloudflare": {
-      "source": {
-        "source": "github",
-        "repo": "cloudflare/skills"
-      }
-    },
-    "kuu-marketplace": {
-      "source": {
-        "source": "github",
-        "repo": "fumiya-kume/claude-code"
-      }
-    },
-    "gigun": {
-      "source": {
-        "source": "directory",
-        "path": "/Users/gigun/ghq/github.com/gigun-dev/claude-code"
+        "repo": "better-auth/skills"
       }
     },
     "cclens": {
@@ -227,16 +272,58 @@
         "repo": "lambdalisue/cclens"
       }
     },
+    "claude-plugins-official": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-official"
+      }
+    },
+    "cloudflare": {
+      "source": {
+        "source": "github",
+        "repo": "cloudflare/skills"
+      }
+    },
+    "cman": {
+      "source": {
+        "source": "github",
+        "repo": "laiso/cman"
+      }
+    },
+    "gigun": {
+      "source": {
+        "source": "directory",
+        "path": "/Users/gigun/ghq/github.com/gigun-dev/claude-code"
+      }
+    },
     "gvzdv-plugins": {
       "source": {
         "source": "github",
         "repo": "gvzdv/claudish-to-english"
       }
     },
+    "kuu-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "fumiya-kume/claude-code"
+      }
+    },
+    "openai-codex": {
+      "source": {
+        "source": "github",
+        "repo": "openai/codex-plugin-cc"
+      }
+    },
     "skills": {
       "source": {
         "source": "github",
         "repo": "humanlayer/skills"
+      }
+    },
+    "supabase-agent-skills": {
+      "source": {
+        "source": "github",
+        "repo": "supabase/agent-skills"
       }
     }
   },
@@ -289,6 +376,5 @@
       "routine under gigun-dev/ prefix qualifiers: none configured beyond the trusted repo itself"
     ]
   },
-  "voiceEnabled": true,
-  "model": "claude-fable-5-1[1m]"
+  "voiceEnabled": true
 }
