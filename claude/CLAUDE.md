@@ -4,9 +4,13 @@ Only what differs from the agent's own defaults belongs here.
 
 - Delegate implementation to a subagent; the main thread designs and reviews.
 - Give children scope and completion criteria; include only missing context.
-- For another repository, use `cross-repo-implementer` with its absolute target
-  checkout and exclusive writing ownership; do not create a worktree in the caller's
-  repository. Use a separate target checkout if another writer is active there.
+- Pass `isolation: worktree` only when two or more children will write to the repo at once;
+  commit your own pending work first so a lone child can edit the checkout directly.
+  Integrate an isolated child by squash-merging its branch, never by transplanting a diff,
+  then delete the worktree and branch. That cleanup is yours — a stale one keeps its build
+  directory, which is GB in a compiled project.
+- For another repository, use `cross-repo-implementer` with its absolute target checkout
+  and exclusive writing ownership. Use a separate target checkout if another writer is active.
 - Reuse children for related work. Use team communication tools; send only actionable updates.
 - Keep durable context in repo files, not in agent memory: tasks in `todo.txt`
   (todo skills), decisions that are hard to reverse in `docs/adr/` (adr skill).
