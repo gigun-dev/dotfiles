@@ -8,6 +8,15 @@ let
   dotfilesPath = "${config.home.homeDirectory}/ghq/github.com/gigun-dev/dotfiles";
   mkLink = path: config.lib.file.mkOutOfStoreSymlink "${dotfilesPath}/${path}";
   isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
+
+  # SF Symbols の CLI は自分の実行ファイルパスから親の .app を遡ってリソース
+  # (Contents/Resources) を読むため、bundle の外へ symlink を張ると
+  # "could not find an SF Symbols.app to load resources from" で落ちる。
+  # exec で実体パスを叩けば argv[0] が bundle 内に戻るので、中身のある wrapper
+  # を挟む (リンク先そのものは store で構わない)。
+  sfsymbolsWrapper = pkgs.writeShellScript "sfsymbols" ''
+    exec "/Applications/SF Symbols.app/Contents/Executables/sfsymbols" "$@"
+  '';
 in
 {
   xdg.configFile = {
@@ -72,16 +81,17 @@ in
   # すると CLI ごと downgrade する恐れがある (2026-09-15 時点で cask 版に CLI が
   # 入っているか未確認)。~/.local/bin 経由にする理由: アプリパスに空白
   # (`SF Symbols.app`) を含み、エージェントが直接パスを叩くと引用符の扱いで壊れる。
+  # 実体への直リンクにしない理由は sfsymbolsWrapper のコメント参照。
   home.activation.linkSfSymbolsCLI = lib.mkIf isDarwin (
     lib.hm.dag.entryAfter [ "linkGeneration" ] ''
       sfsymbols_bin="/Applications/SF Symbols.app/Contents/Executables/sfsymbols"
-      sfsymbols_link="${config.home.homeDirectory}/.local/bin/sfsymbols"
+      sfsymbols_wrapper="${config.home.homeDirectory}/.local/bin/sfsymbols"
       if [ -x "$sfsymbols_bin" ]; then
         $DRY_RUN_CMD mkdir -p "${config.home.homeDirectory}/.local/bin"
-        $DRY_RUN_CMD ln -sf "$sfsymbols_bin" "$sfsymbols_link"
-      elif [ -L "$sfsymbols_link" ]; then
-        # アプリを消した後に壊れた symlink が PATH に残らないように掃除
-        $DRY_RUN_CMD rm "$sfsymbols_link"
+        $DRY_RUN_CMD ln -sf "${sfsymbolsWrapper}" "$sfsymbols_wrapper"
+      elif [ -e "$sfsymbols_wrapper" ] || [ -L "$sfsymbols_wrapper" ]; then
+        # アプリを消した後に、起動できない wrapper が PATH に残らないように掃除
+        $DRY_RUN_CMD rm -f "$sfsymbols_wrapper"
       fi
     ''
   );
