@@ -112,6 +112,47 @@ in
 
   environment.etc."langfuse/compose.yaml".source = composeSource;
 
+  # Cloudflare Access protects one browser origin. Langfuse returns presigned
+  # MinIO URLs for media, so route the bucket prefix through that same origin;
+  # a separate media hostname would require another Access session.
+  services.nginx = {
+    enable = true;
+    virtualHosts."langfuse-ui-local" = {
+      listen = [
+        {
+          addr = "127.0.0.1";
+          port = 13000;
+        }
+      ];
+      locations."/langfuse/" = {
+        proxyPass = "http://127.0.0.1:9090";
+        proxyWebsockets = true;
+        extraConfig = ''
+          proxy_set_header Host $host;
+        '';
+      };
+      locations."/" = {
+        proxyPass = "http://127.0.0.1:3000";
+        proxyWebsockets = true;
+      };
+    };
+    virtualHosts."langfuse-otlp-local" = {
+      listen = [
+        {
+          addr = "127.0.0.1";
+          port = 13001;
+        }
+      ];
+      locations."/api/public/otel/" = {
+        proxyPass = "http://127.0.0.1:3000";
+        extraConfig = ''
+          client_max_body_size 25m;
+        '';
+      };
+      locations."/".return = "404";
+    };
+  };
+
   age.secrets.langfuse-env = {
     file = ../../../../secrets/langfuse-env.age;
     # 更新提案 unit は compose の構文検証だけ gigun として行うため、

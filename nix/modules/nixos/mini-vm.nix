@@ -856,6 +856,8 @@ in
       credentialsFile = "/var/lib/cloudflared/cloudflare-os.json";
       ingress = {
         "os.097969.xyz".service = "http://127.0.0.1:8787";
+        "langfuse.097969.xyz".service = "http://127.0.0.1:13000";
+        "langfuse-otel.097969.xyz".service = "http://127.0.0.1:13001";
 
         # ChatGPT サブスク枠を mini の外からも使えるようにする口。
         #

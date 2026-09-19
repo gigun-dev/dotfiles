@@ -54,7 +54,10 @@ services:
     environment:
       <<: *langfuse-environment
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
-      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://mini-vm:9090
+      # The public UI reverse proxy sends /langfuse/* to this MinIO instance.
+      # Using the same origin keeps Cloudflare Access authentication usable for
+      # presigned media URLs without exposing a second hostname.
+      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: https://langfuse.097969.xyz
       LANGFUSE_S3_MEDIA_UPLOAD_INTERNAL_ENDPOINT: http://minio:9000
       LANGFUSE_INIT_ORG_ID: personal
       LANGFUSE_INIT_ORG_NAME: Personal
