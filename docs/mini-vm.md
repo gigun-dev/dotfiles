@@ -24,6 +24,10 @@
   踏み潰さず止めて通知する。
 - **駆動スクリプトは現 generation のものが走る**。新しいツリーが更新器自身を壊しても、次回は
   壊れる前の更新器で回る(自己更新は 1 サイクル遅れる)。
+- **uvx で取るものはこの経路に乗らない**。`codex-openai-bridge` が動かす
+  `openai-api-server-via-codex` は nixpkgs に無く実行時に PyPI から取るため、lock にも
+  required CI にも現れない。`codex-openai-bridge-refresh`(日次)が別レーンとして追従する。
+  autoswitch と意図的に分離してあり、理由は `docs/adr/0006-track-uvx-versions-outside-nix.md`。
 
 **実績** (2026-09-08 時点): PR #1〜#5 が全て merged、CI も直近 8 run 全て success。
 設計は当初「手元でレビューしてから merge」だったが、lock 差分は人に判定できないと結論し、
