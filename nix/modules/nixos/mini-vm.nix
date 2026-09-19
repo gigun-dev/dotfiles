@@ -220,6 +220,110 @@ let
       gh pr merge --auto --squash "$branch"
     fi
   '';
+
+  # codex-openai-bridge が実際に起動した openai-api-server-via-codex の版を
+  # /run/codex-bridge/version へ記録する。ExecStartPost として本体の直後に呼ぶ。
+  #
+  # なぜ「起動した側」が書くのか (refresh 側ではない): 版の追従は下の
+  # codex-openai-bridge-refresh が日次で行うが、そこで書いてしまうと `systemctl
+  # restart codex-openai-bridge` を手で打った場合や `Restart = "always"` による
+  # 予期しない再起動でも版がズレたまま放置される。「実際に立ち上がったプロセス」
+  # から都度読み直す方が、記録と実体が食い違う経路を作らない。
+  #
+  # 版の取り方: uvx は PyPI から展開した実体を `~/.cache/uv/archive-v0/<hash>/.../
+  # site-packages/openai_api_server_via_codex/bin/openai-api-server-via-codex` として
+  # 実行する。dist-info (バージョンを含む) は site-packages 直下の兄弟ディレクトリに
+  # あるので、実行中プロセスの /proc/<pid>/exe から site-packages を逆算して dist-info
+  # 名からバージョン文字列を取り出す。uv のキャッシュレイアウト (archive-v0 という
+  # 内部命名) に依存した実装なので、uv 側の変更で壊れ得る。壊れたら version は
+  # "unknown" に落ちるだけで、記録の欠落であって起動失敗ではない。
+  codexBridgeRecordVersion = pkgs.writeShellScript "codex-bridge-record-version" ''
+    set -u
+    out=/run/codex-bridge/version
+    version="unknown"
+
+    # ExecStartPost は本体の起動直後に走るが、uvx が実体を展開して子プロセスを
+    # 起こすまで一瞬のラグがある。見つかるまで数秒だけリトライする。
+    for _ in $(seq 1 10); do
+      pid=$(${pkgs.procps}/bin/pgrep -f \
+        'site-packages/openai_api_server_via_codex/bin/openai-api-server-via-codex' \
+        | head -n1)
+      if [ -n "''${pid:-}" ]; then
+        exe=$(${pkgs.coreutils}/bin/readlink -f "/proc/$pid/exe" 2>/dev/null || true)
+        if [ -n "$exe" ]; then
+          # exe = .../site-packages/openai_api_server_via_codex/bin/<実行ファイル>
+          # なので 3 段上が site-packages。
+          site_packages=$(dirname "$(dirname "$(dirname "$exe")")")
+          distinfo=$(${pkgs.coreutils}/bin/ls -d \
+            "$site_packages"/openai_api_server_via_codex-*.dist-info 2>/dev/null | head -n1)
+          if [ -n "$distinfo" ]; then
+            base=$(basename "$distinfo")
+            v=''${base#openai_api_server_via_codex-}
+            v=''${v%.dist-info}
+            [ -n "$v" ] && version="$v"
+          fi
+        fi
+      fi
+      [ "$version" != "unknown" ] && break
+      sleep 1
+    done
+
+    printf '%s\n' "$version" > "$out"
+    exit 0
+  '';
+
+  # codex-openai-bridge の稼働中の版が PyPI の最新に追従しているかを日次で確認し、
+  # 遅れていれば再起動する。ExecStart の `@latest` (下の codex-openai-bridge 参照)
+  # は uv の HTTP キャッシュが fresh な間は PyPI を照会しないため、
+  # 「起動するたびに最新化される」を保証しない。実際に版を上げるのはこの unit の役目。
+  codexBridgeRefresh = pkgs.writeShellScript "codex-bridge-refresh" ''
+    set -u
+
+    latest=$(${pkgs.curl}/bin/curl -sS -m 30 --retry 3 \
+      https://pypi.org/pypi/openai-api-server-via-codex/json 2>/dev/null \
+      | ${pkgs.jq}/bin/jq -r '.info.version // empty' 2>/dev/null)
+
+    # PyPI 側の不調 (レート制限・障害) で latest が空になる日がある。ここで
+    # fail 扱いにすると実害の無い日にも Bark が鳴ってノイズになるので、
+    # 黙って終える (journal には残るので後から追える)。
+    if [ -z "$latest" ]; then
+      echo "codex-bridge-refresh: PyPI から最新版を取得できなかった" >&2
+      exit 0
+    fi
+
+    current="unknown"
+    [ -r /run/codex-bridge/version ] && current=$(${pkgs.coreutils}/bin/cat /run/codex-bridge/version)
+
+    # 一致 (unknown 同士の一致は起きない: latest は常に具体的なバージョン文字列)。
+    # ここが平常時の大半のパス — 再起動しない。
+    if [ "$current" = "$latest" ]; then
+      exit 0
+    fi
+
+    echo "codex-bridge-refresh: $current -> $latest へ再起動する" >&2
+    ${config.systemd.package}/bin/systemctl try-restart codex-openai-bridge.service
+
+    # 401 を「正常」とみなす。--config の config.toml は agenix 経由で api_key を
+    # 含んでおり (codex-openai-bridge のコメント参照)、Authorization ヘッダ無しの
+    # この呼び出しは常に 401 を返す設計。200 を待つとこの経路では永遠に来ない。
+    # 「401 が返る = サーバプロセスが応答している」を疎通確認として使う。
+    ok=0
+    for _ in $(seq 1 30); do
+      code=$(${pkgs.curl}/bin/curl -s -o /dev/null -w '%{http_code}' \
+        http://127.0.0.1:18080/v1/models 2>/dev/null || true)
+      if [ "$code" = "401" ]; then
+        ok=1
+        break
+      fi
+      sleep 2
+    done
+
+    if [ "$ok" -ne 1 ]; then
+      echo "codex-bridge-refresh: 再起動後も応答が確認できない" >&2
+      exit 1
+    fi
+    exit 0
+  '';
 in
 {
   # Mac Mini (Intel) 上の Lima VM。
@@ -806,9 +910,20 @@ in
     # (2026-09-01 に再起動して 0.2.0 で疎通確認済み)。
     # 壊れたときの逃げ道: ExecStart の引数を
     # `uvx openai-api-server-via-codex@X.Y.Z serve ...` にすれば即座に版を戻せる。
+    #
+    # ExecStart は `@latest` を付けている。plain な `uvx openai-api-server-via-codex`
+    # は uv の HTTP キャッシュが fresh な間は PyPI を照会しない (実測:
+    # `DEBUG Found fresh response for: https://pypi.org/simple/openai-api-server-via-codex/`)。
+    # つまり再起動しても古い版のまま上がり得る。`@latest` を付けると毎回
+    # revalidation リクエストが飛ぶ (`DEBUG Sending revalidation request for: ...`)。
+    # これは「版を固定しない」という上の判断とは別軸で、固定しない代わりに
+    # 「起動のたびに実際に最新を引く」ことを保証するためのもの。
+    # ただし @latest でも systemd 自身が unit を再起動しない限り古いプロセスは
+    # 生き続ける (下の codex-openai-bridge-refresh がその再起動を日次で担う)。
     path = with pkgs; [
       uv
       cacert # uv が PyPI へ HTTPS で取りに行くのに要る
+      procps # ExecStartPost (codexBridgeRecordVersion) の pgrep 用
     ];
 
     environment = {
@@ -820,13 +935,21 @@ in
       Type = "simple";
       User = username;
       WorkingDirectory = "/home/${username}";
+      # 実際に起動した版を記録する codexBridgeRecordVersion (上の let) が書き込む先。
+      # RuntimeDirectory なので /run/codex-bridge は起動時に作られ、停止時に消える
+      # (再起動を跨いで古い版が残り続けるのを避ける)。
+      RuntimeDirectory = "codex-bridge";
       # --config は agenix が復号した設定 (api_key を含む) を指す。既定の
       # ~/.config/... ではなく /var/lib 配下に置いているため明示が要る。
       ExecStart =
-        "${pkgs.uv}/bin/uvx openai-api-server-via-codex serve"
+        "${pkgs.uv}/bin/uvx openai-api-server-via-codex@latest serve"
         + " --config /var/lib/codex-bridge/config.toml"
         + " --host 127.0.0.1 --port 18080"
         + " --auth-json /home/${username}/.codex/auth.json";
+      # `-` は記録の失敗 (uv のキャッシュレイアウトが変わった等) で本体を
+      # 落とさないため。バージョン記録はベストエフォートで、無くても
+      # ブリッジ自体は正常に動く。
+      ExecStartPost = "-${codexBridgeRecordVersion}";
       Restart = "always";
       RestartSec = 10;
     };
@@ -884,6 +1007,65 @@ in
       ExecStart = "${llmAgents.codex}/bin/codex app-server --remote-control --listen unix://";
       Restart = "always";
       RestartSec = 10;
+    };
+  };
+
+  # codex-openai-bridge の版が PyPI の最新から遅れていないかを日次で確認し、
+  # 遅れていれば再起動する。実体 (codexBridgeRefresh) は上の let にある。
+  #
+  # Why not dotfiles-autoswitch に相乗りしないのか: healthGate は
+  # codex-openai-bridge の稼働を見ている。autoswitch の switch の中でこの版上げも
+  # やってしまうと、uvx の版だけが原因で健全性ゲートが落ちたときに
+  # **健全な nix generation の方が rollback される** (nixos-rebuild の世代には
+  # uvx の版が含まれないので、rollback しても直らない)。そうなると autoswitch は
+  # 毎晩 rollback → 失敗を繰り返す。更新の失敗ドメインを分けるため、
+  # nix generation の更新 (autoswitch) と uvx の版上げ (この unit) を独立させ、
+  # 前者が後者を巻き添えにしないようにしている。
+  systemd.services.codex-openai-bridge-refresh = {
+    description = "codex-openai-bridge の版を PyPI の最新へ追従させる";
+    wants = [ "network-online.target" ];
+    after = [
+      "network-online.target"
+      "codex-openai-bridge.service"
+    ];
+
+    # codex-openai-bridge と同じ理由 (codex login 前は auth.json が無く、
+    # ブリッジ自体が起動していないので追従確認をしても意味がない)。
+    unitConfig = {
+      ConditionPathExists = "/home/${username}/.codex/auth.json";
+      OnFailure = [ "codex-openai-bridge-refresh-notify-failure.service" ];
+    };
+
+    serviceConfig = {
+      Type = "oneshot";
+      # systemctl try-restart で他 unit を操作するので root が要る
+      # (dotfiles-autoswitch と同じ理由)。
+      User = "root";
+      ExecStart = "${codexBridgeRefresh}";
+    };
+  };
+
+  # 発火時刻は dotfiles-autoswitch (04:00 + 最大 30 分) の直後に置いてある。
+  # 両者は上のコメントの通り意図的に独立させているので、時間帯が重なること自体は
+  # 問題ではない (autoswitch は nix generation、これは uvx の版という別対象を扱う)。
+  systemd.timers.codex-openai-bridge-refresh = {
+    description = "codex-openai-bridge-refresh を毎日回す";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "*-*-* 04:30:00";
+      RandomizedDelaySec = 600;
+      Persistent = true;
+    };
+  };
+
+  systemd.services.codex-openai-bridge-refresh-notify-failure = {
+    description = "codex-openai-bridge-refresh の失敗を Bark へ通知する";
+
+    serviceConfig = {
+      Type = "oneshot";
+      User = "root";
+      EnvironmentFile = "-/run/agenix/bark-env";
+      ExecStart = "${barkNotifyUnitFailure} codex-openai-bridge-refresh.service 'mini-vm codex-bridge 更新確認 失敗'";
     };
   };
 
