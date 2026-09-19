@@ -69,6 +69,10 @@ in
   # Scripts) とは**別のトークン**。名前が衝突するので同じファイルに混ぜないこと。
   "tofu-env.age".publicKeys = all;
 
+  # Langfuse v4 ComposeのDB・暗号化・初期ユーザー・OTLP project資格情報。
+  # NixOS activationがgigun専用EnvironmentFileとして復号する（更新提案も同ユーザー）。
+  "langfuse-env.age".publicKeys = all;
+
   # 管理しないもの:
   #   ~/.codex/auth.json — ChatGPT の OAuth 認証。codex 自身がリフレッシュで書き換える
   #     可変状態なので、activation のたびに古い暗号文で上書きすると認証が壊れる。

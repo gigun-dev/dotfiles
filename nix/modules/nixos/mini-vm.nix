@@ -72,10 +72,20 @@ let
       done
     fi
 
-    # (3) 常駐 unit の状態。cloudflared の unit 名は tunnel ID から決まる
+    # (3) Langfuse の readiness。Compose 内の依存コンテナが active でも、migration
+    #     失敗などで Web API が使えない状態を見逃さない。
+    if [ "$(systemctl show -p ConditionResult --value langfuse)" = "no" ]; then
+      echo "gate: langfuse は条件不成立でスキップ" >&2
+    elif ! curl -sf -o /dev/null http://127.0.0.1:3000/api/public/ready; then
+      echo "gate: langfuse readiness に失敗 (127.0.0.1:3000)" >&2
+      fail=1
+    fi
+
+    # (4) 常駐 unit の状態。cloudflared の unit 名は tunnel ID から決まる
     #     (services.cloudflared.tunnels の宣言と対で、片方だけ変えると素通りする)。
     for unit in \
       cloudflare-os \
+      langfuse \
       codex-openai-bridge \
       codex-remote-control \
       cloudflared-tunnel-5b8ec787-4730-4b2b-87b8-e86acbd3954b; do
@@ -85,7 +95,7 @@ let
       fi
     done
 
-    # (4) codex-remote-control の control socket。スマホから実際に使えるかは機械では
+    # (5) codex-remote-control の control socket。スマホから実際に使えるかは機械では
     #     見られないので、pair が探す既定パスに口が開いていることまでを見る。
     #     unit がスキップされている (codex login 前) 機械では socket も無いので見ない。
     if systemctl is-active --quiet codex-remote-control \
@@ -335,6 +345,7 @@ in
   # ホストは Intel なので x86_64 ゲストがネイティブで動く (vz ドライバ)。
   imports = [
     (modulesPath + "/profiles/qemu-guest.nix")
+    ./services/langfuse.nix
   ];
 
   # Lima のインスタンス名・tailnet 名・hostname はすべて mini-vm に揃えてある
@@ -1066,6 +1077,33 @@ in
       User = "root";
       EnvironmentFile = "-/run/agenix/bark-env";
       ExecStart = "${barkNotifyUnitFailure} codex-openai-bridge-refresh.service 'mini-vm codex-bridge 更新確認 失敗'";
+    };
+  };
+
+  # Langfuse は個人アプリの全 OTLP を受ける常駐基盤なので、起動失敗と更新提案の
+  # 失敗を無人のまま放置しない。通知本文は各 unit の journal 末尾を含む。
+  systemd.services.langfuse.unitConfig.OnFailure = [ "langfuse-notify-failure.service" ];
+  systemd.services.langfuse-update-propose.unitConfig.OnFailure = [
+    "langfuse-update-propose-notify-failure.service"
+  ];
+
+  systemd.services.langfuse-notify-failure = {
+    description = "Langfuse の起動失敗を Bark へ通知する";
+    serviceConfig = {
+      Type = "oneshot";
+      User = "root";
+      EnvironmentFile = "-/run/agenix/bark-env";
+      ExecStart = "${barkNotifyUnitFailure} langfuse.service 'mini-vm Langfuse 起動失敗'";
+    };
+  };
+
+  systemd.services.langfuse-update-propose-notify-failure = {
+    description = "Langfuse 更新提案の失敗を Bark へ通知する";
+    serviceConfig = {
+      Type = "oneshot";
+      User = "root";
+      EnvironmentFile = "-/run/agenix/bark-env";
+      ExecStart = "${barkNotifyUnitFailure} langfuse-update-propose.service 'mini-vm Langfuse 更新確認 失敗'";
     };
   };
 
