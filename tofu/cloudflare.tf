@@ -59,6 +59,29 @@ resource "cloudflare_dns_record" "codex" {
   comment = "codex bridge (OpenAI-compatible) on mini-vm — protected by the bridge's own api_key, no Access"
 }
 
+resource "cloudflare_dns_record" "langfuse" {
+  zone_id = local.zone_id
+  name    = "langfuse.097969.xyz"
+  type    = "CNAME"
+  content = "${local.tunnel_id}.cfargotunnel.com"
+  proxied = true
+  ttl     = 1
+  comment = "Langfuse UI on mini-vm (named tunnel, protected by Access)"
+}
+
+# OTLP SDKはCloudflare Accessの対話ログインや専用ヘッダを送れないため、UIとは
+# ホスト名を分ける。origin側nginxがOTLP pathだけを許可し、Langfuseのproject key
+# (HTTP Basic) が認証境界になる。
+resource "cloudflare_dns_record" "langfuse_otel" {
+  zone_id = local.zone_id
+  name    = "langfuse-otel.097969.xyz"
+  type    = "CNAME"
+  content = "${local.tunnel_id}.cfargotunnel.com"
+  proxied = true
+  ttl     = 1
+  comment = "Langfuse OTLP ingestion on mini-vm (project-key auth, no Access)"
+}
+
 # --- Zero Trust Access -----------------------------------------------------
 # os.097969.xyz の前段に立つエッジ認証。cloudflare-os 自体は認証を持たないので、
 # 「公開 URL に出す」ことと「自分だけが入れる」ことをここで両立させている。
@@ -93,6 +116,36 @@ resource "cloudflare_zero_trust_access_application" "cloudflare_os" {
 
   # ポリシーは独立リソースとして定義し、ここでは id 参照だけにする (下の
   # cloudflare_zero_trust_access_policy.account_members のコメントに経緯)。
+  policies = [
+    {
+      id         = cloudflare_zero_trust_access_policy.account_members.id
+      precedence = 1
+    },
+  ]
+}
+
+resource "cloudflare_zero_trust_access_application" "langfuse" {
+  account_id = local.account_id
+  name       = "Langfuse (mini-vm)"
+  type       = "self_hosted"
+  domain     = "langfuse.097969.xyz"
+
+  destinations = [
+    {
+      type = "public"
+      uri  = "langfuse.097969.xyz"
+    },
+  ]
+
+  allowed_idps             = [cloudflare_zero_trust_access_identity_provider.cloudflare.id]
+  auto_redirect_to_identity = true
+  session_duration          = "168h"
+
+  app_launcher_visible       = true
+  enable_binding_cookie      = false
+  http_only_cookie_attribute = true
+  options_preflight_bypass   = false
+
   policies = [
     {
       id         = cloudflare_zero_trust_access_policy.account_members.id

@@ -15,11 +15,16 @@ Persistent data lives in Docker named volumes. List them with:
 docker volume ls --filter name=langfuse
 ```
 
-The UI and OTLP endpoint are available over the tailnet at
-`http://mini-vm:3000`. The trace endpoint is:
+The browser UI is available at `https://langfuse.097969.xyz` through the
+existing named tunnel and Cloudflare Access. The direct UI remains available
+over the tailnet at `http://mini-vm:3000` for recovery.
+
+OTLP ingestion uses a separate public tunnel hostname without interactive
+Cloudflare Access. The origin proxy only accepts the OTLP path; Langfuse project
+keys provide HTTP Basic authentication. The endpoint is:
 
 ```text
-http://mini-vm:3000/api/public/otel/v1/traces
+https://langfuse-otel.097969.xyz/api/public/otel/v1/traces
 ```
 
 Use Basic authentication with the project public and secret keys stored in
@@ -31,6 +36,11 @@ are needed:
 cd secrets
 nix run github:ryantm/agenix -- -e langfuse-env.age
 ```
+
+`LANGFUSE_INIT_USER_*` only bootstraps the first database user. After the first
+startup, users, organizations, projects, and password changes are managed in
+Langfuse/Postgres through the UI; editing those init values does not update an
+existing user.
 
 ## Operations
 

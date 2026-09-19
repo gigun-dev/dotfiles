@@ -6,6 +6,10 @@ Date: 2026-09-20
 
 非major更新は固定タグとdigestを機械更新し、7日経過とNixOS buildを条件にPRを自動mergeする。major更新だけはデータ移行を伴うため止める。
 
+UIは既存named tunnelの`langfuse.097969.xyz`へ載せ、Cloudflare Accessでアカウントメンバーだけに公開する。署名付きmedia URLはUIと同じoriginの`/langfuse/`をnginxからMinIOへ流し、別ホストのAccessセッションを要求しない。
+
+OTLPはSwift実機や別プロダクトからtailnet無しで送れる必要があるため、`langfuse-otel.097969.xyz`を別に公開する。Cloudflare Accessの対話ログインをSDKへ要求せず、originのnginxで`/api/public/otel/`だけを許可し、Langfuse project keyのHTTP Basic認証を境界にする。
+
 Rejected: macOS上にColimaまたはOrbStackを追加すると、既存Limaゲストとは別のLinux環境と復旧経路が増える。
 
 Rejected: 当初からR2を使うとローカル運用の実測ができず、個人利用で必要か判断できない。
