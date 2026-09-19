@@ -10,3 +10,4 @@ x 2026-09-12 2026-09-11 subagent の報告から起票すべき項目を本線�
 x 2026-09-12 2026-09-11 subagent の定義(implementer / artisan / architect)に「書き込み先の絶対パスは worktree のパスから作る」を入れる。2026-09-11 の実測で worktree を持つ 8 体が本体チェックアウトへ書いており、main/seen_sample.h・main/send_spin.h・sdkconfig.defaults が含まれる +claude @unattended id:0038
 x 2026-09-12 2026-09-11 別 repo は専用 agent と対象 checkout を使う方針を ADR に記録する +claude @unattended see:docs/adr/0005-scope-worktrees-to-target-repositories.md id:0039
 x 2026-09-12 2026-09-11 worktree で作った gitignore 対象のファイルが本線へ来ない。2026-09-11 に esp32 で、鍵と証明書を再起動で消えない場所へ移す作業をサブエージェントに投げたところ、コードはマージで来たが証明書そのものは worktree 側に残り、本線には空のディレクトリすら無かった。.worktreeinclude は外から中へ配る向きしか無い。報告に「どの ignore 対象ファイルを作ったか」を書かせるか、本線へ運ぶ手段を用意する +claude @unattended id:0042
+x 2026-09-20 2026-09-20 Langfuse v4をmini-vmへDocker Composeでセルフホストし、ローカルMinIO・OTLP受信・永続化・健全性確認・非major自動更新まで検証する +langfuse @unattended see:docs/adr/0007-run-langfuse-locally-first.md id:0048
