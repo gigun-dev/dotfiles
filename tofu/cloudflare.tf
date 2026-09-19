@@ -82,6 +82,16 @@ resource "cloudflare_dns_record" "langfuse_otel" {
   comment = "Langfuse OTLP ingestion on mini-vm (project-key auth, no Access)"
 }
 
+resource "cloudflare_dns_record" "netdata" {
+  zone_id = local.zone_id
+  name    = "netdata.097969.xyz"
+  type    = "CNAME"
+  content = "${local.tunnel_id}.cfargotunnel.com"
+  proxied = true
+  ttl     = 1
+  comment = "Netdata on mini-vm (named tunnel, protected by Access)"
+}
+
 # --- Zero Trust Access -----------------------------------------------------
 # os.097969.xyz の前段に立つエッジ認証。cloudflare-os 自体は認証を持たないので、
 # 「公開 URL に出す」ことと「自分だけが入れる」ことをここで両立させている。
@@ -145,6 +155,56 @@ resource "cloudflare_zero_trust_access_application" "langfuse" {
   enable_binding_cookie      = false
   http_only_cookie_attribute = true
   options_preflight_bypass   = false
+
+  policies = [
+    {
+      id         = cloudflare_zero_trust_access_policy.account_members.id
+      precedence = 1
+    },
+  ]
+}
+
+resource "cloudflare_zero_trust_access_application" "netdata" {
+  account_id = local.account_id
+  name       = "Netdata (mini-vm)"
+  type       = "self_hosted"
+  domain     = "netdata.097969.xyz"
+
+  destinations = [
+    {
+      type = "public"
+      uri  = "netdata.097969.xyz"
+    },
+  ]
+
+  allowed_idps              = [cloudflare_zero_trust_access_identity_provider.cloudflare.id]
+  auto_redirect_to_identity = true
+  session_duration          = "168h"
+
+  app_launcher_visible       = true
+  enable_binding_cookie      = false
+  http_only_cookie_attribute = true
+  options_preflight_bypass   = false
+
+  policies = [
+    {
+      id         = cloudflare_zero_trust_access_policy.account_members.id
+      precedence = 1
+    },
+  ]
+}
+
+# Tiles marked app_launcher_visible are still hidden until the launcher itself
+# has an allow policy. This turns the team domain into the authenticated index
+# for the small UIs behind this named tunnel.
+resource "cloudflare_zero_trust_access_application" "app_launcher" {
+  account_id = local.account_id
+  name       = "gigun App Launcher"
+  type       = "app_launcher"
+
+  allowed_idps              = [cloudflare_zero_trust_access_identity_provider.cloudflare.id]
+  auto_redirect_to_identity = true
+  session_duration          = "168h"
 
   policies = [
     {

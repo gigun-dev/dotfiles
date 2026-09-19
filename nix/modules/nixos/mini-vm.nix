@@ -81,11 +81,19 @@ let
       fail=1
     fi
 
-    # (4) 常駐 unit の状態。cloudflared の unit 名は tunnel ID から決まる
+    # (4) Netdata はこの VM の運用画面なので、unit だけでなく API が実際に
+    #     応答することを autoswitch と同じ gate で確認する。
+    if ! curl -sf -o /dev/null http://127.0.0.1:19999/api/v1/info; then
+      echo "gate: netdata API に失敗 (127.0.0.1:19999)" >&2
+      fail=1
+    fi
+
+    # (5) 常駐 unit の状態。cloudflared の unit 名は tunnel ID から決まる
     #     (services.cloudflared.tunnels の宣言と対で、片方だけ変えると素通りする)。
     for unit in \
       cloudflare-os \
       langfuse \
+      netdata \
       codex-openai-bridge \
       codex-remote-control \
       cloudflared-tunnel-5b8ec787-4730-4b2b-87b8-e86acbd3954b; do
@@ -95,7 +103,7 @@ let
       fi
     done
 
-    # (5) codex-remote-control の control socket。スマホから実際に使えるかは機械では
+    # (6) codex-remote-control の control socket。スマホから実際に使えるかは機械では
     #     見られないので、pair が探す既定パスに口が開いていることまでを見る。
     #     unit がスキップされている (codex login 前) 機械では socket も無いので見ない。
     if systemctl is-active --quiet codex-remote-control \
@@ -346,6 +354,7 @@ in
   imports = [
     (modulesPath + "/profiles/qemu-guest.nix")
     ./services/langfuse.nix
+    ./services/netdata.nix
   ];
 
   # Lima のインスタンス名・tailnet 名・hostname はすべて mini-vm に揃えてある
@@ -858,6 +867,7 @@ in
         "os.097969.xyz".service = "http://127.0.0.1:8787";
         "langfuse.097969.xyz".service = "http://127.0.0.1:13000";
         "langfuse-otel.097969.xyz".service = "http://127.0.0.1:13001";
+        "netdata.097969.xyz".service = "http://127.0.0.1:19999";
 
         # ChatGPT サブスク枠を mini の外からも使えるようにする口。
         #

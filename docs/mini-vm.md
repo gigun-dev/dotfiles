@@ -3,6 +3,17 @@
 旧 `docs/next-directions.md`(2026-09-10 に廃止)から降ろした mini-vm 関連の調査メモ。
 決着済みの経緯と、未解決のまま残っている調査項目をまとめる。
 
+## 運用ダッシュボード
+
+Cloudflare Access App Launcher (`https://gigun.cloudflareaccess.com`) をUIの入口にする。
+`app_launcher_visible`なAccessアプリだけがタイルとして並ぶため、named tunnelのホスト名を
+個別に覚える必要はない。Launcher自身と各アプリは、いずれもgigun-devアカウントメンバーを
+許可する同じ再利用可能ポリシーで保護する。
+
+mini-vmのCPU・メモリ・ディスク・Docker・プロセスはNetdata
+(`https://netdata.097969.xyz`)で確認する。Netdataは`127.0.0.1:19999`だけで待ち受け、
+公開経路はnamed tunnelとCloudflare Accessに限定する。
+
 ## mini-vm の自動更新 (2026-09-06 実装)
 
 **動機**: 無人機なので手で `pull && switch` を打つ機会が無く、push 済みの変更が届かないまま
