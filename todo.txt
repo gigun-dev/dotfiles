@@ -29,3 +29,6 @@
 2026-09-11 worktree で「Claude Code が自動でやること」と「こちらが手動でやること」の境界を書き出す。2026-09-11 の実測では自動は作成だけで、agent の変更のコミット(4 体中 3 体)・本線へのマージ(4 回、うち競合 1 回)・掃除(一度も走らず 43 個 19GB)・.worktreeinclude の設定(未設定でゼロから)は全部手動だった。Codex は worktree に入らないので本線のツリーを直接触る +claude @unattended id:0037
 2026-09-11 Claude の実 subagent で worktree-write-guard が発火し、本体と兄弟 checkout への Edit/Write を拒否することを確認する +claude @unattended see:docs/adr/0005-scope-worktrees-to-target-repositories.md id:0040
 (C) 2026-09-15 brew cask の sf-symbols に sfsymbols CLI が入っているか確かめ、入っていれば cask 宣言へ寄せる(入っていなければ新規ホストは developer.apple.com から手で入れる必要がある旨を残す) +infra @device id:0043
+(B) 2026-09-19 mini-vm を nix.buildMachines に宣言し、M4 Pro から x86_64-linux の変更を remote build で検証できるようにする(nix daemon は root なので root の SSH 鍵・known_hosts も要る。nixosConfigurations.mini-vm のビルドが手元で通ること) +mini-vm @device see:docs/mini-vm.md id:0044
+2026-09-19 codex-openai-bridge-refresh の成否を健全性ゲートに含めるか決める(現状は Bark 通知のみ。ゲートに入れると uvx の版が原因で nix generation が rollback される副作用があり、それを避けたのが分離の理由) +mini-vm see:docs/adr/0006-track-uvx-versions-outside-nix.md id:0045
+2026-09-19 codex-bridge の版検出が unknown に落ちたまま毎日 try-restart を打ち続ける状態を塞ぐ(uv のキャッシュレイアウト変更で壊れ得る。unknown が連続したら再起動をやめて通知する) +mini-vm see:docs/adr/0006-track-uvx-versions-outside-nix.md id:0046
