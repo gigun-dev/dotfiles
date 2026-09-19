@@ -251,7 +251,8 @@
     "tableplus-mcp@gigun": false,
     "telemetry@gigun": true,
     "typescript-lsp@claude-plugins-official": true,
-    "workers-fetch@gigun": true
+    "workers-fetch@gigun": true,
+    "japanese-tech-writing@gigun": true
   },
   "extraKnownMarketplaces": {
     "agent-browser": {
