@@ -252,7 +252,8 @@
     "telemetry@gigun": true,
     "typescript-lsp@claude-plugins-official": true,
     "workers-fetch@gigun": true,
-    "japanese-tech-writing@gigun": true
+    "japanese-tech-writing@gigun": true,
+    "todo@gigun": true
   },
   "extraKnownMarketplaces": {
     "agent-browser": {
