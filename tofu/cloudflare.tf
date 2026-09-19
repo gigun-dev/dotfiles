@@ -199,19 +199,24 @@ resource "cloudflare_zero_trust_access_application" "netdata" {
 # for the small UIs behind this named tunnel.
 resource "cloudflare_zero_trust_access_application" "app_launcher" {
   account_id = local.account_id
-  name       = "gigun App Launcher"
+  # Cloudflare fixes this value to "App Launcher" for type=app_launcher.
+  # A custom name is accepted on create but normalized by the API afterwards.
+  name = "App Launcher"
   type       = "app_launcher"
 
   allowed_idps              = [cloudflare_zero_trust_access_identity_provider.cloudflare.id]
   auto_redirect_to_identity = true
   session_duration          = "168h"
-
+  landing_page_design = {
+    title = "Welcome!"
+  }
   policies = [
     {
       id         = cloudflare_zero_trust_access_policy.account_members.id
       precedence = 1
     },
   ]
+
 }
 
 # 「gigun-dev アカウントのメンバーなら通す」ポリシー。
