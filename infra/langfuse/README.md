@@ -24,6 +24,13 @@ http://mini-vm:3000/api/public/otel/v1/traces
 
 Use Basic authentication with the project public and secret keys stored in
 `secrets/langfuse-env.age`, and send `x-langfuse-ingestion-version: 4`.
+Open the encrypted file in an editor when the login password or project keys
+are needed:
+
+```sh
+cd secrets
+nix run github:ryantm/agenix -- -e langfuse-env.age
+```
 
 ## Operations
 
