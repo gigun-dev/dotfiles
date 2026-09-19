@@ -1,5 +1,9 @@
-{ pkgs, ... }:
+{ lib, pkgs, ... }:
 {
+  # Only the bundled dashboard carries NCUL. Keep the exception scoped to
+  # Netdata instead of enabling every unfree package for the VM.
+  nixpkgs.config.allowUnfreePredicate = pkg: lib.getName pkg == "netdata";
+
   # cloudflared is the only public ingress. Loopback binding keeps the native
   # Netdata port off both the LAN and tailnet if Access is misconfigured.
   services.netdata = {
