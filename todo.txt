@@ -33,3 +33,5 @@
 2026-09-19 codex-openai-bridge-refresh の成否を健全性ゲートに含めるか決める(現状は Bark 通知のみ。ゲートに入れると uvx の版が原因で nix generation が rollback される副作用があり、それを避けたのが分離の理由) +mini-vm see:docs/adr/0006-track-uvx-versions-outside-nix.md id:0045
 2026-09-19 codex-bridge の版検出が unknown に落ちたまま毎日 try-restart を打ち続ける状態を塞ぐ(uv のキャッシュレイアウト変更で壊れ得る。unknown が連続したら再起動をやめて通知する) +mini-vm see:docs/adr/0006-track-uvx-versions-outside-nix.md id:0046
 2026-09-19 CLAUDE.md の「コメントはコードと同量レベルでベッタベタに書く」を .claude/rules/comments.md の現行方針(必要十分に書く。多いほど良いではない)へ合わせる(2026-09-05 に rule 側を改訂した際の取り残し。2026-09-19 に実際に古い方針で subagent へ指示してしまった) +docs id:0047
+2026-09-20 旧Langfuse Cloudのclaude-codeプロジェクトをセルフホストLangfuseへ重複なく移行し、trace件数とサンプル階層を照合する +langfuse @unattended see:docs/adr/0007-run-langfuse-locally-first.md id:0051
+2026-09-20 NixpkgsのNetdataをCloud UI同梱でビルドし、netdata.097969.xyzのルートでダッシュボードが表示されることを確認する +mini-vm +observability @unattended id:0052 @wip
