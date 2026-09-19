@@ -1,0 +1,11 @@
+# Langfuseはmini-vmのComposeとローカルBlob Storageで始める
+
+Date: 2026-09-20
+
+個人利用のOTLPをまずMac mini内へ収め、将来ほかのプロダクトで容量や予算が増えた場合にR2へ移せる必要がある。Langfuse v4は既存mini-vm内のDocker Composeで動かし、当初のBlob StorageにはローカルMinIOを使い、S3接続設定を差し替え可能な境界として保つ。実利用のCPU・RAM・ディスク・操作数を測らず外部ストレージを先に採用しない一方、Langfuse全構成をNixOSコンテナ定義へ翻訳せず公式Composeとの差分を小さく保てるためである。
+
+非major更新は固定タグとdigestを機械更新し、7日経過とNixOS buildを条件にPRを自動mergeする。major更新だけはデータ移行を伴うため止める。
+
+Rejected: macOS上にColimaまたはOrbStackを追加すると、既存Limaゲストとは別のLinux環境と復旧経路が増える。
+
+Rejected: 当初からR2を使うとローカル運用の実測ができず、個人利用で必要か判断できない。
