@@ -77,6 +77,10 @@ in
   # agentの公開鍵とtokenは初回起動時にHubから生成してVM内のStateDirectoryへ置く。
   "beszel-env.age".publicKeys = all;
 
+  # Uptime Kumaの初期管理ユーザー。UIはCloudflare Access通過後に自動ログインし、
+  # この資格情報は初期設定と宣言内容の再適用だけに使う。
+  "uptime-kuma-env.age".publicKeys = all;
+
   # 管理しないもの:
   #   ~/.codex/auth.json — ChatGPT の OAuth 認証。codex 自身がリフレッシュで書き換える
   #     可変状態なので、activation のたびに古い暗号文で上書きすると認証が壊れる。

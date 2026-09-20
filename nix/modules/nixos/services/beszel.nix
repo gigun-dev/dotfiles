@@ -104,8 +104,9 @@ in
       StateDirectory = "beszel";
       EnvironmentFile = environmentFile;
       Environment = [
-        "APP_URL=http://127.0.0.1:8090"
+        "APP_URL=https://beszel.097969.xyz"
         "CHECK_UPDATES=false"
+        "TRUSTED_AUTH_HEADER=Cf-Access-Authenticated-User-Email"
       ];
       ExecStart = "${hub}/beszel serve --http 127.0.0.1:8090";
       ExecStartPost = waitForHub;
