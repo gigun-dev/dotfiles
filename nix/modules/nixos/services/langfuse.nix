@@ -149,6 +149,11 @@ in
           client_max_body_size 25m;
         '';
       };
+      # The public OTLP hostname doubles as the external uptime boundary. Keep
+      # the surface exact and read-only: these two Langfuse endpoints disclose
+      # only readiness, while every other non-OTLP path remains a 404.
+      locations."= /api/public/health".proxyPass = "http://127.0.0.1:3000";
+      locations."= /api/public/ready".proxyPass = "http://127.0.0.1:3000";
       locations."/".return = "404";
     };
   };

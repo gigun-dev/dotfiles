@@ -82,14 +82,14 @@ resource "cloudflare_dns_record" "langfuse_otel" {
   comment = "Langfuse OTLP ingestion on mini-vm (project-key auth, no Access)"
 }
 
-resource "cloudflare_dns_record" "netdata" {
+resource "cloudflare_dns_record" "beszel" {
   zone_id = local.zone_id
-  name    = "netdata.097969.xyz"
+  name    = "beszel.097969.xyz"
   type    = "CNAME"
   content = "${local.tunnel_id}.cfargotunnel.com"
   proxied = true
   ttl     = 1
-  comment = "Netdata on mini-vm (named tunnel, protected by Access)"
+  comment = "Beszel on mini-vm (named tunnel, protected by Access)"
 }
 
 # --- Zero Trust Access -----------------------------------------------------
@@ -164,16 +164,16 @@ resource "cloudflare_zero_trust_access_application" "langfuse" {
   ]
 }
 
-resource "cloudflare_zero_trust_access_application" "netdata" {
+resource "cloudflare_zero_trust_access_application" "beszel" {
   account_id = local.account_id
-  name       = "Netdata (mini-vm)"
+  name       = "Beszel (mini-vm)"
   type       = "self_hosted"
-  domain     = "netdata.097969.xyz"
+  domain     = "beszel.097969.xyz"
 
   destinations = [
     {
       type = "public"
-      uri  = "netdata.097969.xyz"
+      uri  = "beszel.097969.xyz"
     },
   ]
 
