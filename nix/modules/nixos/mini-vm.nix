@@ -355,6 +355,7 @@ in
     (modulesPath + "/profiles/qemu-guest.nix")
     ./services/langfuse.nix
     ./services/beszel.nix
+    ./services/uptime-kuma.nix
   ];
 
   # Lima のインスタンス名・tailnet 名・hostname はすべて mini-vm に揃えてある
@@ -870,6 +871,7 @@ in
         # Beszel自体はloopbackで待ち受けたまま、Cloudflare Accessで保護した
         # named tunnel経由だけをブラウザ向け入口にする。
         "beszel.097969.xyz".service = "http://127.0.0.1:8090";
+        "uptime.097969.xyz".service = "http://127.0.0.1:3001";
         # ChatGPT サブスク枠を mini の外からも使えるようにする口。
         #
         # ここには **Access を張らない**。Access で守ると

@@ -1,3 +1,5 @@
+Superseded by 0009-protect-monitoring-uis
+
 # mini-vmの可観測性はBeszelと外形監視に分ける
 
 Date: 2026-09-20
