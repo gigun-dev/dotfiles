@@ -5,14 +5,17 @@
 
 ## 運用ダッシュボード
 
-Cloudflare Access App Launcher (`https://gigun.cloudflareaccess.com`) をUIの入口にする。
-`app_launcher_visible`なAccessアプリだけがタイルとして並ぶため、named tunnelのホスト名を
-個別に覚える必要はない。Launcher自身と各アプリは、いずれもgigun-devアカウントメンバーを
-許可する同じ再利用可能ポリシーで保護する。
+mini-vmのCPU・メモリ・ディスク・ネットワークとDockerコンテナ別の使用量はBeszelで
+確認する。VMには物理温度sensorが公開されていないため、現状は温度だけ取得できない。
+Hubは`127.0.0.1:8090`だけで待ち受け、ブラウザからは既存named tunnelの
+`https://beszel.097969.xyz`をCloudflare Accessで保護して開く。障害時の切り分けでは
+`ssh -L 8090:127.0.0.1:8090 mini-vm`でも直接確認できる。
 
-mini-vmのCPU・メモリ・ディスク・Docker・プロセスはNetdata
-(`https://netdata.097969.xyz`)で確認する。Netdataは`127.0.0.1:19999`だけで待ち受け、
-公開経路はnamed tunnelとCloudflare Accessに限定する。
+mini-vm自体が停止した場合は同居するBeszelでは検出できないため、LangfuseとCodex Proxyの
+死活監視はCloudflare Worker Cronから5分ごとに行う。最新結果は
+`https://uptime.097969.xyz`で確認でき、2回連続失敗と復旧時はBarkへ通知する。
+Worker・KV・Cron・custom domainは`gigun-dev/hub`の`infra/uptime/`でOpenTofu管理する。
+詳細はADR 0008を参照する。
 
 ## mini-vm の自動更新 (2026-09-06 実装)
 

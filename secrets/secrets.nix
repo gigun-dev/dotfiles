@@ -73,6 +73,10 @@ in
   # NixOS activationがgigun専用EnvironmentFileとして復号する（更新提案も同ユーザー）。
   "langfuse-env.age".publicKeys = all;
 
+  # Beszel初期管理ユーザー。BESZEL_HUB_USER_EMAIL / BESZEL_HUB_USER_PASSWORDを持つ。
+  # agentの公開鍵とtokenは初回起動時にHubから生成してVM内のStateDirectoryへ置く。
+  "beszel-env.age".publicKeys = all;
+
   # 管理しないもの:
   #   ~/.codex/auth.json — ChatGPT の OAuth 認証。codex 自身がリフレッシュで書き換える
   #     可変状態なので、activation のたびに古い暗号文で上書きすると認証が壊れる。

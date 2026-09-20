@@ -354,7 +354,7 @@ in
   imports = [
     (modulesPath + "/profiles/qemu-guest.nix")
     ./services/langfuse.nix
-    ./services/netdata.nix
+    ./services/beszel.nix
   ];
 
   # Lima のインスタンス名・tailnet 名・hostname はすべて mini-vm に揃えてある
@@ -867,8 +867,9 @@ in
         "os.097969.xyz".service = "http://127.0.0.1:8787";
         "langfuse.097969.xyz".service = "http://127.0.0.1:13000";
         "langfuse-otel.097969.xyz".service = "http://127.0.0.1:13001";
-        "netdata.097969.xyz".service = "http://127.0.0.1:19999";
-
+        # Beszel自体はloopbackで待ち受けたまま、Cloudflare Accessで保護した
+        # named tunnel経由だけをブラウザ向け入口にする。
+        "beszel.097969.xyz".service = "http://127.0.0.1:8090";
         # ChatGPT サブスク枠を mini の外からも使えるようにする口。
         #
         # ここには **Access を張らない**。Access で守ると
