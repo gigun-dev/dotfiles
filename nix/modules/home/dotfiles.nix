@@ -25,6 +25,8 @@ in
     "zsh/functions".source = mkLink "zsh/functions";
     "ccstatusline".source = mkLink "ccstatusline";
     "mise".source = mkLink "mise";
+    # Langfuse の非秘密接続先。鍵は ~/.config/claude-code/langfuse.env に分離する。
+    "claude-code/langfuse-endpoints.env".source = mkLink "claude/langfuse-endpoints.env";
   }
   // lib.optionalAttrs isDarwin {
     "karabiner".source = mkLink "karabiner";

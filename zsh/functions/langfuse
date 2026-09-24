@@ -1,0 +1,33 @@
+langfuse() {
+  emulate -L zsh
+  setopt allexport
+
+  local credentials_file="${HOME}/.config/claude-code/langfuse.env"
+  local endpoints_file="${HOME}/.config/claude-code/langfuse-endpoints.env"
+  if [[ ! -r "$credentials_file" ]]; then
+    print -u2 "Langfuse credentials not found: $credentials_file"
+    return 3
+  fi
+  if [[ ! -r "$endpoints_file" ]]; then
+    print -u2 "Langfuse endpoints not found: $endpoints_file"
+    return 3
+  fi
+
+  source "$credentials_file" || return 3
+  source "$endpoints_file" || return 3
+  unsetopt allexport
+
+  if [[ -z "${LANGFUSE_PUBLIC_KEY:-}" || -z "${LANGFUSE_SECRET_KEY:-}" ]]; then
+    print -u2 "Langfuse API keys are missing from $credentials_file"
+    return 3
+  fi
+  if [[ -z "${LANGFUSE_BASE_URL:-}" ]]; then
+    print -u2 "LANGFUSE_BASE_URL is missing from $endpoints_file"
+    return 3
+  fi
+
+  command bunx @langfuse/cli "$@"
+}
+
+# Preserve the package-style name used by older Langfuse CLI instructions.
+langfuse-cli() { langfuse "$@" }

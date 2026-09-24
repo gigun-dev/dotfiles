@@ -29,6 +29,18 @@ https://langfuse-otel.097969.xyz/api/public/otel/v1/traces
 
 Use Basic authentication with the project public and secret keys stored in
 `secrets/langfuse-env.age`, and send `x-langfuse-ingestion-version: 4`.
+
+## Client endpoints
+
+The REST API base and OTLP ingestion URL are intentionally separate:
+
+- `LANGFUSE_BASE_URL=http://mini-vm:3000` is used for API reads and CLI access.
+- `LANGFUSE_OTLP_ENDPOINT=https://langfuse-otel.097969.xyz/api/public/otel/v1/traces` is used to send OTLP traces.
+
+Dotfiles declares these non-secret values in `claude/langfuse-endpoints.env`.
+Client project keys remain in the local, git-ignored
+`~/.config/claude-code/langfuse.env` file.
+
 Open the encrypted file in an editor when the login password or project keys
 are needed:
 
