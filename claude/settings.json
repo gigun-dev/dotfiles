@@ -253,7 +253,8 @@
     "typescript-lsp@claude-plugins-official": true,
     "workers-fetch@gigun": true,
     "japanese-tech-writing@gigun": true,
-    "todo@gigun": true
+    "todo@gigun": true,
+    "langfuse@gigun": true
   },
   "extraKnownMarketplaces": {
     "agent-browser": {
