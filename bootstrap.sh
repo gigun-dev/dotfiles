@@ -87,7 +87,8 @@ echo "Creating symlinks..."
 
 mkdir -p "${HOME}/.config/sheldon" \
   "${HOME}/.config/zeno" \
-  "${HOME}/.config/zsh"
+  "${HOME}/.config/zsh" \
+  "${HOME}/.config/claude-code"
 
 link() {
   local src="$1" dst="$2"
@@ -117,6 +118,7 @@ link "${DOTFILES_DIR}/zsh/functions" "${HOME}/.config/zsh/functions"
 # Takumi Guard (匿名モード、詳細は npm/npmrc のコメント参照)
 link "${DOTFILES_DIR}/npm/npmrc" "${HOME}/.npmrc"
 link "${DOTFILES_DIR}/bun/bunfig.toml" "${HOME}/.bunfig.toml"
+link "${DOTFILES_DIR}/claude/langfuse-endpoints.env" "${HOME}/.config/claude-code/langfuse-endpoints.env"
 
 # Keep user-global agent instructions consistent with home-manager setup.
 mkdir -p "${HOME}/.claude" "${HOME}/.codex"

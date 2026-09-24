@@ -50,12 +50,13 @@
 set -uo pipefail
 
 ENV_FILE="${HOME}/.config/claude-code/langfuse.env"
+ENDPOINTS_FILE="${HOME}/.config/claude-code/langfuse-endpoints.env"
 [ -r "$ENV_FILE" ] || exit 0
 # shellcheck disable=SC1090
-set -a; . "$ENV_FILE"; set +a
+set -a; . "$ENV_FILE"; [ ! -r "$ENDPOINTS_FILE" ] || . "$ENDPOINTS_FILE"; set +a
 [ -n "${LANGFUSE_PUBLIC_KEY:-}" ] && [ -n "${LANGFUSE_SECRET_KEY:-}" ] || exit 0
+[ -n "${LANGFUSE_OTLP_ENDPOINT:-}" ] || exit 0
 
-BASE_URL="${LANGFUSE_BASE_URL:-https://cloud.langfuse.com}"
 STATE_DIR="${HOME}/.cache/claude-langfuse"
 MAX_CHARS=10000  # 巨大なツール出力でペイロードが膨れるのを防ぐ(先頭のみ保持)
 
@@ -160,7 +161,7 @@ flush_spans() {
     -H "Authorization: Basic ${auth}" \
     -H "x-langfuse-ingestion-version: 4" \
     --data-binary "$payload" \
-    "${BASE_URL}/api/public/otel/v1/traces" >/dev/null 2>&1 &
+    "$LANGFUSE_OTLP_ENDPOINT" >/dev/null 2>&1 &
   disown 2>/dev/null || true
 }
 

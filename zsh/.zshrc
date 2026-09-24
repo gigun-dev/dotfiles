@@ -341,18 +341,14 @@ fi
 unset _zsh_functions
 
 # =============================================================================
-# Claude Code テレメトリ (OTel → Grafana Cloud)
+# Claude Code telemetry
 # =============================================================================
-# 認証トークンを含むため設定は git 管理外の env ファイルに置き、ここで読むだけにする
-# (claude/settings.json は dotfiles で git 管理されているので秘密は絶対に置かない)。
-# ファイルが無ければ何も有効にならない fail-closed 構成 — 半端に有効化して
-# 401 を吐き続けるより、送らない方がマシという判断。
-if [[ -r "${XDG_CONFIG_HOME}/claude-code/grafana-otlp.env" ]]; then
-  export CLAUDE_CODE_ENABLE_TELEMETRY=1
-  export OTEL_METRICS_EXPORTER=otlp
-  export OTEL_LOGS_EXPORTER=otlp
-  export OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
-  source "${XDG_CONFIG_HOME}/claude-code/grafana-otlp.env"
+# セッション記録は ~/.claude/settings.json の Langfuse hook が担当する。
+# 古いシェルから継承された Grafana OTLP 設定も、新しいシェルでは解除する。
+if [[ "${OTEL_EXPORTER_OTLP_ENDPOINT:-}" == https://otlp-gateway-prod-ap-northeast-0.grafana.net/* ]]; then
+  unset CLAUDE_CODE_ENABLE_TELEMETRY
+  unset OTEL_METRICS_EXPORTER OTEL_LOGS_EXPORTER OTEL_EXPORTER_OTLP_PROTOCOL
+  unset OTEL_EXPORTER_OTLP_ENDPOINT OTEL_EXPORTER_OTLP_HEADERS
 fi
 
 # =============================================================================
