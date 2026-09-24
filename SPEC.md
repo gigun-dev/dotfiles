@@ -144,8 +144,10 @@ agent-browser  ← llm-agents
 ### perSystem
 
 - treefmt（nixfmt）
-- pre-commit hooks（treefmt）
-- devShells.default（pre-commit 用）
+- devShells.esp-idf / esp32drop（ESP32 用の opt-in 環境。`default` は無い）
+
+pre-commit は nix (git-hooks.nix) ではなく `git/hooks/pre-commit` が持つ。
+`core.hooksPath = git/hooks` は home-manager の `installDotfilesHooks` が宣言する。
 
 ### apps
 

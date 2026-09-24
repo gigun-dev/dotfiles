@@ -35,11 +35,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    git-hooks = {
-      url = "github:cachix/git-hooks.nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     # Mac Mini (Intel) 上の Lima ゲストを NixOS で動かすためのモジュール。
     # 提供されるイメージはビルドせず nixosModules.lima だけを使うため、
     # キャッシュヒットの心配がなく follows を統一できる。
@@ -115,12 +110,10 @@
 
       imports = [
         inputs.treefmt-nix.flakeModule
-        inputs.git-hooks.flakeModule
       ];
 
       perSystem =
         {
-          config,
           pkgs,
           system,
           ...
@@ -145,13 +138,21 @@
             programs.nixfmt.enable = true;
           };
 
-          pre-commit.settings.hooks = {
-            treefmt.enable = true;
-          };
-
-          devShells.default = pkgs.mkShell {
-            inputsFrom = [ config.pre-commit.devShell ];
-          };
+          # Why not git-hooks.nix (cachix/git-hooks.nix, 旧 pre-commit-hooks.nix):
+          #   このリポジトリの pre-commit は git/hooks/pre-commit (staged な .nix の
+          #   nix fmt 自動整形) で、core.hooksPath = git/hooks を home-manager の
+          #   installDotfilesHooks が毎 switch で宣言し直している。git-hooks.nix の
+          #   devShell に入ると shellHook が core.hooksPath を .git/hooks へ書き換え、
+          #   その宣言を無言で奪う。しかも生成される hook は nix store の絶対パスを
+          #   exec するだけで gc root を持たないため、nix gc 後は
+          #   `/nix/store/...-pre-commit-4.6.2/bin/pre-commit: No such file or directory`
+          #   で全コミットが落ちる (2026-09-21 に devShell へ入り、実際に踏んだ)。
+          #   検証内容 (treefmt) は scripts/verify.sh の `nix fmt -- --ci .` が CI と
+          #   pre-push の両方で見ているので、消しても守りは薄くならない。
+          # Why not devShells.default を空の mkShell で残すか:
+          #   中身は inputsFrom = [ config.pre-commit.devShell ] だけだった。入る理由の
+          #   無いシェルを残すと `nix develop` を打つ動機だけが残る。ESP 用は
+          #   devShells.esp-idf / esp32drop という名前付きなので影響しない。
 
           # 全ホスト共通の opt-in 開発環境。switch 時の SDK 自動導入や
           # プロジェクト名に依存するグローバル環境変数は不要。
