@@ -69,3 +69,46 @@ Non-major Langfuse updates are proposed by `langfuse-update-propose.timer` after
 the release has aged seven days. The timer pins the new Web and Worker image
 digests, builds the NixOS configuration, opens or refreshes a PR, and enables
 GitHub auto-merge. Major releases are ignored and require a migration decision.
+
+## Model pricing sync
+
+Langfuse computes `totalCost` on a `GENERATION` observation only when its
+`generation.model` string matches some registered model's `matchPattern`
+(built-in models cover most public models, but not always the newest ones).
+Without a match, `usageDetails` (token counts) still show up, but `totalCost`
+stays `null` — that is what staleness looks like here, not an error anywhere.
+
+`infra/langfuse/scripts/sync-model-pricing.py` fills that gap by reading prices
+from litellm's canonical price sheet
+(`https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json`,
+fetched at run time, not pinned or committed — see the script's module
+docstring for why) and creating any model that's missing from Langfuse but
+present in an explicit `TARGET_MODELS` list in the script. It never overwrites
+an existing model; if litellm's numbers drift from an already-registered
+model, it reports the drift and stops instead of silently fixing it. A model
+absent from litellm's price sheet is reported as absent — the script does not
+fill in a zero price.
+
+```sh
+# Requires ~/.config/claude-code/langfuse-endpoints.env and langfuse.env
+# (same files the Claude Code OTLP hook uses). Default is --check: never writes.
+python3 infra/langfuse/scripts/sync-model-pricing.py
+python3 infra/langfuse/scripts/sync-model-pricing.py --write   # actually POSTs missing models
+```
+
+Before adding a model to `TARGET_MODELS`, confirm it is actually being used:
+
+```sh
+curl -sS -H "Authorization: Basic $(printf '%s:%s' "$LANGFUSE_PUBLIC_KEY" "$LANGFUSE_SECRET_KEY" | base64)" \
+  "$LANGFUSE_BASE_URL/api/public/v2/observations?type=GENERATION&fields=core,basic,model&limit=200" \
+  | python3 -c 'import json,sys,collections; print(collections.Counter(o["model"] for o in json.load(sys.stdin)["data"]))'
+```
+
+Costs are computed at ingestion time from whatever models exist at that
+moment; registering a model does not retroactively backfill `totalCost` on
+observations ingested before the model existed
+([verified 2026-09-25] after registering `claude-opus-5-5`, generations
+ingested *after* registration got `totalCost`, but ones ingested a minute
+earlier stayed `null` even after the model existed). If pricing looks missing
+for a model that is already registered, check whether the affected
+observations predate the model's `createdAt`, not the `matchPattern`.
