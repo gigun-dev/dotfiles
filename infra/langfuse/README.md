@@ -96,6 +96,13 @@ python3 infra/langfuse/scripts/sync-model-pricing.py
 python3 infra/langfuse/scripts/sync-model-pricing.py --write   # actually POSTs missing models
 ```
 
+The pure conversion/matching functions (`litellm_price_entry`, `build_match_pattern`,
+`pattern_conflicts`) have unit tests that touch neither the network nor Langfuse:
+
+```sh
+python3 infra/langfuse/scripts/tests/sync-model-pricing-test.py -v
+```
+
 Before adding a model to `TARGET_MODELS`, confirm it is actually being used:
 
 ```sh
