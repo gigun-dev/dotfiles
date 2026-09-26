@@ -156,6 +156,22 @@ trunc() { jq -r --argjson n "$MAX_CHARS" 'tostring | if length > $n then .[0:$n]
 # 環境変数で上書きする。
 environment="${LANGFUSE_ENVIRONMENT:-default}"
 
+# user.id: 2026-09-27 追加。後から足すと「追加した日より前のデータにだけ無い」という
+# 非対称が生まれるので、決めるなら早いほうがいい、という利用者の判断で追加した。
+# 値は Unix アカウント名(id -un)を既定にする — 個人利用なので「誰が」より「そのアカウント
+# は普段どのマシンか」の目印で十分、というだけの弱い意味しか持たせていない。会社アカウント等
+# 別名で識別したくなったら LANGFUSE_USER_ID で上書きする。
+# session.id と同じく **span 属性でしか拾われない**(2026-09-26 実機確認)ので、
+# flush_spans() で session.id と一緒に注入する。
+user_id="${LANGFUSE_USER_ID:-$(id -un 2>/dev/null)}"
+
+# host.name: 実行マシンの識別(MacBook / mini-vm / Windows WSL を区別する)。OTel の
+# 標準リソース属性名だが、2026-09-26 実機確認で「session.id/user.id 以外の属性は resource に
+# 置いても span に置いても同じ metadata に入る」ことを確認済みなので、1回で全 span に効く
+# resource 属性として置く(deployment.environment と同じ扱い)。既定はホスト名
+# (hostname -s)、環境変数で上書き可能。
+host_name="${LANGFUSE_HOST_NAME:-$(hostname -s 2>/dev/null)}"
+
 # cwd は hook 入力の直下にある(transcript を読まなくて良い、全イベント共通)。
 cwd=$(get '.cwd')
 project=""
@@ -253,13 +269,14 @@ flush_spans() {
   local auth payload
   auth=$(printf '%s:%s' "$LANGFUSE_PUBLIC_KEY" "$LANGFUSE_SECRET_KEY" | base64 | tr -d '\n')
   # 共通属性の注入はここ1箇所だけ(add_span / emit_generations には一切書かない)。
-  # - session.id は span 属性でしか拾われない(2026-09-26 実機確認)ので、ここで全 span に
-  #   後付けする。公式 SDK の propagate_attributes() 相当をここで代替している。
-  # - deployment.environment・claude_code.* は resource 属性に1回置けば全 span に効く
-  #   (同じく実機確認)。resource は今回 flush する分(1イベント分)でしか作らないので、
-  #   ターンをまたいで値が変わっても混ざらない。
+  # - session.id・user.id は span 属性でしか拾われない(2026-09-26 実機確認)ので、
+  #   ここで全 span に後付けする。公式 SDK の propagate_attributes() 相当をここで代替している。
+  # - deployment.environment・host.name・claude_code.* は resource 属性に1回置けば
+  #   全 span に効く(同じく実機確認)。resource は今回 flush する分(1イベント分)でしか
+  #   作らないので、ターンをまたいで値が変わっても混ざらない。
   payload=$(printf '%s\n' "${SPANS[@]}" | jq -sc \
-    --arg sess "$session_id" --arg env "$environment" \
+    --arg sess "$session_id" --arg user "$user_id" --arg env "$environment" \
+    --arg host "$host_name" \
     --arg cwd "$cwd" --arg project "$project" --arg branch "$git_branch" \
     --arg ccver "$cc_version" --arg side "$is_sidechain" --arg agent "${hf_agent_type:-}" \
     --arg turn "$turn_number" '
@@ -267,18 +284,21 @@ flush_spans() {
     def resource_attrs:
       [attr("service.name"; "claude-code"), attr("deployment.environment"; $env),
        attr("claude_code.is_sidechain"; $side)]
+      + (if $host    != "" then [attr("host.name"; $host)] else [] end)
       + (if $cwd     != "" then [attr("claude_code.cwd"; $cwd)] else [] end)
       + (if $project != "" then [attr("claude_code.project"; $project)] else [] end)
       + (if $branch  != "" then [attr("claude_code.git_branch"; $branch)] else [] end)
       + (if $ccver   != "" then [attr("claude_code.version"; $ccver)] else [] end)
       + (if $agent   != "" then [attr("claude_code.agent_type"; $agent)] else [] end)
       + (if $turn    != "" then [attr("claude_code.turn_number"; $turn)] else [] end);
+    def span_common:
+      [attr("session.id"; $sess)] + (if $user != "" then [attr("user.id"; $user)] else [] end);
     {
       resourceSpans: [{
         resource: {attributes: resource_attrs},
         scopeSpans: [{
           scope: {name: "claude-code-hooks"},
-          spans: (map(.attributes += [attr("session.id"; $sess)]))
+          spans: (map(.attributes += span_common))
         }]
       }]
     }' 2>/dev/null)
