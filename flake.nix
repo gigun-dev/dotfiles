@@ -163,6 +163,15 @@
           # 比較用 Arduino core は ESP-IDF 6.1 と別の SDK/cache を使う。
           devShells.esp32drop = import ./nix/devshells/esp32drop.nix { inherit pkgs; };
 
+          # Keep false-success and credential-leak regressions in the shared CI/pre-push gate.
+          checks.host-heartbeat = pkgs.runCommand "host-heartbeat-tests" { } ''
+            mkdir tests
+            cp ${./scripts/host-heartbeat.py} host-heartbeat.py
+            cp ${./scripts/tests/host-heartbeat.py} tests/host-heartbeat.py
+            ${pkgs.python3}/bin/python3 -B -W error tests/host-heartbeat.py
+            touch "$out"
+          '';
+
           # Apps — perSystem の system で正しい構成を選択
           # darwin: darwin-rebuild で system + home 両方適用
           # linux:  home-manager standalone で home のみ適用 (WSL 想定)
@@ -358,6 +367,7 @@
               # MacBook には入れない: 蓋を閉じれば落ちるのが当たり前の機械で
               # 「届かない」を記録しても、証拠にもノイズ源にしかならない。
               ++ inputs.nixpkgs.lib.optionals alwaysOn [
+                ./nix/modules/darwin/host-heartbeat.nix
                 ./nix/modules/darwin/network-watchdog.nix
               ]
               ++ [

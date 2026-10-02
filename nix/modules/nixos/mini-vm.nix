@@ -408,6 +408,7 @@ in
   # Finder 経由の iPhone バックアップ・画面共有・Tailscale だけを担う。
   # ホストは Intel なので x86_64 ゲストがネイティブで動く (vz ドライバ)。
   imports = [
+    ./services/host-heartbeat.nix
     (modulesPath + "/profiles/qemu-guest.nix")
     ./services/langfuse.nix
     ./services/beszel.nix
