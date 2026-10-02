@@ -11,8 +11,6 @@ parser.add_argument("--repo", required=True)
 parser.add_argument("--source", required=True)
 parser.add_argument("--endpoint", required=True)
 parser.add_argument("--token-file", required=True)
-parser.add_argument("--period-ms", type=int, default=60_000)
-parser.add_argument("--anchor-ms", type=int, default=0)
 args = parser.parse_args()
 for path in (args.python, args.repo, args.token_file):
     if not Path(path).is_absolute():
@@ -22,10 +20,9 @@ plist = {
     "ProgramArguments": [args.python, str(Path(args.repo) / "scripts/host-heartbeat.py"),
                          "--source", args.source, "--endpoint", args.endpoint,
                          "--token-file", args.token_file,
-                         "--period-ms", str(args.period_ms), "--anchor-ms", str(args.anchor_ms),
                          "--snapshot", "/var/lib/host-heartbeat/latest.json"],
     "RunAtLoad": True,
-    "StartInterval": 30,
+    "StartInterval": 60,
     "ProcessType": "Background",
 }
 plistlib.dump(plist, sys.stdout.buffer)

@@ -48,17 +48,23 @@ class BootAndReceiptTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             heartbeat.boot_info("Linux", read=lambda path: "uuid" if path.endswith("boot_id") else "cpu 1")
 
-    def test_duplicate_slot_is_stable_but_next_slot_and_reboot_are_distinct(self):
-        first = heartbeat.receipt("mini-vm", "boot-a", 125000, 60000, 5000)
-        duplicate = heartbeat.receipt("mini-vm", "boot-a", 184999, 60000, 5000)
-        next_slot = heartbeat.receipt("mini-vm", "boot-a", 185000, 60000, 5000)
-        reboot = heartbeat.receipt("mini-vm", "boot-b", 125000, 60000, 5000)
-        self.assertEqual(first, duplicate)
-        self.assertEqual(first["scheduledFor"], 125000)
-        self.assertNotEqual(first["runId"], next_slot["runId"])
-        self.assertNotEqual(first["runId"], reboot["runId"])
-        # Boot data must stay local until hub explicitly expands its contract.
-        self.assertEqual(set(first), {"source", "runId", "scheduledFor"})
+    def test_independent_sources_reboot_and_unknown_evidence(self):
+        first = heartbeat.observation("mac", {"bootId": "boot-a", "bootedAt": 1000}, 2000)
+        vm = heartbeat.observation("mini-vm", {"bootId": "vm-boot", "bootedAt": 1500}, 2000)
+        reboot = heartbeat.observation("mac", {"bootId": "boot-b", "bootedAt": 3000}, 4000)
+        self.assertNotEqual(first["source"], vm["source"])
+        self.assertNotEqual(first["bootId"], reboot["bootId"])
+        self.assertEqual(first["lastSuccessAt"], 2000)
+        self.assertEqual(set(first), {"source", "bootId", "bootedAt", "observedAt",
+                                     "lastSuccessAt", "tunnel", "service", "functional"})
+        self.assertTrue(all(first[key] == "unknown" for key in ("tunnel", "service", "functional")))
+
+    def test_future_boot_and_invalid_identifiers_fail(self):
+        for source, boot in [("bad/source", {"bootId": "boot", "bootedAt": 1}),
+                             ("mac", {"bootId": "bad/boot", "bootedAt": 1}),
+                             ("mac", {"bootId": "boot", "bootedAt": 2001})]:
+            with self.assertRaises(ValueError):
+                heartbeat.observation(source, boot, 2000)
 
 
 class DeliveryTests(unittest.TestCase):
@@ -68,8 +74,8 @@ class DeliveryTests(unittest.TestCase):
         self.token = Path(self.directory.name) / "token"
         self.token.write_text("fixture-only-secret\n")
         self.token.chmod(0o600)
-        self.endpoint = "https://hub.example/heartbeat"
-        self.payload = heartbeat.receipt("mini-vm", "boot-a", 125000, 60000, 0)
+        self.endpoint = "https://hub.example/uptime/heartbeat"
+        self.payload = heartbeat.observation("mini-vm", {"bootId": "boot-a", "bootedAt": 100000}, 125000)
         self.opener = Mock()
         self.build = patch.object(heartbeat.urllib.request, "build_opener", return_value=self.opener).start()
         self.addCleanup(patch.stopall)
@@ -83,7 +89,7 @@ class DeliveryTests(unittest.TestCase):
         return response
 
     def error(self, code):
-        error = urllib.error.HTTPError(self.endpoint, code, "fixture", {}, None)
+        error = urllib.error.HTTPError(self.endpoint, code, "fixture", {}, io.BytesIO())
         self.addCleanup(error.close)
         return error
 
@@ -151,7 +157,7 @@ class DeliveryTests(unittest.TestCase):
         self.build.assert_called_once_with(heartbeat.NoRedirect)
         request = urllib.request.Request(self.endpoint)
         self.assertIsNone(heartbeat.NoRedirect().redirect_request(
-            request, None, 302, "redirect", {}, "https://other.example/heartbeat"
+            request, None, 302, "redirect", {}, "https://other.example/uptime/heartbeat"
         ))
         self.sleep.assert_not_called()
 
@@ -170,12 +176,25 @@ class DeliveryTests(unittest.TestCase):
         self.opener.open.assert_called_once()
 
     def test_invalid_endpoint_never_reads_or_transmits_secret(self):
-        for endpoint in ["http://hub.example/heartbeat", "https://hub.example/other",
-                         "https://user@hub.example/heartbeat", "https://hub.example/heartbeat?q=1"]:
+        for endpoint in ["http://hub.example/uptime/heartbeat", "https://hub.example/other",
+                         "https://user@hub.example/uptime/heartbeat", "https://hub.example/uptime/heartbeat?q=1"]:
             with self.subTest(endpoint=endpoint):
                 with self.assertRaises(ValueError):
                     heartbeat.send(endpoint, "/does/not/exist", self.payload)
         self.opener.open.assert_not_called()
+    def test_local_http_requires_literal_loopback_and_fixture_token(self):
+        self.opener.open.return_value = self.response()
+        self.token.write_text("local-fixture-only-secret")
+        heartbeat.send("http://127.0.0.1:1234/uptime/heartbeat", self.token, self.payload, local_test=True)
+        for endpoint in ["http://localhost:1234/uptime/heartbeat",
+                         "http://example.com/uptime/heartbeat",
+                         "https://example.com/uptime/heartbeat"]:
+            with self.assertRaises(ValueError):
+                heartbeat.send(endpoint, self.token, self.payload, local_test=True)
+        self.token.write_text("real-secret")
+        with self.assertRaises(ValueError):
+            heartbeat.send("http://127.0.0.1:1234/uptime/heartbeat", self.token, self.payload, local_test=True)
+
 
 
 class SnapshotTests(unittest.TestCase):
@@ -184,7 +203,7 @@ class SnapshotTests(unittest.TestCase):
             snapshot = Path(directory) / "state.json"
             snapshot.write_text(json.dumps({"source": "mini-vm", "lastAcceptedAt": 50000}))
             argv = ["host-heartbeat", "--source", "mini-vm", "--snapshot", str(snapshot),
-                    "--endpoint", "https://hub.example/heartbeat", "--token-file", "fixture"]
+                    "--endpoint", "https://hub.example/uptime/heartbeat", "--token-file", "fixture"]
             with patch("sys.argv", argv), patch.object(heartbeat, "boot_info", return_value={
                 "bootId": "new-boot", "bootedAt": 100000
             }), patch.object(heartbeat.time, "time_ns", return_value=125000000000), \
@@ -200,7 +219,7 @@ class SnapshotTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             snapshot = Path(directory) / "state.json"
             argv = ["host-heartbeat", "--source", "mini-vm", "--snapshot", str(snapshot),
-                    "--endpoint", "https://hub.example/heartbeat", "--token-file", "fixture"]
+                    "--endpoint", "https://hub.example/uptime/heartbeat", "--token-file", "fixture"]
             def accepted(*args):
                 self.assertIsNone(json.loads(snapshot.read_text())["lastAcceptedAt"])
             with patch("sys.argv", argv), patch.object(heartbeat, "boot_info", return_value={

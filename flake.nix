@@ -172,6 +172,17 @@
             touch "$out"
           '';
 
+          checks.host-heartbeat-preparation = pkgs.runCommand "host-heartbeat-preparation-tests" { } ''
+            mkdir -p scripts/tests
+            cp ${./scripts/ssh-path-observe.py} scripts/ssh-path-observe.py
+            cp ${./scripts/prepare-host-heartbeat-registration.py} scripts/prepare-host-heartbeat-registration.py
+            cp ${./scripts/tests/ssh-path-observe.py} scripts/tests/ssh-path-observe.py
+            cp ${./scripts/tests/host-heartbeat-registration.py} scripts/tests/host-heartbeat-registration.py
+            ${pkgs.python3}/bin/python3 -B -W error scripts/tests/ssh-path-observe.py
+            ${pkgs.python3}/bin/python3 -B -W error scripts/tests/host-heartbeat-registration.py
+            touch "$out"
+          '';
+
           # Apps — perSystem の system で正しい構成を選択
           # darwin: darwin-rebuild で system + home 両方適用
           # linux:  home-manager standalone で home のみ適用 (WSL 想定)

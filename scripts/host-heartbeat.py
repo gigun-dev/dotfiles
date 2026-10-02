@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Collect host boot evidence; send only the existing hub H1b receipt contract.
+"""Report independent host liveness using hub /uptime/heartbeat.
 
 The snapshot is diagnostic evidence, not incident history. hub owns decisions
-and notifications; boot metadata awaits its receiving contract.
+and notifications; unavailable service/function evidence stays unknown.
 """
 
 import argparse
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -38,15 +37,18 @@ def boot_info(system=None, read=None, command=None):
     return {"bootId": boot_id, "bootedAt": int(match[1]) * 1000}
 
 
-def receipt(source, boot_id, now_ms, period_ms, anchor_ms):
-    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:@/-]{0,63}", source):
+def observation(source, boot, now_ms):
+    if not re.fullmatch(r"[A-Za-z0-9._-]{1,64}", source):
         raise ValueError("invalid source")
-    if not 60_000 <= period_ms <= 604_800_000 or not 0 <= anchor_ms <= now_ms:
-        raise ValueError("invalid schedule")
-    slot = anchor_ms + (now_ms - anchor_ms) // period_ms * period_ms
-    # Stable across retries and duplicate launchd/systemd invocations in one slot.
-    boot = hashlib.sha256(boot_id.encode()).hexdigest()[:32]
-    return {"source": source, "runId": f"{boot}/{slot}", "scheduledFor": slot}
+    if not re.fullmatch(r"[A-Za-z0-9._-]{1,128}", boot["bootId"]):
+        raise ValueError("invalid boot ID")
+    if not 0 <= boot["bootedAt"] <= now_ms:
+        raise ValueError("invalid boot time")
+    # lastSuccessAt is successful local collection, never delivery or app health.
+    # Missing explicit tests must not be inferred from liveness or an HTTP 200.
+    return {"source": source, "observedAt": now_ms, **boot,
+            "lastSuccessAt": now_ms, "tunnel": "unknown", "service": "unknown",
+            "functional": "unknown"}
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -55,16 +57,21 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
-def send(endpoint, token_file, payload):
+def send(endpoint, token_file, payload, local_test=False):
     url = urllib.parse.urlsplit(endpoint)
-    if (url.scheme != "https" or url.path != "/heartbeat" or not url.hostname
-            or url.username or url.password or url.query or url.fragment):
-        raise ValueError("endpoint must be an HTTPS /heartbeat URL")
+    loopback = local_test and url.scheme == "http" and url.hostname == "127.0.0.1"
+    if (not (url.scheme == "https" or loopback) or url.path != "/uptime/heartbeat"
+            or not url.hostname or url.username or url.password or url.query or url.fragment):
+        raise ValueError("endpoint must be an HTTPS /uptime/heartbeat URL")
+    if local_test and not loopback:
+        raise ValueError("local test must use literal IPv4 loopback HTTP")
     path = Path(token_file)
     mode = path.stat().st_mode
     if not stat.S_ISREG(mode) or mode & 0o077:
         raise ValueError("token file must be private (0600 or 0400)")
     token = path.read_text().strip()
+    if local_test and not token.startswith("local-fixture-"):
+        raise ValueError("local test requires a fixture token")
     if not token or any(c.isspace() for c in token):
         raise ValueError("invalid token file")
     request = urllib.request.Request(endpoint, json.dumps(payload).encode(),
@@ -111,19 +118,16 @@ def save_snapshot(path, value):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True)
-    parser.add_argument("--period-ms", type=int, default=60_000)
-    parser.add_argument("--anchor-ms", type=int, default=0)
     parser.add_argument("--snapshot", required=True)
     parser.add_argument("--endpoint")
     parser.add_argument("--token-file")
     args = parser.parse_args()
     if bool(args.endpoint) != bool(args.token_file):
         parser.error("endpoint and token-file must be supplied together")
-    now_ms = time.time_ns() // 1_000_000
     evidence = boot_info()
-    payload = receipt(args.source, evidence["bootId"], now_ms, args.period_ms, args.anchor_ms)
-    snapshot = {**evidence, "source": args.source, "observedAt": now_ms,
-                "heartbeat": payload, "lastAcceptedAt": None}
+    now_ms = time.time_ns() // 1_000_000
+    payload = observation(args.source, evidence, now_ms)
+    snapshot = {**payload, "lastAcceptedAt": None}
     path = Path(args.snapshot)
     if path.exists():
         previous = json.loads(path.read_text())

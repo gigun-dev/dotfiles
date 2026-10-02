@@ -31,15 +31,11 @@ in
         cfg.endpoint
         "--token-file"
         cfg.tokenFile
-        "--period-ms"
-        (toString cfg.periodMs)
-        "--anchor-ms"
-        (toString cfg.anchorMs)
         "--snapshot"
         "/var/lib/host-heartbeat/latest.json"
       ];
       RunAtLoad = true;
-      StartInterval = 30;
+      StartInterval = 60;
       ProcessType = "Background";
     };
   };
