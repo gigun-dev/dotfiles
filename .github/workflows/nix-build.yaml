@@ -44,6 +44,8 @@ jobs:
               - 'nix/**'
               - 'scripts/verify.sh'
               - 'scripts/tests/codex-bridge-refresh.py'
+              - 'scripts/host-heartbeat*.py'
+              - 'scripts/tests/host-heartbeat.py'
               - '.github/workflows/nix-build.yaml'
 
   check:
