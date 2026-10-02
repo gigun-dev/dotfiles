@@ -11,6 +11,11 @@ in
 {
   imports = [ ../../host-heartbeat-options.nix ];
   config = lib.mkIf cfg.enable {
+    age.secrets.host-heartbeat-vm = {
+      file = ../../../../secrets/host-heartbeat-vm.age;
+      mode = "0400";
+      owner = "root";
+    };
     assertions = [
       {
         assertion = lib.hasPrefix "/" cfg.tokenFile && !(lib.hasPrefix "/nix/store/" cfg.tokenFile);
@@ -33,10 +38,6 @@ in
           cfg.endpoint
           "--token-file"
           cfg.tokenFile
-          "--period-ms"
-          (toString cfg.periodMs)
-          "--anchor-ms"
-          (toString cfg.anchorMs)
           "--snapshot"
           "/var/lib/host-heartbeat/latest.json"
         ];
@@ -54,8 +55,8 @@ in
       wantedBy = [ "timers.target" ];
       timerConfig = {
         OnBootSec = "15s";
-        # Poll faster than the UTC grid so timer drift does not silently skip a slot.
-        OnUnitActiveSec = "30s";
+        # Liveness reports use observation time, not H1b fixed-grid job slots.
+        OnUnitActiveSec = "60s";
         AccuracySec = "1s";
       };
     };

@@ -16,6 +16,9 @@ let
   # コメントが `root@nixos` なのは nixos-lima のイメージ由来で、hostName とは無関係。
   mini-vm = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAII9YDN9MH2C/uIr+u5IskIAeUgFruwAdjZrnL+92Bn6L";
 
+  # Live mini host key checked on 2026-10-03. Only its own source token is readable here.
+  mini = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAlP9ecDXFYFxBtr9TX8ntkyY4GcK/BCJgURDYvfsJW4";
+
   # M4 Pro のユーザー鍵 (~/.ssh/id_ed25519.pub)。編集用。
   gigun = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICg8t7n8SvetqxFxe9blWFfXUxPe/S47zzFl041aOZ+z";
 
@@ -32,6 +35,18 @@ let
   ];
 in
 {
+  # Candidate credentials, not registered in hub or installed on either host yet.
+  # Each token has only its own host key plus admin/recovery recipients.
+  "host-heartbeat-mac.age".publicKeys = [
+    mini
+    gigun
+    backup
+  ];
+  "host-heartbeat-vm.age".publicKeys = [
+    mini-vm
+    gigun
+    backup
+  ];
   # Cloudflare トンネルの認証情報。cloudflared が credentialsFile として読む。
   "cloudflared-cloudflare-os.json.age".publicKeys = all;
 
