@@ -7,7 +7,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 
 spec = importlib.util.spec_from_file_location("ssh_path_observe", Path(__file__).parents[1] / "ssh-path-observe.py")
@@ -41,6 +41,46 @@ class ObservationTests(unittest.TestCase):
         self.assertEqual(result["paths"]["viaHost"]["bootId"], BOOT)
         self.assertEqual(runner.call_args.args[0], observer.VIA_HOST)
         self.assertNotIn("SECRET", json.dumps(result))
+
+    def test_refusal_and_connection_timeout_are_distinct_without_stderr(self):
+        for message, outcome in [("ssh: connect to host fixture port 22: Connection refused SECRET", "connection_refused"),
+                                 ("ssh: connect to host fixture port 22: Operation timed out SECRET", "timeout")]:
+            with self.subTest(outcome=outcome):
+                result = observer.observe(Mock(side_effect=[subprocess.CompletedProcess([], 255, "PRIVATE", message), success()]))
+                self.assertEqual(result["paths"]["direct"]["outcome"], outcome)
+                self.assertEqual(result["paths"]["direct"]["exitCode"], 255)
+                self.assertEqual(result["paths"]["viaHost"]["status"], "ok")
+                self.assertNotIn("SECRET", json.dumps(result))
+                self.assertNotIn("PRIVATE", json.dumps(result))
+                self.assertTrue(result["observedAt"].endswith("Z"))
+                self.assertTrue(result["completedAt"].endswith("Z"))
+
+    def test_private_history_retains_failure_then_recovery_with_a_cap(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(observer, "HISTORY_LIMIT", 3):
+            path = Path(directory) / "events.jsonl"
+            failed = observer.observe(Mock(side_effect=[subprocess.TimeoutExpired([], 25), success()]))
+            healthy = observer.observe(Mock(return_value=success()))
+            observer.write_history(path, failed)
+            observer.write_history(path, healthy)
+            values = [json.loads(line) for line in path.read_text().splitlines()]
+            self.assertEqual(values[0]["paths"]["direct"]["outcome"], "timeout")
+            self.assertEqual(values[1]["paths"]["direct"]["outcome"], "completed")
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            observer.write_history(path, healthy)
+            observer.write_history(path, healthy)
+            self.assertEqual(len(path.read_text().splitlines()), 3)
+            self.assertNotIn("SECRET", path.read_text())
+            self.assertEqual(list(Path(directory).iterdir()), [path])
+
+    def test_history_symlink_cannot_import_an_unrelated_private_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "unrelated"
+            target.write_text("PRIVATE")
+            path = Path(directory) / "events.jsonl"
+            path.symlink_to(target)
+            with self.assertRaises(OSError):
+                observer.write_history(path, observer.observe(Mock(return_value=success())))
+            self.assertEqual(target.read_text(), "PRIVATE")
 
     def test_both_failed_does_not_claim_vm_stopped(self):
         runner = Mock(return_value=subprocess.CompletedProcess([], 255, "SECRET_OUT", "SECRET_ERR"))

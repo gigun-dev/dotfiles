@@ -66,11 +66,22 @@ Mac は `sudo launchctl bootout system/dev.gigun.host-heartbeat` と追加 plist
 
 ## SSH 経路の補助観測
 
-再発時は `scripts/ssh-path-observe.py --snapshot "$HOME/.local/state/dotfiles/ssh-path.json"` で
-direct mini-vm を最大25秒、失敗・不明時だけ mini→Lima を最大25秒で読む。
-private snapshot は経路の結果・時間・boot ID だけで、stdout/stderr・鍵・例外本文を保存しない。
-direct 失敗でも viaHost 成功なら、その採取時点の VM 生存を示す。両経路失敗だけで VM 停止や原因を
-確定しない。この診断を別の通知基盤にせず、hub の boot・外形・履歴と観測時刻で照合する。
+M4 の `dev.gigun.ssh-path-observe` LaunchAgent がログイン中に60秒ごとに採取する。
+実行ファイルは `~/.local/lib/dotfiles/ssh-path-observe.py`、private 状態は
+`~/.local/state/dotfiles/ssh-path/` の `latest.json` と `events.jsonl`（0600）。
+履歴は直近1440件に制限し、UTC の採取開始・完了時刻、経路別結果、所要時間、exit code、
+boot ID のみを保存する。stdout/stderr・鍵・例外本文は保存しない。
+
+直接 mini-vm を最大25秒、失敗・不明時だけ mini→Lima を最大25秒で読む。
+接続拒否は `connection_refused`、SSH の接続 timeout と全体 deadline は `timeout` と区別する。
+正常時は直接接続1回で終了する。M4 の sleep/logout 中は採取が止まるため、Mac/VM の
+system heartbeat と併せて見る。hub の VM boot ID・観測時刻・履歴へ照合できるが、
+両 SSH 経路の失敗だけで VM 停止や過去の障害原因を確定しない。
+
+配備時は `--snapshot` と `--history` の絶対パスを指定した `--render-launchd` の出力を
+`~/Library/LaunchAgents/dev.gigun.ssh-path-observe.plist` に置き、`launchctl bootstrap gui/$(id -u)`
+で読み込む。補助採取だけを止める場合は
+`launchctl bootout gui/$(id -u)/dev.gigun.ssh-path-observe` を使う。
 
 隔離検証は `scripts/tests/host-heartbeat.py`、`host-heartbeat-registration.py`、`ssh-path-observe.py` と
 `scripts/tests/host-heartbeat-hub.mjs`。共通 `scripts/verify.sh` で Nix fixture build と fmt を確認する。
