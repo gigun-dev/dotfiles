@@ -18,3 +18,5 @@ x 2026-09-20 2026-09-20 NixpkgsのNetdataをCloud UI同梱でビルドし、netd
 x 2026-09-21 2026-09-20 Beszelをmini-vmへloopback限定で導入し、host・LangfuseコンテナのCPU/RAM/ディスク/ネットワーク・履歴・アラートを実機確認し、VMに物理温度sensorが公開されない制約を記録して、beszel.097969.xyzを既存named tunnelとCloudflare Accessで保護して公開する +mini-vm +observability +cloudflare @unattended see:docs/adr/0008-split-beszel-and-external-probes.md id:0053
 x 2026-09-21 2026-09-21 LangfuseとCodex Proxyをmini-vm外から5分間隔で検査するCloudflare WorkerをKV・Cron・custom domain・Bark通知とともにhubのOpenTofuで宣言・デプロイし、自然発火した結果を確認する +mini-vm +observability +cloudflare @unattended see:docs/adr/0008-split-beszel-and-external-probes.md id:0054
 x 2026-09-21 2026-09-21 Uptime Kumaをmini-vmへ宣言的に配備し、BeszelとともにCloudflare Accessのみでログインできることを検証する +mini-vm @unattended see:docs/adr/0009-protect-monitoring-uis.md id:0055
+x 2026-10-03 2026-10-03 実際の回答・失敗を再び追跡できるようLangfuseの保存データをバックアップして移行済みDBと対応イメージを揃えAPIとトレース取得を復旧検証する +observability @user see:docs/mini-vm.md id:0058
+x 2026-10-03 2026-10-03 自動更新失敗で監視が停止しないようLangfuse移行後の旧版復帰を防ぎ健全性ゲートの対象と現行構成を一致させる +infra @unattended see:docs/mini-vm.md id:0059
