@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-10-03T10:40:35.972Z",
+  "checkedAt": "2026-10-03T11:01:07.656Z",
   "scope": "Independent host heartbeat to deployed hub; no destructive production fault injection",
   "hubEndpoint": "https://hub-monitor.097969.xyz/uptime/heartbeat",
   "sourceBaseCommit": "6361883",
@@ -31,8 +31,12 @@
     "installerShellSyntaxPassed": true,
     "manualPreviewObservedAt": 1791023792571,
     "manualPreviewLastAcceptedAt": 1791023792993,
-    "systemDaemonInstalled": false,
-    "boundary": "OS sudo authentication required; one prepared installer performs placement and new launchd receipt verification, no credential input requested"
+    "systemDaemonInstalled": true,
+    "boundary": "System LaunchDaemon observed via SSH after user sudo install; natural D1 receipts verified",
+    "launchdRuns": 3,
+    "lastExitCode": 0,
+    "naturalObservedAt": 1791025266182,
+    "naturalReceivedAt": 1791025267656
   },
   "checks": {
     "senderFixturesPassed": 25,

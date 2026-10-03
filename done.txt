@@ -21,3 +21,4 @@ x 2026-09-21 2026-09-21 Uptime Kumaをmini-vmへ宣言的に配備し、Beszel�
 x 2026-10-03 2026-10-03 実際の回答・失敗を再び追跡できるようLangfuseの保存データをバックアップして移行済みDBと対応イメージを揃えAPIとトレース取得を復旧検証する +observability @user see:docs/mini-vm.md id:0058
 x 2026-10-03 2026-10-03 自動更新失敗で監視が停止しないようLangfuse移行後の旧版復帰を防ぎ健全性ゲートの対象と現行構成を一致させる +infra @unattended see:docs/mini-vm.md id:0059
 x 2026-10-03 2026-09-19 版検出unknownの不要再起動抑止を本線統合・実配備し、同版timer非再起動・隔離検出失敗と復旧・Bark受付を検証する +mini-vm see:docs/codex-bridge-update-acceptance.json id:0046
+x 2026-10-03 2026-10-03 準備済みMac installerをsudoで配置し自然heartbeatとboot情報の継続受付を確認する +monitoring @user see:docs/host-heartbeat.md id:0056
