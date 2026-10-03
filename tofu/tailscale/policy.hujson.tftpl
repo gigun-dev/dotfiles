@@ -1,0 +1,55 @@
+{
+  "tagOwners": {
+    "tag:admin-device": [${owner}],
+    "tag:client": [${owner}],
+    "tag:storage": [${owner}],
+    "tag:proxmox": [${owner}],
+    "tag:vm": [${owner}],
+    "tag:server": [${owner}],
+  },
+  "nodeAttrs": [
+    {"target": ["tag:storage"], "attr": ["drive:share"]},
+    {"target": ["tag:admin-device"], "attr": ["drive:access"]},
+  ],
+  "grants": [
+    // 現行のhomelab許可を取り込む。範囲の縮小は別変更で行う。
+    {
+      "src": ["tag:admin-device", "tag:client", "tag:storage", "tag:proxmox", "tag:vm", "tag:server"],
+      "dst": ["tag:admin-device", "tag:client", "tag:storage", "tag:proxmox", "tag:vm", "tag:server"],
+      "ip": ["*"],
+    },
+    {
+      "src": ["tag:admin-device"],
+      "dst": ["tag:storage"],
+      "app": {
+        "tailscale.com/cap/drive": [{"shares": ["*"], "access": "rw"}],
+      },
+    },
+  ],
+  "ssh": [
+    {
+      "action": "accept",
+      "src": ["tag:admin-device"],
+      "dst": ["tag:proxmox", "tag:vm", "tag:server"],
+      "users": ["root", "ubuntu"],
+    },
+    {
+      "action": "accept",
+      "src": ["tag:admin-device"],
+      "dst": ["tag:admin-device", "tag:client", "tag:storage"],
+      "users": ["autogroup:nonroot"],
+    },
+    {
+      "action": "accept",
+      "src": ["tag:storage"],
+      "dst": ["tag:proxmox"],
+      "users": ["root"],
+    },
+    {
+      "action": "accept",
+      "src": ["tag:admin-device"],
+      "dst": ["tag:server"],
+      "users": ["autogroup:nonroot"],
+    },
+  ],
+}
