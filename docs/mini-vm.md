@@ -194,3 +194,9 @@ uv run scripts/codex-pair.py
 ```
 
 ローカルからSSHで既存の0600 Unix socketへ一時転送し、同じinitialize／remoteControl/pairing/startを40秒上限で実行する。公開ポート・追加常駐・秘密の保存は増やさない。応答の認証情報を出力せず、本人が入力するコードと期限だけ表示する。成功・失敗のどちらでも一時SSH転送を終了する。CLI本体が修正されたらこの回避コードは削除する。
+
+2026-10-03の受け入れ: 発行helperでコードと期限を取得し、一時転送終了を確認。本人の追加報告後、remoteControl/status/readでconnected、remoteControl/client/listで新しいiOS 27 iPhone登録とlastSeenAtを確認。旧iPhone登録は削除していない。
+
+Tailscaleは個人のiPhoneをタグ無しのユーザー所有端末とし、OTA宛のHTTPS許可とSSH等の管理権限を分ける方向。現在のタグを外すのは既存ポリシーを取得してユーザー向け許可を整えてから。管理画面はGitHub認証後にSSOエラーで原文取得できていないため、元ACLの権限を確認したとは扱わない。ポリシーは秘密鍵そのものではないがユーザー名・構成・許可関係を含むため、原文の機密性確認前に公開dotfilesへ保存しない。private repoのGitOpsでPR検証とmain反映を行う案を検討する。
+
+参照: [CLIの2秒上限](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/app-server-daemon/src/client.rs)、[サーバーの30秒上限](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/app-server-transport/src/transport/remote_control/enroll.rs)、[Tailscaleのタグとユーザー認証](https://tailscale.com/docs/features/tags)、[公式GitOps](https://tailscale.com/docs/integrations/github/gitops)。
