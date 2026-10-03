@@ -415,6 +415,16 @@ in
     ./services/uptime-kuma.nix
   ];
 
+  # hub owns incident history and notifications; only host-local evidence is collected here.
+  services.host-heartbeat = {
+    enable = true;
+    source = "mini-vm";
+    endpoint = "https://hub-monitor.097969.xyz/uptime/heartbeat";
+    tokenFile = config.age.secrets.host-heartbeat-vm.path;
+    localVmChecks = true;
+    tunnelUnit = "cloudflared-tunnel-5b8ec787-4730-4b2b-87b8-e86acbd3954b.service";
+  };
+
   # Lima のインスタンス名・tailnet 名・hostname はすべて mini-vm に揃えてある
   # (mini は macOS 側を指すので、取り違えると事故る)。
   # なお switch では稼働中の hostname は変わらず、次回 boot から反映される。
@@ -952,6 +962,9 @@ in
 
   # 認証情報がまだ置かれていないマシンで LoadCredential が失敗して騒がしくなるのを防ぐ。
   # cloudflare-os / codex-openai-bridge と同じ考え方 (条件不成立なら静かにスキップ)。
+  # Default metrics may select a different free port after restart; keep readiness attributable to this tunnel.
+  systemd.services."cloudflared-tunnel-5b8ec787-4730-4b2b-87b8-e86acbd3954b".environment.TUNNEL_METRICS =
+    "127.0.0.1:20241";
   systemd.services."cloudflared-tunnel-5b8ec787-4730-4b2b-87b8-e86acbd3954b".unitConfig.ConditionPathExists =
     "/var/lib/cloudflared/cloudflare-os.json";
 

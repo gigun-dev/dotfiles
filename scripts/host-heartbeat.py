@@ -51,6 +51,67 @@ def observation(source, boot, now_ms):
             "functional": "unknown"}
 
 
+def local_vm_checks(systemctl, tunnel_unit, ready_url, command=None, opener=None):
+    """Observe origin readiness; unit active alone cannot prove an edge connection."""
+    command = command or (lambda args: subprocess.run(args, text=True, capture_output=True, timeout=3))
+    opener = opener or urllib.request.build_opener(NoRedirect)
+    unit = "unknown"
+    try:
+        result = command([systemctl, "is-active", tunnel_unit])
+        state = result.stdout.strip()
+        if result.returncode == 0 and state == "active":
+            unit = "ok"
+        elif state in ("inactive", "failed", "deactivating"):
+            unit = "failed"
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+    def probe(url, schema=None):
+        evidence = {"status": "unknown", "httpStatus": None}
+        try:
+            with opener.open(url, timeout=3) as response:
+                evidence["httpStatus"] = response.status
+                if response.status != 200:
+                    evidence["status"] = "failed"
+                elif schema is None:
+                    evidence["status"] = "ok"
+                else:
+                    value = json.loads(response.read(4096))
+                    if schema == "tunnel":
+                        count = value.get("readyConnections")
+                        if type(count) is int and count >= 0 and value.get("status") == 200:
+                            evidence["readyConnections"] = count
+                            evidence["status"] = "ok" if count > 0 else "failed"
+                    elif value.get("status") == "OK":
+                        evidence["status"] = "ok"
+                    else:
+                        evidence["status"] = "failed"
+        except urllib.error.HTTPError as error:
+            evidence.update(status="failed", httpStatus=error.code)
+            error.close()
+        except (urllib.error.URLError, TimeoutError, ConnectionError):
+            evidence["status"] = "failed"
+        except (OSError, ValueError, AttributeError):
+            # Malformed evidence or collector errors do not mean a successful service.
+            pass
+        return evidence
+
+    ready = probe(ready_url, "tunnel")
+    codex = probe("http://127.0.0.1:18080/healthz")
+    langfuse = probe("http://127.0.0.1:3000/api/public/health?failIfDatabaseUnavailable=true", "langfuse")
+    tunnel = "unknown"
+    if unit == "ok":
+        tunnel = ready["status"]
+    elif unit == "failed" and ready["status"] != "ok":
+        tunnel = "failed"
+    states = [codex["status"], langfuse["status"]]
+    service = "failed" if "failed" in states else "ok" if states == ["ok", "ok"] else "unknown"
+    return {"tunnel": tunnel, "service": service, "functional": "unknown"}, {
+        "cloudflaredUnit": unit, "cloudflaredReady": ready,
+        "codexHealthz": codex, "langfuseDatabaseHealth": langfuse,
+    }
+
+
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         # Never forward a source credential to a redirect destination.
@@ -121,13 +182,30 @@ def main():
     parser.add_argument("--snapshot", required=True)
     parser.add_argument("--endpoint")
     parser.add_argument("--token-file")
+    parser.add_argument("--local-vm-checks", action="store_true")
+    parser.add_argument("--systemctl", default="systemctl")
+    parser.add_argument("--tunnel-unit")
+    parser.add_argument("--tunnel-ready-url", default="http://127.0.0.1:20241/ready")
     args = parser.parse_args()
+    if args.local_vm_checks and (platform.system() != "Linux" or not args.tunnel_unit):
+        parser.error("local-vm-checks requires Linux and a tunnel-unit")
+    if args.tunnel_ready_url != "http://127.0.0.1:20241/ready":
+        parser.error("tunnel readiness must use the declared loopback endpoint")
     if bool(args.endpoint) != bool(args.token_file):
         parser.error("endpoint and token-file must be supplied together")
     evidence = boot_info()
     now_ms = time.time_ns() // 1_000_000
     payload = observation(args.source, evidence, now_ms)
+    local_checks = None
+    if args.local_vm_checks:
+        checks, local_checks = local_vm_checks(args.systemctl, args.tunnel_unit, args.tunnel_ready_url)
+        payload.update(checks)
+        # The contract has exactly eight fields; detailed local evidence stays private.
+        payload["observedAt"] = time.time_ns() // 1_000_000
+        payload["lastSuccessAt"] = payload["observedAt"]
     snapshot = {**payload, "lastAcceptedAt": None}
+    if local_checks is not None:
+        snapshot["localChecks"] = local_checks
     path = Path(args.snapshot)
     if path.exists():
         previous = json.loads(path.read_text())
