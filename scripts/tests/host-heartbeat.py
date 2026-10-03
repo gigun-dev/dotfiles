@@ -67,6 +67,83 @@ class BootAndReceiptTests(unittest.TestCase):
                 heartbeat.observation(source, boot, 2000)
 
 
+class LocalReadinessTests(unittest.TestCase):
+    def checks(self, ready=200, count=4, codex=200, langfuse="OK", unit="active"):
+        from types import SimpleNamespace
+        def request(url, timeout):
+            if "/ready" in url:
+                code, body = ready, {"status": ready, "readyConnections": count}
+            elif "/healthz" in url:
+                code, body = codex, {}
+            else:
+                code, body = 200, {"status": langfuse}
+            if code != 200:
+                raise urllib.error.HTTPError(url, code, "fixture", {}, None)
+            response = Mock(status=code)
+            response.read.return_value = json.dumps(body).encode()
+            return contextlib.nullcontext(response)
+        return heartbeat.local_vm_checks("fixture-systemctl", "fixture-tunnel.service",
+                                         "http://127.0.0.1:20241/ready",
+                                         command=Mock(return_value=SimpleNamespace(
+                                             stdout=unit, returncode=0 if unit == "active" else 3)),
+                                         opener=SimpleNamespace(open=request))
+
+    def test_edge_ready_and_both_services_are_observed_without_inventing_function(self):
+        check, evidence = self.checks()
+        self.assertEqual(check, {"tunnel": "ok", "service": "ok", "functional": "unknown"})
+        self.assertEqual(evidence["cloudflaredReady"]["readyConnections"], 4)
+
+    def test_active_unit_with_no_connections_is_tunnel_failure(self):
+        check, evidence = self.checks(ready=503, count=0)
+        self.assertEqual(check["tunnel"], "failed")
+        self.assertEqual(check["service"], "ok")
+        self.assertEqual(evidence["cloudflaredUnit"], "ok")
+
+    def test_ready_without_live_matching_unit_is_unknown(self):
+        check, _ = self.checks(unit="inactive")
+        self.assertEqual(check["tunnel"], "unknown")
+
+    def test_service_failure_is_distinct_from_healthy_edge(self):
+        check, _ = self.checks(codex=503)
+        self.assertEqual(check["tunnel"], "ok")
+        self.assertEqual(check["service"], "failed")
+        check, _ = self.checks(langfuse="ERROR")
+        self.assertEqual(check["service"], "failed")
+
+    def test_collector_or_malformed_readiness_is_unknown(self):
+        from types import SimpleNamespace
+        response = Mock(status=200)
+        response.read.return_value = b"not JSON"
+        check, _ = heartbeat.local_vm_checks("fixture-systemctl", "fixture-tunnel.service",
+                                            "http://127.0.0.1:20241/ready",
+                                            command=Mock(side_effect=FileNotFoundError("PRIVATE")),
+                                            opener=SimpleNamespace(open=lambda *a, **k: contextlib.nullcontext(response)))
+        self.assertEqual(check["tunnel"], "unknown")
+        self.assertEqual(check["service"], "unknown")
+        self.assertNotIn("PRIVATE", json.dumps(check))
+
+    def test_local_details_stay_out_of_the_eight_field_send_contract(self):
+        with tempfile.TemporaryDirectory() as directory:
+            snapshot = Path(directory) / "snapshot.json"
+            argv = ["host-heartbeat", "--source", "mini-vm", "--snapshot", str(snapshot),
+                    "--endpoint", "https://fixture.invalid/uptime/heartbeat", "--token-file", "fixture-token",
+                    "--local-vm-checks", "--tunnel-unit", "fixture.service"]
+            with patch("sys.argv", argv), patch.object(heartbeat.platform, "system", return_value="Linux"), \
+                 patch.object(heartbeat, "boot_info", return_value={"bootId": "fixture-boot", "bootedAt": 1}), \
+                 patch.object(heartbeat, "local_vm_checks", return_value=self.checks()), \
+                 patch.object(heartbeat, "send") as delivery, contextlib.redirect_stdout(io.StringIO()):
+                heartbeat.main()
+            payload = delivery.call_args.args[2]
+            self.assertEqual(set(payload), {"source", "bootId", "bootedAt", "observedAt",
+                                            "lastSuccessAt", "tunnel", "service", "functional"})
+            self.assertEqual(payload["tunnel"], "ok")
+            self.assertIn("localChecks", json.loads(snapshot.read_text()))
+
+    def test_zero_connection_cannot_be_success_even_with_http_200(self):
+        check, _ = self.checks(count=0)
+        self.assertEqual(check["tunnel"], "failed")
+
+
 class DeliveryTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()

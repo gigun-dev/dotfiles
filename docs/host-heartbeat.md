@@ -10,8 +10,18 @@ Macの処理はLimaに依存しない。hubが停止範囲の判定・履歴・�
 
 Linuxの`/proc`、macOSの`sysctl`からbootを採取し、完了時刻を`observedAt`と
 `lastSuccessAt`へ入れる。ここでの成功は**観測元のboot採取完了**であり、hub受付や
-アプリ機能の成功ではない。Tunnel/service/functionalは明示的なチェック未実施のため
-常に`unknown`。healthの200から機能成功を推定しない。
+アプリ機能の成功ではない。Macはローカルサービスを試験せず、checkは`unknown`を保つ。VMは明示的なローカル
+チェックを設定した場合だけ、cloudflared unitと固定loopback `127.0.0.1:20241/ready`を読む。
+unit activeだけでは成功にしない。ready HTTP200かつJSON `readyConnections > 0`が`tunnel=ok`、
+接続0やready HTTP503は`failed`、収集エラーや不正な応答は`unknown`。
+[稼働版のCloudflare実装](https://github.com/cloudflare/cloudflared/blob/2026.9.3/metrics/readiness.go)に
+合わせる。loopback metricsは公式の
+[`TUNNEL_METRICS`](https://developers.cloudflare.com/tunnel/reference/run-parameters/#metrics)で固定する。
+Codexのlocalhost `18080/healthz` HTTP200とLangfuseのlocalhost
+`3000/api/public/health?failIfDatabaseUnavailable=true` JSON `status=OK`の両方で`service=ok`とする。
+どちらかの失敗は`service=failed`、不明な証拠は`unknown`。これらはorigin readinessの確認なので
+推論・会話の成功を示す`functional`は`unknown`を保つ。詳細のlocalChecksはprivate snapshotだけに
+置き、hub本文の8項目を増やさない。
 
 各回は新しい観測、通信再送は同じ本文・同じobservedAt。10秒timeout・最大3回、
 202かつJSONの`status=accepted`の場合だけローカル`lastAcceptedAt`を更新する。

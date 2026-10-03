@@ -29,22 +29,32 @@ in
       serviceConfig = {
         Type = "oneshot";
         # A system service reports VM boot without depending on a user login.
-        ExecStart = lib.escapeShellArgs [
-          "${pkgs.python3}/bin/python3"
-          "${script}"
-          "--source"
-          cfg.source
-          "--endpoint"
-          cfg.endpoint
-          "--token-file"
-          cfg.tokenFile
-          "--snapshot"
-          "/var/lib/host-heartbeat/latest.json"
-        ];
+        ExecStart = lib.escapeShellArgs (
+          [
+            "${pkgs.python3}/bin/python3"
+            "${script}"
+            "--source"
+            cfg.source
+            "--endpoint"
+            cfg.endpoint
+            "--token-file"
+            cfg.tokenFile
+            "--snapshot"
+            "/var/lib/host-heartbeat/latest.json"
+          ]
+          ++ lib.optionals cfg.localVmChecks [
+            "--local-vm-checks"
+            "--systemctl"
+            "${config.systemd.package}/bin/systemctl"
+            "--tunnel-unit"
+            cfg.tunnelUnit
+          ]
+        );
         StateDirectory = "host-heartbeat";
         StateDirectoryMode = "0700";
         UMask = "0077";
-        TimeoutStartSec = 45;
+        # Local collection (up to 12s) plus bounded delivery retries (up to 33s).
+        TimeoutStartSec = 60;
         NoNewPrivileges = true;
         ProtectSystem = "strict";
         ProtectHome = true;
