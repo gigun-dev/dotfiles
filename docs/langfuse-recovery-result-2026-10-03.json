@@ -1,0 +1,150 @@
+{
+  "checkedAt": "2026-10-03T09:04:52Z",
+  "status": "restored_intake_and_reads_verified",
+  "scope": "Restore exact Langfuse 4.46.0 with existing schema and volumes; no instrumentation expansion",
+  "execution": {
+    "path": "ssh mini -> limactl shell mini-vm",
+    "updateRunnersInactiveBeforeApply": true,
+    "timersStopped": [
+      "dotfiles-autoswitch.timer",
+      "langfuse-update-propose.timer"
+    ],
+    "stackStoppedAt": "2026-10-03T08:50:52.100Z",
+    "databaseContainersStoppedCleanly": true,
+    "workerStopExitCode": 137,
+    "backupDirectory": "/var/lib/langfuse-recovery/20261003T085127Z",
+    "backupCompletedAt": "2026-10-03T08:52:39.575Z",
+    "backupSha256": "f933749cb6f2ba79608b8dc5df9f6060e4880f04609f6d51b9f8d45b05a0d80f",
+    "backupVolumeBytes": {
+      "langfuse_langfuse_postgres_data": 64048305,
+      "langfuse_langfuse_clickhouse_data": 2929106177,
+      "langfuse_langfuse_clickhouse_logs": 360485668,
+      "langfuse_langfuse_minio_data": 1366844113,
+      "langfuse_langfuse_redis_data": 708677
+    },
+    "backupTotalVolumeBytes": 4721192940,
+    "isolatedExtractionVerifiedAt": "2026-10-03T08:54:22.889Z",
+    "isolatedExtractionDirectory": "/var/lib/langfuse-recovery/20261003T085127Z/isolated-volume-check",
+    "archiveChecksumVerified": true,
+    "isolatedByteAndMetadataComparisonPassed": true,
+    "isolatedApplicationRestoreNotTested": true,
+    "recoveryComposeChanges": "Only Web/Worker image pair differs from old Compose",
+    "persistentServiceDropIn": "/etc/systemd/system.control/langfuse.service.d/90-codex-recovery.conf",
+    "dropInReason": "Nix owns /etc/systemd/system as a read-only store link. systemd unit-paths lists system.control first; use a dedicated service override to keep exact 4.46.0 without switching the whole OS generation.",
+    "startedAt": "2026-10-03T08:57:16Z",
+    "serviceReadyAt": "2026-10-03T08:57:42.259Z"
+  },
+  "restoredImages": {
+    "web": "docker.langfuse.com/langfuse/langfuse:4.46.0@sha256:755b821ba8f73a20d43d90e68f2b75d2f597dd164c55890f67a05f5a8d0f0e24",
+    "worker": "docker.langfuse.com/langfuse/langfuse-worker:4.46.0@sha256:3568d2d1eb5dd570f4087b37972ddffa3f6ae4f872553e0b0e2eedf4896a29e9",
+    "webRestartCount": 0,
+    "workerRestartCount": 0,
+    "stableCheckedAt": "2026-10-03T09:04:52Z"
+  },
+  "dataIntegrity": {
+    "sameFiveNamedVolumesRetained": true,
+    "clickhouseSchemaVersion": 50,
+    "clickhouseSchemaDirty": false,
+    "clickhouseMigrationRecordedAt": "2026-10-03T04:08:51.438238457Z",
+    "postgresMigrationCount": 442,
+    "postgresUnfinishedMigrations": 0,
+    "noMigrationTableOrVersionEdits": true,
+    "noVolumeDeletionOrOverwrite": true
+  },
+  "api": {
+    "localReadyStatus": 200,
+    "localHealthStatus": 200,
+    "publicReadyStatus": 200,
+    "publicHost": "https://langfuse-otel.097969.xyz",
+    "checkedAt": "2026-10-03T08:58:31.482Z",
+    "cliResource": "observations list",
+    "existingObservationCount": 20,
+    "existingTraceCount": 3,
+    "existingQueryFromStartTime": "2026-10-02T14:00:00Z",
+    "existingQueryHasMorePages": false
+  },
+  "controlledIntakeProbe": {
+    "traceId": "851c4a727cbd3eb9daaafd8c096f676b",
+    "observationId": "de9fa0fb4fdd0831",
+    "name": "langfuse.recovery.intake.probe",
+    "traceName": "recovery-otlp-probe",
+    "tags": [
+      "recovery-probe",
+      "2026-10-03"
+    ],
+    "endpoint": "https://langfuse-otel.097969.xyz/api/public/otel/v1/traces",
+    "payloadBytes": 890,
+    "traceCount": 1,
+    "spanCount": 1,
+    "sentAt": "2026-10-03T09:03:28.614Z",
+    "httpStatus": 200,
+    "rejectedSpans": 0,
+    "retrievedViaCliAt": "2026-10-03T09:03:32.209Z",
+    "retrievedType": "SPAN",
+    "retrievedLevel": "DEFAULT",
+    "retrievedSameTraceAndObservation": true,
+    "userContentIncluded": false,
+    "interpretation": "Public OTLP intake -> storage -> v2 CLI read verified. This operational probe is not a Swift device conversation."
+  },
+  "latestStoredTodayTrace": {
+    "traceId": "a215cf4f72a46864f08d7dc2b07a6915",
+    "startTime": "2026-10-02T16:39:11.379Z",
+    "endTime": "2026-10-02T16:39:17.335Z",
+    "questionCategory": "today calendar",
+    "iterations": 1,
+    "generationCount": 1,
+    "toolCount": 0,
+    "generationErrors": 0,
+    "toolErrors": 0,
+    "turnDurationSeconds": 5.956,
+    "finalAnswerAttributePresent": true,
+    "actualCalendarTodoCount": "unidentified",
+    "latestUserReportedSuccessfulInteractionMatch": "unidentified"
+  },
+  "preservedFailureBaseline": {
+    "traceId": "d7a55ab2b23e2df0e3a015f74fb93e91",
+    "observationCount": 16,
+    "generationCount": 8,
+    "toolCount": 7,
+    "listEventsExpandedCallCount": 6,
+    "listEventsExpandedArguments": {
+      "range": "today",
+      "timeMin": "",
+      "timeMax": ""
+    },
+    "generationErrors": 1,
+    "toolErrors": 6,
+    "turnDurationSeconds": 51.504,
+    "finalAnswerAttributePresent": false,
+    "interpretation": "Historical failure preserved and readable; not a new post-recovery failure."
+  },
+  "remainingBoundary": {
+    "latestUserSuccessfulTodayTodoTrace": "unidentified in stored query window",
+    "swiftDeviceRealExportPath": "unverified after recovery",
+    "guardSourcePatch": "56ee8d0 on codex/langfuse-rollback-guard",
+    "nativeLinuxGuardBuildAndDeploy": "not performed",
+    "timers": "remain stopped pending declarative guard deployment and acceptance",
+    "dropInRetirement": "Only after declarative /etc/langfuse Compose references exact 4.46.0 or an approved forward version and the guard is deployed; never retire into 4.38.0.",
+    "backupRestoreBoundary": "Maintain schema50-compatible 4.46.0 image pair; archive verified by isolated extraction, not application restore boot."
+  },
+  "privacy": "Credentials used only in VM process memory. No private calendar/todo contents retained. Only sanitized operational evidence saved.",
+  "sources": [
+    "docs/langfuse-recovery-investigation-2026-10-03.md",
+    "https://langfuse.com/integrations/native/opentelemetry",
+    "https://langfuse.com/self-hosting/upgrade"
+  ],
+  "existingNaturalCronEvidence": {
+    "source": "Parent agent current read of existing hub KV uptime:langfuse",
+    "status": "up",
+    "consecutiveFailures": 0,
+    "checkedAtUnixMilliseconds": 1791018308545,
+    "changedAtUnixMilliseconds": 1791018008551,
+    "checkedAtUtc": "2026-10-03T09:05:08.545+00:00",
+    "changedAtUtc": "2026-10-03T09:00:08.551+00:00",
+    "checkedAtJst": "2026-10-03T18:05:08.545+09:00",
+    "changedAtJst": "2026-10-03T18:00:08.551+09:00",
+    "interpretation": "Existing natural Cloudflare Cron detected recovery; no new monitoring foundation deployed.",
+    "barkDeliveryReceipt": "not checked",
+    "deviceNotificationDisplay": "not checked"
+  }
+}
