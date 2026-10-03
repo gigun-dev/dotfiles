@@ -20,3 +20,4 @@ x 2026-09-21 2026-09-21 LangfuseとCodex Proxyをmini-vm外から5分間隔で�
 x 2026-09-21 2026-09-21 Uptime Kumaをmini-vmへ宣言的に配備し、BeszelとともにCloudflare Accessのみでログインできることを検証する +mini-vm @unattended see:docs/adr/0009-protect-monitoring-uis.md id:0055
 x 2026-10-03 2026-10-03 実際の回答・失敗を再び追跡できるようLangfuseの保存データをバックアップして移行済みDBと対応イメージを揃えAPIとトレース取得を復旧検証する +observability @user see:docs/mini-vm.md id:0058
 x 2026-10-03 2026-10-03 自動更新失敗で監視が停止しないようLangfuse移行後の旧版復帰を防ぎ健全性ゲートの対象と現行構成を一致させる +infra @unattended see:docs/mini-vm.md id:0059
+x 2026-10-03 2026-09-19 版検出unknownの不要再起動抑止を本線統合・実配備し、同版timer非再起動・隔離検出失敗と復旧・Bark受付を検証する +mini-vm see:docs/codex-bridge-update-acceptance.json id:0046
