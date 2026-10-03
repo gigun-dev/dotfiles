@@ -1,5 +1,7 @@
 # Langfuse の旧版復帰による停止とデータ保持復旧案
 
+復旧は同日実施済み。backup・exact4.46復旧・公開 OTLP probe の受信保存再取得の結果は [復旧結果](langfuse-recovery-result-2026-10-03.json) を参照する。以下の未実施という記述は調査・準備時点の境界であり、最新 Swift 本人操作の trace 特定と guard の宣言配備は引き続き未検証である。
+
 2026-10-03 に `ssh gigun@mini` → `limactl shell mini-vm` で読み取り調査した。サービス再作成、upgrade、DB 更新、通知は行っていない。最新 Swift 実機操作の OTel は Langfuse API が応答せず未取得であり、ユーザーの実機良好報告とは別の検証境界である。
 
 ## 確認した原因
