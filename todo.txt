@@ -32,4 +32,5 @@
 (B) 2026-09-19 mini-vm を nix.buildMachines に宣言し、M4 Pro から x86_64-linux の変更を remote build で検証できるようにする(nix daemon は root なので root の SSH 鍵・known_hosts も要る。nixosConfigurations.mini-vm のビルドが手元で通ること) +mini-vm @device see:docs/mini-vm.md id:0044
 2026-09-19 codex-openai-bridge-refresh の成否を健全性ゲートに含めるか決める(現状は Bark 通知のみ。ゲートに入れると uvx の版が原因で nix generation が rollback される副作用があり、それを避けたのが分離の理由) +mini-vm see:docs/adr/0006-track-uvx-versions-outside-nix.md id:0045
 2026-09-19 CLAUDE.md の「コメントはコードと同量レベルでベッタベタに書く」を .claude/rules/comments.md の現行方針(必要十分に書く。多いほど良いではない)へ合わせる(2026-09-05 に rule 側を改訂した際の取り残し。2026-09-19 に実際に古い方針で subagent へ指示してしまった) +docs id:0047
-2026-10-03 iPhoneからmini-vmのCodexを操作できるようremote-control pairのtimeoutを切り分けリレー接続と本人ペアリングを確認する（service再起動後も再現、モデルAPI認証は200） +mini-vm @unattended see:docs/mini-vm.md id:0063
+2026-10-03 2秒でtimeoutするCodex CLIを避けて既存ソケットからペアリングコードを発行し本人の接続と端末登録を確認する（40秒上限helperで発行成功、本人が追加できたとの報告あり） +mini-vm @user see:docs/mini-vm.md id:0063
+2026-10-03 Tailscaleの現行ACLを取り込みiPhoneからOTAだけに必要な許可と管理操作の権限を分け機密性に応じたGit管理と差分検証を用意する（管理画面SSO失敗で原文取得待ち） +network @user see:docs/mini-vm.md id:0064
