@@ -144,7 +144,7 @@ let
   # 依存は store パスで直接呼ぶ。呼び出し側 unit に `path` を書かせると、それも
   # 写しの対象になる。
   barkNotifyUnitFailure = pkgs.writeShellScript "bark-notify-unit-failure" ''
-    set -u
+    set -euo pipefail
     unit=$1
     title=$2
 
@@ -167,8 +167,8 @@ let
       --arg level "timeSensitive" \
       '{title: $title, body: $body, group: $group, level: $level}')
 
-    key_hex=$(printf '%s' "$BARK_ENCRYPT_KEY" | ${pkgs.coreutils}/bin/od -An -tx1 | tr -d ' \n')
-    iv_hex=$(printf '%s' "$BARK_ENCRYPT_IV" | ${pkgs.coreutils}/bin/od -An -tx1 | tr -d ' \n')
+    key_hex=$(printf '%s' "$BARK_ENCRYPT_KEY" | ${pkgs.coreutils}/bin/od -An -tx1 | ${pkgs.coreutils}/bin/tr -d ' \n')
+    iv_hex=$(printf '%s' "$BARK_ENCRYPT_IV" | ${pkgs.coreutils}/bin/od -An -tx1 | ${pkgs.coreutils}/bin/tr -d ' \n')
 
     ciphertext=$(printf '%s' "$payload" \
       | ${pkgs.openssl}/bin/openssl enc -aes-256-cbc -K "$key_hex" -iv "$iv_hex" -base64 -A)
@@ -1256,7 +1256,7 @@ in
           switch --flake "${dotfilesDir}#${username}-x86_64-linux"
 
         # 「switch は成功したが使えない」を検出する。DB を移行する image の対が
-        # 不変の場合だけ 1 世代戻し、戻した先でもゲートを回してから落ちる。
+        # 不変の場合だけ開始時の実稼働先へ戻し、戻した先でもゲートを回す。
         if ! ${healthGate}; then
           if ! rollback_system=$(${rollbackTarget} "$previous_system" /run/current-system ${langfuseRollbackSafe}); then
             echo "健全性ゲートが失敗。Langfuse の DB 保持のため現世代を維持し、自動 rollback を停止する" >&2
@@ -1269,8 +1269,8 @@ in
           echo "健全性ゲートが失敗。rollback する" >&2
           # **`nixos-rebuild switch --rollback` は使えない** (2026-09-06 実測)。
           # flake モードでは実装されておらず `<nixpkgs/nixos>` を NIX_PATH に
-          # 探しに行って失敗する。profile を 1 つ戻して switch-to-configuration を
-          # 直接叩く。ただし retry が移行前へ遡らないよう、今回捕捉した先を指定する。
+          # 探しに行って失敗する。profile を開始時の実稼働先に設定して
+          # switch-to-configuration を直接叩き、retry で移行前へ遡らないようにする。
           nix-env --set "$rollback_system" -p /nix/var/nix/profiles/system
           "$rollback_system/bin/switch-to-configuration" switch
           if ${healthGate}; then
