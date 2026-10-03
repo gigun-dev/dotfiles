@@ -1,6 +1,6 @@
 {
-  "checkedAt": "2026-10-03T09:04:52Z",
-  "status": "restored_intake_and_reads_verified",
+  "checkedAt": "2026-10-03T09:56:03.559Z",
+  "status": "restored_safe_updates_and_intake_verified",
   "scope": "Restore exact Langfuse 4.46.0 with existing schema and volumes; no instrumentation expansion",
   "execution": {
     "path": "ssh mini -> limactl shell mini-vm",
@@ -32,7 +32,8 @@
     "persistentServiceDropIn": "/etc/systemd/system.control/langfuse.service.d/90-codex-recovery.conf",
     "dropInReason": "Nix owns /etc/systemd/system as a read-only store link. systemd unit-paths lists system.control first; use a dedicated service override to keep exact 4.46.0 without switching the whole OS generation.",
     "startedAt": "2026-10-03T08:57:16Z",
-    "serviceReadyAt": "2026-10-03T08:57:42.259Z"
+    "serviceReadyAt": "2026-10-03T08:57:42.259Z",
+    "persistentServiceDropInRetiredAt": "2026-10-03T09:43:00.623Z"
   },
   "restoredImages": {
     "web": "docker.langfuse.com/langfuse/langfuse:4.46.0@sha256:755b821ba8f73a20d43d90e68f2b75d2f597dd164c55890f67a05f5a8d0f0e24",
@@ -121,10 +122,10 @@
   "remainingBoundary": {
     "latestUserSuccessfulTodayTodoTrace": "unidentified in stored query window",
     "swiftDeviceRealExportPath": "unverified after recovery",
-    "guardSourcePatch": "caa1fb3 retry-safe explicit target",
-    "nativeLinuxGuardBuildAndDeploy": "not performed",
-    "timers": "remain stopped pending declarative guard deployment and acceptance",
-    "dropInRetirement": "Only after declarative /etc/langfuse Compose references exact 4.46.0 or an approved forward version and the guard is deployed; never retire into 4.38.0.",
+    "guardSourcePatch": "a2fbcaa: retry-safe explicit target and fail-closed encrypted notifications",
+    "nativeLinuxGuardBuildAndDeploy": "built on mini-vm and deployed; /nix/store/010lv3nrwifcgqjp2g7gvis705yvfyvx-nixos-system-mini-vm-26.11.20260926.f9bce96",
+    "timers": "active; normal daily scheduling restored",
+    "dropInRetirement": "completed; normal declarative exact 4.46.0 Compose, no service override",
     "backupRestoreBoundary": "Maintain schema50-compatible 4.46.0 image pair; archive verified by isolated extraction, not application restore boot."
   },
   "privacy": "Credentials used only in VM process memory. No private calendar/todo contents retained. Only sanitized operational evidence saved.",
@@ -146,5 +147,83 @@
     "interpretation": "Existing natural Cloudflare Cron detected recovery; no new monitoring foundation deployed.",
     "barkDeliveryReceipt": "not checked",
     "deviceNotificationDisplay": "not checked"
+  },
+  "operationalAcceptance": {
+    "sourceCommit": "a2fbcaa3a942d7f3b83f91c2cc5df48aaa478604",
+    "nativeLinuxBuild": "passed",
+    "deployedAt": "2026-10-03T09:50:03.984Z",
+    "currentSystem": "/nix/store/010lv3nrwifcgqjp2g7gvis705yvfyvx-nixos-system-mini-vm-26.11.20260926.f9bce96",
+    "rollbackFixtureTests": {
+      "passed": 8,
+      "boundaries": [
+        "changed image pair cannot return to schema49 generation",
+        "retry same candidate cannot walk history to schema49",
+        "unchanged pair can return to captured running path"
+      ]
+    },
+    "timerAcceptance": {
+      "method": "existing timer fires normal updater using temporary OnActiveSec=10s window; not an unmodified daily scheduled run",
+      "initialStartUtc": "2026-10-03T09:47:14Z",
+      "initialEndUtc": "2026-10-03T09:47:44Z",
+      "initialResult": "success",
+      "finalStartUtc": "2026-10-03T09:55:04Z",
+      "finalEndUtc": "2026-10-03T09:55:32Z",
+      "finalResult": "success",
+      "liveCheckoutCommit": "a2fbcaa3a942d7f3b83f91c2cc5df48aaa478604",
+      "normalDailyRunObserved": false,
+      "runtimeOverridesRemaining": 0,
+      "normalScheduleRestoredAt": "2026-10-03T09:56:03.559Z",
+      "timers": {
+        "dotfiles-autoswitch.timer": {
+          "active": true,
+          "dropInPaths": [],
+          "nextTriggerUtc": "2026-10-04T04:00:22Z"
+        },
+        "langfuse-update-propose.timer": {
+          "active": true,
+          "dropInPaths": [],
+          "nextTriggerUtc": "2026-10-04T02:25:34Z"
+        }
+      }
+    },
+    "failureAcceptance": {
+      "method": "dedicated no-state false unit with OnFailure using actual deployed Bark helper; production services and databases not faulted",
+      "firstAttempt": "rejected as valid acceptance: missing tr could produce invalid ciphertext despite API receipt; source repaired",
+      "encryptedPayloadExactIsolatedDecryptMatch": true,
+      "encryptedPayloadVerifiedAt": "2026-10-03T09:51:40.434Z",
+      "barkHttpAndJsonCode": 200,
+      "barkStartedAt": "2026-10-03T09:51:40Z",
+      "barkFinishedAt": "2026-10-03T09:51:44Z",
+      "notifyResult": "success",
+      "encryptionWarnings": 0,
+      "nextNoStateRetryResult": "success",
+      "deviceDisplay": "unverified",
+      "dedicatedRuntimeUnitsRemoved": true
+    },
+    "postDeploymentProbe": {
+      "traceId": "6971e315af6ffb44e34279cc535dd186",
+      "observationId": "5ae2ac47442421b3",
+      "sentAt": "2026-10-03T09:53:22.623Z",
+      "payloadBytes": 671,
+      "httpStatus": 200,
+      "rejectedSpans": 0,
+      "cliReadAt": "2026-10-03T09:54:05.833Z",
+      "cliStatus": 200,
+      "observationCount": 1,
+      "matched": true,
+      "type": "SPAN",
+      "level": "DEFAULT",
+      "userConversation": false
+    },
+    "health": {
+      "status": "OK",
+      "version": "4.46.0",
+      "webAndWorkerRestartCounts": 0,
+      "sameFiveNamedVolumesRetained": true,
+      "checkedAt": "2026-10-03T09:56:03.559Z"
+    },
+    "backupArchiveStillPresent": true,
+    "recoveryServiceOverridePresent": false,
+    "runtimeTimerAcceptanceOverridePresent": false
   }
 }
