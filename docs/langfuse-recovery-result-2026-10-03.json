@@ -121,7 +121,7 @@
   "remainingBoundary": {
     "latestUserSuccessfulTodayTodoTrace": "unidentified in stored query window",
     "swiftDeviceRealExportPath": "unverified after recovery",
-    "guardSourcePatch": "56ee8d0 on codex/langfuse-rollback-guard",
+    "guardSourcePatch": "caa1fb3 retry-safe explicit target",
     "nativeLinuxGuardBuildAndDeploy": "not performed",
     "timers": "remain stopped pending declarative guard deployment and acceptance",
     "dropInRetirement": "Only after declarative /etc/langfuse Compose references exact 4.46.0 or an approved forward version and the guard is deployed; never retire into 4.38.0.",
@@ -129,7 +129,7 @@
   },
   "privacy": "Credentials used only in VM process memory. No private calendar/todo contents retained. Only sanitized operational evidence saved.",
   "sources": [
-    "docs/langfuse-recovery-investigation-2026-10-03.md",
+    "docs/mini-vm.md",
     "https://langfuse.com/integrations/native/opentelemetry",
     "https://langfuse.com/self-hosting/upgrade"
   ],

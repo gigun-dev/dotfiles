@@ -27,7 +27,8 @@ Worker・KV・Cron・custom domainは`gigun-dev/hub`の`infra/uptime/`でOpenTof
 - **lock 更新の提案と適用を分ける。** `dotfiles-lock-propose@fast`(毎日) / `@slow`(日曜)が
   lock 更新 → 実機ビルド → PR・auto-merge 設定まで行い、required CI の成功で merge する。
   人の lock 差分レビューは前提にしない。`dotfiles-autoswitch` 自体は lock を更新せず、
-  merge 済みの変更を pull → switch → 健全性確認し、失敗時は rollback する。
+  merge 済みの変更を pull → switch → 健全性確認する。失敗時の復帰先は今回の
+  開始時に稼働していた構成だけとし、Langfuse の image pair が変わる場合は戻さない。
 - **`system.autoUpgrade` は使わない。** home 層が視野の外(`nixos-rebuild` しか叩かない)で、
   pre/post フックが無いため健全性ゲートも dirty ガードも挟めない。nixpkgs の
   `nixos/modules/tasks/auto-upgrade.nix` を読んで確認した。提供価値は timer 1 本分。
@@ -38,6 +39,21 @@ Worker・KV・Cron・custom domainは`gigun-dev/hub`の`infra/uptime/`でOpenTof
   踏み潰さず止めて通知する。
 - **駆動スクリプトは現 generation のものが走る**。新しいツリーが更新器自身を壊しても、次回は
   壊れる前の更新器で回る(自己更新は 1 サイクル遅れる)。
+
+Langfuse の DB migration は OS 世代の切替では戻らない。image の変更後に gate が失敗したら、
+移行先の世代と対応 image を維持し、既存 Bark へ失敗通知を送る。同じ候補を再試行しても
+履歴上の旧世代へ遡らず、翌日の timer は修正版または同じ候補を再確認する。image が不変の
+OS 更新だけは今回の開始時の構成へ戻せる。build が失敗して適用されていなければ現在のサービスを維持する。
+
+通知は HTTP と JSON `code=200` の receipt まで確認する。端末表示はこの receipt とは別に確認する。
+失敗時は `journalctl -u dotfiles-autoswitch -u dotfiles-autoswitch-notify-failure` と Langfuse readiness を
+読み、移行済み DB に対応する image の対を保った修正版を main へ出す。DB の migration 番号変更や
+旧 image だけへの復帰は行わない。
+
+DB を伴う手動復旧前は Compose を停止し、Postgres / ClickHouse / MinIO / Redis と ClickHouse logs の
+5 named volumes を root 専用ディレクトリへ cold backup する。checksum と隔離展開後の byte / metadata
+比較を確認し、backup を削除せず維持する。現在の受け入れ根拠は
+[`langfuse-recovery-result-2026-10-03.json`](langfuse-recovery-result-2026-10-03.json)。
 - **uvx で取るものはこの経路に乗らない**。`codex-openai-bridge` が動かす
   `openai-api-server-via-codex` は nixpkgs に無く実行時に PyPI から取るため、lock にも
   required CI にも現れない。`codex-openai-bridge-refresh`(日次)が別レーンとして追従する。
