@@ -220,13 +220,13 @@ xcodebuild -project MCPHost.xcodeproj -scheme MCPHost -configuration Release \
 
 通常の準備はminiのXcodeでAppleアカウントを登録し、Team `KK42DL23GH`と自動署名を選ぶ。SSHからのビルドも同じ設定を使うが、実行コンテキストが署名用の秘密鍵をキーチェーンから利用できる必要がある。パスワードをSSHの引数・ログへ渡さない。
 
-miniのXcodeでApple Developmentを追加後、GUIログインセッション（`gui/501`）の一時LaunchAgentからRelease archiveと`release-testing` exportを実行し、両方成功した。SSH直接実行では同じユーザー・loginキーチェーンを参照しても署名identityが利用できなかったため、「秘密鍵がない」というエラーだけで鍵の不存在とは判断しない。GUIセッションでの署名経路を使い、一時jobは終了後にbootoutしてplist・scriptを削除する。証明書の失効、権限緩和、自動ロック無効化、パスワードの保存は行っていない。
+署名はGUIログインセッション（`gui/501`）のキーチェーンを使う。SSHからは同じユーザーでも署名identityが見えない場合があり、鍵の不存在とは判断しない。GitHub公式runnerのLaunchAgentは独立security sessionを作る既定設定で署名に失敗したため、asc-mcpの `scripts/configure-runner-keychain.py` で `SessionCreate=false` にしている。GUIセッションを使うrunnerからRelease archive・Ad Hoc exportが成功した。再起動後はGUIログインとキーチェーン解除が必要。証明書の失効、自動ロック無効化、パスワード保存は行っていない。
 
-受け入れ済みIPAはminiの`/tmp/MCPHost-mini-ota-build4/MCPHost.ipa`、bundle ID `dev.gigun.mcphost`、build `4`。配布署名の検証成功、Team `KK42DL23GH`、Ad Hoc profileの期限は2027-02-13 13:06:57 UTC、対象iPhone 17・iPad mini 7のUDID収録と`get-task-allow=false`を確認済み。公開・Bark通知はこの生成物の確認後に別工程で行う。
+クラウドからは [asc-mcp](https://github.com/gigun-dev/asc-mcp) が非公開 `asc-mcp-control` repoの固定workflowを起動する。miniのrunnerは `~/.local/share/asc-mcp-runner`、labelは `asc-mcp`。MCP受付からarchive・Ad Hoc export・ASC検証・R2配布・Bark受付まで実ビルドで成功した。現在のMCPHost profileの期限は2027-02-13 13:06:57 UTC、iPhone 17・iPad mini 7を収録し、`get-task-allow=false`。
 
 ASC CLIはMacBookではHomebrew coreの`asc`を使い、`nix/modules/darwin/homebrew.nix`に宣言する。Intel miniはNix管理が凍結中なので、公式releaseの`macOS_amd64`バイナリをreleaseのSHA256と照合して`~/.local/bin/asc`へ置く。2026-10-04は両ホストで5.9.2、`asc xcode doctor`成功を確認した（MacBookはXcode 27.0、miniは26.3）。miniバイナリのSHA256は`635b9156014defd11e9662adcf83ea2596c8030095977decb90b0e6adc8fdf37`。
 
-`asc xcode archive` / `asc xcode export --method release-testing --ipa-path ...`はローカルのXcodeでarchive・Ad Hoc IPA生成を行う入口であり、キーチェーンの利用条件は上記と同じ。CLI導入だけではSSH署名を解決しない。生成済みIPAのCloudflare公開とBark通知は既存ota-deployを使う。ASCのAPI認証は両ホストとも未登録。miniのGUIセッションから既存build 4 archiveを`asc xcode export --method release-testing --team-id KK42DL23GH`で`/tmp/asc-export-acceptance/MCPHost.ipa`へexportし、成功を確認した。一時job・plist・scriptは削除済み。
+`asc xcode archive` / `asc xcode export --method release-testing --ipa-path ...`はローカルのXcodeでarchive・Ad Hoc IPA生成を行う入口。署名・配布検証の `asc distribute prepare` もApp Store ConnectのAPI認証なしで使える。ASCのAPI認証は両ホストとも未登録。配布・通知・サービス専用IaCの手順はasc-mcp repoが管理する。
 
 ### Cloudflareのアプリ配布
 
