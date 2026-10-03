@@ -137,7 +137,8 @@ def send(endpoint, token_file, payload, local_test=False):
         raise ValueError("invalid token file")
     request = urllib.request.Request(endpoint, json.dumps(payload).encode(),
                                      {"Authorization": "Bearer " + token,
-                                      "Content-Type": "application/json"}, method="POST")
+                                      "Content-Type": "application/json",
+                                      "User-Agent": "dotfiles-host-heartbeat/1"}, method="POST")
     opener = urllib.request.build_opener(NoRedirect)
     for attempt in range(3):
         try:
