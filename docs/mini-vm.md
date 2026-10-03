@@ -182,3 +182,7 @@ mini-vm には性質の違う 2 つの信頼経路があり、1 本に両方を�
 未指定時は公式 `https://api.day.app/<device-key>` を使う。hub H0 でも既存の
 AES-256-CBC `ciphertext` / `iv` を受け付けるので、端末の鍵・IV と揃える。
 HTTP 成功と JSON `code=200` は受付の確認で、端末表示の確認とは区別する。
+
+## 2026-10-03 スマホ再接続の現状
+
+Codex CLI 0.160.0、codex-remote-controlはactive、control socketあり、ChatGPT login statusは認証済み。しかしremote-control pairは応答待ちでtimeoutする。稼働プロセスに実行中の子作業が無いことを確認してサービスを一度再起動したが、ソケット作成後の再試行もtimeoutした。モデルAPIは同じ認証でProから200、VMからも200（7.40秒）。サービスのモデル一覧更新はtimeoutを記録する。サービスactiveだけではスマホ接続可能と扱わず、ペアリング発行と本人の接続確認を残す。iPhoneのTailscale ACLとは別の、VMからOpenAIへのリレー接続経路を調べる。
