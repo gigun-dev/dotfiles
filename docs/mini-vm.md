@@ -199,6 +199,6 @@ uv run scripts/codex-pair.py
 
 Tailscaleポリシーは `tofu/tailscale/` で管理する。公開テンプレートは汎用タグと権限定義、所有者IDは `secrets/tofu-env.age` の `TF_VAR_tailnet_owner`、OAuth資格情報も同じage環境ファイルに保存する。Cloudflareとは別の暗号化stateを使い、既存の `nix run .#tofu -- -chdir=tailscale` で実行する。判断はADR 0010を参照。
 
-初回はpolicy_file権限のOAuth資格情報を登録後、`init`、`import tailscale_acl.policy acl`、`plan -detailed-exitcode` の順で現行の意味を変えていないことを確認する。現在はテンプレートとローカルvalidateまでで、API資格情報未登録のためimportと本番planは未実行。管理画面のSSO問題はChromeで解消し、現行ポリシーを取得済み。
+初回はpolicy_file権限のOAuth資格情報を登録後、`init`、`import tailscale_acl.policy acl`、`plan -detailed-exitcode` の順で現行の意味を変えていないことを確認する。ポリシー用OAuthをageへ保存し、importと本番の変更なしplanを確認済み。OAuthにはpolicy_fileとTailscaleが自動追加するdevices:core:read／devices:posture_attributesの依存権限が付く。管理画面のSSO問題はChromeで解消し、現行ポリシーを取得済み。
 
 取り込みの確認後、タグ無しの本人端末からPro／miniへのHTTPS許可を追加し、本人HTTPSの許可・本人SSHの拒否・既存管理端末の接続維持をpolicy testsに入れる。`plan`でAPIによる検証を通してから`apply`する。Proとminiはタグ全体でなく正確な配布先へ限定する。現在の広いタグ間許可は別変更で見直す。管理画面で緊急変更した場合は正典へ取り込み、次のapplyで黙って上書きしない。

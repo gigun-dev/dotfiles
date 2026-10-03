@@ -1,55 +1,81 @@
 {
-  "tagOwners": {
-    "tag:admin-device": [${owner}],
-    "tag:client": [${owner}],
-    "tag:storage": [${owner}],
-    "tag:proxmox": [${owner}],
-    "tag:vm": [${owner}],
-    "tag:server": [${owner}],
-  },
-  "nodeAttrs": [
-    {"target": ["tag:storage"], "attr": ["drive:share"]},
-    {"target": ["tag:admin-device"], "attr": ["drive:access"]},
-  ],
-  "grants": [
-    // 現行のhomelab許可を取り込む。範囲の縮小は別変更で行う。
-    {
-      "src": ["tag:admin-device", "tag:client", "tag:storage", "tag:proxmox", "tag:vm", "tag:server"],
-      "dst": ["tag:admin-device", "tag:client", "tag:storage", "tag:proxmox", "tag:vm", "tag:server"],
-      "ip": ["*"],
-    },
-    {
-      "src": ["tag:admin-device"],
-      "dst": ["tag:storage"],
-      "app": {
-        "tailscale.com/cap/drive": [{"shares": ["*"], "access": "rw"}],
-      },
-    },
-  ],
-  "ssh": [
-    {
-      "action": "accept",
-      "src": ["tag:admin-device"],
-      "dst": ["tag:proxmox", "tag:vm", "tag:server"],
-      "users": ["root", "ubuntu"],
-    },
-    {
-      "action": "accept",
-      "src": ["tag:admin-device"],
-      "dst": ["tag:admin-device", "tag:client", "tag:storage"],
-      "users": ["autogroup:nonroot"],
-    },
-    {
-      "action": "accept",
-      "src": ["tag:storage"],
-      "dst": ["tag:proxmox"],
-      "users": ["root"],
-    },
-    {
-      "action": "accept",
-      "src": ["tag:admin-device"],
-      "dst": ["tag:server"],
-      "users": ["autogroup:nonroot"],
-    },
-  ],
+	"tagOwners": {
+		"tag:admin-device": [${owner}],
+		"tag:client":       [${owner}],
+		"tag:storage":      [${owner}],
+		"tag:proxmox":      [${owner}],
+		"tag:vm":           [${owner}],
+		"tag:server":       [${owner}],
+	},
+
+	"nodeAttrs": [
+		{"target": ["tag:storage"], "attr": ["drive:share"]},
+		{"target": ["tag:admin-device"], "attr": ["drive:access"]},
+	],
+
+	"grants": [
+		// tag 同士の IP 全許可（homelab なので細粒度せず）
+		{
+			"src":
+				[
+					"tag:admin-device",
+					"tag:client",
+					"tag:storage",
+					"tag:proxmox",
+					"tag:vm",
+					"tag:server",
+				],
+			"dst":
+				[
+					"tag:admin-device",
+					"tag:client",
+					"tag:storage",
+					"tag:proxmox",
+					"tag:vm",
+					"tag:server",
+				],
+			"ip": ["*"],
+		},
+		// Taildrive: admin-device からのみ storage を read/write
+		{
+			"src": ["tag:admin-device"],
+			"dst": ["tag:storage"],
+			"app": {
+				"tailscale.com/cap/drive": [
+					{"shares": ["*"], "access": "rw"},
+				],
+			},
+		},
+	],
+
+	"ssh": [
+		// admin → Linux サーバ群: root と ubuntu (運用必要)
+		{
+			"action": "accept",
+			"src":    ["tag:admin-device"],
+			"dst":    ["tag:proxmox", "tag:vm", "tag:server"],
+			"users":  ["root", "ubuntu"],
+		},
+		// admin → 自分で使う端末: nonroot のみ (`ssh gigun@mini` 想定)
+		{
+			"action": "accept",
+			"src":    ["tag:admin-device"],
+			"dst":    ["tag:admin-device", "tag:client", "tag:storage"],
+			"users":  ["autogroup:nonroot"],
+		},
+		// storage → proxmox: mini から pve のディスク退避を行うため (root)
+		{
+			"action": "accept",
+			"src":    ["tag:storage"],
+			"dst":    ["tag:proxmox"],
+			"users":  ["root"],
+		},
+		// admin → mini-vm (エージェント基盤): gigun で常用する
+		{
+			"action": "accept",
+			"src":    ["tag:admin-device"],
+			"dst":    ["tag:server"],
+			"users":  ["autogroup:nonroot"],
+		},
+	],
 }
