@@ -75,6 +75,7 @@
     "vmHelperAcceptedAtUtc": "2026-10-03T11:27:11.858Z",
     "helperExit": 0,
     "applicationCode": 200,
-    "deviceDisplay": "unverified"
+    "deviceDisplay": "confirmed by user screenshot: dotfiles H0 encrypted route acceptance, 2026-10-03 20:27 JST",
+    "decryption": "confirmed: plaintext title and body visible in Bark history"
   }
 }
