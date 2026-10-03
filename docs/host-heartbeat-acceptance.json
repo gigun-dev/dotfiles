@@ -58,5 +58,23 @@
     "safeRollbackGuardAndBarkHelperRetained": true,
     "productionMacOrVmShutdownInjected": false
   },
-  "responsibility": "Hub owner verifies D1 history, Queue/Bark deliveries and rendered status; device notification display remains unverified."
+  "responsibility": "Hub owner verifies D1 history, Queue/Bark deliveries and rendered status; device notification display remains unverified.",
+  "sshPath": {
+    "enabled": true,
+    "naturalRunsVerified": 11,
+    "outcome": "direct succeeded",
+    "lastObservedAtUtc": "2026-10-03T11:27:35Z",
+    "historyCap": 1440,
+    "mode": "0600",
+    "privateLocation": "~/.local/state/dotfiles/ssh-path",
+    "faultInjection": false
+  },
+  "bark": {
+    "destination": "registered hub-bark-h0",
+    "aesPreserved": true,
+    "vmHelperAcceptedAtUtc": "2026-10-03T11:27:11.858Z",
+    "helperExit": 0,
+    "applicationCode": 200,
+    "deviceDisplay": "unverified"
+  }
 }

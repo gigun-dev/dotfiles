@@ -24,4 +24,5 @@ x 2026-10-03 2026-09-19 版検出unknownの不要再起動抑止を本線統合�
 x 2026-10-03 2026-10-03 準備済みMac installerをsudoで配置し自然heartbeatとboot情報の継続受付を確認する +monitoring @user see:docs/host-heartbeat.md id:0056
 x 2026-10-03 2026-10-03 Codex全体指示に未完作業の継続と親の統合責任を置き、PJ側の重複を除く +claude @unattended see:docs/agent-execution.md id:0060
 x 2026-10-03 2026-10-03 Codex全体指示の重複を削り、委譲4項目・継続3項目へ日本語で整理する +claude @unattended see:docs/agent-execution.md id:0061
+x 2026-10-03 2026-10-03 SSH経路継続採取を有効化してタイムアウトと接続拒否をhubの途絶履歴へ照合できるようにする +mini-vm see:docs/host-heartbeat.md id:0057
 x 2026-10-03 2026-10-03 Codex全体指示を英語へ戻し、委譲と継続を一体で簡潔に整理する +claude @unattended see:docs/agent-execution.md id:0062
