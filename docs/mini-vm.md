@@ -197,6 +197,8 @@ uv run scripts/codex-pair.py
 
 2026-10-03の受け入れ: 発行helperでコードと期限を取得し、一時転送終了を確認。本人の追加報告後、remoteControl/status/readでconnected、remoteControl/client/listで新しいiOS 27 iPhone登録とlastSeenAtを確認。旧iPhone登録は削除していない。
 
-Tailscaleは個人のiPhoneをタグ無しのユーザー所有端末とし、OTA宛のHTTPS許可とSSH等の管理権限を分ける方向。現在のタグを外すのは既存ポリシーを取得してユーザー向け許可を整えてから。管理画面はGitHub認証後にSSOエラーで原文取得できていないため、元ACLの権限を確認したとは扱わない。ポリシーは秘密鍵そのものではないがユーザー名・構成・許可関係を含むため、原文の機密性確認前に公開dotfilesへ保存しない。private repoのGitOpsでPR検証とmain反映を行う案を検討する。
+Tailscaleポリシーは `tofu/tailscale/` で管理する。公開テンプレートは汎用タグと権限定義、所有者IDは `secrets/tofu-env.age` の `TF_VAR_tailnet_owner`、OAuth資格情報も同じage環境ファイルに保存する。Cloudflareとは別の暗号化stateを使い、既存の `nix run .#tofu -- -chdir=tailscale` で実行する。判断はADR 0010を参照。
 
-参照: [CLIの2秒上限](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/app-server-daemon/src/client.rs)、[サーバーの30秒上限](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/app-server-transport/src/transport/remote_control/enroll.rs)、[Tailscaleのタグとユーザー認証](https://tailscale.com/docs/features/tags)、[公式GitOps](https://tailscale.com/docs/integrations/github/gitops)。
+初回はpolicy_file権限のOAuth資格情報を登録後、`init`、`import tailscale_acl.policy acl`、`plan -detailed-exitcode` の順で現行の意味を変えていないことを確認する。現在はテンプレートとローカルvalidateまでで、API資格情報未登録のためimportと本番planは未実行。管理画面のSSO問題はChromeで解消し、現行ポリシーを取得済み。
+
+取り込みの確認後、タグ無しの本人端末からPro／miniへのHTTPS許可を追加し、本人HTTPSの許可・本人SSHの拒否・既存管理端末の接続維持をpolicy testsに入れる。`plan`でAPIによる検証を通してから`apply`する。Proとminiはタグ全体でなく正確な配布先へ限定する。現在の広いタグ間許可は別変更で見直す。管理画面で緊急変更した場合は正典へ取り込み、次のapplyで黙って上書きしない。
