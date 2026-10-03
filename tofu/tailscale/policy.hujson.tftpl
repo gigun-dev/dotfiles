@@ -1,4 +1,5 @@
 {
+	"hosts": ${ota_hosts},
 	"tagOwners": {
 		"tag:admin-device": [${owner}],
 		"tag:client":       [${owner}],
@@ -14,6 +15,12 @@
 	],
 
 	"grants": [
+		// 本人の利用端末にはOTA配布先のHTTPSだけを許可する。
+		{
+			"src": [${owner}],
+			"dst": ["ota-pro", "ota-mini"],
+			"ip": ["tcp:443"],
+		},
 		// tag 同士の IP 全許可（homelab なので細粒度せず）
 		{
 			"src":
@@ -76,6 +83,17 @@
 			"src":    ["tag:admin-device"],
 			"dst":    ["tag:server"],
 			"users":  ["autogroup:nonroot"],
+		},
+	],
+	"tests": [
+		{
+			"src": ${owner},
+			"accept": ["ota-pro:443", "ota-mini:443"],
+			"deny": ["ota-pro:22", "ota-mini:22", "tag:server:22"],
+		},
+		{
+			"src": "tag:admin-device",
+			"accept": ["ota-pro:443", "ota-mini:443", "tag:server:22"],
 		},
 	],
 }

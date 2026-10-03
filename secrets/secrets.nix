@@ -82,7 +82,7 @@ in
   #
   # mini-vm の cloudflare-os が使う CLOUDFLARE_API_TOKEN (Workers AI + Workers
   # Scripts) とは**別のトークン**。名前が衝突するので同じファイルに混ぜないこと。
-  # Tailscale: TF_VAR_tailnet_owner とポリシー専用OAuth資格情報も同じラッパで渡す。
+  # Tailscale: TF_VAR_tailnet_owner／TF_VAR_ota_hosts とポリシー専用OAuth資格情報も同じラッパで渡す。
   "tofu-env.age".publicKeys = all;
 
   # Langfuse v4 ComposeのDB・暗号化・初期ユーザー・OTLP project資格情報。
