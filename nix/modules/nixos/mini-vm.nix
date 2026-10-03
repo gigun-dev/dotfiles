@@ -31,6 +31,10 @@ let
   # `git pull --ff-only` しかしない (手で書きかけたものを踏み潰さないため)。
   dotfilesDir = "/home/${username}/ghq/github.com/gigun-dev/dotfiles";
 
+  langfuseRollbackSafe = pkgs.writeShellScript "langfuse-rollback-safe" (
+    builtins.readFile ../../../infra/langfuse/scripts/rollback-safe.sh
+  );
+
   # 更新後にこの VM が「使える状態か」を見るゲート。switch 直後と rollback 直後の
   # 2 回呼ぶので独立したスクリプトにしてある。
   #
@@ -81,19 +85,30 @@ let
       fail=1
     fi
 
-    # (4) Netdata はこの VM の運用画面なので、unit だけでなく API が実際に
-    #     応答することを autoswitch と同じ gate で確認する。
-    if ! curl -sf -o /dev/null http://127.0.0.1:19999/api/v1/info; then
-      echo "gate: netdata API に失敗 (127.0.0.1:19999)" >&2
-      fail=1
-    fi
+    # (4) 廃止済み Netdata を無条件に必須にすると、健全な更新が旧世代へ戻る。
+    # 宣言が有効な監視だけを検証し、現行 Beszel は module と同じ readiness を使う。
+    ${lib.optionalString config.services.netdata.enable ''
+      if ! curl -sf -o /dev/null http://127.0.0.1:19999/api/v1/info || ! unit_ok netdata; then
+        echo "gate: netdata が異常" >&2
+        fail=1
+      fi
+    ''}
+    ${lib.optionalString config.systemd.services.beszel.enable ''
+      if ! curl -sf -o /dev/null http://127.0.0.1:8090/api/beszel/first-run || ! unit_ok beszel; then
+        echo "gate: beszel が異常" >&2
+        fail=1
+      fi
+      if ! unit_ok beszel-agent; then
+        echo "gate: beszel-agent が異常" >&2
+        fail=1
+      fi
+    ''}
 
     # (5) 常駐 unit の状態。cloudflared の unit 名は tunnel ID から決まる
     #     (services.cloudflared.tunnels の宣言と対で、片方だけ変えると素通りする)。
     for unit in \
       cloudflare-os \
       langfuse \
-      netdata \
       codex-openai-bridge \
       codex-remote-control \
       cloudflared-tunnel-5b8ec787-4730-4b2b-87b8-e86acbd3954b; do
@@ -1217,6 +1232,10 @@ in
         # --ff-only。分岐していたら人間の裁定事項なので、ここでは止める。
         as_user ${pkgs.git}/bin/git pull --ff-only
 
+        # store の Compose は不変なので、switch 前の参照先を保持すれば本文や
+        # secrets を複製せず、DB を移行した版から旧 image に戻る事故を止められる。
+        previous_langfuse_compose=$(readlink -f /etc/langfuse/compose.yaml || true)
+
         # system 層 → home 層の順。system unit は home profile に依存しない設計
         # (cloudflare-os / codex-* は store パスを直接参照) なので、home 側が
         # 失敗しても常駐サービスは巻き添えにならない。
@@ -1224,9 +1243,13 @@ in
         ${pkgs.sudo}/bin/sudo -u ${username} ${homeManager}/bin/home-manager \
           switch --flake "${dotfilesDir}#${username}-x86_64-linux"
 
-        # 「switch は成功したが使えない」を検出する。失敗したら 1 世代戻して、
-        # 戻した先でもゲートを回してから落ちる (戻して直ったのかを記録に残すため)。
+        # 「switch は成功したが使えない」を検出する。DB を移行する image の対が
+        # 不変の場合だけ 1 世代戻し、戻した先でもゲートを回してから落ちる。
         if ! ${healthGate}; then
+          if ! ${langfuseRollbackSafe} "$previous_langfuse_compose" /etc/langfuse/compose.yaml; then
+            echo "健全性ゲートが失敗。Langfuse の DB 保持のため現世代を維持し、自動 rollback を停止する" >&2
+            exit 1
+          fi
           echo "健全性ゲートが失敗。rollback する" >&2
           # **`nixos-rebuild switch --rollback` は使えない** (2026-09-06 実測)。
           # flake モードでは実装されておらず `<nixpkgs/nixos>` を NIX_PATH に
