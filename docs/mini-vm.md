@@ -45,7 +45,8 @@ Langfuse の DB migration は OS 世代の切替では戻らない。image の�
 履歴上の旧世代へ遡らず、翌日の timer は修正版または同じ候補を再確認する。image が不変の
 OS 更新だけは今回の開始時の構成へ戻せる。build が失敗して適用されていなければ現在のサービスを維持する。
 
-通知は HTTP と JSON `code=200` の receipt まで確認する。端末表示はこの receipt とは別に確認する。
+通知は暗号化処理が失敗したら送信を止め、HTTP と JSON `code=200` の receipt まで確認する。
+端末表示はこの receipt とは別に確認する。
 失敗時は `journalctl -u dotfiles-autoswitch -u dotfiles-autoswitch-notify-failure` と Langfuse readiness を
 読み、移行済み DB に対応する image の対を保った修正版を main へ出す。DB の migration 番号変更や
 旧 image だけへの復帰は行わない。
