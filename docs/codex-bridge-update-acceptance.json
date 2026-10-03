@@ -1,0 +1,83 @@
+{
+  "checkedAt": "2026-10-03T10:19:48.311Z",
+  "scope": "Apply unknown-version refresh guard without restarting active bridge; isolated failure/recovery and existing Bark acceptance",
+  "sourceCommit": "a17d7d1",
+  "integratedOriginalCommit": "902835d",
+  "baseMain": "0951df6",
+  "nativeBuild": "passed",
+  "currentSystem": "/nix/store/wahznls8q01slslmgrqhb7gb33nn9l21-nixos-system-mini-vm-26.11.20260926.f9bce96",
+  "deployedAt": "2026-10-03T10:18:06.871Z",
+  "preflight": {
+    "runningVersion": "0.2.1",
+    "pypiLatest": "0.2.1",
+    "checkedAt": "2026-10-03T10:15:39.160Z",
+    "bridgePid": 1170,
+    "bridgeActiveSince": "2026-10-02T15:15:09Z"
+  },
+  "localFixtureTests": {
+    "passed": 7,
+    "coverage": [
+      "same version does not restart",
+      "known upgrade and health failure",
+      "unknown continuation one notification/no restart",
+      "detection recovery and recurrence",
+      "missing version and invalid counter",
+      "inactive bridge stays stopped",
+      "PyPI outage"
+    ]
+  },
+  "timerAcceptance": {
+    "method": "existing refresh timer using temporary OnActiveSec=10s; ordinary refresh unit and real PyPI comparison",
+    "startUtc": "2026-10-03T10:19:09Z",
+    "endUtc": "2026-10-03T10:19:10Z",
+    "result": "success",
+    "pidAfterDeploymentAndRun": 1170,
+    "bridgeRestarted": false,
+    "runtimeOverrideRemaining": 0,
+    "normalTimerActive": true,
+    "nextTriggerUtc": "2026-10-04T04:32:32Z",
+    "unmodifiedDailyRunObserved": false
+  },
+  "isolatedFailureRecovery": {
+    "script": "/nix/store/4942zlc9bdaigv8maa0ayxr08rax0mac-codex-bridge-refresh",
+    "method": "shipped shell with process/version/network paths redirected to isolated fixture; no production version or service fault injection",
+    "firstUnknownExit": 0,
+    "secondUnknownExit": 1,
+    "continuedUnknownExit": 0,
+    "notificationSuppressionMarkerPresent": true,
+    "recoveredVersion": "0.2.1",
+    "stateFilesAfterRecovery": [],
+    "restartCalls": 0,
+    "checkedAt": "2026-10-03T10:19:29.946Z",
+    "runtimeFixturesRemoved": true
+  },
+  "existingBarkAcceptance": {
+    "helper": "/nix/store/fnhccq2l4ipd3l4hl4pdlgqmyinhnw0b-bark-notify-unit-failure",
+    "handoff": "dedicated isolated failure unit OnFailure to actual helper, same credentials/config as bridge failure notification",
+    "startUtc": "2026-10-03T10:18:56Z",
+    "endUtc": "2026-10-03T10:18:58Z",
+    "result": "success",
+    "httpAndJsonCode": 200,
+    "deviceDisplay": "unverified"
+  },
+  "preservedProduction": {
+    "bridgeActive": true,
+    "bridgePid": 1170,
+    "bridgeHealthzHttp": 200,
+    "modelsUnauthenticatedHttp": 401,
+    "langfuseHealth": {
+      "status": "OK",
+      "version": "4.46.0"
+    },
+    "langfuseColdBackupRetained": true,
+    "langfuseSafeBarkHelperRetained": true,
+    "dotfilesAndLangfuseTimersActive": true,
+    "heartbeatSenderEnabled": false
+  },
+  "boundaries": [
+    "Unmodified daily scheduled execution not yet observed; temporary timer acceptance is distinct",
+    "Bark receipt does not prove device display",
+    "Bridge inference/chat UX was not exercised; healthz and authentication boundary responded"
+  ],
+  "privacy": "No credentials, auth data or user conversation retained; notification fixture contains operational test messages only."
+}

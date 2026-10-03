@@ -69,7 +69,7 @@ DB を伴う手動復旧前は Compose を停止し、Postgres / ClickHouse / Mi
 繋がるか確認する」)は完了済みで、自動再起動の導入とは区別する。
 もう 1 つ、**required CI は admin 権限の直 push でバイパスできる**(下記「未解決の調査メモ」)。
 
-## codex-bridge の版検出失敗時 (2026-10-03)
+## codex-bridge の版検出失敗時
 
 `codex-openai-bridge-refresh` は稼働版が空/欠落/`unknown` のとき、再起動せず
 実プロセスから版を再検出する。それでも不明ならその回の更新を止める。
@@ -83,11 +83,9 @@ DB を伴う手動復旧前は Compose を停止し、Postgres / ClickHouse / Mi
 `cat /run/codex-bridge/version` を見る。unknown は uv のキャッシュレイアウト依存の
 検出が壊れた可能性を表し、bridge 本体の障害とは限らない。
 
-2026-10-03 の readonly 確認では稼働版 `0.2.1`、`archive-v0` 配下の実体、
-当日の refresh 正常終了を確認した。ローカル fixture は正常更新・unknown 継続・
-再検出での回復・再発・停止中・PyPI 不調を検証する。実ホストへ適用していない。
-変更反映後は次の自然な日次確認で版と journal を読み、再起動が不要な版一致時に
-MainPID が変わらないことを確認する。unknown/回復の実環境試験は通信利用のない時間帯に行う。
+現行の配備・隔離検証・通知受付の根拠は
+[`codex-bridge-update-acceptance.json`](codex-bridge-update-acceptance.json)。
+通常日次を待った実績と、時刻を一時変更した timer 経由の受け入れは区別する。
 
 ## mini-vm のトークンを絞る (2026-09-06 調査)
 
