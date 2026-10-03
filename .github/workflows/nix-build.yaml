@@ -43,6 +43,7 @@ jobs:
               - 'flake.lock'
               - 'nix/**'
               - 'scripts/verify.sh'
+              - 'scripts/tests/codex-bridge-refresh.py'
               - '.github/workflows/nix-build.yaml'
 
   check:
