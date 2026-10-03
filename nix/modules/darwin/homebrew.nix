@@ -20,6 +20,7 @@ in
     ];
 
     brews = [
+      "asc" # App Store Connect CLI。署名・配布ツールは公式が案内するHomebrew経路で更新する。
       "cloudflared"
       "k1LoW/tap/mo"
       "tailscale"

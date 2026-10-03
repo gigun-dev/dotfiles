@@ -224,6 +224,10 @@ miniのXcodeでApple Developmentを追加後、GUIログインセッション（
 
 受け入れ済みIPAはminiの`/tmp/MCPHost-mini-ota-build4/MCPHost.ipa`、bundle ID `dev.gigun.mcphost`、build `4`。配布署名の検証成功、Team `KK42DL23GH`、Ad Hoc profileの期限は2027-02-13 13:06:57 UTC、対象iPhone 17・iPad mini 7のUDID収録と`get-task-allow=false`を確認済み。公開・Bark通知はこの生成物の確認後に別工程で行う。
 
+ASC CLIはMacBookではHomebrew coreの`asc`を使い、`nix/modules/darwin/homebrew.nix`に宣言する。Intel miniはNix管理が凍結中なので、公式releaseの`macOS_amd64`バイナリをreleaseのSHA256と照合して`~/.local/bin/asc`へ置く。2026-10-04は両ホストで5.9.2、`asc xcode doctor`成功を確認した（MacBookはXcode 27.0、miniは26.3）。miniバイナリのSHA256は`635b9156014defd11e9662adcf83ea2596c8030095977decb90b0e6adc8fdf37`。
+
+`asc xcode archive` / `asc xcode export --method release-testing --ipa-path ...`はローカルのXcodeでarchive・Ad Hoc IPA生成を行う入口であり、キーチェーンの利用条件は上記と同じ。CLI導入だけではSSH署名を解決しない。生成済みIPAのCloudflare公開とBark通知は既存ota-deployを使う。ASCのAPI認証は両ホストとも未登録。miniのGUIセッションから既存build 4 archiveを`asc xcode export --method release-testing --team-id KK42DL23GH`で`/tmp/asc-export-acceptance/MCPHost.ipa`へexportし、成功を確認した。一時job・plist・scriptは削除済み。
+
 ### Cloudflareのアプリ配布
 
 固定入口は `https://install.097969.xyz/`（アプリ一覧）、MCPHostは `/swift-mcp-app/`。gigun-devのWorker `ota-distribution` と非公開R2 bucket `ota-distribution` が配信し、mini停止中も公開済みIPAは取得できる。miniはビルド・署名を担当する。Tailscale Serveの配布は実機でのCloudflare経路確認まで残す。
