@@ -324,6 +324,38 @@ let
   codexBridgeRefresh = pkgs.writeShellScript "codex-bridge-refresh" ''
     set -u
 
+    # 停止中のサービスを版検出のために起こさない。try-restart の契約を保つ。
+    ${config.systemd.package}/bin/systemctl is-active --quiet codex-openai-bridge.service || exit 0
+
+    state=/var/lib/codex-bridge-refresh
+    current="unknown"
+    [ -r /run/codex-bridge/version ] && current=$(${pkgs.coreutils}/bin/cat /run/codex-bridge/version)
+    if [ -z "$current" ] || [ "$current" = "unknown" ]; then
+      # ExecStartPost の unknown を永久に信じると検出側を直しても回復できない。
+      # 実体を再読してから判定し、通信を切る再起動を検出の代用にしない。
+      ${codexBridgeRecordVersion}
+      current=$(${pkgs.coreutils}/bin/cat /run/codex-bridge/version)
+    fi
+    if [ -z "$current" ] || [ "$current" = "unknown" ]; then
+      # 起動直後の一過性欠落は一度だけ猶予。再起動してもキャッシュの構造は直らない。
+      # StateDirectory に置き、ホスト再起動で連続失敗と通知済みを忘れない。
+      count=0
+      [ -r "$state/unknown-count" ] && count=$(cat "$state/unknown-count")
+      case "$count" in
+        1|2) count=2 ;;
+        *) count=1 ;;
+      esac
+      printf '%s\n' "$count" > "$state/unknown-count"
+      echo "codex-bridge-refresh: 稼働版の検出失敗 ($count 回連続)、再起動を抑止" >&2
+      if [ "$count" -eq 2 ] && [ ! -e "$state/unknown-notified" ]; then
+        # 既存の OnFailure 通知を一度だけ使う。検出が回復するまで日次で鳴らさない。
+        touch "$state/unknown-notified"
+        exit 1
+      fi
+      exit 0
+    fi
+    rm -f "$state/unknown-count" "$state/unknown-notified"
+
     latest=$(${pkgs.curl}/bin/curl -sS -m 30 --retry 3 \
       https://pypi.org/pypi/openai-api-server-via-codex/json 2>/dev/null \
       | ${pkgs.jq}/bin/jq -r '.info.version // empty' 2>/dev/null)
@@ -335,9 +367,6 @@ let
       echo "codex-bridge-refresh: PyPI から最新版を取得できなかった" >&2
       exit 0
     fi
-
-    current="unknown"
-    [ -r /run/codex-bridge/version ] && current=$(${pkgs.coreutils}/bin/cat /run/codex-bridge/version)
 
     # 一致 (unknown 同士の一致は起きない: latest は常に具体的なバージョン文字列)。
     # ここが平常時の大半のパス — 再起動しない。
@@ -1094,6 +1123,7 @@ in
       # systemctl try-restart で他 unit を操作するので root が要る
       # (dotfiles-autoswitch と同じ理由)。
       User = "root";
+      StateDirectory = "codex-bridge-refresh";
       ExecStart = "${codexBridgeRefresh}";
     };
   };

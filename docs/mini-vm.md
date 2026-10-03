@@ -69,6 +69,26 @@ DB を伴う手動復旧前は Compose を停止し、Postgres / ClickHouse / Mi
 繋がるか確認する」)は完了済みで、自動再起動の導入とは区別する。
 もう 1 つ、**required CI は admin 権限の直 push でバイパスできる**(下記「未解決の調査メモ」)。
 
+## codex-bridge の版検出失敗時 (2026-10-03)
+
+`codex-openai-bridge-refresh` は稼働版が空/欠落/`unknown` のとき、再起動せず
+実プロセスから版を再検出する。それでも不明ならその回の更新を止める。
+連続2回の検出失敗で既存の `OnFailure` → Bark 通知を一度だけ発火し、
+以降も日次の再検出を続ける。状態は `/var/lib/codex-bridge-refresh/` に残すため、
+ホスト再起動でも通知済みを忘れない。版が読めた回で連続失敗/通知済みを消し、
+通常の版比較へ戻る。停止中の bridge は起動しない。
+
+通知の発火記録は通知配送の成功を保証しない。実通知と端末表示は別途受け入れる。
+失敗を確認するには `journalctl -u codex-openai-bridge-refresh.service` と
+`cat /run/codex-bridge/version` を見る。unknown は uv のキャッシュレイアウト依存の
+検出が壊れた可能性を表し、bridge 本体の障害とは限らない。
+
+2026-10-03 の readonly 確認では稼働版 `0.2.1`、`archive-v0` 配下の実体、
+当日の refresh 正常終了を確認した。ローカル fixture は正常更新・unknown 継続・
+再検出での回復・再発・停止中・PyPI 不調を検証する。実ホストへ適用していない。
+変更反映後は次の自然な日次確認で版と journal を読み、再起動が不要な版一致時に
+MainPID が変わらないことを確認する。unknown/回復の実環境試験は通信利用のない時間帯に行う。
+
 ## mini-vm のトークンを絞る (2026-09-06 調査)
 
 mini-vm の `gh` トークンは `repo` scope で、dotfiles に対して **`admin: true`**(branch protection の
