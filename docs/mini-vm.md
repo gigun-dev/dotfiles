@@ -220,7 +220,9 @@ xcodebuild -project MCPHost.xcodeproj -scheme MCPHost -configuration Release \
 
 通常の準備はminiのXcodeでAppleアカウントを登録し、Team `KK42DL23GH`と自動署名を選ぶ。SSHからのビルドも同じ設定を使うが、実行コンテキストが署名用の秘密鍵をキーチェーンから利用できる必要がある。パスワードをSSHの引数・ログへ渡さない。
 
-現在、Xcode 26.3でのarchiveは「このMac用のApple Development証明書はあるが、その秘密鍵がキーチェーンにない」というエラーで失敗する。有効な署名identityは0件。本人のGUI解除後もSSHでは利用不可だったが、SSHとGUIのユーザーはともにgigun、参照先も`/Users/gigun/Library/Keychains/login.keychain-db`で一致した。単なるTeam未選択や別ユーザーへのインストールではない。XcodeのManage Certificatesで既存の証明書・秘密鍵の組を復元できるか確認し、再作成が必要なら該当証明書を特定して扱う。証明書の失効、権限緩和、自動ロック無効化は行っていない。開発用archiveの成功後、配布用証明書とAd Hoc profileを`-exportArchive`でも確認する。miniでの署名済みarchive・IPA exportは未完了。
+miniのXcodeでApple Developmentを追加後、GUIログインセッション（`gui/501`）の一時LaunchAgentからRelease archiveと`release-testing` exportを実行し、両方成功した。SSH直接実行では同じユーザー・loginキーチェーンを参照しても署名identityが利用できなかったため、「秘密鍵がない」というエラーだけで鍵の不存在とは判断しない。GUIセッションでの署名経路を使い、一時jobは終了後にbootoutしてplist・scriptを削除する。証明書の失効、権限緩和、自動ロック無効化、パスワードの保存は行っていない。
+
+受け入れ済みIPAはminiの`/tmp/MCPHost-mini-ota-build4/MCPHost.ipa`、bundle ID `dev.gigun.mcphost`、build `4`。配布署名の検証成功、Team `KK42DL23GH`、Ad Hoc profileの期限は2027-02-13 13:06:57 UTC、対象iPhone 17・iPad mini 7のUDID収録と`get-task-allow=false`を確認済み。公開・Bark通知はこの生成物の確認後に別工程で行う。
 
 ### Cloudflareのアプリ配布
 
