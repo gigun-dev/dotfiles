@@ -255,7 +255,8 @@
     "japanese-tech-writing@gigun": true,
     "todo@gigun": true,
     "langfuse@gigun": true,
-    "asc@rorkai": true
+    "asc@rorkai": true,
+    "asc-mcp@gigun": true
   },
   "extraKnownMarketplaces": {
     "agent-browser": {
