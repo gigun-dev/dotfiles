@@ -153,6 +153,13 @@ let
     [ -n "''${BARK_ENCRYPT_KEY:-}" ] || exit 0
     [ -n "''${BARK_ENCRYPT_IV:-}" ] || exit 0
 
+    push_url="''${BARK_PUSH_URL:-https://api.day.app/$BARK_DEVICE_KEY}"
+    # device key を含む route は秘密。HTTP への誤設定は送信せず、URL もログに出さない。
+    case "$push_url" in
+      https://*) ;;
+      *) echo "Bark 送信先は HTTPS が必要" >&2; exit 1 ;;
+    esac
+
     export SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
 
     # 本文は journal の末尾。Bark の本文長に収まるよう切る。
@@ -176,7 +183,7 @@ let
     response=$(${pkgs.curl}/bin/curl -fsS -m 30 --retry 3 \
       --data-urlencode "ciphertext=$ciphertext" \
       --data-urlencode "iv=$BARK_ENCRYPT_IV" \
-      "https://api.day.app/$BARK_DEVICE_KEY" 2>/dev/null) || {
+      "$push_url" 2>/dev/null) || {
       echo "Bark の失敗通知 HTTP 受付に失敗" >&2
       exit 1
     }
