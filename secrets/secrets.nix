@@ -35,6 +35,10 @@ let
   ];
 in
 {
+  "ota-env.age".publicKeys = [
+    gigun
+    backup
+  ];
   # Candidate credentials, not registered in hub or installed on either host yet.
   # Each token has only its own host key plus admin/recovery recipients.
   "host-heartbeat-mac.age".publicKeys = [

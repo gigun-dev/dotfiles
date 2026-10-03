@@ -204,3 +204,26 @@ Tailscaleポリシーは `tofu/tailscale/` で管理する。公開テンプレ�
 タグ無しの本人端末からPro／miniのTCP 443だけを許可済み。policy testsで本人HTTPSの許可・配布先とserver宛SSHの拒否・既存管理端末の接続維持をAPI検証し、apply後のplanも変更なし。既存grant・SSH・tagOwners・Taildriveの定義は保持した。配布先はタグ全体でなく `ota-pro`／`ota-mini` の個別IPへ限定し、再登録でIPが変わった場合はageのmapを更新する。手元から両OTAページのHTTPS 200を確認済みだが、iPhone Safariからの表示・インストールは本人確認が残る。
 
 管理画面の編集防止と正典へのリンクを設定済み。緊急変更は管理画面で解除して行えるが、正典へ取り込み、次のapplyで黙って上書きしない。通常は `nix run .#tofu -- -chdir=tailscale plan` で差分と接続テストを確認し、同じ入口の `apply` で適用する。Git pushだけではACLを自動適用しない。現在の広いタグ間許可は別変更で見直す。
+
+### mini本体でのiOSビルド・署名
+
+Xcodeはmini-vmではなくmacOS本体で実行する。`ssh gigun@mini`から既存の`ghq`を使え、MCPHostは`~/ghq/github.com/gigun-dev/swift-mcp-app`に取得済み。Intel macOSのNix構成は凍結しているため、XcodeGen 2.46.0は`brew install xcodegen`で導入した。プロジェクトはGit管理される`project.yml`から生成する。
+
+```sh
+ghq get github.com/gigun-dev/swift-mcp-app
+cd ~/ghq/github.com/gigun-dev/swift-mcp-app
+xcodegen generate
+xcodebuild -project MCPHost.xcodeproj -scheme MCPHost -configuration Release \
+  -destination 'generic/platform=iOS' -archivePath /tmp/MCPHost-mini.xcarchive \
+  -allowProvisioningUpdates archive
+```
+
+Xcode 26.3、Appleアカウント登録、Team `KK42DL23GH`の自動署名設定は確認済み。現在はloginキーチェーンがロックされ、証明書の自動インストールが`DVTSecErrorDomain -61 / Write permissions error`で失敗する。本人がminiのキーチェーンアクセスでloginを解除してから同じarchiveを再実行する。パスワードをSSHの引数・ログへ渡さない。開発用archiveの成功後、配布用証明書とAd Hoc profileを`-exportArchive`でも確認する。現時点ではminiでの署名済みarchive・IPA exportは未完了。
+
+### Cloudflareのアプリ配布
+
+固定入口は `https://install.097969.xyz/`（アプリ一覧）、MCPHostは `/swift-mcp-app/`。gigun-devのWorker `ota-distribution` と非公開R2 bucket `ota-distribution` が配信し、mini停止中も公開済みIPAは取得できる。miniはビルド・署名を担当する。Tailscale Serveの配布は実機でのCloudflare経路確認まで残す。
+
+Accessアプリとdownload経路の例外は `tofu/ota.tf`、署名用秘密鍵は `secrets/ota-env.age`。通常ページは本人ログイン、downloadはWorkerが10分有効の署名・対象パスを検証する。AccessのBypassだけでIPAを公開する構成にはしない。現在の許可対象はCloudflareアカウント本人1名で、チーム配布時は管理者selectorをOTA専用のemail/groupへ変更する。
+
+配備・IPA公開はclaude-code repoの `plugins/ota-deploy/README.md` のCloudflare手順を使う。ホスト設定は `~/.config/ota-deploy/`、生成物は `~/.ota-deploy/`。Accessは `nix run .#tofu -- plan` / `apply`、Workerはその設定ファイルを指定したWrangler deployで更新する。Barkは既存AES暗号化経路を利用し、サーバー受付と端末での受信を分けて確認する。
