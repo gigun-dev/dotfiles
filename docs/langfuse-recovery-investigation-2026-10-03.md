@@ -108,3 +108,13 @@ docker-compose --env-file /run/agenix/langfuse-env -p langfuse -f "$recovery_dir
 6. autoswitch に新 schema 後の旧版復帰が起きないこと、正式監視 gate が成立することを確認してから timer を再開する。
 
 この調査で認証情報、予定本文は保存していない。最新 OTel が未取得であるため、Swift の送信側も含む end-to-end 成功とは報告しない。
+
+## 準備した再発防止 patch の境界
+
+`nix/modules/nixos/mini-vm.nix` の gate は Netdata enable=false のとき Netdata API / unit を生成せず、有効な Beszel module と同じ first-run readiness と Hub / Agent の状態を確認する。局所 Nix 評価で Netdata=false、Beszel=true を確認した。
+
+autoswitch は switch 前の不変な store Compose 参照先を保持する。gate 失敗時、`infra/langfuse/scripts/rollback-safe.sh` が Web / Worker の image pair を比較し、両方同じ時だけ既存 OS rollback を許す。片側変更、同じタグの digest 変更、欠落・未知形式は自動 rollback を止め、新世代を維持して失敗終了する。DB を読んで移行の有無を推測する方式は採らず、image が変わる更新を保守的に守る。
+
+この保護は autoswitch の自動 rollback の境界であり、手動の世代切替や Compose apply を安全にするものではない。初回配備時は旧世代の autoswitch が実行中でないことを確認し、修正済み宣言を手動適用する必要がある。元サービスの復旧と volume backup を先に完了し、定期更新を止めた保守窓で配備する。新構成の不具合時も Langfuse pair を旧版へ戻さず、今回の cold backup と対応する 4.46 を維持する。
+
+準備時検証は rollback 境界 7 ケース、Bash 構文、NixOS ExecStart 評価、`scripts/verify.sh`（flake check + nix fmt）成功。実 VM の x86_64-linux build、配備、定期更新の受け入れは未実施であり、これらと最新実 trace 取得を完了条件として残す。
