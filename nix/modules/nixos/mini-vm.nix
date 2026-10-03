@@ -34,6 +34,9 @@ let
   langfuseRollbackSafe = pkgs.writeShellScript "langfuse-rollback-safe" (
     builtins.readFile ../../../infra/langfuse/scripts/rollback-safe.sh
   );
+  rollbackTarget = pkgs.writeShellScript "mini-vm-rollback-target" (
+    builtins.readFile ../../../infra/langfuse/scripts/rollback-target.sh
+  );
 
   # 更新後にこの VM が「使える状態か」を見るゲート。switch 直後と rollback 直後の
   # 2 回呼ぶので独立したスクリプトにしてある。
@@ -170,10 +173,19 @@ let
     ciphertext=$(printf '%s' "$payload" \
       | ${pkgs.openssl}/bin/openssl enc -aes-256-cbc -K "$key_hex" -iv "$iv_hex" -base64 -A)
 
-    ${pkgs.curl}/bin/curl -sS -m 30 --retry 3 \
+    response=$(${pkgs.curl}/bin/curl -fsS -m 30 --retry 3 \
       --data-urlencode "ciphertext=$ciphertext" \
       --data-urlencode "iv=$BARK_ENCRYPT_IV" \
-      "https://api.day.app/$BARK_DEVICE_KEY" > /dev/null
+      "https://api.day.app/$BARK_DEVICE_KEY" 2>/dev/null) || {
+      echo "Bark の失敗通知 HTTP 受付に失敗" >&2
+      exit 1
+    }
+    # HTTP 成功だけでは通知受付を保証しない。本文・device key はログに出さない。
+    if ! printf '%s' "$response" | ${pkgs.jq}/bin/jq -e '.code == 200' >/dev/null; then
+      echo "Bark の失敗通知 JSON receipt が成功ではない" >&2
+      exit 1
+    fi
+    echo "Bark 失敗通知受付済み (code=200)"
   '';
 
   # flake.lock の更新を「提案」する本体。$1 がレーン名で、更新する input が変わる。
@@ -1198,7 +1210,7 @@ in
       coreutils
       gnugrep
       getent # 健全性ゲートの名前解決確認。pkgs.glibc の out には入っていない
-      nix # nix-env --rollback (下の rollback 手順で使う)
+      nix # nix-env --set (安全な復帰先を明示する)
     ];
 
     environment.NIX_SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
@@ -1234,7 +1246,7 @@ in
 
         # store の Compose は不変なので、switch 前の参照先を保持すれば本文や
         # secrets を複製せず、DB を移行した版から旧 image に戻る事故を止められる。
-        previous_langfuse_compose=$(readlink -f /etc/langfuse/compose.yaml || true)
+        previous_system=$(readlink -f /run/current-system)
 
         # system 層 → home 層の順。system unit は home profile に依存しない設計
         # (cloudflare-os / codex-* は store パスを直接参照) なので、home 側が
@@ -1246,17 +1258,21 @@ in
         # 「switch は成功したが使えない」を検出する。DB を移行する image の対が
         # 不変の場合だけ 1 世代戻し、戻した先でもゲートを回してから落ちる。
         if ! ${healthGate}; then
-          if ! ${langfuseRollbackSafe} "$previous_langfuse_compose" /etc/langfuse/compose.yaml; then
+          if ! rollback_system=$(${rollbackTarget} "$previous_system" /run/current-system ${langfuseRollbackSafe}); then
             echo "健全性ゲートが失敗。Langfuse の DB 保持のため現世代を維持し、自動 rollback を停止する" >&2
+            exit 1
+          fi
+          if [ "$rollback_system" = "$(readlink -f /run/current-system)" ]; then
+            echo "健全性ゲートが失敗。同じ候補の再試行なので現世代を維持し、次回の更新確認を待つ" >&2
             exit 1
           fi
           echo "健全性ゲートが失敗。rollback する" >&2
           # **`nixos-rebuild switch --rollback` は使えない** (2026-09-06 実測)。
           # flake モードでは実装されておらず `<nixpkgs/nixos>` を NIX_PATH に
           # 探しに行って失敗する。profile を 1 つ戻して switch-to-configuration を
-          # 直接叩くのが flake 環境での正しい手順。
-          nix-env --rollback -p /nix/var/nix/profiles/system
-          /nix/var/nix/profiles/system/bin/switch-to-configuration switch
+          # 直接叩く。ただし retry が移行前へ遡らないよう、今回捕捉した先を指定する。
+          nix-env --set "$rollback_system" -p /nix/var/nix/profiles/system
+          "$rollback_system/bin/switch-to-configuration" switch
           if ${healthGate}; then
             echo "rollback 後はゲートを通過した" >&2
           else
