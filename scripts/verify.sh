@@ -36,6 +36,7 @@ fi
 # 評価に fetch が要る。--no-build だとそれが禁じられ、x86_64-linux では
 # `error: path '...-source.drv' is not valid` で必ず落ちる (CI 側にも同じ注記がある)。
 python3 scripts/tests/codex-bridge-refresh.py
+python3 scripts/tests/bark-routing.py
 
 nix flake check
 nix fmt -- --ci .

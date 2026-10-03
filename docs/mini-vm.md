@@ -174,3 +174,11 @@ mini-vm には性質の違う 2 つの信頼経路があり、1 本に両方を�
 - **`DF-12` (機能確認の型)** — ssh 到達性で合格としたが、その裏で DNS が全滅していた事故があった。
   2026-09-06 の健全性ゲート (mini-vm.nix の `healthGate`) が最初の実装で、名前解決 /
   cloudflare-os の HTTP 応答 / 常駐 unit / control socket の 4 項目を見る。
+
+### Bark の配送先
+
+共通失敗通知と Claude hook は `secrets/bark-env.age` の `BARK_PUSH_URL` に指定した
+完全な HTTPS route へ送る。URL は秘密として扱い、ログ・Nix store に保存しない。
+未指定時は公式 `https://api.day.app/<device-key>` を使う。hub H0 でも既存の
+AES-256-CBC `ciphertext` / `iv` を受け付けるので、端末の鍵・IV と揃える。
+HTTP 成功と JSON `code=200` は受付の確認で、端末表示の確認とは区別する。

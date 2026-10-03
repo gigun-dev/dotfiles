@@ -27,8 +27,10 @@ ENV_CONTENT=$(age -d -i "$IDENTITY" "$SECRET" 2>/dev/null) || exit 0
 BARK_KEY=""
 ENCRYPT_KEY=""
 ENCRYPT_IV=""
+PUSH_URL=""
 while IFS='=' read -r k v; do
   case "$k" in
+    BARK_PUSH_URL) PUSH_URL=$v ;;
     BARK_DEVICE_KEY) BARK_KEY=$v ;;
     BARK_ENCRYPT_KEY) ENCRYPT_KEY=$v ;;
     BARK_ENCRYPT_IV) ENCRYPT_IV=$v ;;
@@ -36,6 +38,13 @@ while IFS='=' read -r k v; do
 done <<< "$ENV_CONTENT"
 
 [ -n "$BARK_KEY" ] && [ -n "$ENCRYPT_KEY" ] && [ -n "$ENCRYPT_IV" ] || exit 0
+
+PUSH_URL=${PUSH_URL:-https://api.day.app/$BARK_KEY}
+# 秘密 route の誤設定を HTTP に送らず、URL を診断出力へ残さない。
+case "$PUSH_URL" in
+  https://*) ;;
+  *) exit 0 ;;
+esac
 
 INPUT=$(cat)
 
@@ -71,4 +80,4 @@ CIPHERTEXT=$(printf '%s' "$PAYLOAD" | openssl enc -aes-256-cbc -K "$KEY_HEX" -iv
 curl -s \
   --data-urlencode "ciphertext=${CIPHERTEXT}" \
   --data-urlencode "iv=${ENCRYPT_IV}" \
-  "https://api.day.app/${BARK_KEY}" &
+  "$PUSH_URL" >/dev/null 2>&1 &
