@@ -218,7 +218,9 @@ xcodebuild -project MCPHost.xcodeproj -scheme MCPHost -configuration Release \
   -allowProvisioningUpdates archive
 ```
 
-Xcode 26.3、Appleアカウント登録、Team `KK42DL23GH`の自動署名設定は確認済み。現在はloginキーチェーンがロックされ、証明書の自動インストールが`DVTSecErrorDomain -61 / Write permissions error`で失敗する。本人がminiのキーチェーンアクセスでloginを解除してから同じarchiveを再実行する。パスワードをSSHの引数・ログへ渡さない。開発用archiveの成功後、配布用証明書とAd Hoc profileを`-exportArchive`でも確認する。現時点ではminiでの署名済みarchive・IPA exportは未完了。
+通常の準備はminiのXcodeでAppleアカウントを登録し、Team `KK42DL23GH`と自動署名を選ぶ。SSHからのビルドも同じ設定を使うが、実行コンテキストが署名用の秘密鍵をキーチェーンから利用できる必要がある。パスワードをSSHの引数・ログへ渡さない。
+
+現在、Xcode 26.3でのarchiveは「このMac用のApple Development証明書はあるが、その秘密鍵がキーチェーンにない」というエラーで失敗する。有効な署名identityは0件。本人のGUI解除後もSSHでは利用不可だったが、SSHとGUIのユーザーはともにgigun、参照先も`/Users/gigun/Library/Keychains/login.keychain-db`で一致した。単なるTeam未選択や別ユーザーへのインストールではない。XcodeのManage Certificatesで既存の証明書・秘密鍵の組を復元できるか確認し、再作成が必要なら該当証明書を特定して扱う。証明書の失効、権限緩和、自動ロック無効化は行っていない。開発用archiveの成功後、配布用証明書とAd Hoc profileを`-exportArchive`でも確認する。miniでの署名済みarchive・IPA exportは未完了。
 
 ### Cloudflareのアプリ配布
 
