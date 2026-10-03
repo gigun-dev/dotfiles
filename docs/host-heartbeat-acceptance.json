@@ -1,0 +1,58 @@
+{
+  "checkedAt": "2026-10-03T10:40:35.972Z",
+  "scope": "Independent host heartbeat to deployed hub; no destructive production fault injection",
+  "hubEndpoint": "https://hub-monitor.097969.xyz/uptime/heartbeat",
+  "sourceBaseCommit": "6361883",
+  "candidateSourceCommit": "fae0dbd",
+  "nativeLinuxBuild": "passed",
+  "vm": {
+    "deployedAt": "2026-10-03T10:38:32.510Z",
+    "system": "/nix/store/imsa4wawq5r0cxqxnkmz3g3grw4xaywm-nixos-system-mini-vm-26.11.20260926.f9bce96",
+    "timerActive": true,
+    "serviceResult": "success",
+    "naturalLatestRunStartedAt": "2026-10-03T10:40:32Z",
+    "naturalLatestRunFinishedAt": "2026-10-03T10:40:32Z",
+    "observedAt": 1791024032256,
+    "lastAcceptedAt": 1791024032735,
+    "tunnel": "ok",
+    "service": "ok",
+    "functional": "unknown",
+    "readyHttp": 200,
+    "readyConnections": 4,
+    "codexHealthzHttp": 200,
+    "langfuseDatabaseHealthHttp": 200,
+    "snapshotMode": "0600",
+    "initialStartupObservation": "The first ordinary collection during metrics service restart truthfully reported unavailable readiness; subsequent natural intervals returned tunnel=ok."
+  },
+  "mac": {
+    "pythonVersion": "3.9.6",
+    "privateStagingPrepared": true,
+    "plistSyntaxPassed": true,
+    "installerShellSyntaxPassed": true,
+    "manualPreviewObservedAt": 1791023792571,
+    "manualPreviewLastAcceptedAt": 1791023792993,
+    "systemDaemonInstalled": false,
+    "boundary": "OS sudo authentication required; one prepared installer performs placement and new launchd receipt verification, no credential input requested"
+  },
+  "checks": {
+    "senderFixturesPassed": 25,
+    "registrationFixturesPassed": 17,
+    "sshFixturesPassed": 6,
+    "sharedVerify": "passed",
+    "liveProductionUserAgent": "dotfiles-host-heartbeat/1",
+    "liveAcceptedSources": [
+      "mac manual preview",
+      "mini-vm natural timer"
+    ],
+    "payloadFields": 8,
+    "localDetailsIncludedInPayload": false
+  },
+  "preservation": {
+    "bridgePidBeforeAndAfter": 1170,
+    "langfuseVersion": "4.46.0",
+    "verifiedFiveVolumeColdBackupRetained": true,
+    "safeRollbackGuardAndBarkHelperRetained": true,
+    "productionMacOrVmShutdownInjected": false
+  },
+  "responsibility": "Hub owner verifies D1 history, Queue/Bark deliveries and rendered status; device notification display remains unverified."
+}
