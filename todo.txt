@@ -31,5 +31,7 @@
 (C) 2026-09-15 brew cask の sf-symbols に sfsymbols CLI が入っているか確かめ、入っていれば cask 宣言へ寄せる(入っていなければ新規ホストは developer.apple.com から手で入れる必要がある旨を残す) +infra @device id:0043
 (B) 2026-09-19 mini-vm を nix.buildMachines に宣言し、M4 Pro から x86_64-linux の変更を remote build で検証できるようにする(nix daemon は root なので root の SSH 鍵・known_hosts も要る。nixosConfigurations.mini-vm のビルドが手元で通ること) +mini-vm @device see:docs/mini-vm.md id:0044
 2026-09-19 codex-openai-bridge-refresh の成否を健全性ゲートに含めるか決める(現状は Bark 通知のみ。ゲートに入れると uvx の版が原因で nix generation が rollback される副作用があり、それを避けたのが分離の理由) +mini-vm see:docs/adr/0006-track-uvx-versions-outside-nix.md id:0045
-2026-09-19 codex-bridge の版検出が unknown に落ちたまま毎日 try-restart を打ち続ける状態を塞ぐ(uv のキャッシュレイアウト変更で壊れ得る。unknown が連続したら再起動をやめて通知する) +mini-vm see:docs/adr/0006-track-uvx-versions-outside-nix.md id:0046
+2026-09-19 版検出に失敗した際の不要な再起動でチャット接続を切らないよう検証済み修正を統合し自然な日次確認で非再起動と復旧を受け入れる +mini-vm see:docs/adr/0006-track-uvx-versions-outside-nix.md id:0046
 2026-09-19 CLAUDE.md の「コメントはコードと同量レベルでベッタベタに書く」を .claude/rules/comments.md の現行方針(必要十分に書く。多いほど良いではない)へ合わせる(2026-09-05 に rule 側を改訂した際の取り残し。2026-09-19 に実際に古い方針で subagent へ指示してしまった) +docs id:0047
+(B) 2026-10-03 候補tokenをhub本番sourceへ登録しMac/VMへ配置して、自然heartbeat・boot履歴・実停止/復旧と端末表示を承認後に受け入れる +monitoring see:docs/monitoring-follow-up-2026-10-03.md id:0056
+(C) 2026-10-03 準備済みのSSH経路継続採取を有効化して過去タイムアウト/接続拒否と相関し、hub側の経路観測契約・途絶/復旧履歴を受け入れる +mini-vm see:docs/monitoring-follow-up-2026-10-03.md id:0057
