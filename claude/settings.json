@@ -254,7 +254,8 @@
     "workers-fetch@gigun": true,
     "japanese-tech-writing@gigun": true,
     "todo@gigun": true,
-    "langfuse@gigun": true
+    "langfuse@gigun": true,
+    "asc@rorkai": true
   },
   "extraKnownMarketplaces": {
     "agent-browser": {
@@ -327,6 +328,12 @@
       "source": {
         "source": "github",
         "repo": "supabase/agent-skills"
+      }
+    },
+    "rorkai": {
+      "source": {
+        "source": "github",
+        "repo": "rorkai/app-store-connect-cli-skills"
       }
     }
   },
