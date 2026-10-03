@@ -30,3 +30,4 @@ x 2026-10-03 2026-10-03 2秒でtimeoutするCodex CLIを避けて既存ソケッ
 x 2026-10-04 2026-10-03 Tailscaleポリシーを公開権限定義とageの識別子・配布先IPに分けて公式providerへimportし本人端末のOTA HTTPS許可を適用した（取り込み前後の変更なしplan・API接続テスト・既存権限維持を確認、Safari実機確認はSwiftのOTAタスク） +network see:docs/mini-vm.md id:0064
 x 2026-10-04 2026-10-04 Codex globalの作業継続とタスク更新ルールを重複削減し、状態変化時の記録責任を英語で明確にする +codex @unattended id:0066
 x 2026-10-04 2026-10-04 miniのGUIセッションで生成した版4のAd Hoc IPAについて署名・有効期限・対象iPhone/iPadを確認し、運用記録を更新する（archive・export成功、失効不要） +distribution see:docs/mini-vm.md id:0065
+x 2026-10-04 2026-10-04 MacBookとminiのASC CLI導入を宣言・記録し、版と実行経路を検証する +distribution see:docs/mini-vm.md id:0067
