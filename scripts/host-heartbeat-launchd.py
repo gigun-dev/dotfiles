@@ -24,5 +24,7 @@ plist = {
     "RunAtLoad": True,
     "StartInterval": 60,
     "ProcessType": "Background",
+    "Umask": 0o077,
+    "StandardErrorPath": "/var/lib/host-heartbeat/error.log",
 }
 plistlib.dump(plist, sys.stdout.buffer)
