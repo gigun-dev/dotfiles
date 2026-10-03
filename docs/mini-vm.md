@@ -183,6 +183,14 @@ mini-vm には性質の違う 2 つの信頼経路があり、1 本に両方を�
 AES-256-CBC `ciphertext` / `iv` を受け付けるので、端末の鍵・IV と揃える。
 HTTP 成功と JSON `code=200` は受付の確認で、端末表示の確認とは区別する。
 
-## 2026-10-03 スマホ再接続の現状
+## スマホからのCodex接続とペアリング
 
-Codex CLI 0.160.0、codex-remote-controlはactive、control socketあり、ChatGPT login statusは認証済み。しかしremote-control pairは応答待ちでtimeoutする。稼働プロセスに実行中の子作業が無いことを確認してサービスを一度再起動したが、ソケット作成後の再試行もtimeoutした。モデルAPIは同じ認証でProから200、VMからも200（7.40秒）。サービスのモデル一覧更新はtimeoutを記録する。サービスactiveだけではスマホ接続可能と扱わず、ペアリング発行と本人の接続確認を残す。iPhoneのTailscale ACLとは別の、VMからOpenAIへのリレー接続経路を調べる。
+既存codex-remote-controlはOpenAIリレーへのアウトバウンド接続であり、iPhoneのTailscaleタグを必要としない。端末のペアリング登録を保持し、短命のコードは必要時に発行する。
+
+Codex 0.160.0の`remote-control pair`はcontrol socketのRPC応答を2秒で打ち切る（上流`app-server-daemon/src/client.rs`）。サーバーのペアリングHTTP上限は30秒（`app-server-transport/src/transport/remote_control/enroll.rs`）。2026-10-03は標準プロトコルの直接要求が3.1秒で成功したため、CLIだけが先にtimeoutした。再起動やiPhoneのタグ変更では解決しない。
+
+```sh
+uv run scripts/codex-pair.py
+```
+
+ローカルからSSHで既存の0600 Unix socketへ一時転送し、同じinitialize／remoteControl/pairing/startを40秒上限で実行する。公開ポート・追加常駐・秘密の保存は増やさない。応答の認証情報を出力せず、本人が入力するコードと期限だけ表示する。成功・失敗のどちらでも一時SSH転送を終了する。CLI本体が修正されたらこの回避コードは削除する。
