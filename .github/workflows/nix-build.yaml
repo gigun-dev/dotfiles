@@ -44,6 +44,7 @@ jobs:
               - 'nix/**'
               - 'scripts/verify.sh'
               - 'scripts/tests/codex-bridge-refresh.py'
+              - 'scripts/tests/dotfiles-autoswitch.py'
               - 'scripts/host-heartbeat*.py'
               - 'scripts/prepare-host-heartbeat-registration.py'
               - 'scripts/ssh-path-observe.py'
@@ -72,6 +73,14 @@ jobs:
       # (nix を触らない PR では paths-filter に弾かれて job 自体が走らず、
       #  赤いことに気づけなかった)。
       # pre-push と入口を共有し、検証コマンドの片側だけが変わることを防ぐ。
+      - name: Report isolated NixOS test acceleration
+        run: |
+          if [ -c /dev/kvm ] && [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
+            echo 'KVM is available for the isolated NixOS lifecycle test.'
+          else
+            echo 'KVM is unavailable; the lifecycle test is not validated on this runner.'
+          fi
+
       - name: Nix flake and fmt check
         run: sh scripts/verify.sh
 
