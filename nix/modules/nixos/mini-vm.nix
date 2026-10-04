@@ -139,7 +139,10 @@ let
   # 予定枠は開始時に固定し、exec で新世代へ渡しても完了時刻で作り直さない。
   jobHeartbeat = pkgs.writeShellScript "dotfiles-job-heartbeat" ''
     export SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
-    exec ${pkgs.python3}/bin/python3 ${../../../scripts/job-heartbeat.py} "$@"
+    export CURL_CA_BUNDLE="$SSL_CERT_FILE"
+    # 新世代helperはその世代のcurlを使い、旧coordinatorのPATHに依存しない。
+    exec ${pkgs.python3}/bin/python3 ${../../../scripts/job-heartbeat.py} \
+      --curl-path ${pkgs.curl}/bin/curl "$@"
   '';
 
   autoswitchPath = lib.makeBinPath (

@@ -23,6 +23,15 @@ Mac/VMの生存報告と公開Codex・Langfuseの検査、停止・復旧履歴�
 渡さないため、送信時に秘密を読まずHTTP通信もしない。環境変数で有効化する口はない。
 既存の失敗通知、H0/Bark経路、timerの時刻は変更していない。
 
+有効化前のtransport互換性を揃えるため、3ジョブ共通senderはhub CI callerと同じ標準curlを使う。
+同じhubドメインのCI送信でurllibが拒否された事例を踏まえた準備であり、ジョブ用 `/heartbeat`
+が本番で拒否されたと確認したものではない。生存heartbeat senderはこの変更の対象外。
+Nix wrapperは選択世代のcurl絶対パスとCA bundleを固定し、旧coordinatorのPATHに依存しない。
+curl 8.4以上、curlrc無効、HTTPS限定・証明書検証・redirect/proxy不使用とし、UAは偽装しない。
+Bearerと本文はstdinだけに渡し、接続/全転送10秒・子process15秒・最大3回・応答4KiBで制限する。
+202とJSON受付成功の両方を確認し、403やTLS検証失敗に別transportで再挑戦しない。
+OFF時はtoken読取だけでなくcurlのversion照会・起動も行わない。
+
 - autoswitchは固定revisionのsystem・home・health gateと最終世代照合の後だけ送信候補になる。
   coordinatorの同一invocationから新世代helperへ開始receiptを渡す。rollback後のgate成功は
   更新成功として扱わず、旧coordinatorからの移行でreceiptが無い実行も送らない
