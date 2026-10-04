@@ -11,21 +11,22 @@ Mac/VMの生存報告と公開Codex・Langfuseの検査、停止・復旧履歴�
 通信形式とsender運用は [host-heartbeat.md](host-heartbeat.md)、監視・配送の現在地は
 [hubの運用記録](../../hub/docs/uptime-current-operation-2026-10-03.md)を参照。
 
-`dotfiles-autoswitch`・`dotfiles-lock-propose@fast`・`@slow` のジョブ成功heartbeatは
-未配備で、`todo.txt` の0005に残る。ホストの生存報告だけではtimerの不発を検知できない。
-正常終了（差分なしを含む）・途絶・復旧・計画停止・二重配信防止の確認が必要である。
+`dotfiles-autoswitch`・`dotfiles-lock-propose@fast`・`@slow` のジョブ成功heartbeatは、
+2026-10-04 19:29 UTCまでにhubとmini-vmへの適用を確認した。
+[配備記録・CI・次の自然枠](job-heartbeat-activation.md)を参照。
+`todo.txt` の0005は未完了で、正常終了（差分なしを含む）・途絶・復旧・計画停止・
+二重配信防止・本人iPhone表示の実受入が残る。D1の初期healthyは成功receiptの証拠ではない。
 
-
-## ジョブ成功 heartbeat の準備（todo0005、既定OFF）
+## ジョブ成功 heartbeat の仕様（todo0005、module既定OFF）
 
 `scripts/job-heartbeat.py` はhub H1b用の3系統共通sender。開始時にUTC予定枠とrunIdを固定し、
 同じreceiptを成功時の再試行にも使う。`services.dotfiles-job-heartbeat` は既定でOFF、
-endpointはnull、tokenFilesは空。mini-vmの有効化候補はこの既定値を明示的に上書きするが、
-[配備前提](job-heartbeat-activation.md)が揃うまでは未配備として扱う。
+endpointはnull、tokenFilesは空。mini-vmではこの既定値を明示的に上書きしてONにし、
+3 source専用credentialとhub scheduleを適用済み。
 OFFではcredentialの解決・stat・読取、curl起動、HTTP通信を行わない。
 既存の失敗通知、H0/Bark経路、timerの時刻は変更していない。
 
-有効化前のtransport互換性を揃えるため、3ジョブ共通senderはhub CI callerと同じ標準curlを使う。
+transport互換性を揃えるため、3ジョブ共通senderはhub CI callerと同じ標準curlを使う。
 同じhubドメインのCI送信でurllibが拒否された事例を踏まえた準備であり、ジョブ用 `/heartbeat`
 が本番で拒否されたと確認したものではない。生存heartbeat senderはこの変更の対象外。
 Nix wrapperは選択世代のcurl絶対パスとCA bundleを固定し、旧coordinatorのPATHに依存しない。
@@ -40,9 +41,9 @@ OFF時はtoken読取だけでなくcurlのversion照会・起動も行わない�
 - lock-fast/slowは差分なし、または両build・push・PR更新・auto-merge設定の成功で送信候補になる。
   GitHub CI/merge完了やsystemへの適用完了は意味しない
 - sender失敗はjournalに秘密を含まない固定文を残す。正常な適用をrollbackしたり、
-  既存OnFailure経路で重ねて通知したりせず、将来有効化するhub側の欠測判定に任せる
+  既存OnFailure経路で重ねて通知したりせず、hub側の欠測判定に任せる
 
-設定例（準備用、OFFのまま。値を配置しただけでは有効化しない）:
+設定例（moduleのOFF例。適用済みmini-vmのON宣言とは別）:
 
 ```nix
 services.dotfiles-job-heartbeat = {
@@ -59,9 +60,9 @@ services.dotfiles-job-heartbeat = {
 ONには公開HTTPS `/heartbeat` endpointと3系統それぞれの異なるruntime pathが必須。
 pathはNix path literalではなく文字列で指定する。未知source、Nix store、相対path、
 改行・specifier・曖昧なpath、認証情報・query付きURLは評価時に拒否する。
-`secrets/job-heartbeat-{autoswitch,fast,slow}.age` の作成・hub登録・agenix宣言は別の配備段階。
+`secrets/job-heartbeat-{autoswitch,fast,slow}.age` の作成・hub登録・agenix配置は承認下で完了した。
 受付登録の候補だけを作るローカル手順は [job-heartbeat-registration.md](job-heartbeat-registration.md)。
-予定する所有権はautoswitchがroot:root 0400、fast/slowがgigun:users 0400。
+確認済みの所有権はautoswitchがroot:root 0400、fast/slowがgigun:users 0400。
 本来のjobがcredential欠落・権限エラーで起動不能になるのを避けるため、
 `LoadCredential` や `SetCredential` は使わず、成功後のsenderだけがファイルを開く。
 欠落・不正・読取不可は固定文の警告だけになり、jobの終了状態は変えない。
@@ -79,20 +80,16 @@ switchで旧agenix世代は消えるため、開始時に実体pathへcanonicali
 最終leafがsymlinkのcustom aliasは非対応。senderはregular-file、private mode、
 rootまたは実行UID所有を検証し、秘密をargv・環境変数・journalへ出さない。
 
-有効化前に必要な判断と受入:
+残る受入と運用上の境界:
 
-1. 3 source専用credentialの既存有無を値を表示せず照合する。生存用mac/mini-vm tokenは
-   流用しない。未存在なら発行・hub登録・agenix配置を承認後に行う。通常senderに
-   monitorControlを付けず、計画停止は別管理credentialで扱う
-2. 2026-10-04の実機read-only照合ではVM timezoneはUTC、3 timerはenabled/active/waiting、
-   Persistent=yes、jitter30分・accuracy1分。hub候補（毎日04:00/01:00、日曜02:00、
-   猶予105/135/135分）と一致する。OnCalendarのTZ明記なしと周期は維持し、配備時にも再照合する
-3. hubのUPTIME_JOB_SCHEDULESは別途承認して登録し、最初の対象枠より前にD1初期化を確認する。
-   本senderは開始時点の直近UTC枠を選ぶ。Persistent追いつき実行と手動実行の扱いも照合する
-4. 既存の即時失敗通知は維持する。H1b欠測との相関を決めないまま、両経路の
-   二重配信防止済みとは扱わない
-5. 正常/差分なし/途絶/復旧、pause/resume/期限自動再開、再送重複防止を確認する。
-   hub受付・H0/APNs受付・本人iPhone表示は分けて記録し、実機強制停止を試験に使わない
+1. 自然実行で正常終了（差分なしを含む）とhub成功receiptを確認する。
+   hub受付・H0/Bark/APNs受付・本人iPhone表示は分けて記録する
+2. 途絶・復旧と再送重複防止を確認する。既存の即時失敗通知は維持し、H1b欠測との相関を
+   決めないまま両経路の二重配信防止済みとは扱わない。実機強制停止を試験に使わない
+3. 計画停止のpause/resume/期限自動再開は今後の受入とする。通常senderはmonitorControlなしで、
+   今回は追加の管理credentialを発行していない
+4. senderは開始時点の直近UTC枠を選ぶ。Persistent追いつき実行と手動実行の扱いは引き続き照合する。
+   配備時に確認したUTC・既存timerの周期・jitter最大30分・accuracy1分は変更しない
 
 合成試験は `scripts/tests/job-heartbeat.py`、`job-heartbeat-activation.py`、
 `lock-propose-heartbeat.py` と既存 `dotfiles-autoswitch.py`。外部HTTPはfake transportのみ。
