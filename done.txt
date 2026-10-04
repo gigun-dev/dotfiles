@@ -32,3 +32,4 @@ x 2026-10-04 2026-10-04 Codex globalの作業継続とタスク更新ルール�
 x 2026-10-04 2026-10-04 miniのGUIセッションで生成した版4のAd Hoc IPAについて署名・有効期限・対象iPhone/iPadを確認し、運用記録を更新する（archive・export成功、失効不要） +distribution see:docs/mini-vm.md id:0065
 x 2026-10-04 2026-10-04 MacBookとminiのASC CLI導入を宣言・記録し、版と実行経路を検証する +distribution see:docs/mini-vm.md id:0067
 x 2026-10-04 2026-10-04 miniの署名とASC MCP配布の現行運用を反映し、一時ビルドの古い案内を整理する +distribution see:docs/mini-vm.md id:0068
+x 2026-10-04 2026-10-04 mini-vm 自動更新器の自己再起動を防ぎ、同じ invocation で新世代の固定ソースから home-manager と健全性確認まで完了する修正を回帰検証し本番反映する +mini-vm id:0069
