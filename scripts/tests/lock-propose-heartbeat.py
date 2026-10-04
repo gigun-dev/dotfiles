@@ -4,8 +4,10 @@ import os
 from pathlib import Path
 import shlex
 import shutil
+import signal
 import subprocess
 import tempfile
+import time
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -127,11 +129,28 @@ esac
         unit = SOURCE.split('systemd.services."dotfiles-lock-propose@" =', 1)[1].split('\n  };', 1)[0]
         self.assertIn('ConditionPathExists = "${dotfilesDir}/flake.nix";', unit)
         self.assertNotIn("ExecStartPost", unit)
-        self.command("nix", "sleep 10\n")
-        with self.assertRaises(subprocess.TimeoutExpired):
-            subprocess.run(["bash", str(self.script), "fast"], env=self.env,
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.2)
-        self.assertNotIn("heartbeat --receipt", (self.root / "calls").read_text())
+        # Deliberately exceed the old startup timeout before entering the blocked stage.
+        self.command("nix", 'sleep 0.3; echo started > "$FIXTURE/nix-started"; exec sleep 30\n')
+        started = self.root / "nix-started"
+        process = subprocess.Popen(["bash", str(self.script), "fast"], env=self.env,
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                   start_new_session=True)
+        try:
+            deadline = time.monotonic() + 30
+            while not started.exists() and process.poll() is None and time.monotonic() < deadline:
+                time.sleep(0.02)
+            self.assertTrue(started.exists(), "Fixture did not reach the blocked nix stage")
+            with self.assertRaises(subprocess.TimeoutExpired):
+                process.wait(timeout=0.2)
+        finally:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait(timeout=5)
+        calls = (self.root / "calls").read_text()
+        self.assertIn("begin mini-vm-lock-fast", calls)
+        self.assertNotIn("heartbeat --receipt", calls)
 
 
 if __name__ == "__main__":
