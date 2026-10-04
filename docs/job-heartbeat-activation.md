@@ -1,26 +1,62 @@
-# ジョブ heartbeat 有効化候補の配備前提
+# ジョブ heartbeat の配備記録と残る受入
 
-この候補は承認済みの3暗号文を含む。mini-vmの宣言はONへ変わるため、
-下記のbackend前提が揃うまでmerge・switchしない。既存の即時失敗通知とtimerの周期は変更しない。
+2026-10-04 19:29 UTCまでに、hubとmini-vmの3ジョブ監視の適用を確認した。
+`todo.txt` の0005は未完了。配備・初期化の確認と、自然実行・実通知の受入を区別する。
 
-1. 承認済みMac担当が既存recipient `all` で3つの暗号文を作成し、同じ候補へ追加した。
-   token平文はGitに含めない
-   - `secrets/job-heartbeat-autoswitch.age`
-   - `secrets/job-heartbeat-fast.age`
-   - `secrets/job-heartbeat-slow.age`
-2. hubに各sourceの専用credentialを登録し、既存登録を維持したまま
-   owner=homelab、destination=bark、monitorControlなしを確認する
-3. hubの3 scheduleを登録し、最初の対象枠より前の初期化を確認する。
-   UTC daily04:00/daily01:00/Sun02:00、猶予105/135/135分をVMのtimerと再照合する。
-   受付登録だけでsenderを先にONにしない
-4. 完成した同一commitでNix評価・fmt・build・全fixtureとrequired CIを通す。
-   欠けた暗号文のplaceholderや別source tokenで検証を済ませない
-5. switch後、標準 `/run/agenix/` のregular-file leafと所有者・0400を値なしで確認する。
-   autoswitchはroot:root、fast/slowはgigun:users。新しいtoken本文をログやチャットへ出さない
-6. 旧OFF invocationから新ON helperへ切り替えた回は送信しない仕様を維持する。
-   正常/差分なし/途絶/復旧・重複防止の受入は次の対象実行で別途記録する。
-   hub受付、APNs受付、本人iPhone表示は区別し、既存失敗通知を残す
+## 適用済み
 
-moduleの既定値はOFFのまま。`nix/tests/job-heartbeat-config.nix` はmodule単体の既定値と、
-明示的なpriority overrideによるOFF/ON/不正設定を分けて検証する。
-実機設定がONでも、テスト中の欠けた項目が実機設定から補われないようにする。
+以下の稼働情報は、backend適用・D1照合とMac経由の実機適用報告による。
+次節のPR/CIは独立して参照できる検証資料であり、実機適用や実通知の証明ではない。
+
+- dotfiles [PR #37](https://github.com/gigun-dev/dotfiles/pull/37) を
+  `2ee26c377dd4bf7a292d8dea6f921cf1a1ccdcfa` としてmergeし、mini-vmへ適用した。
+  承認済みMac作業で既存recipient `all` に暗号化した
+  `secrets/job-heartbeat-{autoswitch,fast,slow}.age` を使用し、token平文はGitに含めない
+- hub [PR #8](https://github.com/gigun-dev/hub/pull/8) のmerge revisionは
+  `724e88b76d679aebcbcf43b724310a1d5c38ba1e`、適用Worker versionは
+  `c2973135-ac7c-4e41-9e63-0644124645a9`。
+  3 source専用credentialはowner=homelab・destination=bark・monitorControlなしで登録し、
+  既存4件を維持した。3 scheduleも適用済み
+- 2026-10-04 19:11:02 UTCの自然Cronで、対象3件のD1定義が初期化された。
+  いずれもhealthy・version=0・lastSuccess=null・receipt=0。
+  このhealthyは初期状態であり、ジョブ成功や通知到達の証拠ではない
+- mini-vmは上記dotfiles revisionでclean、system generation 72。
+  systemは `/nix/store/r4wf9pml0k24qph31ik13h46vddlvmna-nixos-system-mini-vm-26.11.20260930.c9fe7d1`、
+  homeは `/nix/store/d3mw2f2zya459nf9snn4q3y4rfgzr24p-home-manager-generation`。
+  system・homeのhealth gateを通過し、Langfuseのimage pairは変更していない
+- 標準 `/run/agenix/` の3 credentialはregular-file leaf・0400。
+  autoswitchはroot:root、fast/slowはgigun:usersで確認済み。
+  ON snapshotの3 source・endpointを確認し、timer・timeout・既存即時失敗通知は維持した。
+  3 timerはenabled/active/waiting・Persistent=yes、VMはUTCでOnCalendarのTZ明記なしも維持した
+- 適用後のCronはhealthy、既存hostの報告はfresh、既存CI #120監視はhealthy。
+  outboxのpending/retry/failedは無かった。3ジョブの自然実行はまだ観測していない
+
+## CIの検証範囲
+
+[PR head `0733cb5` のCI](https://github.com/gigun-dev/dotfiles/actions/runs/37226281980) と
+[merge後 `2ee26c3` のmain CI](https://github.com/gigun-dev/dotfiles/actions/runs/37227540659) は成功。
+108 fixtures、Nix config検証、fmt（25ファイル・変更0）、KVM lifecycle、system/home buildを確認した。
+合成試験・CIの成功は、自然timerの成功receipt、missed/recovery通知、本人iPhone表示を代替しない。
+
+moduleの既定値はOFFのまま、mini-vmの宣言で明示的にONへ上書きしている。
+`nix/tests/job-heartbeat-config.nix` はmodule単体の既定値と、明示的なpriority overrideによる
+OFF/ON/不正設定を分けて検証し、実機設定からテストの欠けた項目を補わない。
+
+## 次の自然枠と未完了の受入
+
+予定枠はUTC、既存timerのjitterは最大30分。hubの猶予は各予定枠から数える。
+
+| source | 適用後最初の予定枠（UTC） | 周期 | 猶予 |
+| --- | --- | --- | --- |
+| mini-vm-lock-fast | 2026-10-05 01:00 | 毎日01:00 | 135分 |
+| mini-vm-autoswitch | 2026-10-05 04:00 | 毎日04:00 | 105分 |
+| mini-vm-lock-slow | 2026-10-11 02:00 | 日曜02:00 | 135分 |
+
+- 旧OFF invocationから新ON helperへ切り替えた回は送信しない。次の対象実行から、
+  正常終了（差分なしを含む）とhubの成功receiptを確認する
+- 途絶・復旧、再送重複防止、既存即時失敗通知との二重配信防止は実受入未完了。
+  hub受付・H0/Bark/APNs受付・本人iPhone表示を分けて記録し、実機強制停止を試験に使わない
+- 計画停止のpause/resume/期限自動再開は今後の受入。通常senderへmonitorControlを付けず、
+  この適用では追加の管理credentialを発行していない
+
+sender仕様と残る運用上の判断は [notifications.md](notifications.md) を参照。
