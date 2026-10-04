@@ -164,16 +164,22 @@ let
       echo "autoswitch: helper の source revision が選択した commit と違う" >&2
       exit 1
     }
-    [ "$(readlink -f /run/current-system)" = "$selected_system" ] || {
-      echo "autoswitch: system generation が引継ぎ前に変わった" >&2
-      exit 1
+    # 排他lockではないが、手動switchした別世代を成功扱い・復帰対象にしない。
+    require_selected_system() {
+      [ "$(readlink -f /run/current-system)" = "$selected_system" ] || {
+        echo "autoswitch: system generation が後半処理中に変わった" >&2
+        return 1
+      }
     }
+    require_selected_system
     ${pkgs.sudo}/bin/sudo -u ${username} ${homeManager}/bin/home-manager \
       switch --flake "${dotfilesSource}#${username}-x86_64-linux"
+    require_selected_system
 
     # 「switch は成功したが使えない」を検出する。DB を移行する image の対が
     # 不変の場合だけ開始時の実稼働先へ戻し、戻した先でもゲートを回す。
     if ! ${generationHealthGate}; then
+      require_selected_system
       if ! rollback_system=$(${rollbackTarget} "$previous_system" /run/current-system ${langfuseRollbackSafe}); then
         echo "健全性ゲートが失敗。Langfuse の DB 保持のため現世代を維持し、自動 rollback を停止する" >&2
         exit 1
@@ -187,6 +193,7 @@ let
       # flake モードでは実装されておらず `<nixpkgs/nixos>` を NIX_PATH に
       # 探しに行って失敗する。profile を開始時の実稼働先に設定して
       # switch-to-configuration を直接叩き、retry で移行前へ遡らないようにする。
+      require_selected_system
       nix-env --set "$rollback_system" -p /nix/var/nix/profiles/system
       "$rollback_system/bin/switch-to-configuration" switch
       if [ -x "$rollback_system/etc/dotfiles-autoswitch/health-gate" ] \
@@ -197,6 +204,7 @@ let
       fi
       exit 1
     fi
+    require_selected_system
     echo "autoswitch: system + home + gate 完了" >&2
   '';
 
