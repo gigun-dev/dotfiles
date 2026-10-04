@@ -559,6 +559,17 @@ in
     tunnelUnit = "cloudflared-tunnel-5b8ec787-4730-4b2b-87b8-e86acbd3954b.service";
   };
 
+  # Apply only after hub registration and all three schedule definitions are initialized.
+  services.dotfiles-job-heartbeat = {
+    enable = true;
+    endpoint = "https://hub-monitor.097969.xyz/heartbeat";
+    tokenFiles = {
+      mini-vm-autoswitch = config.age.secrets.job-heartbeat-autoswitch.path;
+      mini-vm-lock-fast = config.age.secrets.job-heartbeat-fast.path;
+      mini-vm-lock-slow = config.age.secrets.job-heartbeat-slow.path;
+    };
+  };
+
   # Lima のインスタンス名・tailnet 名・hostname はすべて mini-vm に揃えてある
   # (mini は macOS 側を指すので、取り違えると事故る)。
   # なお switch では稼働中の hostname は変わらず、次回 boot から反映される。
@@ -1023,6 +1034,27 @@ in
     codex-bridge-config = {
       file = ../../../secrets/codex-bridge-config.toml.age;
       path = "/var/lib/codex-bridge/config.toml";
+      owner = username;
+      group = "users";
+      mode = "0400";
+    };
+
+    # Keep regular-file leaves under the standard agenix directory; custom aliases
+    # would conflict with the sender's O_NOFOLLOW check.
+    job-heartbeat-autoswitch = {
+      file = ../../../secrets/job-heartbeat-autoswitch.age;
+      owner = "root";
+      group = "root";
+      mode = "0400";
+    };
+    job-heartbeat-fast = {
+      file = ../../../secrets/job-heartbeat-fast.age;
+      owner = username;
+      group = "users";
+      mode = "0400";
+    };
+    job-heartbeat-slow = {
+      file = ../../../secrets/job-heartbeat-slow.age;
       owner = username;
       group = "users";
       mode = "0400";
