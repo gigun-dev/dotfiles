@@ -41,42 +41,15 @@ macOS 側は generation 26 で凍結。設定変更は手で当てる。Xcode 26
 
 ## ディレクトリ構造
 
-```
-├── flake.nix                # エントリポイント
-├── bootstrap.sh             # nix なしの初期セットアップ
-├── nix/modules/
-│   ├── darwin/
-│   │   ├── system.nix       # macOS 設定（nix.settings, TouchID, system.defaults）
-│   │   ├── homebrew.nix     # casks / brews
-│   │   └── apple-container.nix # 公式 pkg を hash 固定して activation で導入
-│   ├── nixos/
-│   │   └── mini-vm.nix      # Mac Mini 上の Lima ゲスト（OS 層のみ。CLI は home/ を共用）
-│   └── home/
-│       ├── default.nix      # home-manager エントリ
-│       ├── packages.nix     # home.packages（グローバル CLI）
-│       ├── dotfiles.nix     # シンボリックリンク（mkOutOfStoreSymlink + home.activation）
-│       └── programs/
-│           ├── zsh/         # programs.direnv（programs.zsh は nix-darwin 側で管理）
-│           └── git/         # programs.git + programs.delta
-├── zsh/
-│   ├── .zshrc               # メイン設定（nix 非依存）
-│   └── functions/            # zsh 関数（ghq_fzf 等、permission は 755 必須）
-├── sheldon/plugins.toml      # sheldon プラグイン定義
-├── zeno/config.yml           # zeno snippets
-├── zed/keymap.json           # Zed エディタ keymap (Mac/Win 共通、Cursor 風 Cmd+J/L)
-├── git/gitconfig             # .gitconfig 実体 (Windows は DSC Script で symlink、Mac/Linux は programs.git で生成)
-└── windows/                  # Windows 11 用（詳細: windows/README.md）
-    ├── configuration.dsc.yaml # Single source of truth (winget configure)
-    ├── setup.ps1             # winget configure を呼ぶ薄いラッパ
-    ├── fonts/install.ps1     # JetBrains Mono Nerd Font
-    ├── hotkey/
-    │   └── mac-like.ahk      # Scancode Map + Mac 風 modifier + IME 変換 + WezTerm トグル
-    ├── kanata/kanata.kbd     # karabiner.json から移植 (現状未使用、将来 device 別 remap 用)
-    ├── tailscale/            # MSI 導入 + unattended mode 有効化
-    ├── tools/
-    │   └── keyboard-probe.ahk # 物理 VK/SC 実測ツール
-    ├── wsl/wslconfig         # WSL2 設定の実体
-    └── terminal/wezterm.lua  # WezTerm 設定の実体
+```text
+flake.nix / bootstrap.sh        # Nix と Nix なしの入口
+nix/modules/{darwin,nixos,home} # OS 層・共通 home-manager
+zsh/ / sheldon/ / zeno/         # shell・補完・snippets
+git/ / zed/                    # Git・editor 設定
+claude/ / codex/               # 配布するエージェント設定
+windows/                       # Windows 宣言・bootstrap (windows/README.md)
+infra/ / tofu/ / secrets/       # サービス・IaC・暗号化秘密
+docs/                          # 現行運用・ADR
 ```
 
 ## 設計原則
@@ -160,8 +133,7 @@ Mac Mini (Intel) のエージェント基盤は macOS 上の Lima ゲスト (Nix
 ## 情報の書き分け方針
 
 - **コード = How** / **テスト = What** / **コミットログ = Why** / **コメント = Why not**。
-- **コメントはコードと同量レベルでベッタベタに書く。** 詳細は `.claude/rules/comments.md`
-  (コード編集時に自動ロード)。
+- コメントは必要十分に書く。詳細は `.claude/rules/comments.md`。
 
 ## タスクと決定
 

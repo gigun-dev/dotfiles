@@ -1,4 +1,3 @@
-2026-09-10 全体指示がホスト間で共有されていない。~/.codex/AGENTS.md は実体ファイルで dotfiles 管理外、claude/CLAUDE.md と内容が別物(委譲・todo.txt・docs/adr の3項目が Codex 側に無い)。gigun-dev/claude-code の ADR 0003(スキル本文と CLI をホスト間で共有する)の思想を全体指示にも適用するか決める +claude id:0001
 (B) 2026-09-10 mini-vm の gh トークンを dotfiles 限定の fine-grained PAT に替え、agenix 経由で GH_TOKEN として注入する(branch protection を変更できず、lock 提案 PR は従来どおり作れること) +mini-vm @unattended old:DF-37 see:docs/mini-vm.md id:0002
 (A) 2026-09-10 対話用の gho_ トークンを縮める。まず realbind org が fine-grained PAT を許可しているか確認する(classic PAT では repo admin である限り admin 権限が付いてしまう) +mini-vm old:DF-37 see:docs/mini-vm.md dep:0002 id:0003
 (B) 2026-09-10 main への直 push が required CI をバイパスする状態を塞ぐ(push で "Bypassed rule violations" が出ず、変更は PR + required CI 経由でしか main に入らない。自動 merge レーンは従来どおり動くこと) +mini-vm old:DF-40 see:docs/adr/0003-update-mini-vm-through-lock-proposal-prs.md id:0004
@@ -10,9 +9,7 @@
 (C) 2026-09-10 再起動検証の手順を「上がったか」ではなく「使えるか」を見る型にする(健全性ゲートが最初の実装) +infra old:DF-12 see:docs/mini-vm.md id:0010
 (C) 2026-09-10 Kitesurf を chrome-devtools-mcp の --wsEndpoint から使えるか試す(mini からページ取得とスクショができること) +cloudflare-os old:DF-14 see:docs/cloudflare-os.md id:0011
 (C) 2026-09-10 Claude / opencode のサブスク枠をブリッジするかを、翻訳層の分量を見積もった上で決める +cloudflare-os old:DF-15 see:docs/cloudflare-os.md id:0012
-(C) 2026-09-10 SPEC.md の扱いを決めて実施する(案 A 凍結明記が推奨。現行仕様と誤読されない状態にする) +docs old:DF-2 id:0013
-(C) 2026-09-10 CLAUDE.md の「ディレクトリ構造」節を 39 行から 15 行程度へ圧縮する +docs old:DF-3 id:0014
-(C) 2026-09-10 CLAUDE.md の常時ロード量を予算内へ落とす(≒6352 tok / 予算 2000)。落とせないなら超過を許容する理由を書く +docs old:DF-32 id:0015
+(C) 2026-09-10 エージェントが古い運用指示を読み続けないよう、CLAUDE.mdと現行コード・専門docsの重複を削り、bootstrap順序やキャッシュ・OS固有制約を保持して常時ロード量を減らす +docs @unattended old:DF-32 id:0015
 (C) 2026-09-10 apple/container が再起動後に手を触れず apiserver running になることを確認する @device +infra old:DF-5 id:0016
 (C) 2026-09-10 cloudflare-os へ gatekeeper-mcp の固定 client_id 対応の issue を投稿する +cloudflare-os old:DF-30 see:docs/drafts/gatekeeper-mcp-static-client-id.md id:0017
 (C) 2026-09-10 Slack 書き込み gatekeeper を、upstream PR #95 の動向を見て着手・見送り・自前実装のどれかに決める +cloudflare-os old:DF-31 see:docs/cloudflare-os.md id:0018
@@ -23,12 +20,7 @@
 (A) 2026-09-11 Claude から Codex への実委譲で prompt-file が選ばれ、日本語・表・引用符・バッククォートが改変されず届くことを確認する +claude @unattended see:docs/agent-execution.md id:0025
 2026-09-11 実際の並列セッションで重い検証が1枠に収まり、単独/重複時の所要時間と失敗を再測定する +claude @unattended see:docs/agent-execution.md id:0029
 2026-09-11 ESP32 ホストテストの無条件再コンパイルによる所要を測定し、対象選択や ccache の導入が必要か決める +claude @unattended see:docs/agent-execution.md id:0030
-2026-09-11 セッションのログから体ごとの実時間・ツール数・Bash の内訳(build/test/git/その他)・同じコマンドの重複回数を出す道具を作る。2026-09-11 の時点で手で数えており、定期的な棚卸しができない +claude @unattended id:0031
-2026-09-11 CLAUDE.md に実データ駆動を足すか決める。2026-09-11 に 3 回、手元にあるデータを読まずに書いた(起動時刻を所要と読み違えて探索が遅くなっていると誤報、push の失敗を原因を追わずネットワークのせいにした、既定ビルドと文書の構成違いに気づかず実測を 2 本無駄にした)。既存の規約が足りないのか守れていないのかを見てから決める +claude @unattended id:0033
 2026-09-11 codex に worktree を使わせる。2026-09-11 に codex とみられる別セッションが esp32 の本線ツリーで作業しており、本線からは誰が何を触っているか見えなかった。同じツリーを複数の主体が触ると、本線がビルドして実機で測る対象が汚染される +claude @unattended id:0036
-2026-09-11 worktree で「Claude Code が自動でやること」と「こちらが手動でやること」の境界を書き出す。2026-09-11 の実測では自動は作成だけで、agent の変更のコミット(4 体中 3 体)・本線へのマージ(4 回、うち競合 1 回)・掃除(一度も走らず 43 個 19GB)・.worktreeinclude の設定(未設定でゼロから)は全部手動だった。Codex は worktree に入らないので本線のツリーを直接触る +claude @unattended id:0037
 2026-09-11 Claude の実 subagent で worktree-write-guard が発火し、本体と兄弟 checkout への Edit/Write を拒否することを確認する +claude @unattended see:docs/adr/0005-scope-worktrees-to-target-repositories.md id:0040
 (C) 2026-09-15 brew cask の sf-symbols に sfsymbols CLI が入っているか確かめ、入っていれば cask 宣言へ寄せる(入っていなければ新規ホストは developer.apple.com から手で入れる必要がある旨を残す) +infra @device id:0043
 (B) 2026-09-19 mini-vm を nix.buildMachines に宣言し、M4 Pro から x86_64-linux の変更を remote build で検証できるようにする(nix daemon は root なので root の SSH 鍵・known_hosts も要る。nixosConfigurations.mini-vm のビルドが手元で通ること) +mini-vm @device see:docs/mini-vm.md id:0044
-2026-09-19 codex-openai-bridge-refresh の成否を健全性ゲートに含めるか決める(現状は Bark 通知のみ。ゲートに入れると uvx の版が原因で nix generation が rollback される副作用があり、それを避けたのが分離の理由) +mini-vm see:docs/adr/0006-track-uvx-versions-outside-nix.md id:0045
-2026-09-19 CLAUDE.md の「コメントはコードと同量レベルでベッタベタに書く」を .claude/rules/comments.md の現行方針(必要十分に書く。多いほど良いではない)へ合わせる(2026-09-05 に rule 側を改訂した際の取り残し。2026-09-19 に実際に古い方針で subagent へ指示してしまった) +docs id:0047
