@@ -5,6 +5,8 @@
   lib,
   llmAgents, # inputs.llm-agents.packages.x86_64-linux (flake.nix の specialArgs)
   cloudflareOsRev, # inputs.cloudflare-os.rev (flake.nix の specialArgs)
+  dotfilesRevision, # helper の source と coordinator の captured commit を照合する
+  dotfilesSource, # system と home の評価に同じ immutable flake snapshot を使う
   homeManager, # inputs.home-manager.packages.x86_64-linux.home-manager (flake.nix の specialArgs)
   ...
 }:
@@ -131,6 +133,79 @@ let
     fi
 
     exit "$fail"
+  '';
+
+  autoswitchPath = lib.makeBinPath (
+    with pkgs;
+    [
+      git
+      openssh
+      nix
+      nixos-rebuild
+      systemd
+      curl
+      coreutils
+      gnugrep
+      getent
+      sudo
+    ]
+  );
+  generationHealthGate = pkgs.writeShellScript "mini-vm-generation-health-gate" ''
+    export PATH=${autoswitchPath}
+    exec ${healthGate}
+  '';
+  autoswitchPostApply = pkgs.writeShellScript "dotfiles-autoswitch-post-apply" ''
+    set -eu
+    export PATH=${autoswitchPath}
+    export NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
+    previous_system=$1
+    selected_system=$2
+    [ "$3" = "${dotfilesRevision}" ] || {
+      echo "autoswitch: helper の source revision が選択した commit と違う" >&2
+      exit 1
+    }
+    # 排他lockではないが、手動switchした別世代を成功扱い・復帰対象にしない。
+    require_selected_system() {
+      [ "$(readlink -f /run/current-system)" = "$selected_system" ] || {
+        echo "autoswitch: system generation が後半処理中に変わった" >&2
+        return 1
+      }
+    }
+    require_selected_system
+    ${pkgs.sudo}/bin/sudo -u ${username} ${homeManager}/bin/home-manager \
+      switch --flake "${dotfilesSource}#${username}-x86_64-linux"
+    require_selected_system
+
+    # 「switch は成功したが使えない」を検出する。DB を移行する image の対が
+    # 不変の場合だけ開始時の実稼働先へ戻し、戻した先でもゲートを回す。
+    if ! ${generationHealthGate}; then
+      require_selected_system
+      if ! rollback_system=$(${rollbackTarget} "$previous_system" /run/current-system ${langfuseRollbackSafe}); then
+        echo "健全性ゲートが失敗。Langfuse の DB 保持のため現世代を維持し、自動 rollback を停止する" >&2
+        exit 1
+      fi
+      if [ "$rollback_system" = "$(readlink -f /run/current-system)" ]; then
+        echo "健全性ゲートが失敗。同じ候補の再試行なので現世代を維持し、次回の更新確認を待つ" >&2
+        exit 1
+      fi
+      echo "健全性ゲートが失敗。rollback する" >&2
+      # **`nixos-rebuild switch --rollback` は使えない** (2026-09-06 実測)。
+      # flake モードでは実装されておらず `<nixpkgs/nixos>` を NIX_PATH に
+      # 探しに行って失敗する。profile を開始時の実稼働先に設定して
+      # switch-to-configuration を直接叩き、retry で移行前へ遡らないようにする。
+      require_selected_system
+      nix-env --set "$rollback_system" -p /nix/var/nix/profiles/system
+      "$rollback_system/bin/switch-to-configuration" switch
+      if [ -x "$rollback_system/etc/dotfiles-autoswitch/health-gate" ] \
+      && "$rollback_system/etc/dotfiles-autoswitch/health-gate"; then
+        echo "rollback 後はゲートを通過した" >&2
+      else
+        echo "rollback 後の世代ゲートが失敗、または旧世代のゲートが公開されていない" >&2
+      fi
+      exit 1
+    fi
+    require_selected_system
+    echo "autoswitch: system + home + gate 完了" >&2
   '';
 
   # unit の失敗を Bark (iOS プッシュ) へ届ける。$1 = journal を読む unit、$2 = 通知タイトル。
@@ -1226,17 +1301,21 @@ in
   # ここが破られると、無人機がレビュー無しで世界の変化を取り込むことになる。
   #
   # 却下案:
-  #   - system.autoUpgrade → home 層が視野の外 (nixos-rebuild しか叩かない) で、
-  #     pre/post フックが無いため健全性ゲートも dirty ガードも挟めない。
-  #     提供されるのは timer 1 本分だけなので、自前で書いた方が読める。
+  #   - system.autoUpgrade → unit の pre/post 拡張は可能だが、共有 standalone home
+  #     と Langfuse の世代比較を同じ coordinator で扱う既存構成を保つ。
   #   - --flake github:gigun-dev/dotfiles の直接参照 → 手動 switch (作業コピー) と
   #     自動更新 (github:) で真実が二重になり、「いま動いている rev」を作業コピーから
   #     読めなくなる。ローカル pull なら食い違いが下の dirty ガードで鳴る。
   #
-  # 駆動スクリプトは**現 generation のもの**が走る。新しいツリーが更新器自身を
-  # 壊しても、次回は壊れる前の更新器で回る (自己更新は 1 サイクル遅れる)。
+  # 2026-10-04: 自分を switch 中に再起動すると activation unit と衝突する。
+  # coordinator を最後まで生かし、system 切替後だけ選んだ新世代の後半へ渡す。
+  environment.etc."dotfiles-autoswitch/revision".text = dotfilesRevision + "\n";
+  environment.etc."dotfiles-autoswitch/post-apply".source = autoswitchPostApply;
+  environment.etc."dotfiles-autoswitch/health-gate".source = generationHealthGate;
+
   systemd.services.dotfiles-autoswitch = {
     description = "dotfiles を pull して system + home を switch する";
+    restartIfChanged = false;
     wants = [ "network-online.target" ];
     after = [
       "network-online.target"
@@ -1246,6 +1325,7 @@ in
     unitConfig = {
       ConditionPathExists = "${dotfilesDir}/flake.nix";
       OnFailure = [ "dotfiles-autoswitch-notify-failure.service" ];
+      X-StopOnRemoval = false;
     };
 
     # systemd の unit は対話 shell の PATH を継承しない。ここに挙げたものだけが
@@ -1275,6 +1355,7 @@ in
 
       ExecStart = pkgs.writeShellScript "dotfiles-autoswitch" ''
         set -eu
+        echo "autoswitch: coordinator revision ${dotfilesRevision}" >&2
         cd ${dotfilesDir}
 
         # git はリポジトリの所有者 (gigun) で叩く。2026-09-06 に実機で判明:
@@ -1299,38 +1380,24 @@ in
         # secrets を複製せず、DB を移行した版から旧 image に戻る事故を止められる。
         previous_system=$(readlink -f /run/current-system)
 
-        # system 層 → home 層の順。system unit は home profile に依存しない設計
-        # (cloudflare-os / codex-* は store パスを直接参照) なので、home 側が
-        # 失敗しても常駐サービスは巻き添えにならない。
-        nixos-rebuild switch --flake "${dotfilesDir}#mini-vm"
-        ${pkgs.sudo}/bin/sudo -u ${username} ${homeManager}/bin/home-manager \
-          switch --flake "${dotfilesDir}#${username}-x86_64-linux"
-
-        # 「switch は成功したが使えない」を検出する。DB を移行する image の対が
-        # 不変の場合だけ開始時の実稼働先へ戻し、戻した先でもゲートを回す。
-        if ! ${healthGate}; then
-          if ! rollback_system=$(${rollbackTarget} "$previous_system" /run/current-system ${langfuseRollbackSafe}); then
-            echo "健全性ゲートが失敗。Langfuse の DB 保持のため現世代を維持し、自動 rollback を停止する" >&2
-            exit 1
-          fi
-          if [ "$rollback_system" = "$(readlink -f /run/current-system)" ]; then
-            echo "健全性ゲートが失敗。同じ候補の再試行なので現世代を維持し、次回の更新確認を待つ" >&2
-            exit 1
-          fi
-          echo "健全性ゲートが失敗。rollback する" >&2
-          # **`nixos-rebuild switch --rollback` は使えない** (2026-09-06 実測)。
-          # flake モードでは実装されておらず `<nixpkgs/nixos>` を NIX_PATH に
-          # 探しに行って失敗する。profile を開始時の実稼働先に設定して
-          # switch-to-configuration を直接叩き、retry で移行前へ遡らないようにする。
-          nix-env --set "$rollback_system" -p /nix/var/nix/profiles/system
-          "$rollback_system/bin/switch-to-configuration" switch
-          if ${healthGate}; then
-            echo "rollback 後はゲートを通過した" >&2
-          else
-            echo "rollback してもゲートが失敗している" >&2
-          fi
+        # pull 後の commit を固定し、system と helper が別のツリーを読まないようにする。
+        revision=$(as_user ${pkgs.git}/bin/git rev-parse HEAD)
+        fixed_flake="git+file://${dotfilesDir}?rev=$revision"
+        selected_system=$(nix build --no-link --print-out-paths \
+          "$fixed_flake#nixosConfigurations.mini-vm.config.system.build.toplevel")
+        if [ ! -x "$selected_system/etc/dotfiles-autoswitch/post-apply" ] \
+          || [ "$(cat "$selected_system/etc/dotfiles-autoswitch/revision")" != "$revision" ]; then
+          echo "autoswitch: 選んだ世代の helper が欠落、または source revision が違う" >&2
           exit 1
         fi
+        nixos-rebuild switch --flake "$fixed_flake#mini-vm"
+        if [ "$(readlink -f /run/current-system)" != "$selected_system" ]; then
+          echo "autoswitch: 選んだ system generation が適用されていない" >&2
+          exit 1
+        fi
+        # exec は systemd の同じ invocation を保つ。新版の依存を helper 内で設定する。
+        exec "$selected_system/etc/dotfiles-autoswitch/post-apply" \
+          "$previous_system" "$selected_system" "$revision"
       '';
     };
   };
