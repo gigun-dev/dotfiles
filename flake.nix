@@ -169,6 +169,9 @@
               mkdir -p nix/modules/nixos scripts/tests infra/langfuse/scripts
               cp ${./nix/modules/nixos/mini-vm.nix} nix/modules/nixos/mini-vm.nix
               cp ${./scripts/tests/dotfiles-autoswitch.py} scripts/tests/dotfiles-autoswitch.py
+              cp ${./scripts/tests/lock-propose-heartbeat.py} scripts/tests/lock-propose-heartbeat.py
+              cp ${./scripts/job-heartbeat.py} scripts/job-heartbeat.py
+              cp ${./scripts/tests/job-heartbeat.py} scripts/tests/job-heartbeat.py
               cp ${./infra/langfuse/scripts/rollback-target.sh} infra/langfuse/scripts/rollback-target.sh
               cp ${./infra/langfuse/scripts/rollback-safe.sh} infra/langfuse/scripts/rollback-safe.sh
               export PATH=${
@@ -178,6 +181,8 @@
                 ]
               }
               ${pkgs.python3}/bin/python3 -B scripts/tests/dotfiles-autoswitch.py
+              ${pkgs.python3}/bin/python3 -B scripts/tests/lock-propose-heartbeat.py
+              ${pkgs.python3}/bin/python3 -B -W error scripts/tests/job-heartbeat.py
               touch "$out"
             '';
 
