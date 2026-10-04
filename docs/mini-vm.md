@@ -30,15 +30,22 @@ Worker・KV・Cron・custom domainは`gigun-dev/hub`の`infra/uptime/`でOpenTof
   merge 済みの変更を pull → switch → 健全性確認する。失敗時の復帰先は今回の
   開始時に稼働していた構成だけとし、Langfuse の image pair が変わる場合は戻さない。
 - **`system.autoUpgrade` は使わない。** home 層が視野の外(`nixos-rebuild` しか叩かない)で、
-  pre/post フックが無いため健全性ゲートも dirty ガードも挟めない。nixpkgs の
-  `nixos/modules/tasks/auto-upgrade.nix` を読んで確認した。提供価値は timer 1 本分。
+  unit の pre/post 拡張は可能だが、共有 standalone home と Langfuse の世代比較を同じ
+  coordinator で扱う既存構成を保つ。更新器の `restartIfChanged = false` と
+  `X-StopOnRemoval = false` は NixOS 標準の自動更新に揃える。
 - **`--flake github:...` の直接参照も却下。** 手動 switch(作業コピー)と自動更新(github:)で
   真実が二重になり、「いま動いている rev」を作業コピーから読めなくなる。ローカル pull なら
   食い違いが dirty ガードで鳴る。
 - **dirty ガードは検知器**。作業コピーが汚れている = 誰かが VM 上でいじって放置した、なので
   踏み潰さず止めて通知する。
-- **駆動スクリプトは現 generation のものが走る**。新しいツリーが更新器自身を壊しても、次回は
-  壊れる前の更新器で回る(自己更新は 1 サイクル遅れる)。
+- **更新器自身を途中で再起動しない。** 2026-10-04 の system switch が更新器を SIGTERM し、
+  再起動した更新器が実行中の activation unit と衝突した。coordinator は pull 後の commit を
+  固定して system を一度だけ switch し、選んだ世代と実稼働先の一致を確認して同じ invocation の
+  まま新世代の helper へ `exec` する。helper の PATH、home-manager、健全性ゲートは新版固定。
+  checkout が後から変わっても home は同じ immutable flake snapshot を読む。
+- **復帰先のゲートで再確認する。** image-pair guard と開始時の世代だけへの復帰を保ち、
+  rollback 後は復帰先の公開 gate を使う。修正前の世代に公開 gate がない場合は未検証として失敗を
+  報告する。初回修正は updater が実行中でないことを確認し、独立した SSH runner から適用する。
 
 Langfuse の DB migration は OS 世代の切替では戻らない。image の変更後に gate が失敗したら、
 移行先の世代と対応 image を維持し、既存 Bark へ失敗通知を送る。同じ候補を再試行しても

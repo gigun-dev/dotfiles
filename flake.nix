@@ -164,24 +164,49 @@
           devShells.esp32drop = import ./nix/devshells/esp32drop.nix { inherit pkgs; };
 
           # Keep false-success and credential-leak regressions in the shared CI/pre-push gate.
-          checks.host-heartbeat = pkgs.runCommand "host-heartbeat-tests" { } ''
-            mkdir tests
-            cp ${./scripts/host-heartbeat.py} host-heartbeat.py
-            cp ${./scripts/tests/host-heartbeat.py} tests/host-heartbeat.py
-            ${pkgs.python3}/bin/python3 -B -W error tests/host-heartbeat.py
-            touch "$out"
-          '';
+          checks = {
+            dotfiles-autoswitch = pkgs.runCommand "dotfiles-autoswitch-tests" { } ''
+              mkdir -p nix/modules/nixos scripts/tests infra/langfuse/scripts
+              cp ${./nix/modules/nixos/mini-vm.nix} nix/modules/nixos/mini-vm.nix
+              cp ${./scripts/tests/dotfiles-autoswitch.py} scripts/tests/dotfiles-autoswitch.py
+              cp ${./infra/langfuse/scripts/rollback-target.sh} infra/langfuse/scripts/rollback-target.sh
+              cp ${./infra/langfuse/scripts/rollback-safe.sh} infra/langfuse/scripts/rollback-safe.sh
+              export PATH=${
+                inputs.nixpkgs.lib.makeBinPath [
+                  pkgs.bash
+                  pkgs.coreutils
+                ]
+              }
+              ${pkgs.python3}/bin/python3 -B scripts/tests/dotfiles-autoswitch.py
+              touch "$out"
+            '';
 
-          checks.host-heartbeat-preparation = pkgs.runCommand "host-heartbeat-preparation-tests" { } ''
-            mkdir -p scripts/tests
-            cp ${./scripts/ssh-path-observe.py} scripts/ssh-path-observe.py
-            cp ${./scripts/prepare-host-heartbeat-registration.py} scripts/prepare-host-heartbeat-registration.py
-            cp ${./scripts/tests/ssh-path-observe.py} scripts/tests/ssh-path-observe.py
-            cp ${./scripts/tests/host-heartbeat-registration.py} scripts/tests/host-heartbeat-registration.py
-            ${pkgs.python3}/bin/python3 -B -W error scripts/tests/ssh-path-observe.py
-            ${pkgs.python3}/bin/python3 -B -W error scripts/tests/host-heartbeat-registration.py
-            touch "$out"
-          '';
+            host-heartbeat = pkgs.runCommand "host-heartbeat-tests" { } ''
+              mkdir tests
+              cp ${./scripts/host-heartbeat.py} host-heartbeat.py
+              cp ${./scripts/tests/host-heartbeat.py} tests/host-heartbeat.py
+              ${pkgs.python3}/bin/python3 -B -W error tests/host-heartbeat.py
+              touch "$out"
+            '';
+
+            host-heartbeat-preparation = pkgs.runCommand "host-heartbeat-preparation-tests" { } ''
+              mkdir -p scripts/tests
+              cp ${./scripts/ssh-path-observe.py} scripts/ssh-path-observe.py
+              cp ${./scripts/prepare-host-heartbeat-registration.py} scripts/prepare-host-heartbeat-registration.py
+              cp ${./scripts/tests/ssh-path-observe.py} scripts/tests/ssh-path-observe.py
+              cp ${./scripts/tests/host-heartbeat-registration.py} scripts/tests/host-heartbeat-registration.py
+              ${pkgs.python3}/bin/python3 -B -W error scripts/tests/ssh-path-observe.py
+              ${pkgs.python3}/bin/python3 -B -W error scripts/tests/host-heartbeat-registration.py
+              touch "$out"
+            '';
+
+          }
+          // inputs.nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
+            dotfiles-autoswitch-lifecycle = import ./nix/tests/dotfiles-autoswitch-lifecycle.nix {
+              inherit pkgs;
+              service = inputs.self.nixosConfigurations.mini-vm.config.systemd.services.dotfiles-autoswitch;
+            };
+          };
 
           # Apps — perSystem の system で正しい構成を選択
           # darwin: darwin-rebuild で system + home 両方適用
@@ -449,6 +474,8 @@
               # 自動更新 (dotfiles-autoswitch) が home 層を switch するのに使う。
               # apps.switch と同じ input を参照し、手動 switch と同じ home-manager で
               # 回るようにする (バージョン差で片方だけ壊れるのを避ける)。
+              dotfilesSource = inputs.self.outPath;
+              dotfilesRevision = inputs.self.rev or inputs.self.dirtyRev or "unversioned";
               homeManager = inputs.home-manager.packages."x86_64-linux".home-manager;
             };
             modules = [
