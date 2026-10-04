@@ -59,10 +59,16 @@ echo checkout-mutated > "$FIXTURE/repo/checkout"
         self.command("home-manager", '''
 echo "home $*" >> "$FIXTURE/calls"
 echo "home PATH=$PATH" >> "$FIXTURE/calls"
+if [ "${CHANGE_DURING_HOME:-no}" = yes ]; then
+  rm "$FIXTURE/current"; ln -s "$FIXTURE/previous" "$FIXTURE/current"
+fi
 exit "$HM_STATUS"
 ''')
         self.command("gate", '''
 echo new-gate >> "$FIXTURE/calls"
+if [ "${CHANGE_DURING_GATE:-no}" = yes ]; then
+  rm "$FIXTURE/current"; ln -s "$FIXTURE/previous" "$FIXTURE/current"
+fi
 exit "$GATE_STATUS"
 ''')
         self.command("nix-env", 'echo "profile $*" >> "$FIXTURE/calls"\n')
@@ -184,6 +190,27 @@ rm "$FIXTURE/current"; ln -s "$FIXTURE/previous" "$FIXTURE/current"
         self.assertEqual(self.calls().count("new-gate"), 1)
         self.assertEqual(self.calls().count("restored-gate"), 1)
         self.assertIn("rollback 後はゲートを通過", result.stderr)
+
+    def test_target_changed_during_home_fails_before_gate(self):
+        self.env["CHANGE_DURING_HOME"] = "yes"
+        result = self.run_update(1)
+        self.assertIn("generation が後半処理中に変わった", result.stderr)
+        self.assertNotIn("new-gate", self.calls())
+        self.assertNotIn("rollback\n", self.calls())
+
+    def test_target_changed_during_successful_gate_is_not_success(self):
+        self.env["CHANGE_DURING_GATE"] = "yes"
+        result = self.run_update(1)
+        self.assertIn("generation が後半処理中に変わった", result.stderr)
+        self.assertNotIn("system + home + gate 完了", result.stderr)
+        self.assertNotIn("rollback\n", self.calls())
+
+    def test_target_changed_during_failed_gate_never_rolls_back(self):
+        self.env.update(CHANGE_DURING_GATE="yes", GATE_STATUS="1")
+        result = self.run_update(1)
+        self.assertIn("generation が後半処理中に変わった", result.stderr)
+        self.assertNotIn("rollback\n", self.calls())
+        self.assertNotIn("profile ", self.calls())
 
     def test_changed_langfuse_image_pair_blocks_rollback(self):
         self.env["GATE_STATUS"] = "1"
