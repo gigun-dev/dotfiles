@@ -1,16 +1,13 @@
 #!/usr/bin/env python3
 """H1b success receipts. Sending is opt-in; no credentials are provisioned here."""
 import argparse
-import http.client
 import json
 import os
 import re
-import ssl
 import stat
+import subprocess
 import time
-import urllib.error
 import urllib.parse
-import urllib.request
 import uuid
 
 # UTC grids shared with hub/src/heartbeat/config.ts. Activation must first verify
@@ -47,13 +44,15 @@ def validate_receipt(receipt):
         raise ValueError("invalid receipt")
 
 
-class NoRedirect(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
+def curl_quote(value):
+    if not isinstance(value, str) or any(ord(char) < 32 or ord(char) == 127 for char in value):
+        raise ValueError("invalid curl configuration")
+    return '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
 
 
-def deliver(receipt, endpoint, token_file, opener=None, sleep=time.sleep):
+def deliver(receipt, endpoint, token_file, runner=None, sleep=time.sleep, curl="curl"):
     validate_receipt(receipt)
+    curl_quote(endpoint)  # urlsplit can strip controls; reject them before any I/O.
     url = urllib.parse.urlsplit(endpoint)
     if (url.scheme != "https" or not url.hostname or url.username is not None
             or url.password is not None or url.path != "/heartbeat" or url.query or url.fragment):
@@ -69,33 +68,55 @@ def deliver(receipt, endpoint, token_file, opener=None, sleep=time.sleep):
     if not re.fullmatch(r"[A-Za-z0-9_-]{32,256}(?:\r?\n)?", raw_token):
         raise ValueError("invalid token")
     token = raw_token.rstrip("\r\n")
-    body = json.dumps(receipt, separators=(",", ":")).encode()
-    opener = opener or urllib.request.build_opener(
-        urllib.request.ProxyHandler({}), NoRedirect(),
-        urllib.request.HTTPSHandler(context=ssl.create_default_context()))
+    body = json.dumps(receipt, separators=(",", ":")).encode("ascii")
+    config = ("\n".join([
+        "url = " + curl_quote(endpoint),
+        "header = " + curl_quote("Authorization: Bearer " + token),
+        'header = "Content-Type: application/json"',
+        "data-binary = " + curl_quote(body.decode("ascii")),
+    ]) + "\n").encode()
+    runner = subprocess.run if runner is None else runner
+    try:
+        version = runner([curl, "--disable", "--version"], capture_output=True, timeout=5, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    match = re.match(rb"curl ([0-9]+)\.([0-9]+)\.([0-9]+)\b", version.stdout)
+    # Older curl does not bound an unknown-length response while downloading it.
+    if version.returncode or not match or tuple(map(int, match.groups())) < (8, 4, 0):
+        return False
+    # Use the same standard curl transport as the hub CI caller, without a UA
+    # disguise or fallback after a rejection. curlrc/proxy/redirects stay disabled.
+    argv = [curl, "--disable", "--silent", "--show-error", "--globoff", "--proto", "=https",
+            "--noproxy", "*", "--connect-timeout", "10", "--max-time", "10",
+            "--max-filesize", "4096", "--write-out", "\n%{http_code}", "--config", "-"]
+    transient_codes = {5, 6, 7, 18, 28, 52, 55, 56, 92}
     for attempt in range(3):
-        request = urllib.request.Request(endpoint, data=body, method="POST", headers={
-            "Authorization": "Bearer " + token, "Content-Type": "application/json",
-            "User-Agent": "dotfiles-job-heartbeat/1"})
         try:
-            with opener.open(request, timeout=10) as response:
-                status = response.status
-                raw = response.read(4097)
-            if status == 202 and len(raw) <= 4096:
-                result = json.loads(raw)
-                if (isinstance(result, dict) and result.get("status") == "accepted"
-                        and isinstance(result.get("result"), dict)
-                        and result["result"].get("kind") in ("accepted", "duplicate")):
-                    return True
-            if status != 429 and not 500 <= status <= 599:
+            # Credentials and payload only use stdin; never shell, argv, logs or
+            # temporary files. The process timeout also bounds a stalled child.
+            result = runner(argv, input=config, capture_output=True, timeout=15, check=False)
+        except subprocess.TimeoutExpired:
+            result = None
+        except (OSError, subprocess.SubprocessError):
+            return False
+        if result is not None:
+            if result.returncode and result.returncode not in transient_codes:
                 return False
-        except urllib.error.HTTPError as error:
-            retry = error.code == 429 or 500 <= error.code <= 599
-            error.close()
-            if not retry:
-                return False
-        except (OSError, ValueError, urllib.error.URLError, http.client.HTTPException):
-            pass
+            if result.returncode == 0:
+                raw, separator, status_bytes = result.stdout.rpartition(b"\n")
+                if not separator or not re.fullmatch(rb"[0-9]{3}", status_bytes) or len(raw) > 4096:
+                    return False
+                status = int(status_bytes)
+                if status == 202:
+                    try:
+                        value = json.loads(raw)
+                    except (ValueError, RecursionError):
+                        return False
+                    return (isinstance(value, dict) and value.get("status") == "accepted"
+                            and isinstance(value.get("result"), dict)
+                            and value["result"].get("kind") in ("accepted", "duplicate"))
+                if status != 429 and not 500 <= status <= 599:
+                    return False
         if attempt < 2:
             sleep(attempt + 1)
     return False
@@ -109,6 +130,7 @@ def main():
     parser.add_argument("--enabled", action="store_true")
     parser.add_argument("--endpoint")
     parser.add_argument("--token-file")
+    parser.add_argument("--curl-path", default="curl")
     args = parser.parse_args()
     if args.action == "send" and not args.enabled:
         return 0
@@ -118,9 +140,9 @@ def main():
             return 0
         if not args.endpoint or not args.token_file:
             raise ValueError("missing configuration")
-        if deliver(json.loads(args.receipt), args.endpoint, args.token_file):
+        if deliver(json.loads(args.receipt), args.endpoint, args.token_file, curl=args.curl_path):
             return 0
-    except (OSError, ValueError, TypeError, KeyError):
+    except (OSError, ValueError, TypeError, KeyError, RecursionError):
         pass
     # No endpoint, token, response body or exception text may reach the journal.
     print("job-heartbeat: receipt preparation or delivery failed", file=__import__("sys").stderr)
