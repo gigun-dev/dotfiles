@@ -52,6 +52,7 @@ esac
 ''')
         body = SOURCE.split('pkgs.writeShellScript "dotfiles-lock-propose" \'\'\n', 1)[1].split("\n  '';", 1)[0]
         body = body.replace("${dotfilesDir}", shlex.quote(str(self.repo)))
+        body = body.replace("${jobHeartbeatSnapshot}", "export DOTFILES_JOB_HEARTBEAT_ENABLED=0 DOTFILES_JOB_HEARTBEAT_ENDPOINT= DOTFILES_JOB_HEARTBEAT_TOKEN_FILE=")
         body = body.replace("${jobHeartbeat}", shlex.quote(str(self.bin / "heartbeat")))
         body = body.replace("''${", "${")
         self.script = self.root / "propose"
@@ -71,7 +72,7 @@ esac
         self.assertEqual(calls.count("heartbeat --receipt fixed-start-receipt"), int(success), calls)
         return calls
 
-    def test_shipped_bindings_stay_disabled(self):
+    def test_success_bindings_keep_activation_in_shared_wrapper(self):
         calls = [line for line in SOURCE.splitlines() if "${jobHeartbeat}" in line]
         self.assertEqual(len(calls), 5)
         self.assertTrue(all("--enabled" not in line for line in calls))
@@ -95,6 +96,20 @@ esac
         calls = self.run_job()
         self.assertNotIn("nix build", calls)
         self.assertNotIn("gh pr", calls)
+
+    def test_sender_failure_does_not_fail_proposal_or_no_diff_job(self):
+        self.command("heartbeat", '''
+case "$1" in
+begin) echo fixed-start-receipt;;
+send) echo "heartbeat $2 $3" >> "$FIXTURE/calls"; exit 9;;
+esac
+''')
+        for lane in ["fast", "slow"]:
+            for diff in ["0", "1"]:
+                with self.subTest(lane=lane, diff=diff):
+                    (self.root / "calls").unlink(missing_ok=True)
+                    self.env["DIFF"] = diff
+                    self.run_job(lane)
 
     def test_each_failed_stage_does_not_send_success(self):
         for failure in ["git-fetch", "nix-flake", "git-commit", "nix-build", "git-push", "gh-list", "gh-create", "gh-view", "gh-merge"]:

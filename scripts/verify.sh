@@ -38,6 +38,8 @@ fi
 python3 scripts/tests/dotfiles-autoswitch.py
 python3 scripts/tests/lock-propose-heartbeat.py
 python3 -W error scripts/tests/job-heartbeat.py
+python3 -W error scripts/tests/job-heartbeat-activation.py
+python3 -W error scripts/tests/job-heartbeat-registration.py
 python3 scripts/tests/codex-bridge-refresh.py
 python3 scripts/tests/bark-routing.py
 
