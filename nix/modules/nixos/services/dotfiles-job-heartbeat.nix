@@ -37,7 +37,9 @@ in
       {
         assertion =
           cfg.endpoint == null
-          || builtins.match "https://[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?([.][A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*/heartbeat" cfg.endpoint != null;
+          ||
+            builtins.match "https://[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?([.][A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*/heartbeat" cfg.endpoint
+            != null;
         message = "dotfiles-job-heartbeat endpoint must be a public HTTPS host with the /heartbeat path only.";
       }
       {
@@ -55,9 +57,7 @@ in
         message = "dotfiles-job-heartbeat requires a distinct credential path for each source.";
       }
       {
-        assertion =
-          !cfg.enable
-          || (cfg.endpoint != null && builtins.attrNames cfg.tokenFiles == sources);
+        assertion = !cfg.enable || (cfg.endpoint != null && builtins.attrNames cfg.tokenFiles == sources);
         message = "Enabling dotfiles-job-heartbeat requires an endpoint and all three source credential paths.";
       }
     ];

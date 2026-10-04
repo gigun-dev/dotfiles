@@ -27,8 +27,22 @@ let
     { enable = true; }
     (valid // { endpoint = null; })
     (valid // { tokenFiles = builtins.removeAttrs valid.tokenFiles [ "mini-vm-lock-slow" ]; })
-    (valid // { tokenFiles = valid.tokenFiles // { other = "/run/agenix/other"; }; })
-    (valid // { tokenFiles = valid.tokenFiles // { mini-vm-lock-slow = valid.tokenFiles.mini-vm-lock-fast; }; })
+    (
+      valid
+      // {
+        tokenFiles = valid.tokenFiles // {
+          other = "/run/agenix/other";
+        };
+      }
+    )
+    (
+      valid
+      // {
+        tokenFiles = valid.tokenFiles // {
+          mini-vm-lock-slow = valid.tokenFiles.mini-vm-lock-fast;
+        };
+      }
+    )
   ]
   ++ map (endpoint: valid // { inherit endpoint; }) [
     "http://hub.example/heartbeat"
@@ -43,19 +57,30 @@ let
     "https://hub.example/heart beat"
     "https://hub.example/%s"
   ]
-  ++ map (path: valid // { tokenFiles = valid.tokenFiles // { mini-vm-autoswitch = path; }; }) [
-    "relative/token"
-    "/nix/store/token"
-    "/nix/store"
-    "/run/agenix/../token"
-    "/run/agenix/./token"
-    "/run/agenix/token\nInjected=value"
-    "/run/agenix/token:other"
-    "/run/agenix/%i"
-    "/run/agenix/token with spaces"
-    ""
-    ./job-heartbeat-config.nix
-  ];
+  ++
+    map
+      (
+        path:
+        valid
+        // {
+          tokenFiles = valid.tokenFiles // {
+            mini-vm-autoswitch = path;
+          };
+        }
+      )
+      [
+        "relative/token"
+        "/nix/store/token"
+        "/nix/store"
+        "/run/agenix/../token"
+        "/run/agenix/./token"
+        "/run/agenix/token\nInjected=value"
+        "/run/agenix/token:other"
+        "/run/agenix/%i"
+        "/run/agenix/token with spaces"
+        ""
+        ./job-heartbeat-config.nix
+      ];
   unchangedUnit =
     name:
     let
@@ -75,14 +100,19 @@ assert disabled.services.dotfiles-job-heartbeat.tokenFiles == { };
 assert !configuredOff.services.dotfiles-job-heartbeat.enable;
 assert accepts valid;
 assert lib.all (settings: !(accepts settings)) invalid;
-assert lib.all unchangedUnit [ "dotfiles-autoswitch" "dotfiles-lock-propose@" ];
+assert lib.all unchangedUnit [
+  "dotfiles-autoswitch"
+  "dotfiles-lock-propose@"
+];
 assert !(enabled.systemd.services ? "dotfiles-lock-propose@fast");
 assert !(enabled.systemd.services ? "dotfiles-lock-propose@slow");
-assert lib.all (name: disabled.systemd.timers.${name}.timerConfig == enabled.systemd.timers.${name}.timerConfig) [
-  "dotfiles-autoswitch"
-  "dotfiles-lock-propose-fast"
-  "dotfiles-lock-propose-slow"
-];
+assert lib.all
+  (name: disabled.systemd.timers.${name}.timerConfig == enabled.systemd.timers.${name}.timerConfig)
+  [
+    "dotfiles-autoswitch"
+    "dotfiles-lock-propose-fast"
+    "dotfiles-lock-propose-slow"
+  ];
 pkgs.runCommand "job-heartbeat-config-tests" { } ''
   touch "$out"
 ''
