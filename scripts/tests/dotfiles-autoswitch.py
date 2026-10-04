@@ -36,6 +36,12 @@ class AutoswitchTests(unittest.TestCase):
         self.env = dict(os.environ, FIXTURE=str(self.base), DIRTY="", REV="fixed42",
                         HM_STATUS="0", GATE_STATUS="0", SWITCH_STATUS="0",
                         PATH=str(self.bin) + os.pathsep + os.environ["PATH"])
+        self.command("heartbeat", '''
+case "$1" in
+begin) echo start-receipt;;
+send) echo "heartbeat $2 $3" >> "$FIXTURE/calls";;
+esac
+''')
         self.command("git", '''
 echo "git $*" >> "$FIXTURE/calls"
 case "$1" in
@@ -73,6 +79,7 @@ exit "$GATE_STATUS"
 ''')
         self.command("nix-env", 'echo "profile $*" >> "$FIXTURE/calls"\n')
         self.replacements = {
+            "${jobHeartbeat}": shlex.quote(str(self.bin / "heartbeat")),
             "${autoswitchPath}": shlex.quote(self.env["PATH"]),
             "${pkgs.cacert}": "/new-generation-ca",
             "${pkgs.sudo}/bin/sudo": shlex.quote(str(self.bin / "sudo")),
@@ -126,11 +133,41 @@ rm "$FIXTURE/current"; ln -s "$FIXTURE/previous" "$FIXTURE/current"
         result = subprocess.run(["bash", str(self.coordinator)], env=self.env,
                                 text=True, capture_output=True, timeout=10)
         self.assertEqual(result.returncode, status, result.stderr)
+        calls = self.calls()
+        self.assertEqual(calls.count("heartbeat --receipt start-receipt"), 1 if status == 0 else 0)
         return result
 
     def calls(self):
         path = self.base / "calls"
         return path.read_text() if path.exists() else ""
+
+    def test_old_coordinator_without_receipt_does_not_send(self):
+        self.current.unlink()
+        self.current.symlink_to(self.selected)
+        env = dict(self.env)
+        env.pop("DOTFILES_JOB_HEARTBEAT_RECEIPT", None)
+        result = subprocess.run([str(self.selected / "etc/dotfiles-autoswitch/post-apply"),
+                                 str(self.previous), str(self.selected), "fixed42"], env=env,
+                                capture_output=True, text=True, timeout=3)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("heartbeat --receipt", self.calls())
+
+    def test_sender_failure_never_rolls_back_successful_apply(self):
+        self.command("heartbeat", '''
+case "$1" in
+begin) echo start-receipt;;
+send) echo "heartbeat $2 $3" >> "$FIXTURE/calls"; exit 9;;
+esac
+''')
+        self.run_update()
+        self.assertNotIn("rollback\n", self.calls())
+
+    def test_job_timeout_does_not_send_success(self):
+        self.command("gate", 'sleep 10\n')
+        with self.assertRaises(subprocess.TimeoutExpired):
+            subprocess.run(["bash", str(self.coordinator)], env=self.env,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.2)
+        self.assertNotIn("heartbeat --receipt", self.calls())
 
     def test_new_helper_uses_fixed_source_after_checkout_changes(self):
         self.run_update()

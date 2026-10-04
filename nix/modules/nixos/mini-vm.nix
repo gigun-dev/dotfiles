@@ -135,6 +135,13 @@ let
     exit "$fail"
   '';
 
+  # todo0005 の準備。send に --enabled は渡さず、秘密の読取・外部送信は行わない。
+  # 予定枠は開始時に固定し、exec で新世代へ渡しても完了時刻で作り直さない。
+  jobHeartbeat = pkgs.writeShellScript "dotfiles-job-heartbeat" ''
+    export SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
+    exec ${pkgs.python3}/bin/python3 ${../../../scripts/job-heartbeat.py} "$@"
+  '';
+
   autoswitchPath = lib.makeBinPath (
     with pkgs;
     [
@@ -206,6 +213,11 @@ let
     fi
     require_selected_system
     echo "autoswitch: system + home + gate 完了" >&2
+    # 旧 coordinator から初回移行した invocation には開始 receipt が無い。
+    # 通知失敗で適用済み世代を rollback したり、既存 OnFailure を増やさない。
+    if [ -n "$(printenv DOTFILES_JOB_HEARTBEAT_RECEIPT || true)" ]; then
+      ${jobHeartbeat} send --receipt "$DOTFILES_JOB_HEARTBEAT_RECEIPT" || true
+    fi
   '';
 
   # unit の失敗を Bark (iOS プッシュ) へ届ける。$1 = journal を読む unit、$2 = 通知タイトル。
@@ -288,6 +300,8 @@ let
         ;;
     esac
 
+    heartbeat_receipt=$(${jobHeartbeat} begin --source "mini-vm-lock-$lane") || heartbeat_receipt=
+
     # systemd が StateDirectory で用意する。手で叩くときのために既定値も持たせる。
     state=''${STATE_DIRECTORY:-/var/lib/dotfiles-lock-trial}
     trial="$state/$lane"
@@ -312,6 +326,7 @@ let
 
     if git diff --quiet -- flake.lock; then
       echo "$lane: lock に差分なし"
+      ${jobHeartbeat} send --receipt "$heartbeat_receipt" || true
       exit 0
     fi
 
@@ -334,7 +349,8 @@ let
       "$(cat "$log")")
 
     # `.[0].number` ではなく `.[].number`。前者は PR が無いとき空ではなく "null" を出す。
-    if [ -n "$(gh pr list --head "$branch" --state open --json number --jq '.[].number')" ]; then
+    open_prs=$(gh pr list --head "$branch" --state open --json number --jq '.[].number')
+    if [ -n "$open_prs" ]; then
       gh pr edit "$branch" --body "$body"
     else
       gh pr create --base main --head "$branch" \
@@ -343,9 +359,11 @@ let
 
     # CI (.github/workflows/nix-build.yaml) が green になったら GitHub が squash merge する。
     # 有効化済みの PR に再度掛けると gh がエラーを返すので、状態を見てから叩く。
-    if [ "$(gh pr view "$branch" --json autoMergeRequest --jq '.autoMergeRequest // "off"')" = "off" ]; then
+    auto_merge=$(gh pr view "$branch" --json autoMergeRequest --jq '.autoMergeRequest // "off"')
+    if [ "$auto_merge" = "off" ]; then
       gh pr merge --auto --squash "$branch"
     fi
+    ${jobHeartbeat} send --receipt "$heartbeat_receipt" || true
   '';
 
   # codex-openai-bridge が実際に起動した openai-api-server-via-codex の版を
@@ -1355,6 +1373,8 @@ in
 
       ExecStart = pkgs.writeShellScript "dotfiles-autoswitch" ''
         set -eu
+        export DOTFILES_JOB_HEARTBEAT_RECEIPT
+        DOTFILES_JOB_HEARTBEAT_RECEIPT=$(${jobHeartbeat} begin --source mini-vm-autoswitch) || DOTFILES_JOB_HEARTBEAT_RECEIPT=
         echo "autoswitch: coordinator revision ${dotfilesRevision}" >&2
         cd ${dotfilesDir}
 
