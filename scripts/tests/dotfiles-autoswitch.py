@@ -8,8 +8,10 @@ import os
 from pathlib import Path
 import shlex
 import shutil
+import signal
 import subprocess
 import tempfile
+import time
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -79,6 +81,7 @@ exit "$GATE_STATUS"
 ''')
         self.command("nix-env", 'echo "profile $*" >> "$FIXTURE/calls"\n')
         self.replacements = {
+            "${jobHeartbeatSnapshot}": "export DOTFILES_JOB_HEARTBEAT_ENABLED=0 DOTFILES_JOB_HEARTBEAT_ENDPOINT= DOTFILES_JOB_HEARTBEAT_TOKEN_FILE=",
             "${jobHeartbeat}": shlex.quote(str(self.bin / "heartbeat")),
             "${autoswitchPath}": shlex.quote(self.env["PATH"]),
             "${pkgs.cacert}": "/new-generation-ca",
@@ -163,11 +166,28 @@ esac
         self.assertNotIn("rollback\n", self.calls())
 
     def test_job_timeout_does_not_send_success(self):
-        self.command("gate", 'sleep 10\n')
-        with self.assertRaises(subprocess.TimeoutExpired):
-            subprocess.run(["bash", str(self.coordinator)], env=self.env,
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=0.2)
-        self.assertNotIn("heartbeat --receipt", self.calls())
+        # Deliberately exceed the old startup timeout before entering the blocked stage.
+        self.command("gate", 'sleep 0.3; echo started > "$FIXTURE/gate-started"; exec sleep 30\n')
+        started = self.base / "gate-started"
+        process = subprocess.Popen(["bash", str(self.coordinator)], env=self.env,
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                   start_new_session=True)
+        try:
+            deadline = time.monotonic() + 30
+            while not started.exists() and process.poll() is None and time.monotonic() < deadline:
+                time.sleep(0.02)
+            self.assertTrue(started.exists(), "Fixture did not reach the blocked gate stage")
+            with self.assertRaises(subprocess.TimeoutExpired):
+                process.wait(timeout=0.2)
+        finally:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait(timeout=5)
+        calls = (self.base / "calls").read_text()
+        self.assertIn("home switch", calls)
+        self.assertNotIn("heartbeat --receipt", calls)
 
     def test_new_helper_uses_fixed_source_after_checkout_changes(self):
         self.run_update()

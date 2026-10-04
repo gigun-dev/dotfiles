@@ -172,6 +172,7 @@
               cp ${./scripts/tests/lock-propose-heartbeat.py} scripts/tests/lock-propose-heartbeat.py
               cp ${./scripts/job-heartbeat.py} scripts/job-heartbeat.py
               cp ${./scripts/tests/job-heartbeat.py} scripts/tests/job-heartbeat.py
+              cp ${./scripts/tests/job-heartbeat-activation.py} scripts/tests/job-heartbeat-activation.py
               cp ${./infra/langfuse/scripts/rollback-target.sh} infra/langfuse/scripts/rollback-target.sh
               cp ${./infra/langfuse/scripts/rollback-safe.sh} infra/langfuse/scripts/rollback-safe.sh
               export PATH=${
@@ -183,8 +184,14 @@
               ${pkgs.python3}/bin/python3 -B scripts/tests/dotfiles-autoswitch.py
               ${pkgs.python3}/bin/python3 -B scripts/tests/lock-propose-heartbeat.py
               ${pkgs.python3}/bin/python3 -B -W error scripts/tests/job-heartbeat.py
+              ${pkgs.python3}/bin/python3 -B -W error scripts/tests/job-heartbeat-activation.py
               touch "$out"
             '';
+
+            job-heartbeat-config = import ./nix/tests/job-heartbeat-config.nix {
+              inherit pkgs;
+              nixos = inputs.self.nixosConfigurations.mini-vm;
+            };
 
             host-heartbeat = pkgs.runCommand "host-heartbeat-tests" { } ''
               mkdir tests
@@ -198,10 +205,13 @@
               mkdir -p scripts/tests
               cp ${./scripts/ssh-path-observe.py} scripts/ssh-path-observe.py
               cp ${./scripts/prepare-host-heartbeat-registration.py} scripts/prepare-host-heartbeat-registration.py
+              cp ${./scripts/prepare-job-heartbeat-registration.py} scripts/prepare-job-heartbeat-registration.py
               cp ${./scripts/tests/ssh-path-observe.py} scripts/tests/ssh-path-observe.py
               cp ${./scripts/tests/host-heartbeat-registration.py} scripts/tests/host-heartbeat-registration.py
+              cp ${./scripts/tests/job-heartbeat-registration.py} scripts/tests/job-heartbeat-registration.py
               ${pkgs.python3}/bin/python3 -B -W error scripts/tests/ssh-path-observe.py
               ${pkgs.python3}/bin/python3 -B -W error scripts/tests/host-heartbeat-registration.py
+              ${pkgs.python3}/bin/python3 -B -W error scripts/tests/job-heartbeat-registration.py
               touch "$out"
             '';
 
