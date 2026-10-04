@@ -137,11 +137,7 @@ let
 
   jobHeartbeatConfig = config.services.dotfiles-job-heartbeat;
   jobHeartbeatEnabled = if jobHeartbeatConfig.enable then "1" else "0";
-  jobHeartbeatEndpoint =
-    if jobHeartbeatConfig.enable then
-      jobHeartbeatConfig.endpoint
-    else
-      "";
+  jobHeartbeatEndpoint = if jobHeartbeatConfig.enable then jobHeartbeatConfig.endpoint else "";
   # 設定だけを開始時に固定する。agenix の世代は switch で消えるので実体パスへ解決しない。
   jobHeartbeatSnapshot = ''
     export DOTFILES_JOB_HEARTBEAT_ENABLED=${jobHeartbeatEnabled}
@@ -149,9 +145,15 @@ let
     export DOTFILES_JOB_HEARTBEAT_TOKEN_FILE=
     if [ "$DOTFILES_JOB_HEARTBEAT_ENABLED" = 1 ]; then
       case "$heartbeat_source" in
-        mini-vm-autoswitch) DOTFILES_JOB_HEARTBEAT_TOKEN_FILE=${lib.escapeShellArg (jobHeartbeatConfig.tokenFiles.mini-vm-autoswitch or "")} ;;
-        mini-vm-lock-fast) DOTFILES_JOB_HEARTBEAT_TOKEN_FILE=${lib.escapeShellArg (jobHeartbeatConfig.tokenFiles.mini-vm-lock-fast or "")} ;;
-        mini-vm-lock-slow) DOTFILES_JOB_HEARTBEAT_TOKEN_FILE=${lib.escapeShellArg (jobHeartbeatConfig.tokenFiles.mini-vm-lock-slow or "")} ;;
+        mini-vm-autoswitch) DOTFILES_JOB_HEARTBEAT_TOKEN_FILE=${
+          lib.escapeShellArg (jobHeartbeatConfig.tokenFiles.mini-vm-autoswitch or "")
+        } ;;
+        mini-vm-lock-fast) DOTFILES_JOB_HEARTBEAT_TOKEN_FILE=${
+          lib.escapeShellArg (jobHeartbeatConfig.tokenFiles.mini-vm-lock-fast or "")
+        } ;;
+        mini-vm-lock-slow) DOTFILES_JOB_HEARTBEAT_TOKEN_FILE=${
+          lib.escapeShellArg (jobHeartbeatConfig.tokenFiles.mini-vm-lock-slow or "")
+        } ;;
       esac
     fi
   '';

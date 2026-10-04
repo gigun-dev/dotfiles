@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -111,7 +112,7 @@ class Files(unittest.TestCase):
     def tearDown(self): self.tmp.cleanup()
 
     def run_cli(self):
-        return subprocess.run(["python3", str(SCRIPT), "--credentials-file", str(self.input),
+        return subprocess.run([sys.executable, str(SCRIPT), "--credentials-file", str(self.input),
                                "--tokens-file", str(self.tokens), "--output", str(self.output)],
                               capture_output=True, text=True, timeout=10)
 
@@ -131,6 +132,13 @@ class Files(unittest.TestCase):
         self.assertEqual(self.input.read_bytes(), before)
         self.assertEqual(len(json.loads(self.output.read_text())), 7)
         self.assertEqual(sorted(p.name for p in self.root.iterdir()), ["candidate.json", "existing.json", "tokens.json"])
+
+    def test_cli_uses_running_interpreter_without_path(self):
+        with patch.dict(os.environ, {"PATH": str(self.root / "no-executables")}):
+            result = self.run_cli()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout + result.stderr, "")
+        self.assertTrue(self.output.is_file())
 
     def test_existing_output_not_overwritten(self):
         self.output.write_text("unchanged")

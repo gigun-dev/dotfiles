@@ -62,11 +62,13 @@ printf '\\n%s\\n202' '{"status":"accepted","result":{"kind":"accepted"}}'
             "${pkgs.curl}/bin/curl": shlex.quote(str(self.bin / "curl")),
         }
         for source in ["mini-vm-autoswitch", "mini-vm-lock-fast", "mini-vm-lock-slow"]:
-            key = '${lib.escapeShellArg (jobHeartbeatConfig.tokenFiles.' + source + ' or "")}'
-            values[key] = shlex.quote(str(token_file or self.credentials / source))
+            pattern = (r'\$\{\s*lib\.escapeShellArg\s+\(jobHeartbeatConfig\.tokenFiles\.'
+                       + re.escape(source) + r'\s+or\s+""\)\s*\}')
+            value = shlex.quote(str(token_file or self.credentials / source))
+            body = re.sub(pattern, lambda _match: value, body)
         for key, value in values.items():
             body = body.replace(key, value)
-        self.assertNotRegex(body, r"(?<!')\$\{(?:pkgs|lib|config|jobHeartbeat)")
+        self.assertNotRegex(body, r"(?<!')\$\{\s*(?:pkgs|lib|config|jobHeartbeat)")
         return body.replace("''${", "${")
 
     def run_flow(self, old=True, new=True, old_endpoint=ENDPOINT, new_endpoint=ENDPOINT,
