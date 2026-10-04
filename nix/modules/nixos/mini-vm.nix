@@ -135,9 +135,35 @@ let
     exit "$fail"
   '';
 
-  # todo0005 の準備。send に --enabled は渡さず、秘密の読取・外部送信は行わない。
-  # 予定枠は開始時に固定し、exec で新世代へ渡しても完了時刻で作り直さない。
+  jobHeartbeatConfig = config.services.dotfiles-job-heartbeat;
+  jobHeartbeatEnabled = if jobHeartbeatConfig.enable then "1" else "0";
+  jobHeartbeatEndpoint =
+    if jobHeartbeatConfig.enable then
+      jobHeartbeatConfig.endpoint
+    else
+      "";
+  # 設定だけを開始時に固定する。agenix の世代は switch で消えるので実体パスへ解決しない。
+  jobHeartbeatSnapshot = ''
+    export DOTFILES_JOB_HEARTBEAT_ENABLED=${jobHeartbeatEnabled}
+    export DOTFILES_JOB_HEARTBEAT_ENDPOINT=${lib.escapeShellArg jobHeartbeatEndpoint}
+    export DOTFILES_JOB_HEARTBEAT_TOKEN_FILE=
+    if [ "$DOTFILES_JOB_HEARTBEAT_ENABLED" = 1 ]; then
+      case "$heartbeat_source" in
+        mini-vm-autoswitch) DOTFILES_JOB_HEARTBEAT_TOKEN_FILE=${lib.escapeShellArg (jobHeartbeatConfig.tokenFiles.mini-vm-autoswitch or "")} ;;
+        mini-vm-lock-fast) DOTFILES_JOB_HEARTBEAT_TOKEN_FILE=${lib.escapeShellArg (jobHeartbeatConfig.tokenFiles.mini-vm-lock-fast or "")} ;;
+        mini-vm-lock-slow) DOTFILES_JOB_HEARTBEAT_TOKEN_FILE=${lib.escapeShellArg (jobHeartbeatConfig.tokenFiles.mini-vm-lock-slow or "")} ;;
+      esac
+    fi
+  '';
+
   jobHeartbeat = pkgs.writeShellScript "dotfiles-job-heartbeat" ''
+    # 旧OFF coordinator → 新ON helper と、ON中の送信先変更は次の invocation まで送らない。
+    if [ "${jobHeartbeatEnabled}" = 1 ] \
+      && [ "''${DOTFILES_JOB_HEARTBEAT_ENABLED:-}" = 1 ] \
+      && [ "''${DOTFILES_JOB_HEARTBEAT_ENDPOINT:-}" = ${lib.escapeShellArg jobHeartbeatEndpoint} ]; then
+      set -- --enabled --endpoint "$DOTFILES_JOB_HEARTBEAT_ENDPOINT" \
+        --token-file "''${DOTFILES_JOB_HEARTBEAT_TOKEN_FILE:-}" "$@"
+    fi
     export SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
     export CURL_CA_BUNDLE="$SSL_CERT_FILE"
     # 新世代helperはその世代のcurlを使い、旧coordinatorのPATHに依存しない。
@@ -303,6 +329,8 @@ let
         ;;
     esac
 
+    heartbeat_source="mini-vm-lock-$lane"
+    ${jobHeartbeatSnapshot}
     heartbeat_receipt=$(${jobHeartbeat} begin --source "mini-vm-lock-$lane") || heartbeat_receipt=
 
     # systemd が StateDirectory で用意する。手で叩くときのために既定値も持たせる。
@@ -512,6 +540,7 @@ in
   # ホストは Intel なので x86_64 ゲストがネイティブで動く (vz ドライバ)。
   imports = [
     ./services/host-heartbeat.nix
+    ./services/dotfiles-job-heartbeat.nix
     (modulesPath + "/profiles/qemu-guest.nix")
     ./services/langfuse.nix
     ./services/beszel.nix
@@ -1376,6 +1405,8 @@ in
 
       ExecStart = pkgs.writeShellScript "dotfiles-autoswitch" ''
         set -eu
+        heartbeat_source=mini-vm-autoswitch
+        ${jobHeartbeatSnapshot}
         export DOTFILES_JOB_HEARTBEAT_RECEIPT
         DOTFILES_JOB_HEARTBEAT_RECEIPT=$(${jobHeartbeat} begin --source mini-vm-autoswitch) || DOTFILES_JOB_HEARTBEAT_RECEIPT=
         echo "autoswitch: coordinator revision ${dotfilesRevision}" >&2

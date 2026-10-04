@@ -79,6 +79,7 @@ exit "$GATE_STATUS"
 ''')
         self.command("nix-env", 'echo "profile $*" >> "$FIXTURE/calls"\n')
         self.replacements = {
+            "${jobHeartbeatSnapshot}": "export DOTFILES_JOB_HEARTBEAT_ENABLED=0 DOTFILES_JOB_HEARTBEAT_ENDPOINT= DOTFILES_JOB_HEARTBEAT_TOKEN_FILE=",
             "${jobHeartbeat}": shlex.quote(str(self.bin / "heartbeat")),
             "${autoswitchPath}": shlex.quote(self.env["PATH"]),
             "${pkgs.cacert}": "/new-generation-ca",
