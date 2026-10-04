@@ -16,5 +16,5 @@ Rejected:
 Consequences:
 
 - PyPI から版が直接降ってくる経路なので、required CI もロールバックも通らない。逃げ道は `ExecStart` を `<pkg>@X.Y.Z` に書き換えて switch すること。
-- 版検出は uv のキャッシュレイアウト (`archive-v0`) に依存する。壊れると版は `unknown` に落ち、毎日 PyPI 最新と不一致になって `try-restart` を打ち続ける (`todo.txt` の `id:0046`)。
-- refresh の成否は Bark 通知だけで担保し、健全性ゲートには含めていない (`todo.txt` の `id:0045`)。
+- 版検出は uv のキャッシュレイアウト (`archive-v0`) に依存する。検出失敗時は再起動を保留して再検出を続け、連続失敗は一度だけ通知する。実配備・受入結果は `docs/codex-bridge-update-acceptance.json`。
+- refresh の成否は独立して通知・観測し、健全性ゲートには含めない。uvx の更新失敗でNix世代をrollbackしても解消しないため。

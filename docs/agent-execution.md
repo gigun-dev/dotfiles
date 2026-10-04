@@ -15,8 +15,8 @@ dotfiles 内の同名パスは存在しない。
 ## 配布するルール
 
 `claude/CLAUDE.md` は通常の symlink 配布で Claude Code に届く。今回 `~/.claude/CLAUDE.md`
-がこのファイルを指すことを確認した。`~/.codex/AGENTS.md` は別管理であり、この変更が Codex
-の全セッションにも自動で適用されるわけではない。
+がこのファイルを指すことを確認した。Codex は `codex/AGENTS.md` を配布し、現在のMacの `~/.codex/AGENTS.md` は
+そのsymlinkである。ClaudeとCodexのツール固有の指示はそれぞれのファイルに置く。
 
 今回 `~/.claude/settings.json` は symlink ではなく実ファイルだったため、既存の設定を保ち
 PreToolUse の当該エントリだけを追加した。リポジトリ側にも同じエントリを置いている。
