@@ -51,6 +51,9 @@ in
     gigun
     backup
   ];
+  "job-heartbeat-autoswitch.age".publicKeys = all;
+  "job-heartbeat-fast.age".publicKeys = all;
+  "job-heartbeat-slow.age".publicKeys = all;
   # Cloudflare トンネルの認証情報。cloudflared が credentialsFile として読む。
   "cloudflared-cloudflare-os.json.age".publicKeys = all;
 

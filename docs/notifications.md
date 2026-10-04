@@ -20,7 +20,8 @@ Mac/VMの生存報告と公開Codex・Langfuseの検査、停止・復旧履歴�
 
 `scripts/job-heartbeat.py` はhub H1b用の3系統共通sender。開始時にUTC予定枠とrunIdを固定し、
 同じreceiptを成功時の再試行にも使う。`services.dotfiles-job-heartbeat` は既定でOFF、
-endpointはnull、tokenFilesは空。mergeだけでは有効にならず、資格情報の宣言・配置も行わない。
+endpointはnull、tokenFilesは空。mini-vmの有効化候補はこの既定値を明示的に上書きするが、
+[配備前提](job-heartbeat-activation.md)が揃うまでは未配備として扱う。
 OFFではcredentialの解決・stat・読取、curl起動、HTTP通信を行わない。
 既存の失敗通知、H0/Bark経路、timerの時刻は変更していない。
 
