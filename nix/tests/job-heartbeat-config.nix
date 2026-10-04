@@ -10,10 +10,32 @@ let
       mini-vm-lock-slow = "/run/agenix/job-lock-slow";
     };
   };
+  moduleDefaults =
+    (lib.evalModules {
+      modules = [
+        ../modules/nixos/services/dotfiles-job-heartbeat.nix
+        {
+          options.assertions = lib.mkOption {
+            type = lib.types.listOf lib.types.raw;
+            default = [ ];
+          };
+        }
+      ];
+    }).config;
   evaluate =
     settings:
-    (nixos.extendModules { modules = [ { services.dotfiles-job-heartbeat = settings; } ]; }).config;
-  disabled = nixos.config;
+    (nixos.extendModules {
+      modules = [
+        {
+          services.dotfiles-job-heartbeat = {
+            enable = lib.mkForce (settings.enable or false);
+            endpoint = lib.mkForce (settings.endpoint or null);
+            tokenFiles = lib.mkForce (settings.tokenFiles or { });
+          };
+        }
+      ];
+    }).config;
+  disabled = evaluate { };
   configuredOff = evaluate (valid // { enable = false; });
   enabled = evaluate valid;
   accepts =
@@ -94,6 +116,10 @@ let
     && !(after.serviceConfig ? LoadCredential)
     && !(after.serviceConfig ? SetCredential);
 in
+assert !moduleDefaults.services.dotfiles-job-heartbeat.enable;
+assert moduleDefaults.services.dotfiles-job-heartbeat.endpoint == null;
+assert moduleDefaults.services.dotfiles-job-heartbeat.tokenFiles == { };
+assert lib.all (item: item.assertion) moduleDefaults.assertions;
 assert !disabled.services.dotfiles-job-heartbeat.enable;
 assert disabled.services.dotfiles-job-heartbeat.endpoint == null;
 assert disabled.services.dotfiles-job-heartbeat.tokenFiles == { };
