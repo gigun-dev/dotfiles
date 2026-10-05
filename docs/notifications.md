@@ -13,9 +13,11 @@ Mac/VMの生存報告と公開Codex・Langfuseの検査、停止・復旧履歴�
 
 `dotfiles-autoswitch`・`dotfiles-lock-propose@fast`・`@slow` のジョブ成功heartbeatは、
 2026-10-04 19:29 UTCまでにhubとmini-vmへの適用を確認した。
-[配備記録・CI・次の自然枠](job-heartbeat-activation.md)を参照。
-`todo.txt` の0005は未完了で、正常終了（差分なしを含む）・途絶・復旧・計画停止・
-二重配信防止・本人iPhone表示の実受入が残る。D1の初期healthyは成功receiptの証拠ではない。
+2026-10-05のfast 01:00 UTC枠・autoswitch 04:00 UTC枠は自然成功receiptをD1で確認した。
+[配備記録・自然受付・残る受入](job-heartbeat-activation.md)を参照。
+`todo.txt` の0005は未完了で、週次slowの初回枠（2026-10-11 02:00 UTC）・差分なし経路・
+途絶・復旧・計画停止・二重配信防止・本人iPhone表示の実受入が残る。
+D1の初期healthyは成功receiptの証拠ではなく、自然receiptもBark/APNs受付・端末表示を代替しない。
 
 ## ジョブ成功 heartbeat の仕様（todo0005、module既定OFF）
 
@@ -82,7 +84,7 @@ rootまたは実行UID所有を検証し、秘密をargv・環境変数・journa
 
 残る受入と運用上の境界:
 
-1. 自然実行で正常終了（差分なしを含む）とhub成功receiptを確認する。
+1. fast・autoswitchの自然成功receiptは確認済み。週次slowと差分なし経路の受入を続ける。
    hub受付・H0/Bark/APNs受付・本人iPhone表示は分けて記録する
 2. 途絶・復旧と再送重複防止を確認する。既存の即時失敗通知は維持し、H1b欠測との相関を
    決めないまま両経路の二重配信防止済みとは扱わない。実機強制停止を試験に使わない
