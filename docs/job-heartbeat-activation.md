@@ -1,6 +1,7 @@
 # ジョブ heartbeat の配備記録と残る受入
 
 2026-10-04 19:29 UTCまでに、hubとmini-vmの3ジョブ監視の適用を確認した。
+2026-10-05にはfast・autoswitchの自然成功receiptをD1で確認した。週次slowは初回枠待ち。
 `todo.txt` の0005は未完了。配備・初期化の確認と、自然実行・実通知の受入を区別する。
 
 ## 適用済み
@@ -29,7 +30,7 @@
   ON snapshotの3 source・endpointを確認し、timer・timeout・既存即時失敗通知は維持した。
   3 timerはenabled/active/waiting・Persistent=yes、VMはUTCでOnCalendarのTZ明記なしも維持した
 - 適用後のCronはhealthy、既存hostの報告はfresh、既存CI #120監視はhealthy。
-  outboxのpending/retry/failedは無かった。3ジョブの自然実行はまだ観測していない
+  outboxのpending/retry/failedは無かった。この配備確認時点では3ジョブの自然実行は未観測だった
 
 ## CIの検証範囲
 
@@ -42,7 +43,22 @@ moduleの既定値はOFFのまま、mini-vmの宣言で明示的にONへ上書�
 `nix/tests/job-heartbeat-config.nix` はmodule単体の既定値と、明示的なpriority overrideによる
 OFF/ON/不正設定を分けて検証し、実機設定からテストの欠けた項目を補わない。
 
-## 次の自然枠と未完了の受入
+## 自然実行の受付確認（2026-10-05）
+
+2026-10-05 04:28 UTCのD1 read-only照合で、次の2件の自然成功heartbeat受付を確認した。
+日時はUTC。初期healthyだけでなく、各予定枠のreceiptを照合した。
+
+| source | 対象予定枠 | hub受信時刻 | monitor状態 | receipt件数 |
+| --- | --- | --- | --- | --- |
+| mini-vm-lock-fast | 2026-10-05 01:00 | 2026-10-05 01:03:47.825 | healthy・version=1・incident=null | 1 |
+| mini-vm-autoswitch | 2026-10-05 04:00 | 2026-10-05 04:03:29.405 | healthy・version=1・incident=null | 1 |
+
+週次slowは初回予定枠前で、healthy・version=0・receipt=0の初期状態を維持していた。
+対象3 sourceのpending heartbeat eventと通知delivery行は無かった。
+これは自然ジョブのhub受付の証拠であり、missed/recovered、H0/Bark/APNs受付、本人iPhone表示の
+実受入ではない。差分なし経路や再送重複防止を個別に実証したものとも扱わない。
+
+## 自然枠と未完了の受入
 
 予定枠はUTC、既存timerのjitterは最大30分。hubの猶予は各予定枠から数える。
 
@@ -52,8 +68,9 @@ OFF/ON/不正設定を分けて検証し、実機設定からテストの欠け�
 | mini-vm-autoswitch | 2026-10-05 04:00 | 毎日04:00 | 105分 |
 | mini-vm-lock-slow | 2026-10-11 02:00 | 日曜02:00 | 135分 |
 
-- 旧OFF invocationから新ON helperへ切り替えた回は送信しない。次の対象実行から、
-  正常終了（差分なしを含む）とhubの成功receiptを確認する
+- fast・autoswitchの上記2枠はhub受付確認済み。slowは2026-10-11 02:00 UTCの初回枠で確認する。
+  差分なし経路を含む残りの受入は続ける。旧OFF invocationから新ON helperへ切り替えた回は
+  送信しない仕様を維持する
 - 途絶・復旧、再送重複防止、既存即時失敗通知との二重配信防止は実受入未完了。
   hub受付・H0/Bark/APNs受付・本人iPhone表示を分けて記録し、実機強制停止を試験に使わない
 - 計画停止のpause/resume/期限自動再開は今後の受入。通常senderへmonitorControlを付けず、
