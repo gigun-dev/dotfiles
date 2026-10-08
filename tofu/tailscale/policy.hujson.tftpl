@@ -1,11 +1,9 @@
 {
-	"hosts": ${ota_hosts},
 	"tagOwners": {
 		"tag:admin-device": [${owner}],
 		"tag:client":       [${owner}],
 		"tag:storage":      [${owner}],
 		"tag:proxmox":      [${owner}],
-		"tag:vm":           [${owner}],
 		"tag:server":       [${owner}],
 	},
 
@@ -15,12 +13,6 @@
 	],
 
 	"grants": [
-		// 本人の利用端末にはOTA配布先のHTTPSだけを許可する。
-		{
-			"src": [${owner}],
-			"dst": ["ota-pro", "ota-mini"],
-			"ip": ["tcp:443"],
-		},
 		// tag 同士の IP 全許可（homelab なので細粒度せず）
 		{
 			"src":
@@ -29,7 +21,6 @@
 					"tag:client",
 					"tag:storage",
 					"tag:proxmox",
-					"tag:vm",
 					"tag:server",
 				],
 			"dst":
@@ -38,7 +29,6 @@
 					"tag:client",
 					"tag:storage",
 					"tag:proxmox",
-					"tag:vm",
 					"tag:server",
 				],
 			"ip": ["*"],
@@ -60,7 +50,7 @@
 		{
 			"action": "accept",
 			"src":    ["tag:admin-device"],
-			"dst":    ["tag:proxmox", "tag:vm", "tag:server"],
+			"dst":    ["tag:proxmox", "tag:server"],
 			"users":  ["root", "ubuntu"],
 		},
 		// admin → 自分で使う端末: nonroot のみ (`ssh gigun@mini` 想定)
@@ -86,14 +76,14 @@
 		},
 	],
 	"tests": [
+		// タグ無しの本人端末から tag:server の ssh へは入れない
 		{
 			"src": ${owner},
-			"accept": ["ota-pro:443", "ota-mini:443"],
-			"deny": ["ota-pro:22", "ota-mini:22", "tag:server:22"],
+			"deny": ["tag:server:22"],
 		},
 		{
 			"src": "tag:admin-device",
-			"accept": ["ota-pro:443", "ota-mini:443", "tag:server:22"],
+			"accept": ["tag:server:22"],
 		},
 	],
 }
