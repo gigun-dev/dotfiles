@@ -13,18 +13,11 @@ variable "tailnet_owner" {
   }
 }
 
-variable "ota_hosts" {
-  type      = map(string)
-  sensitive = true
-  nullable  = false
-}
-
 resource "tailscale_acl" "policy" {
   # 既存ポリシーをimportするまで上書きできないprovider既定を維持する。
   # destroyでも既定の全許可ポリシーへ戻さない。
   acl = templatefile("${path.module}/policy.hujson.tftpl", {
-    owner     = jsonencode(var.tailnet_owner)
-    ota_hosts = jsonencode(var.ota_hosts)
+    owner = jsonencode(var.tailnet_owner)
   })
   lifecycle {
     prevent_destroy = true
