@@ -27,3 +27,6 @@ tofu/**/.terraform.tfstate.lock.info
 # -generate-config-out の出力先。取り込み後は中身を精査して手書きの .tf へ移すので、
 # 生成物そのものは残さない。
 tofu/generated.tf
+
+# Python bytecode
+__pycache__/
