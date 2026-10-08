@@ -255,6 +255,8 @@
     "japanese-tech-writing@gigun": true,
     "todo@gigun": true,
     "langfuse@gigun": true,
+    "hallmark@gigun": true,
+    "ota-deploy@gigun": true,
     "asc@rorkai": true,
     "asc-mcp@gigun": true
   },
@@ -387,5 +389,6 @@
       "routine under gigun-dev/ prefix qualifiers: none configured beyond the trusted repo itself"
     ]
   },
-  "voiceEnabled": true
+  "voiceEnabled": true,
+  "model": "sonnet"
 }
