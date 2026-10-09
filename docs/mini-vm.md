@@ -212,6 +212,31 @@ Tailscaleポリシーは `tofu/tailscale/` で管理する。公開テンプレ�
 
 管理画面の編集防止と正典へのリンクを設定済み。緊急変更は管理画面で解除して行えるが、正典へ取り込み、次のapplyで黙って上書きしない。通常は `nix run .#tofu -- -chdir=tailscale plan` で差分と接続テストを確認し、同じ入口の `apply` で適用する。Git pushだけではACLを自動適用しない。現在の広いタグ間許可は別変更で見直す。
 
+## agy の remote control(常駐と、手で当てる状態)
+
+2026-10-09 に mini-vm へ入れた。宣言できるものと、できない状態を分けて持つ。
+
+- **宣言している**: パッケージ(`llmAgents.antigravity-cli`)と linger(`mini-vm.nix` の `linger-gigun`)。
+  `agy remote-control start` が登録するのはユーザー unit の `antigravity-cli-daemon.service`
+  (`agy remote-control serve`、`Restart=on-failure`)で、linger が無いと再起動やログアウトで止まる。
+  agy 自身の `enable-linger` は polkit に拒否されるため(`Could not enable linger: Access denied`)、
+  root の oneshot で冪等に叩く。`users.users.<name>.linger` は Lima が作る gigun の宣言と衝突するので使わない。
+- **宣言できない(手で当てる)**: Google アカウントの認可と、デバイスの登録。認可は本人の同意の記録で、
+  トークンは更新のたびに書き換わるため agenix で配ると古い内容へ戻って壊れる。Codex の `auth.json`・
+  `codex-pair.py`・Tailscale のログインと同じ扱い。
+  - 登録: `agy remote-control start --name mini-vm`。状態は `agy remote-control status`。
+  - 認可: ログイン後にデーモンがもう一段の OAuth 認可(`Enter the authorization code:`)を求め、
+    stdin が無いので `failed to read authorization code from stdin: EOF` で失敗し続ける。
+    ダッシュボード(https://antigravity.google.com)にも同じエラーが出る。
+    `systemctl --user stop antigravity-cli-daemon.service` のあと前景で `agy remote-control serve` を起動し、
+    表示された URL を別端末のブラウザで承認して、認可コードを貼る。
+  - 状態が消えたかどうかは、`agy remote-control status` とダッシュボードの `mini-vm` の表示で見る。
+- **確認済み(2026-10-09)**: 前景の `serve` で認可を通したあと `systemctl --user start` で常駐へ戻すと、
+  デーモンは認可の要求を出さずに `active` を保ち、ダッシュボードにも `mini-vm` が出た。認可の結果は
+  デーモンから読める場所に保存される。
+- **未確認**: 再起動後に自動で上がるか。linger は有効(`Linger=yes`)なので上がる見込みだが、
+  mini-vm の再起動では試していない。
+
 ### mini本体でのiOSビルド・署名
 
 Xcodeはmini-vmではなくmacOS本体で実行する。`ssh gigun@mini`から既存の`ghq`を使え、MCPHostは`~/ghq/github.com/gigun-dev/swift-mcp-app`に取得済み。Intel macOSのNix構成は凍結しているため、XcodeGen 2.46.0は`brew install xcodegen`で導入した。プロジェクトはGit管理される`project.yml`から生成する。
