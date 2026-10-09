@@ -1314,6 +1314,25 @@ in
     };
   };
 
+  # `agy remote-control start` が登録する antigravity-cli-daemon はユーザー unit なので、
+  # boot から上げるには linger が要る。agy 自身は enable-linger を試みるが、一般ユーザーでは
+  # polkit に拒否される (2026-10-09 実測: "Could not enable linger: Access denied")。
+  #
+  # Why not `users.users.<name>.linger`: NixOS 側の実装はその user を宣言した状態を要求し、
+  # Lima が imperative に作る gigun と衝突する (users.mutableUsers の理由を参照)。
+  # root の oneshot で enable-linger だけを冪等に叩けば、user 宣言に触れずに済む。
+  # 登録 (agy remote-control start) と Google ログインは imperative のまま。
+  systemd.services.linger-gigun = {
+    description = "gigun の linger を有効にする (ユーザー unit を boot から上げる)";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "systemd-logind.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = "${config.systemd.package}/bin/loginctl enable-linger ${username}";
+    };
+  };
+
   # codex-openai-bridge の版が PyPI の最新から遅れていないかを日次で確認し、
   # 遅れていれば再起動する。実体 (codexBridgeRefresh) は上の let にある。
   #
