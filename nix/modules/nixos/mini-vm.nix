@@ -280,10 +280,52 @@ let
 
     export SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
 
-    # 本文は journal の末尾。Bark の本文長に収まるよう切る。
-    body=$(${config.systemd.package}/bin/journalctl -u "$unit" -n 30 --no-pager -o cat 2>/dev/null \
-      | ${pkgs.coreutils}/bin/tail -c 900)
-    [ -n "$body" ] || body="(journal を取得できなかった)"
+    # 本文は 3-4 行の要約 (全体で約 300 字)。journal の生の末尾は、行頭が欠け、
+    # systemd の会計行 (Consumed ...) と巨大な署名付き URL で原因が埋もれて読めなかった。
+    # URL の query は署名・期限など credential 相当なので、Bark にも履歴にも載せない。
+    redact() {
+      ${pkgs.gnused}/bin/sed -E 's#(https?://[^ ?"]+)\?[^ "]*#\1?…#g'
+    }
+    journal=$(${config.systemd.package}/bin/journalctl -u "$unit" -n 50 --no-pager -o cat 2>/dev/null || true)
+    if [ -z "$journal" ]; then
+      body="(journal を取得できなかった)"
+    else
+      # 会計・起動停止・systemd-run の長い command line は原因ではない。
+      clean=$(printf '%s\n' "$journal" | redact \
+        | { ${pkgs.gnugrep}/bin/grep -Ev 'Consumed .*CPU time|memory (peak|swap peak)|IP (traffic|in|out)|IO (bytes|read|write)|systemd-run( |$)|^(Started|Starting|Stopped|Stopping) ' || true; })
+      # unit 自身の結末を告げる行は原因ではなく記録。原因はその手前にある。
+      candidates=$(printf '%s\n' "$clean" \
+        | { ${pkgs.gnugrep}/bin/grep -Ev 'Consumed |Triggering OnFailure|Failed to start|Failed with result' || true; })
+      cause=$(printf '%s\n' "$candidates" \
+        | { ${pkgs.gnugrep}/bin/grep -Ei 'error|failed|timeout|denied|refused' || true; } \
+        | ${pkgs.coreutils}/bin/tail -n 1 \
+        | ${pkgs.gnused}/bin/sed -E 's/^(.{140}).+/\1…/')
+      # 一致が無ければ、会計を除いた最後の行 (何も言わないよりは手がかりになる)。
+      if [ -z "$cause" ]; then
+        cause=$(printf '%s\n' "$candidates" | { ${pkgs.gnugrep}/bin/grep -v '^$' || true; } \
+          | ${pkgs.coreutils}/bin/tail -n 1 \
+          | ${pkgs.gnused}/bin/sed -E 's/^(.{140}).+/\1…/')
+      fi
+
+      # systemctl show は unit が消えていても 0 で返るので、取れた項目だけ並べる。
+      props=$(${config.systemd.package}/bin/systemctl show -p Result -p ExecMainStatus "$unit" 2>/dev/null || true)
+      result=$(printf '%s\n' "$props" | ${pkgs.gnused}/bin/sed -n 's/^Result=//p' | ${pkgs.coreutils}/bin/head -n 1)
+      status=$(printf '%s\n' "$props" | ${pkgs.gnused}/bin/sed -n 's/^ExecMainStatus=//p' | ${pkgs.coreutils}/bin/head -n 1)
+      head_line="$unit"
+      [ -z "$result" ] || head_line="$head_line: $result"
+      { [ -z "$status" ] || [ "$status" = 0 ]; } || head_line="$head_line (exit $status)"
+
+      body=$head_line
+      [ -z "$cause" ] || body="$body"$'\n'"$cause"
+      # 別 unit の失敗が原因のとき (autoswitch 中の langfuse など) は名前を出す。
+      other=$(printf '%s\n' "$clean" \
+        | { ${pkgs.gnugrep}/bin/grep -oE '[A-Za-z0-9_.@:-]+\.service: Failed with result' || true; } \
+        | ${pkgs.gnused}/bin/sed 's/: Failed with result$//' \
+        | { ${pkgs.gnugrep}/bin/grep -vxF "$unit" || true; } \
+        | ${pkgs.coreutils}/bin/head -n 1)
+      [ -z "$other" ] || body="$body"$'\n'"関連して失敗: $other"
+      body="$body"$'\n'"詳細: journalctl -u $unit -n 50"
+    fi
 
     payload=$(${pkgs.jq}/bin/jq -n \
       --arg title "$title" \
