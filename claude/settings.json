@@ -29,6 +29,7 @@
     ],
     "defaultMode": "auto"
   },
+  "model": "sonnet",
   "hooks": {
     "Notification": [
       {
@@ -258,7 +259,8 @@
     "hallmark@gigun": true,
     "ota-deploy@gigun": true,
     "asc@rorkai": true,
-    "asc-mcp@gigun": true
+    "asc-mcp@gigun": true,
+    "html-plan@claude-community": true
   },
   "extraKnownMarketplaces": {
     "agent-browser": {
@@ -338,6 +340,12 @@
         "source": "github",
         "repo": "rorkai/app-store-connect-cli-skills"
       }
+    },
+    "claude-community": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-community"
+      }
     }
   },
   "language": "Japanese",
@@ -389,6 +397,5 @@
       "routine under gigun-dev/ prefix qualifiers: none configured beyond the trusted repo itself"
     ]
   },
-  "voiceEnabled": true,
-  "model": "sonnet"
+  "voiceEnabled": true
 }
