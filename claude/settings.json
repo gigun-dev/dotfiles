@@ -264,7 +264,8 @@
     "ota-deploy@gigun": true,
     "asc@rorkai": true,
     "asc-mcp@gigun": true,
-    "html-plan@claude-community": true
+    "html-plan@claude-community": true,
+    "modern-web-guidance@gigun": true
   },
   "extraKnownMarketplaces": {
     "agent-browser": {
