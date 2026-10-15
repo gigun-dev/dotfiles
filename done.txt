@@ -46,3 +46,4 @@ x 2026-10-15 2026-10-15 autoswitch が main の CI 実行中に当たったと�
 x 2026-10-15 2026-10-15 python3 を nixpkgs から全ホストの home に入れる(nix run .#build が通り、build した profile に python3 があること) +infra by:me id:0073
 x 2026-10-15 2026-10-15 gcloud を brew cask gcloud-cli から nixpkgs google-cloud-sdk へ移す(nix run .#build が通り、build した profile の gcloud version が動くこと) +infra by:me id:0074
 x 2026-10-15 2026-09-10 uv tool 群を宣言ファイルと共通 installer で管理下に入れる(home.activation と bootstrap.sh が同じ installer を呼び、未導入だけ入れ、更新せず、宣言外は警告のみ。yt-dlp と huggingface-hub は nixpkgs へ移す) +infra by:me id:0020
+x 2026-10-15 2026-10-15 Python の使い分け方針を docs/python.md に書き、CLAUDE.md から指す(uv 公式 docs の projects / scripts / tools / Jupyter と整合し、esp-idf の nix+uv 構成を正確に記述すること) +docs by:me id:0077
