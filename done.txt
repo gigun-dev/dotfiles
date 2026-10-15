@@ -49,3 +49,4 @@ x 2026-10-15 2026-09-10 uv tool 群を宣言ファイルと共通 installer で�
 x 2026-10-15 2026-10-15 Python の使い分け方針を docs/python.md に書き、CLAUDE.md から指す(uv 公式 docs の projects / scripts / tools / Jupyter と整合し、esp-idf の nix+uv 構成を正確に記述すること) +docs by:me id:0077
 x 2026-10-15 2026-10-15 docs/python.md の未確認の事実 2 点を裏取りする(Colab ランタイムが 2026-09-16 に Python 3.13.15 へ移ったことを Colab release notes で、pyenv 撤去の原因が brew gettext の zap だったことを当時の記録で確認し、違えば本文を直す) +docs see:docs/python.md by:claude id:0078
 x 2026-10-15 2026-10-15 MacBook の次の nix run .#switch で、gcloud-cli cask と python@3.14 が zap で消え、python3 / gcloud / yt-dlp / hf が nix 版を指し (command -v)、gcloud の account 設定が残り、syncUvTools が install せず宣言外の警告だけ出すことを確認する。その後 uv tool uninstall yt-dlp huggingface-hub で旧 uv 版を消す +infra @device by:claude id:0075
+x 2026-10-15 2026-10-15 uv/tools.txt から使っていない it2 を外し、docs/mini-vm.md の ~/.local/bin の住人一覧を現状に合わせる +infra by:me id:0079
