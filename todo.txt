@@ -27,4 +27,4 @@
 (A) 2026-10-15 mini-vm の autoswitch が CI ゲート付きの新構成で動くことを実機で確かめる(10/16 04:06 UTC の定時実行で新構成が当たり、次回以降に green の commit を ff 適用・red/pending なら適用せず「mini-vm 自動更新 見送り」の Bark が届くこと。gh api は gigun の対話 shell からは通ることを 10/15 に確認済み) +mini-vm @unattended see:docs/adr/0011-push-without-a-local-gate-and-apply-only-green-commits.md by:claude id:0070
 (B) 2026-10-15 エージェントの git pull --rebase が Nix の変更を取り込んだとき、フックの nix run .#switch が端末なしでも Touch ID / Apple Watch で通るか、通らない場合に pull が成功のまま残るかを確かめる +claude @device see:docs/adr/0011-push-without-a-local-gate-and-apply-only-green-commits.md by:claude id:0071
 (C) 2026-10-15 mini-vm の次の autoswitch で home の syncUvTools が google-colab-cli を入れ、失敗しても switch が止まらないことを journal で確認する(x86_64-linux の home は手元で評価できず CI の build に委ねた) +mini-vm by:claude id:0076
-(B) 2026-10-15 nbstripout を全ホストの git に global filter として入れる(.ipynb の execution_count と Python 版は落ち、出力は残り、git diff が textconv を使うこと) +infra by:me id:0080
+(C) 2026-10-15 switch 後に Fork から .ipynb を commit して nbstripout filter が PATH 無しで通り、mini-vm / WSL の ~/.config/git/config にも filter と textconv が入っていることを確認する +infra @device by:claude id:0081
