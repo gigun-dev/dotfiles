@@ -35,8 +35,8 @@ Worker・KV・Cron・custom domainは`gigun-dev/hub`の`infra/uptime/`でOpenTof
   gigun の gh 認証で読み、GitHub Actions の check run が全て success / skipped / neutral で終わり、
   required の `check` と `build` が出揃っていれば green としてその commit へ `merge --ff-only` する。
   skipped を green に数えるのは paths-filter で nix 以外の commit の check/build が飛ばされるため
-  (代わりに `changes` job 自体の失敗は red)。red(失敗・cancelled 等)と pending(未完了・未出現)は
-  **見送り**: unit は成功で終わり、理由を `dotfiles-autoswitch-notify-skip` が Bark へ送り、
+  (代わりに `changes` job 自体の失敗は red)。red(失敗・cancelled 等)は即座に、pending(未完了・未出現)は
+  60 秒ごとに fetch し直して最大 30 分待ち、それでも終わらなければ**見送り**: unit は成功で終わり、理由を `dotfiles-autoswitch-notify-skip` が Bark へ送り、
   成功 heartbeat も送る。翌日の timer が判定し直す。API が引けない(認証切れ等)は見送りではなく
   失敗として既存の失敗通知へ流す。作業コピーが upstream より先行していても止める。
 - **`system.autoUpgrade` は使わない。** home 層が視野の外(`nixos-rebuild` しか叩かない)で、
