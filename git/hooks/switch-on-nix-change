@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# =============================================================================
+# post-merge / post-rewrite / post-checkout の共通実体。
+# 手元に入った変更が Nix の構成 (flake.nix / flake.lock / nix/) に触れていたら、
+# その場で `nix run .#switch` して稼働中の構成を checkout に追従させる。
+# 何を止めるか: pull しただけで switch を忘れ、手元の system が「main とも
+# 作業コピーとも違う lock」で動き続けること (docs/adr/0011-*)。
+# 呼び方: git/hooks/<hook> が `exec` で <hook 名> と git の引数を渡す。
+# 抑止: DOTFILES_SKIP_AUTO_SWITCH=1 (呼び出し側がこの後で自分で switch する場合)。
+# =============================================================================
+set -u
+
+hook=$1
+shift
+
+[ -z "${DOTFILES_SKIP_AUTO_SWITCH:-}" ] || exit 0
+
+# NixOS (mini-vm) では何もしない。そこでの適用は dotfiles-autoswitch が
+# CI green を確かめた commit にだけ行う。ここで switch すると、autoswitch 自身の
+# `git merge` がこのフックを踏み、CI ゲートと健全性ゲートを迂回した二重 switch になる。
+[ ! -e /etc/NIXOS ] || exit 0
+command -v nix >/dev/null 2>&1 || exit 0
+
+git_dir=$(git rev-parse --absolute-git-dir) || exit 0
+common_dir=$(cd "$(git rev-parse --git-common-dir)" && pwd -P) || exit 0
+# linked worktree (エージェントの作業場) の構成を機械に当てない。
+# Why not ryoppippi 方式 (どの worktree でも switch): ここでは worktree を
+# エージェントの隔離に使うので、未レビューの branch が system に乗ってしまう。
+[ "$(cd "$git_dir" && pwd -P)" = "$common_dir" ] || exit 0
+# 稼働構成は main に追従させる。feature branch へ移ったときは触らず、
+# main へ戻った post-checkout で main の構成に戻る。
+[ "$(git symbolic-ref --quiet --short HEAD)" = main ] || exit 0
+
+# rebase / merge / cherry-pick の途中は 1 commit ずつ再生されるので、最終状態だけ見る
+# (rebase は内部の checkout で post-checkout も呼ぶ。完了時の post-rewrite が拾う)。
+# post-rewrite には掛けない: git 2.55 実測で、完了時の post-rewrite の時点でも
+# rebase-merge/ がまだ残っており、掛けると pull --rebase の switch が全部消える。
+mid_operation() {
+	local entry
+	for entry in rebase-merge rebase-apply MERGE_HEAD CHERRY_PICK_HEAD; do
+		[ ! -e "$git_dir/$entry" ] || return 0
+	done
+	return 1
+}
+
+case "$hook" in
+	post-merge)
+		! mid_operation || exit 0
+		range='HEAD@{1}..HEAD'
+		;;
+	post-rewrite)
+		# stdin の書き換え一覧は使わないが、読み切って git 側の書き込みを詰まらせない。
+		cat >/dev/null
+		# amend は自分の commit なので switch の契機にしない。
+		[ "${1:-}" = rebase ] || exit 0
+		range='ORIG_HEAD..HEAD'
+		;;
+	post-checkout)
+		# $3 = 1 が branch の checkout。0 はファイル単位の復元。
+		[ "${3:-}" = 1 ] || exit 0
+		! mid_operation || exit 0
+		range="$1..$2"
+		;;
+	*)
+		echo "switch-on-nix-change: 未知のフック $hook" >&2
+		exit 2
+		;;
+esac
+
+# range を解決できない (初回 clone の HEAD@{1} 等) ときは空扱いで何もしない。
+if git diff --name-only "$range" 2>/dev/null | grep -qE '^(flake\.nix|flake\.lock|nix/)'; then
+	echo "$hook: Nix の構成が変わったので nix run .#switch を実行します" >&2
+	exec nix run .#switch
+fi

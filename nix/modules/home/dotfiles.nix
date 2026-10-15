@@ -117,7 +117,9 @@ in
     fi
   '';
 
-  # dotfiles リポの git pre-commit hook を有効化 (nix fmt 自動適用、CI fmt 失敗防止)
+  # dotfiles リポの git hooks を有効化。pre-commit は nix fmt 自動適用 (CI fmt 失敗防止)、
+  # post-merge/post-rewrite/post-checkout は pull した Nix 構成の自動 switch。
+  # core.hooksPath は clone ごとの .git/config にしか入らないので毎 switch で宣言し直す。
   home.activation.installDotfilesHooks = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
     if [ -d "${dotfilesPath}/.git" ]; then
       $DRY_RUN_CMD chmod +x "${dotfilesPath}/git/hooks/"* 2>/dev/null || true

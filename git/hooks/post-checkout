@@ -1,0 +1,3 @@
+#!/bin/sh
+# 実体は switch-on-nix-change (3 フックで変更範囲の取り方だけが違う)。
+exec "$(dirname "$0")/switch-on-nix-change" post-checkout "$@"

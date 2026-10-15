@@ -147,8 +147,8 @@
           #   exec するだけで gc root を持たないため、nix gc 後は
           #   `/nix/store/...-pre-commit-4.6.2/bin/pre-commit: No such file or directory`
           #   で全コミットが落ちる (2026-09-21 に devShell へ入り、実際に踏んだ)。
-          #   検証内容 (treefmt) は scripts/verify.sh の `nix fmt -- --ci .` が CI と
-          #   pre-push の両方で見ているので、消しても守りは薄くならない。
+          #   検証内容 (treefmt) は scripts/verify.sh の `nix fmt -- --ci .` が CI で
+          #   見ているので、消しても守りは薄くならない。
           # Why not devShells.default を空の mkShell で残すか:
           #   中身は inputsFrom = [ config.pre-commit.devShell ] だけだった。入る理由の
           #   無いシェルを残すと `nix develop` を打つ動機だけが残る。ESP 用は
@@ -163,7 +163,7 @@
           # 比較用 Arduino core は ESP-IDF 6.1 と別の SDK/cache を使う。
           devShells.esp32drop = import ./nix/devshells/esp32drop.nix { inherit pkgs; };
 
-          # Keep false-success and credential-leak regressions in the shared CI/pre-push gate.
+          # Keep false-success and credential-leak regressions in the CI gate (scripts/verify.sh).
           checks = {
             dotfiles-autoswitch = pkgs.runCommand "dotfiles-autoswitch-tests" { } ''
               mkdir -p nix/modules/nixos scripts/tests infra/langfuse/scripts
