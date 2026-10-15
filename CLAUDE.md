@@ -8,12 +8,13 @@ nix-darwin + home-manager を基盤とし、nix なしでも最低限動作す�
 ```bash
 git add . && nix run .#switch  # 変更を適用
 nix run .#build                # ビルドのみ（適用しない）
-nix run .#update               # flake update + switch
+nix run .#update               # pull --rebase + flake update + switch + lock を commit (push はしない)
+nix run .#update-ai-tools      # 同上。AI ツールの input だけ
 ```
 
 **重要**: nix は git index から評価するため、`nix run .#switch` の前に必ず `git add` すること。
 
-**`flake.lock` はコミットして push すること**: 手元は worktree の lock で switch できるが、mini VM は clone なので HEAD の lock しか見ず、update しただけでは反映されない。mini-vm は lock 更新を定期的に PR で提案し、実機ビルドと required CI を通して自動 merge した後、別の定期処理で pull・switch する。手元で lock を更新する場合もコミット・push が必要。現在の運用は `docs/mini-vm.md`、残課題は `todo.txt` を参照。
+**`flake.lock` は main から pull で受け取る**: lock の主な生産者は mini-vm で、定期的に PR で提案し、実機ビルドと required CI を通して自動 merge する。手元は `git pull` するだけでよく、`git/hooks` の post-merge / post-rewrite / post-checkout が flake.nix・flake.lock・nix/ の変化を見て `nix run .#switch` まで走らせる（main の主 checkout でのみ。linked worktree・feature branch・NixOS では何もしない）。手元で lock を更新するときは `nix run .#update` / `update-ai-tools` を使う。pull → update → switch の後に lock をその場で commit するので dirty な lock は残らない。push は手で行う。mini-vm の `dotfiles-autoswitch` は main の HEAD の CI が green のときだけ適用する（red / 未完了は見送って通知）。設計は `docs/adr/0011-push-without-a-local-gate-and-apply-only-green-commits.md`、現在の運用は `docs/mini-vm.md`、残課題は `todo.txt` を参照。
 
 **iTerm2 初回 bootstrap 順序**: `LoadPrefsFromCustomFolder` / `PrefsCustomFolder` は nix 側 (`system.defaults.CustomUserPreferences."com.googlecode.iterm2"`) で system plist に宣言する設計のため、**iTerm2 を起動する前に最初の `nix run .#switch` を完了させる**こと。先に iTerm2 を立ち上げると bootstrap meta key が無く、repo 内 plist が source of truth として読まれない（system plist に書かれた古い設定が継続使用される）。
 
@@ -128,7 +129,7 @@ Mac Mini (Intel) のエージェント基盤は macOS 上の Lima ゲスト (Nix
 
 - メインブランチ: `main`
 - サブエージェントを活用すること
-- 作業完了時は検証済みの変更を意味のある単位でコミットし、`git status` で残る差分を確認する。未コミットのまま完了扱いにしない。保留を指示された変更は除き、コミットしたら同じ作業の中で `git pull --rebase` してから push する（pre-push で検証が走るので背景実行）。mini-vm が flake.lock の PR を origin/main へ自動 merge し続けるため、手元に溜めると ahead/behind に分岐する。
+- 作業完了時は検証済みの変更を意味のある単位でコミットし、`git status` で残る差分を確認する。未コミットのまま完了扱いにしない。保留を指示された変更は除き、コミットしたら同じ作業の中で `git pull --rebase` してから push する。push 前の手元検証フックは無く、検証は push 後の CI が行う（壊れた main は mini-vm には適用されないが、CI が red になったら直すまでが作業）。mini-vm が flake.lock の PR を origin/main へ自動 merge し続けるため、手元に溜めると ahead/behind に分岐する。pull が nix の変更を取り込むと hook が `nix run .#switch`（sudo）を走らせるので、その pull は長くなる。
 
 ## 情報の書き分け方針
 
