@@ -75,6 +75,11 @@
       xcodegen # project.yml から .xcodeproj 生成
       swiftformat # Swift フォーマッタ
       swiftlint # Swift リンタ
+      # Google Cloud SDK (gcloud / gsutil / bq)。Cloud Run デプロイ用。brew cask から移した:
+      # CLI は nixpkgs の原則で、cask は brew の python@3.14 を巻き込んでいた。追加 component が
+      # 要るときは `gcloud components install` ではなく google-cloud-sdk.withExtraComponents。
+      # cask と同じく darwin 限定 (Linux 側で使う予定が無い)。
+      google-cloud-sdk
       idb-companion # iOS Simulator 自動操作の gRPC companion。CLI 側 fb-idb は nixpkgs に無く uv 管理 (uv tool install fb-idb)
     ]
     ++ lib.optionals (!(pkgs.stdenv.hostPlatform.isDarwin && pkgs.stdenv.hostPlatform.isx86_64)) [
