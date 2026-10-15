@@ -16,6 +16,10 @@
       # deno は nixpkgs だと rusty-v8 フルビルドで重いため mise に移譲
       pnpm
       uv
+      # 素の python3。リポジトリの scripts/*.py や git hooks が `python3` を呼ぶため
+      # (macOS の /usr/bin/python3 は CLT の古い版)。ライブラリは足さない: プロジェクトは
+      # uv venv / uv run で閉じ、グローバルに pip install しない。
+      python3
 
       # AI
       claude-code # ← claude-code-overlay (ryoppippi)
