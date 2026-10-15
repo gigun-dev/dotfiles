@@ -34,6 +34,7 @@ python3 -W error scripts/tests/job-heartbeat-activation.py
 python3 -W error scripts/tests/job-heartbeat-registration.py
 python3 scripts/tests/codex-bridge-refresh.py
 python3 scripts/tests/bark-routing.py
+python3 -W error scripts/tests/uv-sync-tools.py
 
 nix flake check
 nix fmt -- --ci .

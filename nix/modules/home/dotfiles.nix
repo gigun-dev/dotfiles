@@ -117,6 +117,14 @@ in
     fi
   '';
 
+  # uv/tools.txt に宣言した uv tool の未導入分を入れる (bootstrap.sh と同じ uv/sync-tools.sh)。
+  # 失敗しても switch は止めない: tool 1 つの PyPI 障害で system 適用全体を巻き戻す理由が無い。
+  home.activation.syncUvTools = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+    if [ -f "${dotfilesPath}/uv/sync-tools.sh" ]; then
+      UV_BIN=${pkgs.uv}/bin/uv $DRY_RUN_CMD ${pkgs.bash}/bin/bash "${dotfilesPath}/uv/sync-tools.sh" || true
+    fi
+  '';
+
   # dotfiles リポの git hooks を有効化。pre-commit は nix fmt 自動適用 (CI fmt 失敗防止)、
   # post-merge/post-rewrite/post-checkout は pull した Nix 構成の自動 switch。
   # core.hooksPath は clone ごとの .git/config にしか入らないので毎 switch で宣言し直す。

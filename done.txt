@@ -45,3 +45,4 @@ x 2026-10-15 2026-09-10 main への直 push が required CI をバイパスす�
 x 2026-10-15 2026-10-15 autoswitch が main の CI 実行中に当たったとき、即見送りではなく最大 30 分待ってから判定し、待っても終わらないときだけ見送りを通知する(slow レーンの PR が merge された直後の定時実行で 1 日遅れと誤報が出ないこと) +mini-vm see:docs/adr/0011-push-without-a-local-gate-and-apply-only-green-commits.md by:claude id:0072
 x 2026-10-15 2026-10-15 python3 を nixpkgs から全ホストの home に入れる(nix run .#build が通り、build した profile に python3 があること) +infra by:me id:0073
 x 2026-10-15 2026-10-15 gcloud を brew cask gcloud-cli から nixpkgs google-cloud-sdk へ移す(nix run .#build が通り、build した profile の gcloud version が動くこと) +infra by:me id:0074
+x 2026-10-15 2026-09-10 uv tool 群を宣言ファイルと共通 installer で管理下に入れる(home.activation と bootstrap.sh が同じ installer を呼び、未導入だけ入れ、更新せず、宣言外は警告のみ。yt-dlp と huggingface-hub は nixpkgs へ移す) +infra by:me id:0020

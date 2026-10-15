@@ -60,6 +60,11 @@
       # Dev
       mise
       ffmpeg
+      # 旧 uv tool から移した Python CLI (nixpkgs にあるものは uv/tools.txt に置かない)。
+      yt-dlp
+      # hf CLI。ライブラリの derivation だが bin/hf は wrap 済みで、home.packages は
+      # bin を拾うだけなので依存が profile の Python に漏れない。
+      python3Packages.huggingface-hub
 
       # DB client (server は都度 Docker / nix shell で起動)
       mariadb.client # mysql CLI (Oracle MySQL 互換)
@@ -80,7 +85,7 @@
       # 要るときは `gcloud components install` ではなく google-cloud-sdk.withExtraComponents。
       # cask と同じく darwin 限定 (Linux 側で使う予定が無い)。
       google-cloud-sdk
-      idb-companion # iOS Simulator 自動操作の gRPC companion。CLI 側 fb-idb は nixpkgs に無く uv 管理 (uv tool install fb-idb)
+      idb-companion # iOS Simulator 自動操作の gRPC companion。CLI 側 fb-idb は nixpkgs に無く uv/tools.txt で宣言
     ]
     ++ lib.optionals (!(pkgs.stdenv.hostPlatform.isDarwin && pkgs.stdenv.hostPlatform.isx86_64)) [
       llmAgents.codex # Intel Mac のみ brew cask (Rust build 回避)、それ以外は nix

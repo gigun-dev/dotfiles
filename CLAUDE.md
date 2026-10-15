@@ -61,7 +61,7 @@ docs/                          # 現行運用・ADR
 - **cleanup = "zap"**: 宣言外のアプリは完全削除。使う GUI アプリは必ず casks に宣言する
 - **ensure_installed パターン**: ツールが未インストールなら静かにスキップ
 - **公式 pkg しか無いものは activation で入れる**: brew にも nixpkgs にも無い署名済み pkg (apple/container) は `fetchurl` で hash 固定し、activation で冪等に `installer` を叩く。手作業で入れると新規 Mac のセットアップが再現できなくなる
-- **`~/.local/bin` は例外レーン**: PATH 末尾に追加（nix/brew が常に優先）。self-update 前提のツールや nixpkgs にない uv tool 等、宣言管理できないものだけ許容する
+- **`~/.local/bin` は例外レーン**: PATH 末尾に追加（nix/brew が常に優先）。self-update 前提のツールなど宣言管理できないものだけ許容する。nixpkgs にない Python CLI は `uv/tools.txt` に宣言し、`uv/sync-tools.sh`（home.activation と bootstrap.sh が呼ぶ）が未導入分だけ入れる。更新は手で `uv tool upgrade --all`、宣言外は警告のみ
 
 ## Nix 規約
 

@@ -136,6 +136,12 @@ if [[ -d "${DOTFILES_DIR}/git/hooks" ]]; then
   chmod +x "${DOTFILES_DIR}/git/hooks/"* 2>/dev/null || true
 fi
 
+# uv tool の宣言分 (uv/tools.txt) を入れる。uv が無ければ黙って飛ばす。
+# home.activation の syncUvTools と同じスクリプト。
+if [[ -f "${DOTFILES_DIR}/uv/sync-tools.sh" ]]; then
+  bash "${DOTFILES_DIR}/uv/sync-tools.sh" || true
+fi
+
 # ---------------------------------------------------------------------------
 # 4. Sheldon
 # ---------------------------------------------------------------------------
