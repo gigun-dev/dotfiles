@@ -27,8 +27,18 @@ Worker・KV・Cron・custom domainは`gigun-dev/hub`の`infra/uptime/`でOpenTof
 - **lock 更新の提案と適用を分ける。** `dotfiles-lock-propose@fast`(毎日) / `@slow`(日曜)が
   lock 更新 → 実機ビルド → PR・auto-merge 設定まで行い、required CI の成功で merge する。
   人の lock 差分レビューは前提にしない。`dotfiles-autoswitch` 自体は lock を更新せず、
-  merge 済みの変更を pull → switch → 健全性確認する。失敗時の復帰先は今回の
+  merge 済みの変更を fetch → CI ゲート → ff → switch → 健全性確認する。失敗時の復帰先は今回の
   開始時に稼働していた構成だけとし、Langfuse の image pair が変わる場合は戻さない。
+- **CI green の commit だけを適用する**(2026-10-15、`docs/adr/0011-push-without-a-local-gate-and-apply-only-green-commits.md`)。
+  手元の pre-push 関門を外したので、main には CI 前の commit が直接入る。autoswitch は fetch した
+  `@{upstream}` の commit について `gh api repos/gigun-dev/dotfiles/commits/<sha>/check-runs` を
+  gigun の gh 認証で読み、GitHub Actions の check run が全て success / skipped / neutral で終わり、
+  required の `check` と `build` が出揃っていれば green としてその commit へ `merge --ff-only` する。
+  skipped を green に数えるのは paths-filter で nix 以外の commit の check/build が飛ばされるため
+  (代わりに `changes` job 自体の失敗は red)。red(失敗・cancelled 等)と pending(未完了・未出現)は
+  **見送り**: unit は成功で終わり、理由を `dotfiles-autoswitch-notify-skip` が Bark へ送り、
+  成功 heartbeat も送る。翌日の timer が判定し直す。API が引けない(認証切れ等)は見送りではなく
+  失敗として既存の失敗通知へ流す。作業コピーが upstream より先行していても止める。
 - **`system.autoUpgrade` は使わない。** home 層が視野の外(`nixos-rebuild` しか叩かない)で、
   unit の pre/post 拡張は可能だが、共有 standalone home と Langfuse の世代比較を同じ
   coordinator で扱う既存構成を保つ。更新器の `restartIfChanged = false` と
@@ -75,6 +85,7 @@ DB を伴う手動復旧前は Compose を停止し、Postgres / ClickHouse / Mi
 ホスト再起動後の復帰検証(「mini-vm 再起動後に codex-remote-control が復帰し、スマホから
 繋がるか確認する」)は完了済みで、自動再起動の導入とは区別する。
 もう 1 つ、**required CI は admin 権限の直 push でバイパスできる**(下記「未解決の調査メモ」)。
+mini-vm への適用は上記の CI ゲートで塞いだが、main 自体には CI 前の commit が入る。
 
 ## codex-bridge の版検出失敗時
 
@@ -176,8 +187,9 @@ mini-vm には性質の違う 2 つの信頼経路があり、1 本に両方を�
 - **`DF-40` (直 push のバイパス)** — 2026-09-08 に手元から `main` へ push した際、GitHub が
   `Bypassed rule violations for refs/heads/main: 2 of 2 required status checks are expected` を
   返した。required CI は**設定されているが、repo admin の直 push では強制されない**。
-  無人経路のトークンを絞る話(上記)と同じ穴の対話経路版で、pre-push フックは手元の検証で
-  あって GitHub 側の関門ではない(`--no-verify` で外れる)。
+  無人経路のトークンを絞る話(上記)と同じ穴の対話経路版。pre-push フックは撤去し、
+  mini-vm への適用は autoswitch の CI ゲートが守る(ADR 0011)。main に壊れた commit が
+  入ること自体は塞いでいない。
 - **`DF-12` (機能確認の型)** — ssh 到達性で合格としたが、その裏で DNS が全滅していた事故があった。
   2026-09-06 の健全性ゲート (mini-vm.nix の `healthGate`) が最初の実装で、名前解決 /
   cloudflare-os の HTTP 応答 / 常駐 unit / control socket の 4 項目を見る。
