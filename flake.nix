@@ -179,6 +179,7 @@
                 inputs.nixpkgs.lib.makeBinPath [
                   pkgs.bash
                   pkgs.coreutils
+                  pkgs.jq # autoswitch の CI 判定は本物の jq 式をそのまま回す
                 ]
               }
               ${pkgs.python3}/bin/python3 -B scripts/tests/dotfiles-autoswitch.py

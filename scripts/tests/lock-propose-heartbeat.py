@@ -76,7 +76,7 @@ esac
 
     def test_success_bindings_keep_activation_in_shared_wrapper(self):
         calls = [line for line in SOURCE.splitlines() if "${jobHeartbeat}" in line]
-        self.assertEqual(len(calls), 5)
+        self.assertEqual(len(calls), 6)  # +1: autoswitch の CI 見送りでも receipt を送る
         self.assertTrue(all("--enabled" not in line for line in calls))
         self.assertTrue(all("--endpoint" not in line and "--token-file" not in line for line in calls))
         self.assertIn("restartIfChanged = false;", SOURCE)

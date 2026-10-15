@@ -2,10 +2,12 @@ name: 'CI: Nix check'
 
 # 何を守るか: main に入る前に「eval が通る」「フォーマット済み」「**実際にビルドできる**」を確認する。
 #
-# ビルドまで見るのは、この CI が lock 自動更新の**merge ゲート**だから。mini-vm は
-# 毎日 04:00 に main を無条件で適用するので、ここを通った lock だけが無人機に届く、
-# という不変条件を作る。eval だけ通る lock を merge すると、初回ビルドの失敗が
-# 04:00 の VM 上で起きることになる。
+# ビルドまで見るのは、この CI が無人機へ届く変更の**ゲート**だから。lock 自動更新 PR の
+# merge 条件であり、mini-vm の dotfiles-autoswitch も main の HEAD のこの check run が
+# green のときだけ適用する (手元の pre-push 関門は撤去済み。docs/adr/0011-*)。
+# eval だけ通る lock を通すと、初回ビルドの失敗が 04:00 の VM 上で起きることになる。
+# job 名 (check / build) は branch protection の required checks と mini-vm.nix の
+# requiredChecksJson が名指ししているので、改名するときは 3 か所を揃える。
 #
 # **外部 action は commit SHA で固定する**。タグは書き換えられるので、上流が乗っ取られると
 # 任意のコードが CI で走る。いまこの workflow は secrets を 1 つも使わず token も read-only
@@ -37,11 +39,17 @@ jobs:
       - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
         id: filter
         with:
+          # ここに無いパスだけの commit では check/build が skipped になり、mini-vm の
+          # autoswitch はそれを green として適用する。nix の評価が読むファイル
+          # (mini-vm.nix の ../../../ 参照) は漏らさず挙げる。
           filters: |
             nix:
               - 'flake.nix'
               - 'flake.lock'
               - 'nix/**'
+              - 'infra/langfuse/**'
+              - 'secrets/**'
+              - 'scripts/tests/bark-routing.py'
               - 'scripts/verify.sh'
               - 'scripts/tests/codex-bridge-refresh.py'
               - 'scripts/tests/dotfiles-autoswitch.py'
@@ -78,7 +86,7 @@ jobs:
       # 2026-09-05 に esp-idf の devShell が入って以降、CI はずっとこれで赤だった
       # (nix を触らない PR では paths-filter に弾かれて job 自体が走らず、
       #  赤いことに気づけなかった)。
-      # pre-push と入口を共有し、検証コマンドの片側だけが変わることを防ぐ。
+      # 検証の中身は scripts/verify.sh に置き、手元でも同じものを叩けるようにする。
       - name: Report isolated NixOS test acceleration
         run: |
           if [ -c /dev/kvm ] && [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
