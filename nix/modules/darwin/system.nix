@@ -45,10 +45,13 @@ in
     ];
   };
 
-  # TouchID sudo
+  # TouchID sudo。reattach (pam_reattach) は tmux / zellij 内でも Touch ID を通すため。
+  # watchIdAuth は蓋を閉じた clamshell で Touch ID が使えないときの代替。
+  # pam-watchid は aarch64-darwin 専用 (meta.platforms) なので Intel mini では評価させない。
   security.pam.services.sudo_local = {
     touchIdAuth = true;
     reattach = true;
+    watchIdAuth = pkgs.stdenv.hostPlatform.isAarch64;
   };
 
   # Xcode CLT auto-install + Tailscale Magic DNS resolver
