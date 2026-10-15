@@ -29,7 +29,7 @@ nixpkgsにあるCLIは `packages.nix` に置き、uv toolにしない。
 
 `uv venv` と `uv pip install` の組み合わせも、残すものには使わない。入れた依存がpyproject.tomlにもlockにも記録されないので、上の `pip install` と同じ理由で再現できない。
 
-pyenvは撤去した。brewの `gettext` がcleanup（zap）で消えたとき、pyenvでビルドしたランタイムが一緒に壊れたためで、ランタイムはuvの管理するビルド済みのものに寄せる。
+pyenvは撤去した。pyenvでビルドしたランタイムはbrewの `gettext`（`/opt/homebrew/opt/gettext/lib/libintl.8.dylib`）にリンクしており、brewからgettextが消えた時点で起動しなくなっていた（2026-10-15 に dyld のエラーで確認）。brewの外で入れたものがbrewの整理で壊れる構造を避けるため、ランタイムはuvの管理するビルド済みのものに寄せる。
 
 Pythonの依存をnixのdevShellやdirenvに重ねて持たせることもしない。依存の持ち主がnixとuvの2つになると、どちらが正か決まらなくなる。
 
@@ -62,5 +62,5 @@ notebookからパッケージを足すときは `!uv add pkg` を使う。依存
 サプライチェーン攻撃への防御として意図的に置いている。外し方と匿名モードの理由は `npm/npmrc` のコメントにある。
 
 このため `uv.lock` に記録されるsourceとファイルのURLは `pypi.flatt.tech` になる（`nix/devshells/esp-idf-python/uv.lock` が実例）。これは想定どおりの挙動である。
-環境変数で向けているので、`uv init` は `pyproject.toml` に `[[tool.uv.index]]` を書かない。
+`uv init` は `pyproject.toml` に index を書かないが、続く `uv add` が環境変数の値を `[[tool.uv.index]]`（`default = true`）として書き込む（2026-10-15 に実測）。これも想定どおりで、消さずにコミットする。
 `.zshrc` を読まない経路（home.activationとbootstrap.sh）では、`uv/sync-tools.sh` が同じ値を既定として設定する。
