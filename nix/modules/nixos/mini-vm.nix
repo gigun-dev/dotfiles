@@ -1513,7 +1513,8 @@ in
       # nixos-rebuild に root が要る。home 層だけは下で sudo -u gigun に落とす。
       User = "root";
       # switch は substituter 待ちで長引くことがある。既定の 90 秒では足りない。
-      TimeoutStartSec = "60min";
+      # 60 分 (switch + gate) に CI ゲートの最大待ち 30 分を足した値。
+      TimeoutStartSec = "90min";
 
       ExecStart = pkgs.writeShellScript "dotfiles-autoswitch" ''
         set -eu
@@ -1545,26 +1546,44 @@ in
         # 通る前の commit が直接入る。適用してよいのは CI が green と判定した commit だけ。
         # pull ではなく fetch → 判定 → その commit へ ff にして、判定した commit と
         # 適用する commit を同一にする (pull だと判定後に進んだ main を拾い得る)。
-        as_user ${pkgs.git}/bin/git fetch --quiet
-        target=$(as_user ${pkgs.git}/bin/git rev-parse '@{upstream}')
-        # API が引けない (認証切れ・GitHub 障害) は見送りではなく失敗にする。黙って
-        # 見送り続けると、トークン失効で自動更新が止まったことに気づけない。
-        check_runs=$(as_user ${pkgs.gh}/bin/gh api "repos/${dotfilesRepo}/commits/$target/check-runs?per_page=100")
-        # 判定: Actions の check run が 1 つでも success/skipped/neutral 以外で終わっていれば red、
-        # 未完了か required が未出現なら pending、どちらでもなければ green。
-        # skipped を green に数えるのは、nix を触らない commit で check/build が paths-filter に
-        # 飛ばされるため。その代わり changes job 自体の失敗 (→ check/build も skipped) は
-        # red として拾う (required の名前だけ見ると skipped が素通りする)。
-        verdict=$(printf '%s' "$check_runs" | ${pkgs.jq}/bin/jq -r --argjson required '${requiredChecksJson}' '
-          [.check_runs[] | select(.app.slug == "github-actions")] as $runs
-          | ($runs | map(select(.status == "completed"
-              and (.conclusion | IN("success", "skipped", "neutral") | not))
-              | "\(.name)=\(.conclusion)")) as $bad
-          | (($runs | map(select(.status != "completed") | .name))
-              + ($required - ($runs | map(.name)))) as $pending
-          | if ($bad | length) > 0 then "red " + ($bad | join(","))
-            elif ($pending | length) > 0 then "pending " + ($pending | join(","))
-            else "green" end')
+        # pending (CI 実行中・未出現) は待つ。slow レーンの PR が merge された直後の定時実行で
+        # 1 日遅れと見送り通知が出るのを防ぐため。毎回 fetch し直して、待つ間に merge された
+        # 新しい commit も拾う。red は待っても変わらないので即見送り。
+        # 30 回 x 60 秒 = 最大 29 分待つ。TimeoutStartSec はその分を足してある。
+        # 間隔と回数を環境変数で差し替えられるのはテストが sleep しないため (unit では未設定)。
+        poll_interval=$(printenv AUTOSWITCH_CI_POLL_INTERVAL || echo 60)
+        poll_rounds=$(printenv AUTOSWITCH_CI_POLL_ROUNDS || echo 30)
+        round=0
+        while :; do
+          as_user ${pkgs.git}/bin/git fetch --quiet
+          target=$(as_user ${pkgs.git}/bin/git rev-parse '@{upstream}')
+          # API が引けない (認証切れ・GitHub 障害) は見送りではなく失敗にする。黙って
+          # 見送り続けると、トークン失効で自動更新が止まったことに気づけない。
+          check_runs=$(as_user ${pkgs.gh}/bin/gh api "repos/${dotfilesRepo}/commits/$target/check-runs?per_page=100")
+          # 判定: Actions の check run が 1 つでも success/skipped/neutral 以外で終わっていれば red、
+          # 未完了か required が未出現なら pending、どちらでもなければ green。
+          # skipped を green に数えるのは、nix を触らない commit で check/build が paths-filter に
+          # 飛ばされるため。その代わり changes job 自体の失敗 (→ check/build も skipped) は
+          # red として拾う (required の名前だけ見ると skipped が素通りする)。
+          verdict=$(printf '%s' "$check_runs" | ${pkgs.jq}/bin/jq -r --argjson required '${requiredChecksJson}' '
+            [.check_runs[] | select(.app.slug == "github-actions")] as $runs
+            | ($runs | map(select(.status == "completed"
+                and (.conclusion | IN("success", "skipped", "neutral") | not))
+                | "\(.name)=\(.conclusion)")) as $bad
+            | (($runs | map(select(.status != "completed") | .name))
+                + ($required - ($runs | map(.name)))) as $pending
+            | if ($bad | length) > 0 then "red " + ($bad | join(","))
+              elif ($pending | length) > 0 then "pending " + ($pending | join(","))
+              else "green" end')
+          case "$verdict" in
+            pending*) ;;
+            *) break ;;
+          esac
+          round=$((round + 1))
+          [ "$round" -lt "$poll_rounds" ] || break
+          echo "autoswitch: CI 実行中 ($target: $verdict)。$poll_interval 秒後に再確認 ($round/$poll_rounds)" >&2
+          sleep "$poll_interval"
+        done
         if [ "$verdict" != green ]; then
           # 見送りは失敗ではない (OnFailure を鳴らさない)。翌日の timer が同じ判定をやり直す。
           reason="CI が green でない commit は適用しない: $target ($verdict)"

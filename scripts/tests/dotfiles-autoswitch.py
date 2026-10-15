@@ -24,6 +24,8 @@ def check_runs(*runs, app="github-actions"):
                             "app": {"slug": app}} for name, status, conclusion in runs]}
 
 
+RUNNING = check_runs(("changes", "completed", "success"), ("check", "in_progress", None),
+                     ("build", "completed", "success"))
 GREEN = check_runs(("changes", "completed", "success"), ("check", "completed", "success"),
                    ("build", "completed", "success"))
 
@@ -47,6 +49,7 @@ class AutoswitchTests(unittest.TestCase):
         self.current.symlink_to(self.previous)
         self.env = dict(os.environ, FIXTURE=str(self.base), DIRTY="", REV="fixed42",
                         HM_STATUS="0", GATE_STATUS="0", SWITCH_STATUS="0", GH_STATUS="0",
+                        AUTOSWITCH_CI_POLL_INTERVAL="0", AUTOSWITCH_CI_POLL_ROUNDS="3",
                         PATH=str(self.bin) + os.pathsep + os.environ["PATH"])
         self.set_check_runs(GREEN)
         self.command("heartbeat", '''
@@ -60,15 +63,24 @@ echo "git $*" >> "$FIXTURE/calls"
 echo "git env SKIP=${DOTFILES_SKIP_AUTO_SWITCH:-}" >> "$FIXTURE/calls"
 case "$1" in
 status) printf '%s' "$DIRTY";;
-fetch|merge) exit 0;;
+fetch) echo x >> "$FIXTURE/fetches";;
+merge) exit 0;;
 rev-parse)
-  if [ "$2" = HEAD ] && [ -n "${AHEAD:-}" ]; then echo local-ahead; else printf '%s\\n' "$REV"; fi;;
+  # @{upstream} は fetch の回数ごとに upstream.<n> があればそれを返す (待つ間に main が進む)。
+  n=$(wc -l < "$FIXTURE/fetches" 2>/dev/null | tr -d ' ')
+  if [ "$2" = HEAD ] && [ -n "${AHEAD:-}" ]; then echo local-ahead
+  elif [ "$2" = '@{upstream}' ] && [ -f "$FIXTURE/upstream.$n" ]; then cat "$FIXTURE/upstream.$n"
+  else printf '%s\\n' "$REV"; fi;;
 esac
 ''')
         self.command("gh", '''
 echo "gh $*" >> "$FIXTURE/calls"
 [ "$GH_STATUS" = 0 ] || exit "$GH_STATUS"
-cat "$FIXTURE/check-runs.json"
+# n 回目の問い合わせは check-runs.<n>.json があればそれ、無ければ check-runs.json。
+echo x >> "$FIXTURE/gh-count"
+n=$(wc -l < "$FIXTURE/gh-count" | tr -d ' ')
+if [ -f "$FIXTURE/check-runs.$n.json" ]; then cat "$FIXTURE/check-runs.$n.json"
+else cat "$FIXTURE/check-runs.json"; fi
 ''')
         self.command("systemctl", 'echo "systemctl $*" >> "$FIXTURE/calls"\n')
         self.command("sudo", 'shift 2; exec "$@"\n')
@@ -144,8 +156,9 @@ rm "$FIXTURE/current"; ln -s "$FIXTURE/previous" "$FIXTURE/current"
         for name in ["rollback-target", "rollback-safe"]:
             self.write_exec(self.bin / name, (ROOT / f"infra/langfuse/scripts/{name}.sh").read_text())
 
-    def set_check_runs(self, payload):
-        (self.base / "check-runs.json").write_text(json.dumps(payload))
+    def set_check_runs(self, payload, query=None):
+        name = "check-runs.json" if query is None else f"check-runs.{query}.json"
+        (self.base / name).write_text(json.dumps(payload))
 
     def render(self, script):
         for old, new in self.replacements.items():
@@ -270,6 +283,58 @@ esac
                                        ("check", "in_progress", None),
                                        ("build", "completed", "success")))
         self.assert_skipped("pending check")
+
+    def test_pending_then_green_within_wait_applies(self):
+        self.set_check_runs(RUNNING, query=1)
+        self.set_check_runs(RUNNING, query=2)
+        self.run_update()
+        calls = self.calls()
+        self.assertEqual(calls.count("gh api"), 3)
+        self.assertEqual(calls.count("git fetch"), 3)
+        self.assertIn("git merge --ff-only --quiet fixed42", calls)
+        self.assertNotIn("notify-skip", calls)
+
+    def test_wait_picks_up_commit_merged_meanwhile(self):
+        (self.base / "upstream.1").write_text("older41\n")
+        self.set_check_runs(RUNNING, query=1)
+        self.run_update()
+        calls = self.calls()
+        self.assertIn("commits/older41/check-runs", calls)
+        self.assertIn("commits/fixed42/check-runs", calls)
+        self.assertIn("git merge --ff-only --quiet fixed42", calls)
+        self.assertNotIn("git merge --ff-only --quiet older41", calls)
+
+    def test_pending_throughout_wait_skips(self):
+        self.set_check_runs(RUNNING)
+        self.assert_skipped("pending check")
+        self.assertEqual(self.calls().count("gh api"), 3)
+
+    def test_pending_then_red_skips_without_waiting_out(self):
+        self.set_check_runs(RUNNING, query=1)
+        self.set_check_runs(check_runs(("changes", "completed", "success"),
+                                       ("check", "completed", "failure"),
+                                       ("build", "completed", "success")), query=2)
+        self.assert_skipped("red check=failure")
+        self.assertEqual(self.calls().count("gh api"), 2)
+
+    def test_red_skips_without_polling(self):
+        self.set_check_runs(check_runs(("changes", "completed", "success"),
+                                       ("check", "completed", "failure"),
+                                       ("build", "completed", "success")))
+        self.assert_skipped("red check=failure")
+        self.assertEqual(self.calls().count("gh api"), 1)
+
+    def test_api_failure_while_waiting_fails(self):
+        self.set_check_runs(RUNNING, query=1)
+        self.command("gh", '''
+echo "gh $*" >> "$FIXTURE/calls"
+echo x >> "$FIXTURE/gh-count"
+[ "$(wc -l < "$FIXTURE/gh-count" | tr -d ' ')" = 1 ] || exit 5
+cat "$FIXTURE/check-runs.1.json"
+''')
+        self.run_update(5)
+        self.assertNotIn("git merge", self.calls())
+        self.assertNotIn("notify-skip", self.calls())
 
     def test_check_runs_not_created_yet_skip(self):
         self.set_check_runs(check_runs(("changes", "completed", "success")))
