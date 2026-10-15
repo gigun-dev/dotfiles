@@ -51,3 +51,4 @@ x 2026-10-15 2026-10-15 docs/python.md の未確認の事実 2 点を裏取り�
 x 2026-10-15 2026-10-15 MacBook の次の nix run .#switch で、gcloud-cli cask と python@3.14 が zap で消え、python3 / gcloud / yt-dlp / hf が nix 版を指し (command -v)、gcloud の account 設定が残り、syncUvTools が install せず宣言外の警告だけ出すことを確認する。その後 uv tool uninstall yt-dlp huggingface-hub で旧 uv 版を消す +infra @device by:claude id:0075
 x 2026-10-15 2026-10-15 uv/tools.txt から使っていない it2 を外し、docs/mini-vm.md の ~/.local/bin の住人一覧を現状に合わせる +infra by:me id:0079
 x 2026-10-15 2026-10-15 nbstripout を全ホストの git に global filter として入れる(.ipynb の execution_count と Python 版は落ち、出力は残り、git diff が textconv を使うこと) +infra by:me id:0080
+x 2026-10-15 2026-10-15 mini-vm の次の autoswitch で home の syncUvTools が google-colab-cli を入れ、失敗しても switch が止まらないことを journal で確認する(10/15 06:18 UTC の autoswitch の journal に「Installed 1 executable: colab」、~/.local/bin/colab が uv tool を指す。activation は sync-tools.sh を `|| true` で呼ぶ) +mini-vm by:claude id:0076
