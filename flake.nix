@@ -131,6 +131,95 @@
               }
             }/bin/${name}";
           };
+
+          # switch と update 系が共有する適用本体。
+          # darwin: darwin-rebuild で system + home 両方適用
+          # linux:  Linux は 2 種類ある: WSL (home-manager standalone のみ) と
+          #   Mac Mini の Lima ゲスト (NixOS なので OS 層も管理する)。
+          #   /etc/NIXOS の有無で判別し、darwin の switch が system + home を
+          #   まとめて適用するのと同じ挙動に揃える。どの機械でも
+          #   `nix run .#switch` だけ覚えていれば済むようにするための分岐。
+          # 各行の `|| return`: update 系は `if ! apply_switch` で呼ぶので
+          # 関数内では set -e が効かず、system の失敗後に home へ進んでしまう。
+          applySwitch =
+            if pkgs.stdenv.hostPlatform.isDarwin then
+              ''
+                apply_switch() {
+                  sudo ${inputs.nix-darwin.packages.${system}.darwin-rebuild}/bin/darwin-rebuild \
+                    switch --flake ".#${username}-${system}" "$@" || return
+                  push_cachix
+                }
+              ''
+            else
+              ''
+                apply_switch() {
+                  if [ -e /etc/NIXOS ]; then
+                    sudo nixos-rebuild switch --flake ".#mini-vm" "$@" || return
+                  fi
+                  ${inputs.home-manager.packages.${system}.home-manager}/bin/home-manager \
+                    switch --flake ".#${username}-${system}" "$@" || return
+                  push_cachix
+                }
+              '';
+
+          # cachix push in background (requires `cachix authtoken` to have been run)
+          pushCachix = ''
+            push_cachix() {
+              if command -v cachix &>/dev/null; then
+                echo "Pushing to cachix in background..."
+                nix path-info --all | cachix push gigun &>/dev/null &
+              fi
+            }
+          '';
+
+          # lock を更新して適用し、変わっていれば commit まで行う。push はしない
+          # (共有 main への公開は、人が commit を見てから打つ一手に残す)。
+          # 何を止めるか: update した lock が未 commit のまま手元に残り、次の pull で
+          # 衝突するか、main と違う lock で動き続けること (docs/adr/0011-*)。
+          mkUpdate =
+            name:
+            { targets, lane }:
+            mkApp name ''
+              ${pushCachix}
+              ${applySwitch}
+              cd "$(git rev-parse --show-toplevel)"
+
+              # mini-vm の lock は dotfiles-lock-propose の PR からだけ入る。ここで commit すると
+              # 作業コピーが origin より先行し、dotfiles-autoswitch が毎朝止まる。
+              if [ -e /etc/NIXOS ]; then
+                echo "error: NixOS (mini-vm) では update しない。lock は dotfiles-lock-propose の PR 経由で入る" >&2
+                exit 1
+              fi
+              if ! git diff --quiet || ! git diff --cached --quiet; then
+                echo "error: 未コミットの変更がある。commit か stash してから再実行する" >&2
+                git status --short >&2
+                exit 1
+              fi
+
+              # 更新前に main へ追いつく。古い lock から update すると、mini-vm が merge 済みの
+              # lock と分岐した commit を作ってしまう。この後で自分で switch するので、
+              # pull が起こす post-merge / post-rewrite の switch は止める。
+              DOTFILES_SKIP_AUTO_SWITCH=1 git pull --rebase
+
+              log=$(mktemp)
+              trap 'rm -f "$log"' EXIT
+              nix flake update ${targets} 2>&1 | tee "$log"
+
+              # 適用に失敗した lock は commit しない。pull 済みの版へ戻し、dirty のまま残さない。
+              if ! apply_switch "$@"; then
+                git checkout -- flake.lock
+                echo "error: switch に失敗したので flake.lock を pull 済みの版へ戻した" >&2
+                exit 1
+              fi
+
+              if git diff --quiet -- flake.lock; then
+                echo "flake.lock に差分なし"
+              else
+                git add flake.lock
+                git commit --quiet -m "chore(deps): flake.lock を更新 (${lane})" -m "$(cat "$log")"
+                echo "flake.lock を commit した。push は手で行う: git push"
+              fi
+            '';
         in
         {
           treefmt = {
@@ -224,124 +313,80 @@
             };
           };
 
-          # Apps — perSystem の system で正しい構成を選択
-          # darwin: darwin-rebuild で system + home 両方適用
-          # linux:  home-manager standalone で home のみ適用 (WSL 想定)
-          apps =
-            pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
-              switch = mkApp "darwin-switch" ''
-                sudo ${inputs.nix-darwin.packages.${system}.darwin-rebuild}/bin/darwin-rebuild \
-                  switch --flake ".#${username}-${system}" "$@"
-                # cachix push in background
-                if command -v cachix &>/dev/null; then
-                  echo "Pushing to cachix in background..."
-                  nix path-info --all | cachix push gigun &>/dev/null &
-                fi
-              '';
+          # Apps — perSystem の system で正しい構成を選択 (分岐は applySwitch)
+          apps = {
+            switch = mkApp "switch" ''
+              ${pushCachix}
+              ${applySwitch}
+              apply_switch "$@"
+            '';
 
-              build = mkApp "darwin-build" ''
-                ${inputs.nix-darwin.packages.${system}.darwin-rebuild}/bin/darwin-rebuild \
-                  build --flake ".#${username}-${system}" "$@"
-              '';
+            build = mkApp "build" (
+              if pkgs.stdenv.hostPlatform.isDarwin then
+                ''
+                  ${inputs.nix-darwin.packages.${system}.darwin-rebuild}/bin/darwin-rebuild \
+                    build --flake ".#${username}-${system}" "$@"
+                ''
+              else
+                ''
+                  if [ -e /etc/NIXOS ]; then
+                    nixos-rebuild build --flake ".#mini-vm" "$@"
+                  fi
+                  ${inputs.home-manager.packages.${system}.home-manager}/bin/home-manager \
+                    build --flake ".#${username}-${system}" "$@"
+                ''
+            );
 
-              update = mkApp "darwin-update" ''
-                nix flake update
-                sudo ${inputs.nix-darwin.packages.${system}.darwin-rebuild}/bin/darwin-rebuild \
-                  switch --flake ".#${username}-${system}" "$@"
-                # cachix push in background
-                if command -v cachix &>/dev/null; then
-                  echo "Pushing to cachix in background..."
-                  nix path-info --all | cachix push gigun &>/dev/null &
-                fi
-              '';
-            }
-            // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
-              # Linux は 2 種類ある: WSL (home-manager standalone のみ) と
-              # Mac Mini の Lima ゲスト (NixOS なので OS 層も管理する)。
-              # /etc/NIXOS の有無で判別し、darwin の switch が system + home を
-              # まとめて適用するのと同じ挙動に揃える。どの機械でも
-              # `nix run .#switch` だけ覚えていれば済むようにするための分岐。
-              switch = mkApp "linux-switch" ''
-                if [ -e /etc/NIXOS ]; then
-                  sudo nixos-rebuild switch --flake ".#mini-vm" "$@"
-                fi
-                ${inputs.home-manager.packages.${system}.home-manager}/bin/home-manager \
-                  switch --flake ".#${username}-${system}" "$@"
-                # cachix push in background (requires `cachix authtoken` to have been run)
-                if command -v cachix &>/dev/null; then
-                  echo "Pushing to cachix in background..."
-                  nix path-info --all | cachix push gigun &>/dev/null &
-                fi
-              '';
-
-              build = mkApp "linux-build" ''
-                if [ -e /etc/NIXOS ]; then
-                  nixos-rebuild build --flake ".#mini-vm" "$@"
-                fi
-                ${inputs.home-manager.packages.${system}.home-manager}/bin/home-manager \
-                  build --flake ".#${username}-${system}" "$@"
-              '';
-
-              update = mkApp "linux-update" ''
-                nix flake update
-                if [ -e /etc/NIXOS ]; then
-                  sudo nixos-rebuild switch --flake ".#mini-vm" "$@"
-                fi
-                ${inputs.home-manager.packages.${system}.home-manager}/bin/home-manager \
-                  switch --flake ".#${username}-${system}" "$@"
-                # cachix push in background
-                if command -v cachix &>/dev/null; then
-                  echo "Pushing to cachix in background..."
-                  nix path-info --all | cachix push gigun &>/dev/null &
-                fi
-              '';
-            }
-            // {
-              update-ai-tools = mkApp "update-ai-tools" ''
-                echo "Updating AI tools inputs..."
-                nix flake update llm-agents claude-code-overlay cclens
-                echo "Done! Run 'nix run .#switch' to apply changes."
-              '';
-
-              # Cloudflare リソースの IaC (tofu/)。`nix run .#tofu -- plan` のように使う。
-              #
-              # ラッパにしている理由は認証情報の扱い。素の `tofu` を叩けるようにすると
-              # CLOUDFLARE_API_TOKEN / AWS_* をシェルの rc か direnv に平文で置くことになる。
-              # ここで secrets/tofu-env.age を**実行のたびにその場で復号**して環境変数へ
-              # 流し込めば、平文はプロセスの寿命しか生きない。
-              #
-              # なお mini-vm の cloudflare-os が使う CLOUDFLARE_API_TOKEN (Workers AI +
-              # Workers Scripts) とは別のトークン。名前が同じなので、間違えて同じ .age に
-              # 混ぜないこと (権限も用途も違う)。
-              tofu = mkApp "tofu" ''
-                root=$(${pkgs.git}/bin/git rev-parse --show-toplevel)
-                key="$HOME/.ssh/id_ed25519"
-
-                if [ ! -f "$key" ]; then
-                  echo "error: $key が無い。secrets/secrets.nix の受信者鍵が必要" >&2
-                  exit 1
-                fi
-
-                # コマンド置換なので age が失敗すれば set -e でここで止まる。
-                # `< <(age ...)` だと復号失敗でも空を読んで素通りしてしまうため避けている。
-                env_content=$(${pkgs.age}/bin/age -d -i "$key" "$root/secrets/tofu-env.age")
-                # here-string を使う (here-doc だと nix のインデント文字列剥がしと
-                # 終端マーカーの位置がぶつかって壊れやすい)。
-                while IFS='=' read -r k v; do
-                  [ -n "$k" ] || continue
-                  # shellcheck disable=SC2163  # "k=v" の形なので正しく export される
-                  export "$k=$v"
-                done <<< "$env_content"
-
-                # R2 にリージョンは無いが S3 バックエンドが必須項目として要求する。
-                # versions.tf の `region = "auto"` と揃えておく。
-                export AWS_REGION=auto
-                export AWS_DEFAULT_REGION=auto
-
-                cd "$root/tofu" || exit 1
-                exec ${pkgs.opentofu}/bin/tofu "$@"
-              '';
+            update = mkUpdate "update" {
+              targets = "";
+              lane = "local";
             };
+
+            # mini-vm の fast レーン (dotfiles-lock-propose@fast) と同じ input を手元で先取りする。
+            update-ai-tools = mkUpdate "update-ai-tools" {
+              targets = "llm-agents claude-code-overlay cclens";
+              lane = "local fast";
+            };
+
+            # Cloudflare リソースの IaC (tofu/)。`nix run .#tofu -- plan` のように使う。
+            #
+            # ラッパにしている理由は認証情報の扱い。素の `tofu` を叩けるようにすると
+            # CLOUDFLARE_API_TOKEN / AWS_* をシェルの rc か direnv に平文で置くことになる。
+            # ここで secrets/tofu-env.age を**実行のたびにその場で復号**して環境変数へ
+            # 流し込めば、平文はプロセスの寿命しか生きない。
+            #
+            # なお mini-vm の cloudflare-os が使う CLOUDFLARE_API_TOKEN (Workers AI +
+            # Workers Scripts) とは別のトークン。名前が同じなので、間違えて同じ .age に
+            # 混ぜないこと (権限も用途も違う)。
+            tofu = mkApp "tofu" ''
+              root=$(${pkgs.git}/bin/git rev-parse --show-toplevel)
+              key="$HOME/.ssh/id_ed25519"
+
+              if [ ! -f "$key" ]; then
+                echo "error: $key が無い。secrets/secrets.nix の受信者鍵が必要" >&2
+                exit 1
+              fi
+
+              # コマンド置換なので age が失敗すれば set -e でここで止まる。
+              # `< <(age ...)` だと復号失敗でも空を読んで素通りしてしまうため避けている。
+              env_content=$(${pkgs.age}/bin/age -d -i "$key" "$root/secrets/tofu-env.age")
+              # here-string を使う (here-doc だと nix のインデント文字列剥がしと
+              # 終端マーカーの位置がぶつかって壊れやすい)。
+              while IFS='=' read -r k v; do
+                [ -n "$k" ] || continue
+                # shellcheck disable=SC2163  # "k=v" の形なので正しく export される
+                export "$k=$v"
+              done <<< "$env_content"
+
+              # R2 にリージョンは無いが S3 バックエンドが必須項目として要求する。
+              # versions.tf の `region = "auto"` と揃えておく。
+              export AWS_REGION=auto
+              export AWS_DEFAULT_REGION=auto
+
+              cd "$root/tofu" || exit 1
+              exec ${pkgs.opentofu}/bin/tofu "$@"
+            '';
+          };
         };
 
       flake =
