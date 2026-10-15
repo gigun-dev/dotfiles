@@ -77,7 +77,7 @@ class UnitFailureBody(unittest.TestCase):
     KEY = '0123456789abcdefABCDEFGHIJKLMNOP'
     DEVICE = 'device-key-secret'
 
-    def run_helper(self, unit, journal, props='Result=exit-code\nExecMainStatus=1\n'):
+    def run_helper(self, unit, journal, props='Result=exit-code\nExecMainStatus=1\n', body_file=None):
         source = (ROOT / 'nix/modules/nixos/mini-vm.nix').read_text()
         body = source.split('barkNotifyUnitFailure = pkgs.writeShellScript "bark-notify-unit-failure" \'\'\n', 1)[1].split("\n  \'\';", 1)[0]
         with tempfile.TemporaryDirectory() as directory:
@@ -100,7 +100,11 @@ class UnitFailureBody(unittest.TestCase):
                 (base / name).chmod(0o755)
             env = dict(os.environ, FIXTURE=str(base), LC_ALL='en_US.UTF-8', BARK_DEVICE_KEY=self.DEVICE, BARK_ENCRYPT_KEY=self.KEY, BARK_ENCRYPT_IV='i' * 16)
             env.pop('BARK_PUSH_URL', None)
-            result = subprocess.run(['bash', str(base / 'helper'), unit, 'title'], env=env, capture_output=True, text=True, timeout=10)
+            args = ['bash', str(base / 'helper'), unit, 'title']
+            if body_file is not None:
+                (base / 'body.txt').write_text(body_file)
+                args.append(str(base / 'body.txt'))
+            result = subprocess.run(args, env=env, capture_output=True, text=True, timeout=10)
             self.assertEqual(result.returncode, 0, result.stderr)
             payload = json.loads((base / 'payload').read_text())
             for secret in (self.KEY, self.DEVICE):
@@ -161,6 +165,13 @@ class UnitFailureBody(unittest.TestCase):
         body = self.run_helper('a.service', 'error: ' + 'x' * 500 + '\n')
         self.assertLessEqual(len(body), 320)
         self.assertIn('…', body)
+
+    def test_body_file_replaces_journal_summary(self):
+        # The autoswitch CI skip is not a failure; its reason must not be swapped for an old error line.
+        body = self.run_helper('dotfiles-autoswitch.service', 'error: yesterday\n',
+                               body_file='CI が green でない commit は適用しない: abc (red build=failure)\n')
+        self.assertEqual(body.split('\n'), ['CI が green でない commit は適用しない: abc (red build=failure)',
+                                             '詳細: journalctl -u dotfiles-autoswitch.service -n 50'])
 
     def test_missing_journal_fallback(self):
         self.assertEqual(self.run_helper('a.service', None), '(journal を取得できなかった)')

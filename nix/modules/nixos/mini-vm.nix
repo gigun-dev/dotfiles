@@ -33,6 +33,18 @@ let
   # `git pull --ff-only` しかしない (手で書きかけたものを踏み潰さないため)。
   dotfilesDir = "/home/${username}/ghq/github.com/gigun-dev/dotfiles";
 
+  # autoswitch の CI ゲートが check run を引く repo。
+  dotfilesRepo = "gigun-dev/dotfiles";
+  # main の branch protection の required status checks と揃える (nix-build.yaml の job 名)。
+  # Why not protection API から毎回読む: 読むのに admin 権限が要り、無人経路のトークンを
+  # 絞る old:DF-37 と両立しない。
+  requiredChecksJson = builtins.toJSON [
+    "check"
+    "build"
+  ];
+  # 見送りの理由を通知 unit へ渡す。/run は tmpfs なので再起動で消えてよい。
+  autoswitchSkipReason = "/run/dotfiles-autoswitch-skip-reason";
+
   langfuseRollbackSafe = pkgs.writeShellScript "langfuse-rollback-safe" (
     builtins.readFile ../../../infra/langfuse/scripts/rollback-safe.sh
   );
@@ -265,6 +277,8 @@ let
     set -euo pipefail
     unit=$1
     title=$2
+    # 任意の $3: 本文ファイル。失敗ではない通知 (見送り) は journal から原因を探さない。
+    body_file=''${3:-}
 
     # 秘密が無い機械では黙って終わる (失敗自体は journal に残る)。
     [ -n "''${BARK_DEVICE_KEY:-}" ] || exit 0
@@ -325,6 +339,9 @@ let
         | ${pkgs.coreutils}/bin/head -n 1)
       [ -z "$other" ] || body="$body"$'\n'"関連して失敗: $other"
       body="$body"$'\n'"詳細: journalctl -u $unit -n 50"
+    fi
+    if [ -n "$body_file" ]; then
+      body="$(cat "$body_file" 2>/dev/null || echo "(本文を読めなかった)")"$'\n'"詳細: journalctl -u $unit -n 50"
     fi
 
     payload=$(${pkgs.jq}/bin/jq -n \
@@ -1511,7 +1528,9 @@ in
         # root で叩くと `detected dubious ownership` (safe.directory 保護) で
         # 即死する。加えて pull の認証情報 (gh credential helper) は gigun の
         # 設定にしか無いので、どのみち root では引けない。
-        as_user() { ${pkgs.sudo}/bin/sudo -u ${username} "$@"; }
+        # DOTFILES_SKIP_AUTO_SWITCH: merge が踏む git/hooks/post-merge に switch させない
+        # (フック側も /etc/NIXOS で止まるが、適用の経路をここ 1 本に保つため二重に塞ぐ)。
+        as_user() { ${pkgs.sudo}/bin/sudo -u ${username} ${pkgs.coreutils}/bin/env DOTFILES_SKIP_AUTO_SWITCH=1 "$@"; }
 
         # dirty ガード。**これは弱点ではなく検知器**。作業コピーが汚れているのは
         # 「誰かが VM 上で dotfiles をいじって放置した」ということなので、
@@ -1522,14 +1541,58 @@ in
           exit 1
         fi
 
+        # CI ゲート。手元の pre-push 関門を外したので (docs/adr/0011-*)、main には CI を
+        # 通る前の commit が直接入る。適用してよいのは CI が green と判定した commit だけ。
+        # pull ではなく fetch → 判定 → その commit へ ff にして、判定した commit と
+        # 適用する commit を同一にする (pull だと判定後に進んだ main を拾い得る)。
+        as_user ${pkgs.git}/bin/git fetch --quiet
+        target=$(as_user ${pkgs.git}/bin/git rev-parse '@{upstream}')
+        # API が引けない (認証切れ・GitHub 障害) は見送りではなく失敗にする。黙って
+        # 見送り続けると、トークン失効で自動更新が止まったことに気づけない。
+        check_runs=$(as_user ${pkgs.gh}/bin/gh api "repos/${dotfilesRepo}/commits/$target/check-runs?per_page=100")
+        # 判定: Actions の check run が 1 つでも success/skipped/neutral 以外で終わっていれば red、
+        # 未完了か required が未出現なら pending、どちらでもなければ green。
+        # skipped を green に数えるのは、nix を触らない commit で check/build が paths-filter に
+        # 飛ばされるため。その代わり changes job 自体の失敗 (→ check/build も skipped) は
+        # red として拾う (required の名前だけ見ると skipped が素通りする)。
+        verdict=$(printf '%s' "$check_runs" | ${pkgs.jq}/bin/jq -r --argjson required '${requiredChecksJson}' '
+          [.check_runs[] | select(.app.slug == "github-actions")] as $runs
+          | ($runs | map(select(.status == "completed"
+              and (.conclusion | IN("success", "skipped", "neutral") | not))
+              | "\(.name)=\(.conclusion)")) as $bad
+          | (($runs | map(select(.status != "completed") | .name))
+              + ($required - ($runs | map(.name)))) as $pending
+          | if ($bad | length) > 0 then "red " + ($bad | join(","))
+            elif ($pending | length) > 0 then "pending " + ($pending | join(","))
+            else "green" end')
+        if [ "$verdict" != green ]; then
+          # 見送りは失敗ではない (OnFailure を鳴らさない)。翌日の timer が同じ判定をやり直す。
+          reason="CI が green でない commit は適用しない: $target ($verdict)"
+          echo "autoswitch: $reason" >&2
+          printf '%s\n' "$reason" > ${autoswitchSkipReason}
+          systemctl start --no-block dotfiles-autoswitch-notify-skip.service || true
+          # 判定まで走り切ったので、沈黙検知の成功 receipt は送る。
+          if [ -n "$DOTFILES_JOB_HEARTBEAT_RECEIPT" ]; then
+            ${jobHeartbeat} send --receipt "$DOTFILES_JOB_HEARTBEAT_RECEIPT" || true
+          fi
+          exit 0
+        fi
+        echo "autoswitch: CI green $target" >&2
+
         # --ff-only。分岐していたら人間の裁定事項なので、ここでは止める。
-        as_user ${pkgs.git}/bin/git pull --ff-only
+        as_user ${pkgs.git}/bin/git merge --ff-only --quiet "$target"
+        # 作業コピーが upstream より先行 (VM 上の未 push commit) していると ff は no-op で
+        # 通ってしまい、CI を通っていない HEAD を適用することになる。
+        if [ "$(as_user ${pkgs.git}/bin/git rev-parse HEAD)" != "$target" ]; then
+          echo "作業コピーが upstream より先行している。更新を中止する" >&2
+          exit 1
+        fi
 
         # store の Compose は不変なので、switch 前の参照先を保持すれば本文や
         # secrets を複製せず、DB を移行した版から旧 image に戻る事故を止められる。
         previous_system=$(readlink -f /run/current-system)
 
-        # pull 後の commit を固定し、system と helper が別のツリーを読まないようにする。
+        # ff 後の commit を固定し、system と helper が別のツリーを読まないようにする。
         revision=$(as_user ${pkgs.git}/bin/git rev-parse HEAD)
         fixed_flake="git+file://${dotfilesDir}?rev=$revision"
         selected_system=$(nix build --no-link --print-out-paths \
@@ -1580,6 +1643,19 @@ in
       User = "root";
       EnvironmentFile = "-/run/agenix/bark-env";
       ExecStart = "${barkNotifyUnitFailure} dotfiles-autoswitch.service 'mini-vm 自動更新 失敗'";
+    };
+  };
+
+  # CI ゲートでの見送りを人へ届ける。失敗ではないので OnFailure とは別の unit にし、
+  # 本文は journal の要約ではなく coordinator が書いた理由をそのまま使う。
+  systemd.services.dotfiles-autoswitch-notify-skip = {
+    description = "dotfiles-autoswitch の見送り (CI 未 green) を Bark へ通知する";
+
+    serviceConfig = {
+      Type = "oneshot";
+      User = "root";
+      EnvironmentFile = "-/run/agenix/bark-env";
+      ExecStart = "${barkNotifyUnitFailure} dotfiles-autoswitch.service 'mini-vm 自動更新 見送り' ${autoswitchSkipReason}";
     };
   };
 
