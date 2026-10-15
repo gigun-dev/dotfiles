@@ -5,11 +5,10 @@
 #   spec は PyPI のパッケージ名で始める (例: foo, foo==1.2, foo[extra])。
 #   @darwin / @linux / @darwin-aarch64 のように書くと、そのプラットフォームでだけ入れる。
 #   版は固定しない。入っていないものを入れるだけで、更新は手で `uv tool upgrade --all`。
-# 宣言外の uv tool は消さずに警告だけ出す (majin-cli / skills-ref のような手元の
-# editable install はここに書かない)。
+# 宣言外の uv tool は消さずに警告だけ出す (手元の checkout からの editable install など、
+# 再現の対象にしないものはここに書かない)。
 
 google-colab-cli # colab CLI (Colab ランタイム操作)
 fb-idb @darwin # idb CLI。iOS Simulator 用なので companion (idb-companion, nix) と同じく darwin のみ
 mlx-whisper @darwin-aarch64 # Apple Silicon の MLX でしか動かない
 plamo-translate @darwin --python 3.12 # 推論は mlx-lm (darwin のみの依存)。3.12 は手で入れたときの receipt に合わせた
-it2 @darwin # iTerm2 の操作 CLI

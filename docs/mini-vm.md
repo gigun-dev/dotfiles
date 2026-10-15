@@ -148,10 +148,9 @@ mini-vm には性質の違う 2 つの信頼経路があり、1 本に両方を�
   `~/.lima/` 配下のディレクトリを rename → `limactl start` で改名できた
   (公式サポートされた操作ではないが動く。autostart は名前が変わるので登録し直しが要る)
 - **`~/.local/bin`**: PATH 末尾の例外レーン。self-update 前提のツールや nixpkgs にない uv tool 用。
-  **住人 (2026-08-10 実測)**: uv tool 群 12 コマンド (`hf` `huggingface-cli` `tiny-agents` `idb`
-  `it2` `kimi` `kimi-cli` `majin` `mlx_whisper` `plamo-translate` `skills-ref` `yt-dlp`) + `python3.12`
-  (2026-10-15 に宣言管理へ移した: nixpkgs にあるもの (`yt-dlp` `hf`) は `packages.nix`、残りは
-  `uv/tools.txt`。`majin` `skills-ref` は手元の editable install なので宣言外のまま) / 自己更新バイナリ `coderabbit` (+ alias `cr`) / 自作 `npx_safe` /
+  **住人 (2026-10-15 実測)**: `uv/tools.txt` で宣言した uv tool 群 (`colab` `idb` `mlx_whisper`
+  `plamo-translate`) + plamo-translate 用に uv が入れた `python3.12` / 自己更新バイナリ `coderabbit` (+ alias `cr`) /
+  自作 `npx_safe` / dotfiles.nix が置く `sfsymbols` ラッパ /
   uv installer が置く `env` `env.fish`。**`sheldon` と `claude` は死蔵** — どちらも nix 管理下
   (`packages.nix`) で `/etc/profiles/per-user/gigun/bin` が PATH で先に来るため呼ばれていない
   (claude は nix 側 2.1.226 / このレーン側 2.1.207 で取り残されていた)。消してよいが
