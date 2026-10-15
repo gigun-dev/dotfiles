@@ -1,15 +1,15 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "cleanupPeriodDays": 9999,
-  "attribution": {
-    "commit": "",
-    "pr": "",
-    "sessionUrl": false
-  },
   "env": {
     "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1",
     "CLAUDE_CODE_THRIFTY_SONIC": "false",
     "EDITOR": "zed --wait"
+  },
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
   },
   "permissions": {
     "allow": [
@@ -34,6 +34,7 @@
     ],
     "defaultMode": "auto"
   },
+  "model": "opus[1m]",
   "hooks": {
     "Notification": [
       {
@@ -362,7 +363,7 @@
   "theme": "dark-daltonized",
   "verbose": false,
   "preferredNotifChannel": "terminal_bell",
-  "autoCompactEnabled": false,
+  "autoCompactEnabled": true,
   "autoContinueAtUsageLimit": true,
   "teammateMode": "tmux",
   "remoteControlAtStartup": true,
