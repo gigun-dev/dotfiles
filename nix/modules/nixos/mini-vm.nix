@@ -52,6 +52,29 @@ let
     builtins.readFile ../../../infra/langfuse/scripts/rollback-target.sh
   );
 
+  # agy が `remote-control start` で書く旧ユーザー unit を止めて消す
+  # (antigravity-remote-control の ExecStartPre、理由はそちらのコメント)。
+  # 全工程 best-effort: user manager が居なくても起動を妨げない。
+  retireAgyUserDaemon = pkgs.writeShellScript "retire-agy-user-daemon" ''
+    unit_dir=/home/${username}/.config/systemd/user
+    uid=$(${pkgs.coreutils}/bin/id -u ${username})
+    if [ -e "$unit_dir/antigravity-cli-daemon.service" ] \
+      || [ -L "$unit_dir/default.target.wants/antigravity-cli-daemon.service" ]; then
+      echo "retire-agy: 旧ユーザー unit を停止して削除する" >&2
+      user_systemctl() {
+        ${pkgs.util-linux}/bin/runuser -u ${username} -- \
+          ${pkgs.coreutils}/bin/env XDG_RUNTIME_DIR=/run/user/"$uid" \
+          DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/"$uid"/bus \
+          ${config.systemd.package}/bin/systemctl --user "$@"
+      }
+      user_systemctl disable --now antigravity-cli-daemon.service || true
+      rm -f "$unit_dir/antigravity-cli-daemon.service" \
+        "$unit_dir/default.target.wants/antigravity-cli-daemon.service"
+      user_systemctl daemon-reload || true
+    fi
+    exit 0
+  '';
+
   # 更新後にこの VM が「使える状態か」を見るゲート。switch 直後と rollback 直後の
   # 2 回呼ぶので独立したスクリプトにしてある。
   #
@@ -128,6 +151,7 @@ let
       langfuse \
       codex-openai-bridge \
       codex-remote-control \
+      antigravity-remote-control \
       cloudflared-tunnel-5b8ec787-4730-4b2b-87b8-e86acbd3954b; do
       if ! unit_ok "$unit"; then
         echo "gate: $unit が異常 ($(systemctl show -p ActiveState -p Result --value "$unit" | tr '\n' ' '))" >&2
@@ -1337,22 +1361,55 @@ in
     };
   };
 
-  # `agy remote-control start` が登録する antigravity-cli-daemon はユーザー unit なので、
-  # boot から上げるには linger が要る。agy 自身は enable-linger を試みるが、一般ユーザーでは
-  # polkit に拒否される (2026-10-09 実測: "Could not enable linger: Access denied")。
+  # ブラウザ (antigravity.google.com) から mini-vm の agy を使うための常駐。
+  # codex-remote-control と同じ型で、dotfiles が system service として所有する。
   #
-  # Why not `users.users.<name>.linger`: NixOS 側の実装はその user を宣言した状態を要求し、
-  # Lima が imperative に作る gigun と衝突する (users.mutableUsers の理由を参照)。
-  # root の oneshot で enable-linger だけを冪等に叩けば、user 宣言に触れずに済む。
-  # 登録 (agy remote-control start) と Google ログインは imperative のまま。
-  systemd.services.linger-gigun = {
-    description = "gigun の linger を有効にする (ユーザー unit を boot から上げる)";
+  # **2026-10-16 の事実**: `agy remote-control start` が書くユーザー unit
+  # (~/.config/systemd/user/antigravity-cli-daemon.service) は ExecStart に store パスを
+  # 直書きする。nix が agy を 1.3.6 に上げても daemon は 1.3.1 のまま動き続け、GC で
+  # そのパスが消えれば起動できなくなる。さらに home.sessionVariables は systemd に届かず
+  # AGY_CLI_DISABLE_AUTO_UPDATE が無いので、daemon の auto_updater が毎回失敗していた。
+  #
+  # **Why not agy 自身の unit を使い続ける**: 版が flake.lock と切り離される。
+  # 上の通り、ExecStart を書き換える手段が agy 側に無い。
+  # **Why not home-manager の user service**: home 構成 gigun-x86_64-linux は WSL と共用で、
+  # WSL でも常駐してしまう。system service ならこの機械の宣言に閉じる。
+  # → ExecStart を flake の package に固定すれば、版が変わった switch で
+  #   (restartIfChanged 既定) autoswitch が再起動する。codex-remote-control と同じ。
+  #
+  # **二重 serve の禁止**: 同じアカウントの serve が 2 つ動くと同じ WebChannel セッションを
+  # 取り合い、"Reconnection attempt N failed" を繰り返す (2026-10-16 実測)。
+  # ExecStartPre (`+` = root) が旧ユーザー unit を止めて消す。`agy remote-control start` を
+  # 誰かが再実行して unit が復活しても、この unit の次の (再) 起動で自己修復する。
+  # 復活直後〜次の再起動までの間は二重になり得るので、再登録したら本 unit を restart すること。
+  # unit ファイルを消すのは、user manager が落ちていても (止める相手も居ないので) 確実に
+  # 再起動時の自動起動を断てるから。systemctl は best-effort。
+  #
+  # 登録 (`agy remote-control start`) と Google 認可は imperative のまま (docs/mini-vm.md)。
+  # ConditionPathExists は認可前の機械で unit を失敗させない (healthGate は skip を許す)。
+  systemd.services.antigravity-remote-control = {
+    description = "Antigravity CLI (remote-control serve) — ブラウザから mini-vm の agy を使う口";
     wantedBy = [ "multi-user.target" ];
-    after = [ "systemd-logind.service" ];
+    wants = [ "network-online.target" ];
+    after = [ "network-online.target" ];
+
+    unitConfig.ConditionPathExists = "/home/${username}/.gemini/antigravity-cli/antigravity-oauth-token";
+
+    environment = {
+      HOME = "/home/${username}";
+      SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+      # 自己更新を止める。版は flake.lock が決める (上流の自己更新は store が読み取り専用で失敗するだけ)。
+      AGY_CLI_DISABLE_AUTO_UPDATE = "1";
+    };
+
     serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = true;
-      ExecStart = "${config.systemd.package}/bin/loginctl enable-linger ${username}";
+      Type = "simple";
+      User = username;
+      WorkingDirectory = "/home/${username}";
+      ExecStartPre = "+${retireAgyUserDaemon}";
+      ExecStart = "${llmAgents.antigravity-cli}/bin/agy remote-control serve";
+      Restart = "always";
+      RestartSec = 10;
     };
   };
 
