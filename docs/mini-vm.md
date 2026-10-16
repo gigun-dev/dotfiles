@@ -22,6 +22,9 @@ Worker・KV・Cron・custom domainは`gigun-dev/hub`の`infra/uptime/`でOpenTof
 **動機**: 無人機なので手で `pull && switch` を打つ機会が無く、push 済みの変更が届かないまま
 気づけない(cloudflare-os で実際に 106 コミット遅れた)。
 
+timer の時刻(autoswitch 04:00 など)はすべて JST。mini-vm のシステム timezone は 2026-10-16 から
+`Asia/Tokyo`(それ以前は未設定の UTC で、timer が JST の +9 時間後に発火していた)。
+
 **設計の要点**(実装は `nix/modules/nixos/mini-vm.nix`):
 
 - **lock 更新の提案と適用を分ける。** `dotfiles-lock-propose@fast`(毎日) / `@slow`(日曜)が
