@@ -32,3 +32,9 @@ Only what differs from the agent's own defaults belongs here.
   or unresolved concerns. Required CI and pre-push checks still run.
 - Before closing delegated work, reconcile its reported task/ADR candidates and
   required ignored artifacts in the main checkout; record unresolved items in todo.txt.
+- Git, agents only (the human may use `git add .`): stage by explicit path, `git add <path>`;
+  never `git add .`/`-A`/`-u`, `git commit -a`, or interactive `-p`. Treat a pre-populated
+  index as untrusted: files are often staged only so `nix run .#switch` can see them. Run
+  `git diff --cached --stat` before committing and unstage whatever is outside the unit.
+- Commit the smallest independently revertable unit. Fix an already-pushed commit with a
+  follow-up commit; amend only unpushed ones.
