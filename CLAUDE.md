@@ -12,7 +12,7 @@ nix run .#update               # pull --rebase + flake update + switch + lock �
 nix run .#update-ai-tools      # 同上。AI ツールの input だけ
 ```
 
-**重要**: nix は git index から評価するため、`nix run .#switch` の前に必ず `git add` すること。エージェントは `git add .` を使わず、変更したパスを明示して stage する（commit に混ざらないよう、switch 用の stage は commit 前に確認する）。
+**重要**: nix は git index から評価するため、`nix run .#switch` の前に必ず `git add` すること。switch 用に stage したものが commit に混ざらないよう、エージェントは commit 前に `git diff --cached --stat` で確認する。
 
 **`flake.lock` は main から pull で受け取る**: lock の主な生産者は mini-vm で、定期的に PR で提案し、実機ビルドと required CI を通して自動 merge する。手元は `git pull` するだけでよく、`git/hooks` の post-merge / post-rewrite / post-checkout が flake.nix・flake.lock・nix/ の変化を見て `nix run .#switch` まで走らせる（main の主 checkout でのみ。linked worktree・feature branch・NixOS では何もしない）。手元で lock を更新するときは `nix run .#update` / `update-ai-tools` を使う。pull → update → switch の後に lock をその場で commit するので dirty な lock は残らない。push は手で行う。mini-vm の `dotfiles-autoswitch` は main の HEAD の CI が green のときだけ適用する（red / 未完了は見送って通知）。設計は `docs/adr/0011-push-without-a-local-gate-and-apply-only-green-commits.md`、現在の運用は `docs/mini-vm.md`、残課題は `todo.txt` を参照。
 
