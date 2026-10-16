@@ -25,6 +25,8 @@ in
     "zsh/functions".source = mkLink "zsh/functions";
     "ccstatusline".source = mkLink "ccstatusline";
     "mise".source = mkLink "mise";
+    # global ignore。programs.git.ignores だと store 経由で nix なしの環境と中身を共有できない
+    "git/ignore".source = mkLink "git/ignore";
     # Langfuse の非秘密接続先。鍵は ~/.config/claude-code/langfuse.env に分離する。
     "claude-code/langfuse-endpoints.env".source = mkLink "claude/langfuse-endpoints.env";
   }

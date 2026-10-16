@@ -1,0 +1,91 @@
+# グローバル ignore (~/.config/git/ignore)。nix は dotfiles.nix、nix なしは bootstrap.sh が張る。
+#
+# 言語テンプレート (Python 等) は意図的に入れない。lib/ build/ dist/ .env .python-version
+# のような広いパターンを含み、他のリポジトリが追跡したいファイルまで黙って隠す
+# (docs/python.md は .python-version を commit する前提)。言語固有の ignore は各リポジトリで持つ。
+
+### https://raw.githubusercontent.com/github/gitignore/0e5d690153ca3da8a4a1aef2d053406f408f531c/Global/macOS.gitignore
+# General
+.DS_Store
+.localized
+__MACOSX/
+.AppleDouble
+.LSOverride
+Icon[]
+
+# Resource forks
+._*
+
+# Files and directories that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.com.apple.timemachine.supported
+.PKInstallSandboxManager
+.PKInstallSandboxManager-SystemSoftware
+.hotfiles.btree
+.vol
+.file
+.disk_label*
+lost+found
+.HFS+ Private Directory Data[]
+
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Mac OS 6 to 9
+Desktop DB
+Desktop DF
+TheFindByContentFolder
+TheVolumeSettingsFolder
+.FBCIndex
+.FBCSemaphoreFile
+.FBCLockFolder
+
+# Quota system
+.quota.group
+.quota.user
+.quota.ops.group
+.quota.ops.user
+
+# TimeMachine
+Backups.backupdb
+.MobileBackups
+.MobileBackups.trash
+MobileBackups.trash
+tmbootpicker.efi
+
+### https://raw.githubusercontent.com/github/gitignore/0e5d690153ca3da8a4a1aef2d053406f408f531c/Global/Linux.gitignore
+*~
+
+# temporary files which can be created if a process still has a handle open of a deleted file
+.fuse_hidden*
+
+# Metadata left by Dolphin file manager, which comes with KDE Plasma
+.directory
+
+# Linux trash folder which might appear on any partition or disk
+.Trash-*
+
+# .nfs files are created when an open file is removed but is still being accessed
+.nfs*
+
+# Log files created by default by the nohup command
+nohup.out
+
+# direnv
+.direnv/
+
+# Claude Code のローカル専用ファイル。isolation: worktree のサブエージェントは
+# 全リポジトリで .claude/worktrees/ を作るので、リポジトリごとに足さずここで無視する
+**/.claude/settings.local.json
+**/.claude/worktrees/
+**/CLAUDE.local.md

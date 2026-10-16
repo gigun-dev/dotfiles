@@ -1,18 +1,21 @@
-
-.claude/settings.local.json
-.direnv/
-.DS_Store
+# direnv の個人上書き。.direnv/ 自体はグローバル ignore (git/ignore) が持つ
 .envrc.local
-*.swp
-*~
-# Claude Code per-project local settings (permissions, env)
-# direnv
-# OS / editor
+
+# nix build の出力 symlink
 result
+
+# エディタの swap (グローバル ignore には *~ だけ入っている)
+*.swp
+
+# Windows のエクスプローラが作る。windows/ を持つのでこのリポジトリでは要る
 Thumbs.db
 
-# claude local settings(個人環境の設定。プロジェクト共有の設定は .claude/settings.json に置く)
+# Claude Code の個人用の計画ファイル。プロジェクト共有の設定は .claude/settings.json に置く
+# (settings.local.json と worktrees/ はグローバル ignore が持つ)
 .claude/plans/
+
+# Python bytecode
+__pycache__/
 
 # OpenTofu (tofu/)
 # .terraform/ は provider バイナリのキャッシュで数十MB。init すれば再取得できる。
@@ -27,6 +30,3 @@ tofu/**/.terraform.tfstate.lock.info
 # -generate-config-out の出力先。取り込み後は中身を精査して手書きの .tf へ移すので、
 # 生成物そのものは残さない。
 tofu/generated.tf
-
-# Python bytecode
-__pycache__/
