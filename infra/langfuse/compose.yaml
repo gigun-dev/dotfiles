@@ -3,7 +3,7 @@
 # different code under the same declaration.
 services:
   langfuse-worker:
-    image: docker.langfuse.com/langfuse/langfuse-worker:4.54.0@sha256:fe7ea9e288c6586783989920ced1704172624f45da495a68d8ae07ba466641f2
+    image: docker.langfuse.com/langfuse/langfuse-worker:4.55.0@sha256:c7598e66c4d15f0a493c4c90d7d1a9597104ec9c5228b7c7c85a877f43155ad7
     restart: always
     depends_on: &langfuse-depends-on
       postgres:
@@ -46,7 +46,7 @@ services:
       REDIS_AUTH: ${REDIS_AUTH}
 
   langfuse-web:
-    image: docker.langfuse.com/langfuse/langfuse:4.54.0@sha256:ea9f763af1181b444c081353cd2f8174323c84b2447ed7295857d04ae1153f2c
+    image: docker.langfuse.com/langfuse/langfuse:4.55.0@sha256:728d04579606a02da5ccc493a7f580b3a5400fbc2e307866d1616468c1b270ee
     restart: always
     depends_on: *langfuse-depends-on
     ports:
