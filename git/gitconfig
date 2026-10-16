@@ -1,3 +1,5 @@
+# nix 側の同設定は nix/modules/home/programs/git/default.nix。Windows が ~/.gitconfig へ symlink する。
+# 設定を足したら両方に反映する (nbstripout と plist は nix 側のみ)。
 [user]
 	name = gigun
 	email = 117321963+gigun-dev@users.noreply.github.com
@@ -9,6 +11,24 @@
 	rebase = true
 [push]
 	autoSetupRemote = true
+	useForceIfIncludes = true
+[rebase]
+	autoStash = true
+	autoSquash = true
+	updateRefs = true
+[rerere]
+	enabled = true
+	autoupdate = true
+[merge]
+	conflictstyle = zdiff3
+[diff]
+	algorithm = histogram
+	colorMoved = plain
+[fetch]
+	prune = true
+# origin だけ。global の fetch.pruneTags は fork remote の fetch で手元の tag を消す
+[remote "origin"]
+	pruneTags = true
 [credential]
 	# gh CLI を credential helper に統一 (Windows GCM 上書き、Mac/Linux と統一)
 	# 前提: 1 回 `gh auth login` が必要
