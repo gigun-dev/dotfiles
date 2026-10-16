@@ -50,6 +50,8 @@ jobs:
               - 'infra/langfuse/**'
               - 'secrets/**'
               - 'scripts/tests/bark-routing.py'
+              - 'scripts/codex-mcp-login.py'
+              - 'scripts/tests/codex-mcp-login.py'
               - 'uv/**'
               - 'scripts/tests/uv-sync-tools.py'
               - 'scripts/verify.sh'

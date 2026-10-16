@@ -102,6 +102,16 @@ resource "cloudflare_dns_record" "uptime" {
   comment = "Uptime Kuma on mini-vm (named tunnel, protected by Access)"
 }
 
+resource "cloudflare_dns_record" "mcp_login" {
+  zone_id = local.zone_id
+  name    = "mcp-login.097969.xyz"
+  type    = "CNAME"
+  content = "${local.tunnel_id}.cfargotunnel.com"
+  proxied = true
+  ttl     = 1
+  comment = "codex MCP OAuth re-login on mini-vm (named tunnel, protected by Access)"
+}
+
 # --- Zero Trust Access -----------------------------------------------------
 # os.097969.xyz の前段に立つエッジ認証。cloudflare-os 自体は認証を持たないので、
 # 「公開 URL に出す」ことと「自分だけが入れる」ことをここで両立させている。
@@ -214,6 +224,40 @@ resource "cloudflare_zero_trust_access_application" "uptime" {
     {
       type = "public"
       uri  = "uptime.097969.xyz"
+    },
+  ]
+
+  allowed_idps              = [cloudflare_zero_trust_access_identity_provider.cloudflare.id]
+  auto_redirect_to_identity = true
+  session_duration          = "168h"
+
+  app_launcher_visible       = true
+  enable_binding_cookie      = false
+  http_only_cookie_attribute = true
+  options_preflight_bypass   = false
+
+  policies = [
+    {
+      id         = cloudflare_zero_trust_access_policy.account_members.id
+      precedence = 1
+    },
+  ]
+}
+
+# codex の MCP OAuth 再ログイン入口 (ADR 0013)。監視 UI と違い、ここを通ると mini-vm の
+# codex に「誰の」Cloudflare アカウントを使わせるかが決まる。Access が主境界で、origin
+# (scripts/codex-mcp-login.py) も Cf-Access-Jwt-Assertion を検証する。OAuth の callback も
+# 同じホスト名に戻るが、同意後のトップレベル遷移なので /start で付いた Access cookie が効く。
+resource "cloudflare_zero_trust_access_application" "mcp_login" {
+  account_id = local.account_id
+  name       = "codex MCP login (mini-vm)"
+  type       = "self_hosted"
+  domain     = "mcp-login.097969.xyz"
+
+  destinations = [
+    {
+      type = "public"
+      uri  = "mcp-login.097969.xyz"
     },
   ]
 

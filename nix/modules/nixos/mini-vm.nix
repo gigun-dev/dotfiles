@@ -303,6 +303,8 @@ let
     title=$2
     # 任意の $3: 本文ファイル。失敗ではない通知 (見送り) は journal から原因を探さない。
     body_file=''${3:-}
+    # 任意の $4: 通知をタップしたときに開く URL (Bark の url。codex-mcp-login の再ログイン入口)。
+    open_url=''${4:-}
 
     # 秘密が無い機械では黙って終わる (失敗自体は journal に残る)。
     [ -n "''${BARK_DEVICE_KEY:-}" ] || exit 0
@@ -373,7 +375,8 @@ let
       --arg body "$body" \
       --arg group "mini-vm" \
       --arg level "timeSensitive" \
-      '{title: $title, body: $body, group: $group, level: $level}')
+      --arg url "$open_url" \
+      '{title: $title, body: $body, group: $group, level: $level} + (if $url == "" then {} else {url: $url} end)')
 
     key_hex=$(printf '%s' "$BARK_ENCRYPT_KEY" | ${pkgs.coreutils}/bin/od -An -tx1 | ${pkgs.coreutils}/bin/tr -d ' \n')
     iv_hex=$(printf '%s' "$BARK_ENCRYPT_IV" | ${pkgs.coreutils}/bin/od -An -tx1 | ${pkgs.coreutils}/bin/tr -d ' \n')
@@ -630,6 +633,7 @@ in
     ./services/langfuse.nix
     ./services/beszel.nix
     ./services/uptime-kuma.nix
+    ./services/codex-mcp-login.nix
   ];
 
   # hub owns incident history and notifications; only host-local evidence is collected here.
@@ -651,6 +655,16 @@ in
       mini-vm-lock-fast = config.age.secrets.job-heartbeat-fast.path;
       mini-vm-lock-slow = config.age.secrets.job-heartbeat-slow.path;
     };
+  };
+
+  # Cloudflare MCP の OAuth を通知のタップで張り直す (ADR 0013)。Access アプリと DNS は
+  # tofu/cloudflare.tf の mcp_login。
+  services.codex-mcp-login = {
+    enable = true;
+    user = username;
+    hostName = "mcp-login.097969.xyz";
+    accessTeamDomain = "https://gigun.cloudflareaccess.com";
+    notifier = "${barkNotifyUnitFailure}";
   };
 
   # Lima のインスタンス名・tailnet 名・hostname はすべて mini-vm に揃えてある
@@ -1209,6 +1223,11 @@ in
         # ローカルの AI まで巻き込む。ループバックは落ちない。
         # この口の価値は「mini の外から使えること」だけ。
         "codex.097969.xyz".service = "http://127.0.0.1:18080";
+        # codex の MCP OAuth 再ログイン入口 (ADR 0013)。Access で保護する。
+        # /start と OAuth の /callback を同じホスト名で受ける: ingress はホスト名ごとに 1 規則で、
+        # callback は入口が loopback で codex へ中継する (codex の listener は ingress に載せない)。
+        ${config.services.codex-mcp-login.hostName}.service =
+          "http://127.0.0.1:${toString config.services.codex-mcp-login.port}";
       };
       # 宣言していないホスト名は原点まで通さない。トンネルを他用途へ流用されないための既定。
       default = "http_status:404";

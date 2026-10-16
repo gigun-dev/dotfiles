@@ -227,6 +227,28 @@ Tailscaleポリシーは `tofu/tailscale/` で管理する。公開テンプレ�
 
 管理画面の編集防止と正典へのリンクを設定済み。緊急変更は管理画面で解除して行えるが、正典へ取り込み、次のapplyで黙って上書きしない。通常は `nix run .#tofu -- -chdir=tailscale plan` で差分と接続テストを確認し、同じ入口の `apply` で適用する。Git pushだけではACLを自動適用しない。現在の広いタグ間許可は別変更で見直す。
 
+## codex の MCP OAuth の張り直し
+
+Cloudflare の MCP (`cloudflare`、codex の cloudflare plugin が足す) の OAuth はログインから 30 日で切れ、
+refresh では延びない。張り直しはスマホから行う(設計は ADR 0013、実装は
+`nix/modules/nixos/services/codex-mcp-login.nix` と `scripts/codex-mcp-login.py`)。
+
+- **通常の流れ**: 最終ログインから 27 日目以降の毎朝 9 時台と、journal に refresh 拒否が出たときに
+  Bark が「mini-vm MCP 再ログイン: cloudflare」を送る。タップ → Cloudflare Access → Cloudflare の同意画面 →
+  「cloudflare: ログイン完了」で終わり。通知は server ごとに 1 日 1 通まで。
+- **通知を待たずに張り直す**: `https://mcp-login.097969.xyz/`(Access の App Launcher にもタイルが出る)を開き、
+  リンクから `/start` へ進む。最終ログインからの日数もここに出る。
+- **通知だけ試す**: `sudo systemctl start codex-mcp-login-remind`(期限前なら何も送らない。送ったかは journal で見る)。
+- **入口が使えないとき**: `ssh -t mini-vm codex-mcp-relogin cloudflare` で従来の callback URL 貼り付け手順を
+  走らせる。中身は `codex mcp login cloudflare --no-browser` で、成功したら最終ログイン時刻を記録する。
+  素の `codex mcp login` で済ませると時刻が記録されず、リマインダは古い時刻のまま鳴り続ける。
+- **確認**: `journalctl -u codex-mcp-login -e`(認可 URL と callback の query は伏せて記録する)、
+  `journalctl -u codex-mcp-login-remind -e`、`cat /var/lib/codex-mcp-login/cloudflare.login-at`(epoch 秒)。
+- **張り直した後**: 実行中の `codex-remote-control` が新しい資格情報に切り替わらない(MCP の呼び出しが
+  まだ失敗する)ときは `sudo systemctl restart codex-remote-control`。
+- **codex の callback listener**: 18791 で `0.0.0.0` に bind するが、raw 表の `codex-mcp-callback` chain が
+  loopback 以外を落とす。`sudo iptables -t raw -S codex-mcp-callback` で確認できる。
+
 ## agy の remote control(常駐と、手で当てる状態)
 
 2026-10-09 に mini-vm へ入れ、2026-10-16 に常駐の所有を dotfiles へ移した(ADR 0012)。
