@@ -35,7 +35,28 @@ in
       ghq.user = "gigun-dev";
       init.defaultBranch = "main";
       pull.rebase = true;
-      push.autoSetupRemote = true;
+      push = {
+        autoSetupRemote = true;
+        # --force-with-lease を、背後の fetch で追跡 ref だけ進んだ状態でも安全にする。
+        # 手元に取り込んでいない remote の commit があれば force push を拒否する (ryoppippi)
+        useForceIfIncludes = true;
+      };
+      rebase = {
+        autoStash = true;
+        autoSquash = true;
+        # スタックした branch の ref も rebase に追従させる
+        updateRefs = true;
+      };
+      # 同じ conflict を二度解かない
+      rerere = {
+        enabled = true;
+        autoupdate = true;
+      };
+      merge.conflictstyle = "zdiff3";
+      fetch.prune = true;
+      # origin だけ。fetch.pruneTags を global にすると、release tag を持たない
+      # fork remote を fetch したときに手元の tag が消える (ryoppippi f624e326)
+      remote.origin.pruneTags = true;
       # gh CLI を git の credential helper として使用 (Mac/Linux 共通)
       # 新マシンでは `gh auth login` 1 回で git push/pull が動く
       # Windows は GCM (Git Credential Manager) が標準、別途
@@ -48,6 +69,8 @@ in
         required = true;
       };
       diff = {
+        algorithm = "histogram";
+        colorMoved = "plain";
         # textconv にも clean と同じ引数を渡す。素の `-t` だと出力の変更が diff から消え、
         # 作業ツリー側の language_info.version が毎回差分に出る (scratch で両方踏んだ)。
         ipynb.textconv = "${nbstripout} -t ${nbstripoutArgs}";
