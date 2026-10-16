@@ -228,7 +228,7 @@ def codex_command(codex: str, server: str, origin: str, callback_port: int) -> l
         "--no-browser",
         # loopback 以外の redirect では CIMD を使わない (codex の Auto も DCR になる)。明示しておく。
         "--oauth-client-registration",
-        "DCR",
+        "dcr",
         "-c",
         f"mcp_oauth_callback_port={callback_port}",
         "-c",
