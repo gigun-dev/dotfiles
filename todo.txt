@@ -30,7 +30,6 @@
 (C) 2026-10-16 Windows DSC の script-symlinks (Get/Test/SetScript) に git/ignore → ~/.config/git/ignore の symlink を足す。Mac/Linux は 2026-10-16 に git/ignore へ移した by:claude id:0084
 (C) 2026-10-16 nix なしの Mac/Linux で bootstrap.sh が git/gitconfig を張らず、git 設定が効かない。張るか、Windows 専用と明記するか決める (docs/git.md 設定の置き場所) by:claude id:0085
 2026-10-16 +mini-vm codex 本体 (ChatGPT) と agy (Google) の認可切れを、それと分かる通知で知らせ、健全性ゲートで rollback させない (どちらも稀。MCP は ADR 0013 で対応済み) see:docs/adr/0012-own-agy-remote-control-daemon-as-system-service.md by:me id:0086
-2026-10-16 +mini-vm codex の cloudflare MCP の OAuth を mini-vm で再ログインする (2026-10-15 から refresh token が拒否され続けている) by:claude id:0087
 2026-10-16 +mini-vm agy remote-control status が system service 化後も旧ユーザー unit を見て inactive と出る。表示の扱いを docs に書くか回避策を決める by:claude id:0088
 2026-10-16 +mini-vm MCP 再ログイン後に codex-remote-control の再起動が要るか実測し、ADR 0013 と docs/mini-vm.md の未確認を消す see:docs/adr/0013-relogin-codex-mcp-oauth-through-cloudflare-access.md by:claude id:0089
 2026-10-16 +mini-vm tailnet の端末から mini-vm:18791 に届かないこと (raw 表の DROP) を、ログイン待ちの間に nc で実測する see:docs/adr/0013-relogin-codex-mcp-oauth-through-cloudflare-access.md by:claude id:0090
