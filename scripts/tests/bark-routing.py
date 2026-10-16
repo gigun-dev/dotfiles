@@ -77,7 +77,7 @@ class UnitFailureBody(unittest.TestCase):
     KEY = '0123456789abcdefABCDEFGHIJKLMNOP'
     DEVICE = 'device-key-secret'
 
-    def run_helper(self, unit, journal, props='Result=exit-code\nExecMainStatus=1\n', body_file=None):
+    def run_helper(self, unit, journal, props='Result=exit-code\nExecMainStatus=1\n', body_file=None, url=None, full=False):
         source = (ROOT / 'nix/modules/nixos/mini-vm.nix').read_text()
         body = source.split('barkNotifyUnitFailure = pkgs.writeShellScript "bark-notify-unit-failure" \'\'\n', 1)[1].split("\n  \'\';", 1)[0]
         with tempfile.TemporaryDirectory() as directory:
@@ -104,6 +104,8 @@ class UnitFailureBody(unittest.TestCase):
             if body_file is not None:
                 (base / 'body.txt').write_text(body_file)
                 args.append(str(base / 'body.txt'))
+            if url is not None:
+                args.append(url)
             result = subprocess.run(args, env=env, capture_output=True, text=True, timeout=10)
             self.assertEqual(result.returncode, 0, result.stderr)
             payload = json.loads((base / 'payload').read_text())
@@ -112,7 +114,7 @@ class UnitFailureBody(unittest.TestCase):
                 self.assertNotIn(secret, result.stdout + result.stderr)
             self.assertEqual(payload['title'], 'title')
             self.assertLessEqual(len(payload['body']), 320)
-            return payload['body']
+            return payload if full else payload['body']
 
     def test_signed_url_redacted(self):
         body = self.run_helper('x.service', 'fetch https://d1.cloudfront.net/a/b?Expires=1&Signature=SIG&Key-Pair-Id=K failed: timeout\n')
@@ -172,6 +174,12 @@ class UnitFailureBody(unittest.TestCase):
                                body_file='CI が green でない commit は適用しない: abc (red build=failure)\n')
         self.assertEqual(body.split('\n'), ['CI が green でない commit は適用しない: abc (red build=failure)',
                                              '詳細: journalctl -u dotfiles-autoswitch.service -n 50'])
+
+    def test_open_url_only_when_given(self):
+        # codex-mcp-login の再ログイン通知はタップで入口を開く。既存の失敗通知には url を足さない。
+        payload = self.run_helper('a.service', 'x\n', body_file='tap\n', url='https://login.example/start?server=cloudflare', full=True)
+        self.assertEqual(payload['url'], 'https://login.example/start?server=cloudflare')
+        self.assertNotIn('url', self.run_helper('a.service', 'x\n', full=True))
 
     def test_missing_journal_fallback(self):
         self.assertEqual(self.run_helper('a.service', None), '(journal を取得できなかった)')
