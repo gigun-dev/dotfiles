@@ -229,28 +229,38 @@ Tailscaleポリシーは `tofu/tailscale/` で管理する。公開テンプレ�
 
 ## agy の remote control(常駐と、手で当てる状態)
 
-2026-10-09 に mini-vm へ入れた。宣言できるものと、できない状態を分けて持つ。
+2026-10-09 に mini-vm へ入れ、2026-10-16 に常駐の所有を dotfiles へ移した(ADR 0012)。
+宣言できるものと、できない状態を分けて持つ。
 
-- **宣言している**: パッケージ(`llmAgents.antigravity-cli`)と linger(`mini-vm.nix` の `linger-gigun`)。
-  `agy remote-control start` が登録するのはユーザー unit の `antigravity-cli-daemon.service`
-  (`agy remote-control serve`、`Restart=on-failure`)で、linger が無いと再起動やログアウトで止まる。
-  agy 自身の `enable-linger` は polkit に拒否されるため(`Could not enable linger: Access denied`)、
-  root の oneshot で冪等に叩く。`users.users.<name>.linger` は Lima が作る gigun の宣言と衝突するので使わない。
+- **宣言している**: パッケージ(`llmAgents.antigravity-cli`)と、常駐の system service
+  `antigravity-remote-control`(`mini-vm.nix`、`agy remote-control serve` を flake の package に固定、
+  `AGY_CLI_DISABLE_AUTO_UPDATE=1`)。版が変わった switch(autoswitch は 04:00 JST)で再起動するので、
+  その時刻に進行中の会話は中断される。`dotfiles-autoswitch` の健全性ゲートにも入っている
+  (認可トークンが無い機械では ConditionPathExists でスキップされ、ゲートは落ちない)。
+  agy 自身が `remote-control start` で書く旧ユーザー unit `antigravity-cli-daemon.service` は
+  store パス直書きで版が固定され、同一アカウントの二重 serve は WebChannel を取り合う
+  (`Reconnection attempt N failed`)ため、system service の起動前に止めて unit ごと消す。
+  `agy remote-control start` を再実行して復活したら `sudo systemctl restart antigravity-remote-control` で直る。
+  linger(旧 `linger-gigun`)は他に使うユーザー unit が無いので宣言を外した。
 - **宣言できない(手で当てる)**: Google アカウントの認可と、デバイスの登録。認可は本人の同意の記録で、
   トークンは更新のたびに書き換わるため agenix で配ると古い内容へ戻って壊れる。Codex の `auth.json`・
   `codex-pair.py`・Tailscale のログインと同じ扱い。
-  - 登録: `agy remote-control start --name mini-vm`。状態は `agy remote-control status`。
+  - 登録: `agy remote-control start --name mini-vm`(旧ユーザー unit を書き直すだけなので、実行したら上の restart)。
+    `agy remote-control status` は旧ユーザー unit を見ている可能性があり、system service で動いていても
+    inactive と出得る(status の判定対象は未検証)。実態は下の確認コマンドとダッシュボードで見る。
   - 認可: ログイン後にデーモンがもう一段の OAuth 認可(`Enter the authorization code:`)を求め、
     stdin が無いので `failed to read authorization code from stdin: EOF` で失敗し続ける。
     ダッシュボード(https://antigravity.google.com)にも同じエラーが出る。
-    `systemctl --user stop antigravity-cli-daemon.service` のあと前景で `agy remote-control serve` を起動し、
-    表示された URL を別端末のブラウザで承認して、認可コードを貼る。
-  - 状態が消えたかどうかは、`agy remote-control status` とダッシュボードの `mini-vm` の表示で見る。
-- **確認済み(2026-10-09)**: 前景の `serve` で認可を通したあと `systemctl --user start` で常駐へ戻すと、
-  デーモンは認可の要求を出さずに `active` を保ち、ダッシュボードにも `mini-vm` が出た。認可の結果は
-  デーモンから読める場所に保存される。
-- **未確認**: 再起動後に自動で上がるか。linger は有効(`Linger=yes`)なので上がる見込みだが、
-  mini-vm の再起動では試していない。
+    `sudo systemctl stop antigravity-remote-control` のあと前景で `agy remote-control serve` を起動し、
+    表示された URL を別端末のブラウザで承認して、認可コードを貼る。済んだら `sudo systemctl start` で戻す。
+    前景 serve と常駐を同時に動かさないこと。
+- **確認**: `systemctl status antigravity-remote-control`、`journalctl -u antigravity-remote-control -e`、
+  ダッシュボードの `mini-vm` の表示。
+- **確認済み(2026-10-09)**: 前景の `serve` で認可を通したあと常駐へ戻すと、デーモンは認可の要求を出さずに
+  `active` を保ち、ダッシュボードにも `mini-vm` が出た。認可の結果はデーモンから読める場所に保存される。
+- **移行(一度きり)**: 初回の switch で system service が起動し、ExecStartPre が旧ユーザー unit を止めて消す。
+  switch 後に `systemctl --user list-units 'antigravity*'` が空で、`pgrep -af 'agy remote-control serve'` が
+  1 行であることを確認する。
 
 ### mini本体でのiOSビルド・署名
 
