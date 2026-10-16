@@ -10,6 +10,6 @@ Always respond in Japanese.
 
 ## Git
 
-- Agents only (the human may use `git add .`): stage by explicit path, `git add <path>`; never `git add .`/`-A`/`-u`, `git commit -a`, or interactive `-p`.
-- Treat a pre-populated index as untrusted: files are often staged only so `nix run .#switch` can see them. Run `git diff --cached --stat` before committing and unstage whatever is outside the unit.
+- Before committing, check `git status --short --untracked-files` (never `=no`) and `git diff --cached --stat`. The index often holds files staged only so `nix run .#switch` can see them; unstage whatever is outside the unit.
+- When one file mixes logical changes, stage hunks with `git add -p` (answers on stdin). Never bypass hooks with `--no-verify`.
 - Commit the smallest independently revertable unit. Fix an already-pushed commit with a follow-up commit; amend only unpushed ones.
