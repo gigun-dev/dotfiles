@@ -17,10 +17,6 @@ in
   programs.git = {
     enable = true;
 
-    # isolation: worktree のサブエージェントが全リポジトリで .claude/worktrees/ を作る。
-    # 各リポジトリの .gitignore に足して回らずに済ませるため、ここで一括して無視する
-    ignores = [ ".claude/worktrees/" ];
-
     # notebook は Colab と VS Code で交互に保存すると、execution_count と
     # metadata.language_info.version の書き換えだけで差分が埋まる。全リポジトリで
     # commit 時に落とす。出力は残す (--keep-output): lect-machine-learning では

@@ -114,6 +114,9 @@ link "${DOTFILES_DIR}/zsh/.zshrc" "${HOME}/.zshrc"
 link "${DOTFILES_DIR}/sheldon" "${HOME}/.config/sheldon"
 link "${DOTFILES_DIR}/zeno" "${HOME}/.config/zeno"
 link "${DOTFILES_DIR}/zsh/functions" "${HOME}/.config/zsh/functions"
+# global ignore (nix 側は dotfiles.nix が同じ場所へ張る)
+mkdir -p "${HOME}/.config/git"
+link "${DOTFILES_DIR}/git/ignore" "${HOME}/.config/git/ignore"
 
 # Takumi Guard (匿名モード、詳細は npm/npmrc のコメント参照)
 link "${DOTFILES_DIR}/npm/npmrc" "${HOME}/.npmrc"
