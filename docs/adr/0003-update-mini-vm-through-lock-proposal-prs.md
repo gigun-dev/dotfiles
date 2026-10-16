@@ -2,7 +2,7 @@
 
 Date: 2026-09-06
 
-mini-vm は無人機なので手で `pull && switch` を打つ機会が無く、push 済みの変更が届かないまま気づけない (cloudflare-os で実際に 106 コミット遅れた)。lock 更新の**提案**と**適用**を分け、`dotfiles-lock-propose@fast` (毎日) / `@slow` (日曜) が lock 更新 → 実機ビルド → PR + auto-merge まで行い required CI の成功で merge、`dotfiles-autoswitch` (04:00) は lock を更新せず merge 済みの main を pull → switch → 健全性ゲート → 失敗なら rollback する。理由は、lock の差分は人にレビューできないので人を関門に置いても素通りするだけであり、実機ビルドと required CI を通ることの方が実効的な保証になるから。実装は `nix/modules/nixos/mini-vm.nix`、詳細は `docs/mini-vm.md`。
+mini-vm は無人機なので手で `pull && switch` を打つ機会が無く、push 済みの変更が届かないまま気づけない (cloudflare-os で実際に 106 コミット遅れた)。lock 更新の**提案**と**適用**を分け、`dotfiles-lock-propose@fast` (毎日) / `@slow` (日曜) が lock 更新 → 実機ビルド → PR + auto-merge まで行い required CI の成功で merge、`dotfiles-autoswitch` (04:00 JST) は lock を更新せず merge 済みの main を pull → switch → 健全性ゲート → 失敗なら rollback する。理由は、lock の差分は人にレビューできないので人を関門に置いても素通りするだけであり、実機ビルドと required CI を通ることの方が実効的な保証になるから。実装は `nix/modules/nixos/mini-vm.nix`、詳細は `docs/mini-vm.md`。
 
 Considered Options:
 

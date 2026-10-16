@@ -634,6 +634,12 @@ in
   # なお switch では稼働中の hostname は変わらず、次回 boot から反映される。
   networking.hostName = "mini-vm";
 
+  # timer の OnCalendar (autoswitch 04:00 など) は日本の夜間を前提に書いてある。
+  # 2026-10-16 まで未設定で UTC だったため autoswitch が JST 13:00 に走り、日中の作業中に
+  # サービスを再起動した。Why not OnCalendar を UTC へ書き直す: 19:00 のような数字を毎回
+  # 頭で換算することになり、OS 既定の nix-gc / logrotate / fstrim の timer も別に扱う羽目になる。
+  time.timeZone = "Asia/Tokyo";
+
   # lima-init が起動時にユーザーを imperative に作るため true 必須。
   # false だと nixos-rebuild がそのユーザーを消してログインできなくなる。
   users.mutableUsers = true;
