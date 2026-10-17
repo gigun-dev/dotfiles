@@ -64,14 +64,12 @@ in
       autoEnsure = true;
 
       github = {
-        # activation 時に公開鍵を GitHub へ自動登録する。
-        # 前提: gh に admin:ssh_signing_key スコープが要る (現状は admin:public_key
-        # までしか無い)。スコープ不足でも activation 自体は失敗せず、手で叩く
-        # `gh ssh-key add` コマンドが表示されるだけなので autoAdd = true のままにしてある。
-        # 事前に以下を一度手で実行しておくこと (対話フローなのでここでは実行しない):
-        #   gh auth refresh --hostname github.com \
-        #     --scopes admin:ssh_signing_key,admin:public_key
-        autoAdd = true;
+        # 公開鍵の GitHub 登録は Web の画面で手で行う (新しい Mac のときだけ)。
+        # autoAdd には gh トークンの admin:ssh_signing_key が要るが、鍵を足せる権限を
+        # 持つトークンは、盗まれると失効後も残る裏口 (攻撃者の鍵の登録) を作れる。
+        # そのため gh トークンからこの権限を外しており、autoAdd を有効にすると
+        # switch のたびに登録を促す表示が出るだけになる。docs/security.md §3。
+        autoAdd = false;
 
         # push の認証は `gh auth git-credential` (HTTPS) で行っており SSH 認証鍵は
         # 使っていない。"both" にすると不要な認証用登録まで GitHub に生えるので、
