@@ -32,7 +32,7 @@
 | 2026-10-17 | Apple ID と Google に YubiKey を 2 本とも登録する。Apple ID はセキュリティキー、Google は高度な保護機能プログラムも有効にする。Nano は Mac に挿したまま、NFC 版は自宅で保管する。証券のパスキーはキーに入れない | 起点のアカウントで、数字コードや SMS などフィッシングできる経路を閉じる。iPhone で要るときは Nano (USB-C) か自宅の NFC 版を使う |
 | 2026-10-17 | GitHub に YubiKey を passkey / セキュリティキーとして 2 本とも登録し、TOTP のシードを YubiKey の OATH に移す。リカバリコードは Apple の「パスワード」に置く | TOTP は GitHub の仕様で外せないので、6 桁を出すのにもタッチを要求する。Apple ID を YubiKey で固めるので、保管庫は十分に強い |
 | 2026-10-17 | gh のトークンから `admin:public_key` と `admin:ssh_signing_key` を外し、署名鍵の `autoAdd` を止める。鍵の登録は新しい Mac のときに Web で手で行う | 鍵を足せるトークンが盗まれると、攻撃者の鍵を登録されて失効後も残る裏口になる |
-| 2026-10-17 | Logpush 用の Cloudflare API トークンは tofu 用のトークンと分け、別の .age に置く (別セッションで決定、todo 0094) | 漏れたときの被害範囲を分ける |
+| 2026-10-17 | Access の Logpush はダッシュボードの自動セットアップで作る。R2 の鍵は Cloudflare が自分で作り、tofu にも `.age` にも入れない (別セッションで決定、todo 0094) | 手元に持つ秘密を増やさない |
 | 2026-10-17 | 開発プロジェクトの平文 .env は当面そのまま運用する。扱いは他の人の運用例を集めてから決める (todo 0099) | 急いで仕組みを入れるより、実例を見て慎重に決めたい |
 
 ## 4. 現状の抜け道 (2026-10-17 に実機で確認)
@@ -58,8 +58,8 @@
 5. **開発プロジェクトの API キー** (長期、todo 0099。当面は平文のまま)。候補 (中間案): .env を SOPS (v3.10 以降で age プラグイン対応) + age-plugin-yubikey で暗号化して平文を消し、秘密を使う開発サーバーはエージェントの外の端末で `sops exec-env` から起動する。dotenvx は鍵の置き場が `.env.keys` か有料の Armor で、YubiKey に非対応。`dotenvx run --redact` は出力の文字列を伏せるだけでエージェントからの隔離にはならない ([docs](https://dotenvx.com/docs/cli/run-redact/))。
 6. **エージェントから秘密を切り離す設定**。Claude Code: `Read(**/.env*)` の deny、sandbox の `filesystem.denyRead` (`~/.ssh`、`.env`)、`allowUnsandboxedCommands: false`、`CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`。deny は `grep -r` や Python が自分で開く場合には効かない ([permissions](https://code.claude.com/docs/en/permissions)、[sandboxing](https://code.claude.com/docs/en/sandboxing))。Codex: 既定で環境変数をすべて子プロセスに渡すので、env policy と `*.env` の deny を足す。
 7. **課金の上限とキーの寿命**。Anthropic: 独自の月額上限、キーの期限 (作成時に選ぶ)、workspace 限定。OpenAI: project のハードリミット、Restricted キー。AWS: ハードキャップは無い。Budget actions で Deny ポリシーを自動適用、長期キーをやめて一時認証情報へ。Cloudflare: 予算アラートは通知のみ。トークンを権限・リソース・IP・TTL で絞る。
-8. **Cloudflare のログインと Access** (別セッションの todo 0097 / 0094 と連携)。Cloudflare アカウントのログインに YubiKey を 2 本登録し、TOTP を外す。Access の IdP は Cloudflare アカウントなので、新規ログインの強さはここで決まる。Access 側でハードウェアキーを要求できるか (independent MFA / AMR) は未確認。Logpush 用のトークンを分けることは決定済み (§3)。
-9. **IaC (OpenTofu) の秘密と state**。state は R2 に置き、client-side encryption (pbkdf2、パスフレーズは `tofu-env.age` の `TF_VAR_passphrase`) で暗号化済み (`tofu/versions.tf`)。残る論点は、そのパスフレーズとクラウドのトークンが同じ `.age` に入り、受信者が `all` であること (§4)。Cloudflare 以外に広げるときも、この形 (state 暗号化 + 実行時復号) を踏襲するか。
+8. **Cloudflare のログインと Access** (別セッションの todo 0097 / 0094 と連携)。Cloudflare アカウントのログインに YubiKey を 2 本登録し、TOTP を外す。Access の IdP は Cloudflare アカウントなので、新規ログインの強さはここで決まる。Access 側でハードウェアキーを要求できるか (independent MFA / AMR) は未確認。Logpush の扱いは決定済み (§3)。
+9. **IaC (OpenTofu) の秘密と state**。state は 2026-09-06 から暗号化済み (pbkdf2 + aes_gcm、平文の書き込みを拒否する enforced、`tofu/versions.tf`)。`tofu-env.age` には Cloudflare のトークン、R2 (state バケット) の AWS キー、state のパスフレーズ、Tailscale の OAuth が入っている。論点はこの `.age` を開ける鍵の扱いで、4 と同じ話として決める。受信者が `all` である件は §4。Cloudflare 以外に広げるときもこの形を踏襲するか。
 10. **GitHub Actions とリポの硬化** (ryoppippi の ccusage を参考に)。workflow 先頭の `permissions: {}` / `read-all`、checkout の `persist-credentials: false`、actionlint・zizmor・gitleaks (pre-commit と CI)、依存の取り込みに待ち期間 (renovate の `minimumReleaseAge: 3 days`、pnpm の `minimumReleaseAge` と `allowBuilds`)、npm 公開は OIDC の trusted publishing と `--provenance`、bot の commit は GitHub App で作る。
 11. **エージェント規則**。秘密をコマンドの文字列に書かず、実行時に `$(gh auth token)` などで読む。漏れたら rotate する (ryoppippi の `agents/shared/command-privacy.md`)。
 12. **紛失・侵害時の手順書**。YubiKey の紛失、Mac の紛失、侵害の疑いそれぞれで、GitHub のトークンと鍵の失効、Apple ID・Google の鍵の削除、Cloudflare Access のセッション取り消し (Zero Trust > Users > Revoke)、クラウドのキーの rotate をどの順で行うか。
