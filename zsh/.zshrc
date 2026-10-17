@@ -14,8 +14,13 @@ fi
 # =============================================================================
 # Auto-zcompile (mozumasu pattern): source 経由で読まれるファイルを自動 zwc 化
 # =============================================================================
+# 対象は sheldon のプラグインとキャッシュに限る。2026-10-17 修正: 制限が無かったため
+# `source .env` で秘密のファイルが 444 の .zwc に複製され、gitignore の `.env` に当たらず
+# public リポへ commit された (swift-mcp-app)。対話中に source するものは zwc 化しない。
 ensure_zcompiled() {
-  local src=$1 zwc="$1.zwc" dir="${1:h}"
+  local src=${1:A} zwc="$1.zwc" dir="${1:h}"
+  local sheldon_dir=${${XDG_DATA_HOME:-$HOME/.local/share}/sheldon:A} cache_dir=${${XDG_CACHE_HOME:-$HOME/.cache}:A}
+  [[ $src == ("$sheldon_dir"|"$cache_dir")/* ]] || return
   [[ -w "$dir" ]] || return
   [[ ! -r "$zwc" || "$src" -nt "$zwc" ]] && zcompile "$src"
 }
