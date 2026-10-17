@@ -53,3 +53,4 @@ x 2026-10-15 2026-10-15 uv/tools.txt から使っていない it2 を外し、do
 x 2026-10-15 2026-10-15 nbstripout を全ホストの git に global filter として入れる(.ipynb の execution_count と Python 版は落ち、出力は残り、git diff が textconv を使うこと) +infra by:me id:0080
 x 2026-10-15 2026-10-15 mini-vm の次の autoswitch で home の syncUvTools が google-colab-cli を入れ、失敗しても switch が止まらないことを journal で確認する(10/15 06:18 UTC の autoswitch の journal に「Installed 1 executable: colab」、~/.local/bin/colab が uv tool を指す。activation は sync-tools.sh を `|| true` で呼ぶ) +mini-vm by:claude id:0076
 x 2026-10-16 2026-10-16 +mini-vm codex の cloudflare MCP の OAuth を mini-vm で再ログインする (2026-10-15 から refresh token が拒否され続けている) by:claude id:0087
+x 2026-10-17 2026-10-16 +mini-vm journal が約 1 日分しか残らない問題を直す: lima-guestagent の SyncTime (10 秒毎、約 180ms 巻き戻し) と systemd-timesyncd が時刻を取り合い、journald が「Time jumped backwards」で毎回 rotate して SystemMaxFiles=100 に当たっている。時刻源をどちらか一方にして、数日分残ることを確かめる by:claude id:0093
