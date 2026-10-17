@@ -89,3 +89,8 @@ nohup.out
 **/.claude/settings.local.json
 **/.claude/worktrees/
 **/CLAUDE.local.md
+
+# zsh の zcompile が作る中間ファイル (マシンと zsh の版に依存するので commit しない)。
+# 2026-10-17 `source .env` で .env.zwc ができ、`.env` の ignore に当たらず public リポへ
+# 入った (swift-mcp-app)。.zshrc 側で作らないよう直したうえでの保険。
+*.zwc
