@@ -75,6 +75,13 @@ import {
   id = "accounts/${local.account_id}/e7de224f-5cf9-4e8e-9e43-0b1f3219195e"
 }
 
+# Zero Trust の組織設定 (チームドメイン gigun.cloudflareaccess.com と global session)。
+# 1 アカウント 1 つで、import ID は account_id そのまま (`accounts/` 接頭辞は付かない)。
+import {
+  to = cloudflare_zero_trust_organization.main
+  id = local.account_id
+}
+
 # --- AI Gateway ------------------------------------------------------------
 # cloudflare-os 用のゲートウェイ。いまは cloudflare-os から実際には通していない
 # (CF_AI_GATEWAY を設定すると全モデルがゲートウェイ経由になり codex ブリッジの

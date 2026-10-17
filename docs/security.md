@@ -30,6 +30,7 @@
 | 2026-10-17 | commit 署名は今のまま (Secure Enclave の鍵、Touch ID なし、`nix/modules/darwin/secure-enclave-key.nix`)。YubiKey は署名に使わない | 鍵は持ち出せないので、他のマシンからのなりすましは防げる。署名のたびにタッチを求めるとエージェントの commit が止まる。ryoppippi も同じ選択 (理由はエージェントが止まらないこと) |
 | 2026-10-17 | 1Password などサブスクのパスワードマネージャは入れない | 費用。パスワードは Apple の「パスワード」、機械が読む秘密は agenix |
 | 2026-10-17 | Apple ID と Google に YubiKey を 2 本とも登録する。Apple ID はセキュリティキー、Google は高度な保護機能プログラムも有効にする。Nano は Mac に挿したまま、NFC 版は自宅で保管する。証券のパスキーはキーに入れない | 起点のアカウントで、数字コードや SMS などフィッシングできる経路を閉じる。iPhone で要るときは Nano (USB-C) か自宅の NFC 版を使う |
+| 2026-10-17 | GitHub に YubiKey を passkey / セキュリティキーとして 2 本とも登録し、TOTP のシードを YubiKey の OATH に移す。リカバリコードは Apple の「パスワード」に置く | TOTP は GitHub の仕様で外せないので、6 桁を出すのにもタッチを要求する。Apple ID を YubiKey で固めるので、保管庫は十分に強い |
 | 2026-10-17 | Logpush 用の Cloudflare API トークンは tofu 用のトークンと分け、別の .age に置く (別セッションで決定、todo 0094) | 漏れたときの被害範囲を分ける |
 | 2026-10-17 | 開発プロジェクトの平文 .env は当面そのまま運用する。扱いは他の人の運用例を集めてから決める (todo 0099) | 急いで仕組みを入れるより、実例を見て慎重に決めたい |
 

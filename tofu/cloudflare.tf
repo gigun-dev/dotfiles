@@ -167,7 +167,7 @@ resource "cloudflare_zero_trust_access_application" "langfuse" {
     },
   ]
 
-  allowed_idps             = [cloudflare_zero_trust_access_identity_provider.cloudflare.id]
+  allowed_idps              = [cloudflare_zero_trust_access_identity_provider.cloudflare.id]
   auto_redirect_to_identity = true
   session_duration          = "168h"
 
@@ -263,7 +263,8 @@ resource "cloudflare_zero_trust_access_application" "mcp_login" {
 
   allowed_idps              = [cloudflare_zero_trust_access_identity_provider.cloudflare.id]
   auto_redirect_to_identity = true
-  session_duration          = "168h"
+  # 実効値はポリシー側 (mcp_login_account_members) が決める。そろえて書いているだけ。
+  session_duration = "1h"
 
   app_launcher_visible       = true
   enable_binding_cookie      = false
@@ -272,7 +273,7 @@ resource "cloudflare_zero_trust_access_application" "mcp_login" {
 
   policies = [
     {
-      id         = cloudflare_zero_trust_access_policy.account_members.id
+      id         = cloudflare_zero_trust_access_policy.mcp_login_account_members.id
       precedence = 1
     },
   ]
@@ -286,7 +287,7 @@ resource "cloudflare_zero_trust_access_application" "app_launcher" {
   # Cloudflare fixes this value to "App Launcher" for type=app_launcher.
   # A custom name is accepted on create but normalized by the API afterwards.
   name = "App Launcher"
-  type       = "app_launcher"
+  type = "app_launcher"
 
   allowed_idps              = [cloudflare_zero_trust_access_identity_provider.cloudflare.id]
   auto_redirect_to_identity = true
@@ -339,6 +340,60 @@ resource "cloudflare_zero_trust_access_policy" "account_members" {
   # 元のアプリ専用ポリシーはこの項目を持っていなかった (= アプリ側が効いていた) ので、
   # 実効の挙動を変えないためにアプリと同じ 168h を明示する。
   session_duration = "168h"
+}
+
+# mcp-login 専用の「アカウントメンバーなら通す」ポリシー。account_members と条件は同じで、
+# session_duration だけ 1h に短くしている。
+#
+# アプリ側の session_duration を変えるだけでは効かない: 再利用ポリシーの
+# session_duration がアプリ側を上書きするため (account_members のコメント参照)。
+# なので mcp-login だけ別ポリシーにして、そちらで 1h を持たせる。
+#
+# 1h にする理由: ここは Cloudflare API を操作する OAuth を渡す入口で、月 1 回しか使わない。
+# global session が 720h (下の organization) あるので、期限切れでも IdP のログイン画面は
+# 出ずに自動で再発行される (= 短くしても使い勝手は落ちない)。短くするのは、アプリ用
+# トークンが漏れたときの有効期間と、ポリシー変更が効くまでの時間を縮めるため。
+resource "cloudflare_zero_trust_access_policy" "mcp_login_account_members" {
+  account_id = local.account_id
+  name       = "gigun-dev account members (mcp-login, 1h)"
+  decision   = "allow"
+
+  include = [
+    { cloudflare_account_member = {} },
+  ]
+
+  session_duration = "1h"
+}
+
+# Zero Trust の組織設定。ここで管理するのは global session (session_duration) だけで、
+# 他の属性 (auth_domain / name / login_design / deny_unmatched_requests 等) は import した
+# 現在値をそのまま書いている。変えるときは意図して変えること。
+#
+# global session を 720h (30 日) にする理由:
+#   - Cloudflare のログインを使うアプリが多く、頻繁なログアウトを避けたい。
+#   - global token だけではアプリに直接入れない (各アプリに自前のセッションが要る。
+#     公式 docs の session-management)。長くしてもアプリ側の再認証は各アプリ/ポリシーの
+#     session_duration が決めるので、個別に短くできる (mcp-login は 1h)。
+#   - 新規ログインの強さは Cloudflare アカウント自身のログイン (YubiKey 予定、
+#     docs/security.md §5 の 8) で担保する。global session が長い分、ここが破られると
+#     30 日通ってしまうため。
+resource "cloudflare_zero_trust_organization" "main" {
+  account_id = local.account_id
+  name       = "gigun.cloudflareaccess.com"
+
+  auth_domain                                 = "gigun.cloudflareaccess.com"
+  allow_authenticate_via_warp                 = false
+  auto_redirect_to_identity                   = false
+  deny_unmatched_requests                     = false
+  deny_unmatched_requests_exempted_zone_names = []
+  is_ui_read_only                             = false
+  mfa_required_for_all_apps                   = false
+
+  login_design = {
+    background_color = "#ffffff"
+  }
+
+  session_duration = "720h"
 }
 
 # Cloudflare 自身を IdP にする設定。type = "cloudflare" がこれ。
