@@ -31,6 +31,7 @@
 | 2026-10-17 | 1Password などサブスクのパスワードマネージャは入れない | 費用。パスワードは Apple の「パスワード」、機械が読む秘密は agenix |
 | 2026-10-17 | Apple ID と Google に YubiKey を 2 本とも登録する。Apple ID はセキュリティキー、Google は高度な保護機能プログラムも有効にする。Nano は Mac に挿したまま、NFC 版は自宅で保管する。証券のパスキーはキーに入れない | 起点のアカウントで、数字コードや SMS などフィッシングできる経路を閉じる。iPhone で要るときは Nano (USB-C) か自宅の NFC 版を使う |
 | 2026-10-17 | GitHub に YubiKey を passkey / セキュリティキーとして 2 本とも登録し、TOTP のシードを YubiKey の OATH に移す。リカバリコードは Apple の「パスワード」に置く | TOTP は GitHub の仕様で外せないので、6 桁を出すのにもタッチを要求する。Apple ID を YubiKey で固めるので、保管庫は十分に強い |
+| 2026-10-17 | gh のトークンから `admin:public_key` と `admin:ssh_signing_key` を外し、署名鍵の `autoAdd` を止める。鍵の登録は新しい Mac のときに Web で手で行う | 鍵を足せるトークンが盗まれると、攻撃者の鍵を登録されて失効後も残る裏口になる |
 | 2026-10-17 | Logpush 用の Cloudflare API トークンは tofu 用のトークンと分け、別の .age に置く (別セッションで決定、todo 0094) | 漏れたときの被害範囲を分ける |
 | 2026-10-17 | 開発プロジェクトの平文 .env は当面そのまま運用する。扱いは他の人の運用例を集めてから決める (todo 0099) | 急いで仕組みを入れるより、実例を見て慎重に決めたい |
 
@@ -42,7 +43,6 @@
   - `nix run .#tofu` の実行時復号 (`secrets/tofu-env.age`)。
   - `claude/hooks/bark-notify.sh` の自動復号 (todo 0098)。
   - ほかのホストへの SSH ログインの既定鍵 (どこが受け入れているかは未確認)。
-- **gh のトークンに `admin:public_key` と `admin:ssh_signing_key`** がある。トークンを読めるプロセスは、自分の鍵を GitHub に登録して裏口を作れる。署名鍵の `autoAdd` のために足したもの。
 - **gh の github.com 用 `git_protocol` が `ssh`**。全体の設定は `https`。
 - **main の保護は署名を求めず、管理者には適用されない** (`required_signatures=false`、`enforce_admins=false`)。
 - **GitHub のログインに TOTP が残る**。passkey の前に必須な GitHub の仕様。
@@ -52,7 +52,6 @@
 
 効果の大きい順。1 項目ずつ決める。
 
-2. **GitHub のログインと鍵の管理**。YubiKey を passkey / セキュリティキーとして 2 本登録。TOTP のシードを YubiKey の OATH に移し、リカバリコードはオフラインに置く。gh のトークンから admin 系の権限を外し、鍵の登録は Web の sudo mode で行う。
 3. **push の権限を誰に持たせるか**。候補: push は SSH と Secure Enclave の鍵 (ryoppippi の `type = "both"`、持ち出せない) で行い、gh のトークンは fine-grained にして Contents の書き込みを外す (盗まれても push できない)。未確認: Contents 書き込み無しで gh の普段の操作が回るか、期限管理の手間。あわせて「Github CLI」の鍵の削除、`git_protocol`、36 リポの remote を決める。
 4. **`~/.ssh/id_ed25519` を役割ごとに分ける**。人が使う秘密 (agenix の編集、tofu) は age-plugin-yubikey (PIV、復号のたびにタッチ) に移す。保管用の age 鍵は NFC 版の YubiKey に移す候補。無人で復号するもの (bark など) は、その秘密だけを開ける専用の鍵にする。agenix-rekey は YubiKey を前提にした拡張で候補。
 5. **開発プロジェクトの API キー** (長期、todo 0099。当面は平文のまま)。候補 (中間案): .env を SOPS (v3.10 以降で age プラグイン対応) + age-plugin-yubikey で暗号化して平文を消し、秘密を使う開発サーバーはエージェントの外の端末で `sops exec-env` から起動する。dotenvx は鍵の置き場が `.env.keys` か有料の Armor で、YubiKey に非対応。`dotenvx run --redact` は出力の文字列を伏せるだけでエージェントからの隔離にはならない ([docs](https://dotenvx.com/docs/cli/run-redact/))。
