@@ -37,3 +37,4 @@
 2026-10-16 +agy dotfiles から ~/.gemini/config/plugins.json を配り、claude-code の plugins を agy に読ませる (agy-mcp・telemetry は除外、mini-vm では macOS 専用も除外)。ログイン済みの agy で実際に読み込まれるか確かめる by:me id:0092
 2026-10-16 +mini-vm codex-mcp-login の監査を足し、Access の session_duration を 720h (30 日) に延ばす: Access ログには月 1 回程度しか残らなくなる分、入口側で /start と /callback ごとに JWT の email・Cf-Connecting-Ip・Cf-Ray を /var/lib/codex-mcp-login の追記専用ファイルと journal に残し、ログイン開始と完了を Bark に通知する by:claude dep:0093 id:0094
 2026-10-17 +mini-vm mini (macOS) の時計が NTP より約 270ms 遅れている原因を調べる (2026-10-17 sntp で time.apple.com / 162.159.200.123 とも +0.27s、MacBook は +0.01s)。mini-vm は 0093 で mini の時刻に従うので、ここが mini-vm の時刻精度の上限になる by:claude id:0095
+2026-10-17 +git YubiKey (Nano、挿しっぱなし前提) の使い道を届く前に決める: 守るもの (GitHub への push・commit 署名・gh トークン・GitHub ログイン・sudo) ごとに、タッチ必須にする範囲とエージェント・mini-vm の扱いを、YubiKey 5 のベストプラクティスと ryoppippi・mozumasu の流儀を元に 1 項目ずつ合意する。不便を払うのに別経路が緩いままの構成は避ける。gh の github.com 用 git_protocol が ssh にずれている件もここで決める by:me id:0096
