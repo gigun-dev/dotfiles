@@ -35,5 +35,5 @@
 2026-10-16 +mini-vm tailnet の端末から mini-vm:18791 に届かないこと (raw 表の DROP) を、ログイン待ちの間に nc で実測する see:docs/adr/0013-relogin-codex-mcp-oauth-through-cloudflare-access.md by:claude id:0090
 2026-10-16 tofu/cloudflare.tf の既存の fmt ずれ (langfuse allowed_idps / app_launcher type) と冒頭の「DNS レコード 2 件」コメントを直す by:claude id:0091
 2026-10-16 +agy dotfiles から ~/.gemini/config/plugins.json を配り、claude-code の plugins を agy に読ませる (agy-mcp・telemetry は除外、mini-vm では macOS 専用も除外)。ログイン済みの agy で実際に読み込まれるか確かめる by:me id:0092
-2026-10-16 +mini-vm journal が約 1 日分しか残らない問題を直す: lima-guestagent の SyncTime (10 秒毎、約 180ms 巻き戻し) と systemd-timesyncd が時刻を取り合い、journald が「Time jumped backwards」で毎回 rotate して SystemMaxFiles=100 に当たっている。時刻源をどちらか一方にして、数日分残ることを確かめる by:claude id:0093
-2026-10-16 +mini-vm codex-mcp-login の監査を足す: /start と /callback に JWT の email・Cf-Connecting-Ip・Cf-Ray を記録し、ログイン完了を Bark に通知する。Access アプリの session_duration (168h) を短くして、ログインのたびに Access ログに残るようにする by:claude id:0094
+2026-10-16 +mini-vm codex-mcp-login の監査を足し、Access の session_duration を 720h (30 日) に延ばす: Access ログには月 1 回程度しか残らなくなる分、入口側で /start と /callback ごとに JWT の email・Cf-Connecting-Ip・Cf-Ray を /var/lib/codex-mcp-login の追記専用ファイルと journal に残し、ログイン開始と完了を Bark に通知する by:claude dep:0093 id:0094
+2026-10-17 +mini-vm mini (macOS) の時計が NTP より約 270ms 遅れている原因を調べる (2026-10-17 sntp で time.apple.com / 162.159.200.123 とも +0.27s、MacBook は +0.01s)。mini-vm は 0093 で mini の時刻に従うので、ここが mini-vm の時刻精度の上限になる by:claude id:0095
