@@ -690,15 +690,15 @@ in
   services.timesyncd.enable = false;
   # timesyncd を止めても kernel に残った周波数補正は戻らず、guest が走り続けて巻き戻しが続く。
   systemd.services.reset-clock-frequency = {
-    description = "timesyncd が残した kernel の周波数・offset 補正を 0 に戻す";
+    description = "timesyncd が残した kernel の周波数補正を 0 に戻す";
     wantedBy = [ "multi-user.target" ];
     # 止める switch で timesyncd の停止より後に走らせる (先に戻すと停止前に再設定される)。
     after = [ "systemd-timesyncd.service" ];
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
-      # 残った offset も同じく slew され続けるので一緒に捨てる。
-      ExecStart = "${pkgs.busybox}/bin/busybox adjtimex -q -o 0 -f 0";
+      # 2026-10-17 実測: `-o 0 -f 0` と同時に渡すと freq が +500ppm のまま残り、-f 単独なら 0 になった。
+      ExecStart = "${pkgs.busybox}/bin/busybox adjtimex -q -f 0";
     };
   };
 
