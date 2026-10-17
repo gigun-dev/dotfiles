@@ -23,7 +23,7 @@
 | アプリや自動処理がファイルから常に読む (npmrc、MCP のトークンなど) | タッチ不要の鍵 (Secure Enclave など) | 常に。だからトークンの権限を狭く・期限を短くする |
 | 無人のホスト (mini-vm) | そのホストの鍵 | 起動中 |
 
-例: cachix のトークンは `~/.config/cachix/cachix.dhall` (600) に平文で、dotfiles に入れていない。switch 後の背景 `cachix push` が自動で読むので、タッチは使えない。盗まれると gigun キャッシュに偽のビルド結果を上げられ、それを取り込む Mac や mini-vm に入る可能性がある。そのため dotfiles には入れず、トークンを gigun キャッシュへの書き込みだけに絞る (権限の確認は未実施)。
+例: cachix のトークンは `~/.config/cachix/cachix.dhall` (600) に平文で、dotfiles に入れていない。switch 後の背景 `cachix push` が自動で読むので、タッチは使えない。盗まれると gigun キャッシュに偽のビルド結果を上げられ、それを取り込む mini-vm などに入る。トークンを gigun への書き込みだけに絞っても、この「偽物を混ぜる」は防げない (防げるのはキャッシュの削除・設定変更・他キャッシュへの影響だけ)。根本の対策は「誰に push を許すか」で、未決事項 14。
 
 ## 2. 守るものと手段
 
@@ -79,11 +79,25 @@
 11. **エージェント規則**。秘密をコマンドの文字列に書かず、実行時に `$(gh auth token)` などで読む。漏れたら rotate する (ryoppippi の `agents/shared/command-privacy.md`)。
 12. **紛失・侵害時の手順書**。YubiKey の紛失、Mac の紛失、侵害の疑いそれぞれで、GitHub のトークンと鍵の失効、Apple ID・Google の鍵の削除、Cloudflare Access のセッション取り消し (Zero Trust > Users > Revoke)、クラウドのキーの rotate をどの順で行うか。
 13. **sudo は Touch ID のまま** の確認。挿しっぱなしの Nano をタッチするだけの pam-u2f は、生体認証の Touch ID より弱い。
+14. **cachix に push できるのは誰か**。今は Mac が switch のたびに `nix path-info --all | cachix push gigun` で手元の store を全部上げている。Mac が侵害されると、偽のビルド結果が mini-vm などに取り込まれる経路になる。ryoppippi は自分のキャッシュから取得するだけで、push は CI (GitHub Actions の secret) からだけ行う (`ryoppippi/nix-claude-code` の workflow)。CI か mini-vm だけに push を限るか。CLAUDE.md の「Mac の build 結果を個人キャッシュへ」とぶつかるので、その効果 (他マシンでの再利用) と比べて決める。
 
-## 6. YubiKey が届いたら最初に確認すること
+## 6. YubiKey が届いたらやること
+
+### 最初に確認すること
 
 - `ykman info` で型番とファームウェア。OpenAI のバンドルは C NFC と C Nano の 2 本組と報じられている (未確認)。FIDO 専用の「Security Key」系なら PIV が無く、age-plugin-yubikey は使えない (その場合は age-plugin-se = Touch ID で代替)。ファームウェア 5.7 未満なら ECDSA の advisory (YSA-2024-03、物理アクセスが前提) を読む。
 - 挿しっぱなしにする Nano は、誤タッチで文字列を打ち込まないよう OTP を無効にする (`ykman config usb --disable OTP`)。
+
+### 登録と移行 (§3 の決定を実行する)
+
+順に行う。各サービスで 2 本とも登録する (NFC 版は登録後に自宅で保管)。
+
+- [ ] Apple ID: セキュリティキーを登録する (数字コードの経路が閉じる)
+- [ ] Google: キーを登録し、高度な保護機能プログラムを有効にする
+- [ ] GitHub: passkey / セキュリティキーを登録する。TOTP のシードを YubiKey の OATH に移す (`ykman oath`)。リカバリコードを Apple の「パスワード」に置く
+- [ ] Cloudflare: アカウントのログインにセキュリティキーを登録する (未決事項 8 の決定次第で TOTP を外す)
+- [ ] 決済・クラウド (AWS など) のうち、セキュリティキーに対応しているものに登録する (証券のパスキーはキーに入れない)
+- [ ] PIV があれば、sops + age-plugin-yubikey を 1 ファイルで試してから、未決事項 4 を決める
 
 ## 7. 参考
 
