@@ -29,6 +29,8 @@
 |---|---|---|
 | 2026-10-17 | commit 署名は今のまま (Secure Enclave の鍵、Touch ID なし、`nix/modules/darwin/secure-enclave-key.nix`)。YubiKey は署名に使わない | 鍵は持ち出せないので、他のマシンからのなりすましは防げる。署名のたびにタッチを求めるとエージェントの commit が止まる。ryoppippi も同じ選択 (理由はエージェントが止まらないこと) |
 | 2026-10-17 | 1Password などサブスクのパスワードマネージャは入れない | 費用。パスワードは Apple の「パスワード」、機械が読む秘密は agenix |
+| 2026-10-17 | Apple ID と Google に YubiKey を 2 本とも登録する。Apple ID はセキュリティキー、Google は高度な保護機能プログラムも有効にする。Nano は Mac に挿したまま、NFC 版は自宅で保管する。証券のパスキーはキーに入れない | 起点のアカウントで、数字コードや SMS などフィッシングできる経路を閉じる。iPhone で要るときは Nano (USB-C) か自宅の NFC 版を使う |
+| 2026-10-17 | 開発プロジェクトの平文 .env は当面そのまま運用する。扱いは他の人の運用例を集めてから決める (todo 0099) | 急いで仕組みを入れるより、実例を見て慎重に決めたい |
 
 ## 4. 現状の抜け道 (2026-10-17 に実機で確認)
 
@@ -48,11 +50,10 @@
 
 効果の大きい順。1 項目ずつ決める。
 
-1. **Apple ID・Google に YubiKey を登録する**。Apple ID はセキュリティキー (数字コードの経路が閉じる)。Google は高度な保護機能プログラム (SMS の経路が閉じる)。2 本とも登録し、1 本は置き場所を決め、もう 1 本は持ち歩く。証券のパスキーはキーに入れない (キー 1 本でログインできてしまうため)。参考: [toruoka.xyz](https://toruoka.xyz/202610_security_key/)
 2. **GitHub のログインと鍵の管理**。YubiKey を passkey / セキュリティキーとして 2 本登録。TOTP のシードを YubiKey の OATH に移し、リカバリコードはオフラインに置く。gh のトークンから admin 系の権限を外し、鍵の登録は Web の sudo mode で行う。
 3. **push の権限を誰に持たせるか**。候補: push は SSH と Secure Enclave の鍵 (ryoppippi の `type = "both"`、持ち出せない) で行い、gh のトークンは fine-grained にして Contents の書き込みを外す (盗まれても push できない)。未確認: Contents 書き込み無しで gh の普段の操作が回るか、期限管理の手間。あわせて「Github CLI」の鍵の削除、`git_protocol`、36 リポの remote を決める。
 4. **`~/.ssh/id_ed25519` を役割ごとに分ける**。人が使う秘密 (agenix の編集、tofu) は age-plugin-yubikey (PIV、復号のたびにタッチ) に移す。保管用の age 鍵は NFC 版の YubiKey に移す候補。無人で復号するもの (bark など) は、その秘密だけを開ける専用の鍵にする。agenix-rekey は YubiKey を前提にした拡張で候補。
-5. **開発プロジェクトの API キー**。候補 (中間案): .env を SOPS (v3.10 以降で age プラグイン対応) + age-plugin-yubikey で暗号化して平文を消し、秘密を使う開発サーバーはエージェントの外の端末で `sops exec-env` から起動する。dotenvx は鍵の置き場が `.env.keys` か有料の Armor で、YubiKey に非対応。`dotenvx run --redact` は出力の文字列を伏せるだけでエージェントからの隔離にはならない ([docs](https://dotenvx.com/docs/cli/run-redact/))。
+5. **開発プロジェクトの API キー** (長期、todo 0099。当面は平文のまま)。候補 (中間案): .env を SOPS (v3.10 以降で age プラグイン対応) + age-plugin-yubikey で暗号化して平文を消し、秘密を使う開発サーバーはエージェントの外の端末で `sops exec-env` から起動する。dotenvx は鍵の置き場が `.env.keys` か有料の Armor で、YubiKey に非対応。`dotenvx run --redact` は出力の文字列を伏せるだけでエージェントからの隔離にはならない ([docs](https://dotenvx.com/docs/cli/run-redact/))。
 6. **エージェントから秘密を切り離す設定**。Claude Code: `Read(**/.env*)` の deny、sandbox の `filesystem.denyRead` (`~/.ssh`、`.env`)、`allowUnsandboxedCommands: false`、`CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`。deny は `grep -r` や Python が自分で開く場合には効かない ([permissions](https://code.claude.com/docs/en/permissions)、[sandboxing](https://code.claude.com/docs/en/sandboxing))。Codex: 既定で環境変数をすべて子プロセスに渡すので、env policy と `*.env` の deny を足す。
 7. **課金の上限とキーの寿命**。Anthropic: 独自の月額上限、キーの期限 (作成時に選ぶ)、workspace 限定。OpenAI: project のハードリミット、Restricted キー。AWS: ハードキャップは無い。Budget actions で Deny ポリシーを自動適用、長期キーをやめて一時認証情報へ。Cloudflare: 予算アラートは通知のみ。トークンを権限・リソース・IP・TTL で絞る。
 8. **Cloudflare のログインと Access** (別セッションの todo 0097 / 0094 と連携)。Cloudflare アカウントのログインに YubiKey を 2 本登録し、TOTP を外す。Access の IdP は Cloudflare アカウントなので、新規ログインの強さはここで決まる。Access 側でハードウェアキーを要求できるか (independent MFA / AMR) は未確認。Logpush 用のトークンは既存のトークンと分ける案。
