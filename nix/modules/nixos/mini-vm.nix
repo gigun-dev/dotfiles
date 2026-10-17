@@ -681,6 +681,27 @@ in
   # 頭で換算することになり、OS 既定の nix-gc / logrotate / fstrim の timer も別に扱う羽目になる。
   time.timeZone = "Asia/Tokyo";
 
+  # 時刻は Lima の guestagent (10 秒毎にホストへ 100ms 超ずれていれば settimeofday、無効化不可)
+  # に一本化する。2026-10-16 障害: ホスト (mini の macOS) が NTP より約 270ms 遅れており、
+  # timesyncd が NTP へ寄せようと kernel の周波数補正を上限 +500ppm に張り付かせ、guestagent が
+  # 数分毎に巻き戻していた。journald は時刻が戻るたびに rotate し、SystemMaxFiles=100 に当たって
+  # journal が約 1 日分しか残らなかった。
+  # Why not timesyncd 側に寄せる: guestagent は止められないので、二つの時刻源は必ず喧嘩する。
+  services.timesyncd.enable = false;
+  # timesyncd を止めても kernel に残った周波数補正は戻らず、guest が走り続けて巻き戻しが続く。
+  systemd.services.reset-clock-frequency = {
+    description = "timesyncd が残した kernel の周波数・offset 補正を 0 に戻す";
+    wantedBy = [ "multi-user.target" ];
+    # 止める switch で timesyncd の停止より後に走らせる (先に戻すと停止前に再設定される)。
+    after = [ "systemd-timesyncd.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      # 残った offset も同じく slew され続けるので一緒に捨てる。
+      ExecStart = "${pkgs.busybox}/bin/busybox adjtimex -q -o 0 -f 0";
+    };
+  };
+
   # lima-init が起動時にユーザーを imperative に作るため true 必須。
   # false だと nixos-rebuild がそのユーザーを消してログインできなくなる。
   users.mutableUsers = true;
