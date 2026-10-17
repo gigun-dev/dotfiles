@@ -41,6 +41,7 @@
   - GitHub の SSH 認証鍵 (「Github CLI」、2025-04-20)。ghq 配下 170 リポのうち 36 リポの remote が SSH。
   - agenix の受信者 `gigun` (編集用)。`secrets/secrets.nix` の `all` に入っている秘密をすべて開ける。
   - `nix run .#tofu` の実行時復号 (`secrets/tofu-env.age`)。
+- **`tofu-env.age` の受信者が `all`** で、mini-vm のホスト鍵でも開ける。mini-vm の nix 設定に tofu の利用は無く、Cloudflare を書き換えられるトークンを無人のホストに持たせている。
   - `claude/hooks/bark-notify.sh` の自動復号 (todo 0098)。
   - ほかのホストへの SSH ログインの既定鍵 (どこが受け入れているかは未確認)。
 - **gh の github.com 用 `git_protocol` が `ssh`**。全体の設定は `https`。
@@ -58,7 +59,7 @@
 6. **エージェントから秘密を切り離す設定**。Claude Code: `Read(**/.env*)` の deny、sandbox の `filesystem.denyRead` (`~/.ssh`、`.env`)、`allowUnsandboxedCommands: false`、`CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`。deny は `grep -r` や Python が自分で開く場合には効かない ([permissions](https://code.claude.com/docs/en/permissions)、[sandboxing](https://code.claude.com/docs/en/sandboxing))。Codex: 既定で環境変数をすべて子プロセスに渡すので、env policy と `*.env` の deny を足す。
 7. **課金の上限とキーの寿命**。Anthropic: 独自の月額上限、キーの期限 (作成時に選ぶ)、workspace 限定。OpenAI: project のハードリミット、Restricted キー。AWS: ハードキャップは無い。Budget actions で Deny ポリシーを自動適用、長期キーをやめて一時認証情報へ。Cloudflare: 予算アラートは通知のみ。トークンを権限・リソース・IP・TTL で絞る。
 8. **Cloudflare のログインと Access** (別セッションの todo 0097 / 0094 と連携)。Cloudflare アカウントのログインに YubiKey を 2 本登録し、TOTP を外す。Access の IdP は Cloudflare アカウントなので、新規ログインの強さはここで決まる。Access 側でハードウェアキーを要求できるか (independent MFA / AMR) は未確認。Logpush 用のトークンを分けることは決定済み (§3)。
-9. **IaC (OpenTofu) の秘密と state**。state には平文の秘密が入りうる。OpenTofu の client-side state encryption (1.7 以降) を候補に (未検証)。
+9. **IaC (OpenTofu) の秘密と state**。state は R2 に置き、client-side encryption (pbkdf2、パスフレーズは `tofu-env.age` の `TF_VAR_passphrase`) で暗号化済み (`tofu/versions.tf`)。残る論点は、そのパスフレーズとクラウドのトークンが同じ `.age` に入り、受信者が `all` であること (§4)。Cloudflare 以外に広げるときも、この形 (state 暗号化 + 実行時復号) を踏襲するか。
 10. **GitHub Actions とリポの硬化** (ryoppippi の ccusage を参考に)。workflow 先頭の `permissions: {}` / `read-all`、checkout の `persist-credentials: false`、actionlint・zizmor・gitleaks (pre-commit と CI)、依存の取り込みに待ち期間 (renovate の `minimumReleaseAge: 3 days`、pnpm の `minimumReleaseAge` と `allowBuilds`)、npm 公開は OIDC の trusted publishing と `--provenance`、bot の commit は GitHub App で作る。
 11. **エージェント規則**。秘密をコマンドの文字列に書かず、実行時に `$(gh auth token)` などで読む。漏れたら rotate する (ryoppippi の `agents/shared/command-privacy.md`)。
 12. **紛失・侵害時の手順書**。YubiKey の紛失、Mac の紛失、侵害の疑いそれぞれで、GitHub のトークンと鍵の失効、Apple ID・Google の鍵の削除、Cloudflare Access のセッション取り消し (Zero Trust > Users > Revoke)、クラウドのキーの rotate をどの順で行うか。
