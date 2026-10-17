@@ -38,6 +38,9 @@
       # NixOS は activation で自動復号するが、macOS には agenix モジュールを入れて
       # いないため、tofu ラッパと同じ「その場で復号して環境変数へ」方式を採っている。
       age
+      # sops: agenix から移す候補 (値ごとの暗号化で差分が読め、開発の .env にも使える)。
+      # 移行はまだで、先に CLI だけ入れて試す。docs/security.md §5 の 4。
+      sops
 
       # Git
       gh
@@ -86,6 +89,9 @@
       # cask と同じく darwin 限定 (Linux 側で使う予定が無い)。
       google-cloud-sdk
       idb-companion # iOS Simulator 自動操作の gRPC companion。CLI 側 fb-idb は nixpkgs に無く uv/tools.txt で宣言
+      # YubiKey は Mac に挿して使うので darwin 限定 (mini-vm は無人、WSL には挿さない)。
+      yubikey-manager # ykman: Yubico 公式 CLI。型番確認・OTP 無効化・OATH (TOTP)・PIV の設定
+      age-plugin-yubikey # age / sops の受信者に YubiKey (PIV) を使う。docs/security.md
     ]
     ++ lib.optionals (!(pkgs.stdenv.hostPlatform.isDarwin && pkgs.stdenv.hostPlatform.isx86_64)) [
       llmAgents.codex # Intel Mac のみ brew cask (Rust build 回避)、それ以外は nix
