@@ -132,6 +132,12 @@ assert lib.all unchangedUnit [
 ];
 assert !(enabled.systemd.services ? "dotfiles-lock-propose@fast");
 assert !(enabled.systemd.services ? "dotfiles-lock-propose@slow");
+assert
+  enabled.systemd.timers.dotfiles-lock-propose-fast.timerConfig.OnCalendar
+  == "*-*-* 01:00:00 Asia/Tokyo";
+assert
+  enabled.systemd.timers.dotfiles-lock-propose-slow.timerConfig.OnCalendar
+  == "Sun *-*-* 02:00:00 Asia/Tokyo";
 assert lib.all
   (name: disabled.systemd.timers.${name}.timerConfig == enabled.systemd.timers.${name}.timerConfig)
   [
