@@ -26,7 +26,11 @@ D1の初期healthyは成功receiptの証拠ではなく、自然receiptもBark/A
 endpointはnull、tokenFilesは空。mini-vmではこの既定値を明示的に上書きしてONにし、
 3 source専用credentialとhub scheduleを適用済み。
 OFFではcredentialの解決・stat・読取、curl起動、HTTP通信を行わない。
-既存の失敗通知、H0/Bark経路、timerの時刻は変更していない。
+既存の失敗通知、H0/Bark経路は維持する。lock timerはJST深夜の実行を明示し、
+fastは毎日01:00 Asia/Tokyo（前日16:00 UTC）、slowは日曜02:00 Asia/Tokyo
+（土曜17:00 UTC）とする。senderとhubの予定枠もこのUTC換算に揃える。
+最大30分のjitter・135分の猶予・Persistentは維持する。
+本変更はレビュー用で、本番反映・自然receipt確認は未実施。
 
 transport互換性を揃えるため、3ジョブ共通senderはhub CI callerと同じ標準curlを使う。
 同じhubドメインのCI送信でurllibが拒否された事例を踏まえた準備であり、ジョブ用 `/heartbeat`
@@ -91,7 +95,8 @@ rootまたは実行UID所有を検証し、秘密をargv・環境変数・journa
 3. 計画停止のpause/resume/期限自動再開は今後の受入とする。通常senderはmonitorControlなしで、
    今回は追加の管理credentialを発行していない
 4. senderは開始時点の直近UTC枠を選ぶ。Persistent追いつき実行と手動実行の扱いは引き続き照合する。
-   配備時に確認したUTC・既存timerの周期・jitter最大30分・accuracy1分は変更しない
+   lock timerはAsia/Tokyoを明示し、managerのtimezone変更に依存させない。
+   周期・jitter最大30分・accuracy1分は変更しない。autoswitchの予定枠は本変更の対象外
 
 合成試験は `scripts/tests/job-heartbeat.py`、`job-heartbeat-activation.py`、
 `lock-propose-heartbeat.py` と既存 `dotfiles-autoswitch.py`。外部HTTPはfake transportのみ。

@@ -1877,7 +1877,8 @@ in
     wantedBy = [ "timers.target" ];
     timerConfig = {
       Unit = "dotfiles-lock-propose@fast.service";
-      OnCalendar = "*-*-* 01:00:00";
+      # sender / hub の UTC grid は前日 16:00。manager の timezone に依存させない。
+      OnCalendar = "*-*-* 01:00:00 Asia/Tokyo";
       RandomizedDelaySec = 1800;
       Persistent = true;
     };
@@ -1890,7 +1891,8 @@ in
     wantedBy = [ "timers.target" ];
     timerConfig = {
       Unit = "dotfiles-lock-propose@slow.service";
-      OnCalendar = "Sun *-*-* 02:00:00";
+      # 日曜 02:00 JST は土曜 17:00 UTC。曜日も sender / hub と揃える。
+      OnCalendar = "Sun *-*-* 02:00:00 Asia/Tokyo";
       RandomizedDelaySec = 1800;
       Persistent = true;
     };

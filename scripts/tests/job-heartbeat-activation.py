@@ -79,8 +79,8 @@ printf '\\n%s\\n202' '{"status":"accepted","result":{"kind":"accepted"}}'
         receipt = json.loads(self.receipt)
         receipt["source"] = source
         receipt["scheduledFor"] = {"mini-vm-autoswitch": 14_400_000,
-                                   "mini-vm-lock-fast": 3_600_000,
-                                   "mini-vm-lock-slow": 266_400_000}[source]
+                                   "mini-vm-lock-fast": 57_600_000,
+                                   "mini-vm-lock-slow": 234_000_000}[source]
         body += " send --receipt " + shlex.quote(json.dumps(receipt))
         coordinator = self.write_exec(self.root / "coordinator", body)
         return subprocess.run([str(coordinator)], env=self.env, capture_output=True, text=True, timeout=3)
@@ -196,8 +196,8 @@ printf '\\n%s\\n202' '{"status":"accepted","result":{"kind":"accepted"}}'
         self.assertEqual(SOURCE.count("${jobHeartbeatSnapshot}"), 2)
         self.assertIn("exec \"$selected_system/etc/dotfiles-autoswitch/post-apply\"", SOURCE)
 
-    def test_timer_grids_remain_unchanged(self):
-        grids = ["*-*-* 04:00:00", "*-*-* 01:00:00", "Sun *-*-* 02:00:00"]
+    def test_lock_timers_pin_jst_and_preserve_local_hours_jitter_and_persistence(self):
+        grids = ["*-*-* 04:00:00", "*-*-* 01:00:00 Asia/Tokyo", "Sun *-*-* 02:00:00 Asia/Tokyo"]
         names = ["dotfiles-autoswitch", "dotfiles-lock-propose-fast", "dotfiles-lock-propose-slow"]
         for name, grid in zip(names, grids):
             block = SOURCE.split("systemd.timers." + name + " =", 1)[1].split("\n  };", 1)[0]
