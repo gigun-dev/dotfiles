@@ -10,12 +10,13 @@ import time
 import urllib.parse
 import uuid
 
-# UTC grids shared with hub/src/heartbeat/config.ts. Activation must first verify
-# the timer timezone and initialize all three server-side monitor definitions.
+# UTC grids shared with hub/src/heartbeat/config.ts. Lock timers explicitly use
+# Asia/Tokyo: daily 01:00 JST = 16:00 UTC, Sunday 02:00 JST = Saturday 17:00 UTC.
+# Autoswitch is unchanged here; its schedule alignment is a separate operation.
 SCHEDULES = {
     "mini-vm-autoswitch": (14_400_000, 86_400_000),
-    "mini-vm-lock-fast": (3_600_000, 86_400_000),
-    "mini-vm-lock-slow": (266_400_000, 604_800_000),
+    "mini-vm-lock-fast": (57_600_000, 86_400_000),
+    "mini-vm-lock-slow": (234_000_000, 604_800_000),
 }
 RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:@/-]{0,127}\Z")
 
