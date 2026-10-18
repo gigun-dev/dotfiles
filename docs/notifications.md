@@ -30,7 +30,9 @@ OFFではcredentialの解決・stat・読取、curl起動、HTTP通信を行わ�
 fastは毎日01:00 Asia/Tokyo（前日16:00 UTC）、slowは日曜02:00 Asia/Tokyo
 （土曜17:00 UTC）とする。senderとhubの予定枠もこのUTC換算に揃える。
 最大30分のjitter・135分の猶予・Persistentは維持する。
-本変更はレビュー用で、本番反映・自然receipt確認は未実施。
+2026-10-18に本番反映済み。対象2ジョブは次回予定時刻まで計画停止とし、
+期限で自動再開する。新予定枠の自然receipt確認は未実施。詳細は
+[反映記録](job-heartbeat-activation.md)とtodo0103を参照。
 
 transport互換性を揃えるため、3ジョブ共通senderはhub CI callerと同じ標準curlを使う。
 同じhubドメインのCI送信でurllibが拒否された事例を踏まえた準備であり、ジョブ用 `/heartbeat`

@@ -4,7 +4,11 @@
 2026-10-05にはfast・autoswitchの自然成功receiptをD1で確認した。週次slowは初回枠待ち。
 `todo.txt` の0005は未完了。配備・初期化の確認と、自然実行・実通知の受入を区別する。
 
-## 2026-10-18 の時刻不一致修正（レビュー待ち・未適用）
+## 2026-10-18 の時刻不一致修正（本番反映済み・自然受入待ち）
+
+[PR #64](https://github.com/gigun-dev/dotfiles/pull/64) をmergeし、`159c3881c389bf24f51cbdebec09be2f0aeeb693` をmini-vmへ適用した。system/homeのbuildとmain CI、適用後health gate成功、実senderの新UTC gridとtimezone付きtimerを確認した。深夜以降のジョブ再実行はしていない。hubも[PR #11](https://github.com/gigun-dev/hub/pull/11)をmerge・反映し、対象2行だけをCASで計画停止へ移行した。旧receipt/通知履歴を保持し、新しい成功や回復通知は作っていない。
+
+fastは10/19 01:00 JST、slowは10/25 02:00 JSTに監視を自動再開する。実timerの次回はjitter込みでfast 01:17:52／slow 02:12:56 JST。両方とも予定枠から135分が猶予で、自然成功receiptはまだ未確認。詳細な[本番反映記録](https://github.com/gigun-dev/hub/blob/main/docs/mini-vm-lock-jst-cutover-2026-10-18.json)とtodo0103で追う。
 
 2026-10-16からVMのtimezoneはAsia/Tokyoだが、lock timerはtimezone未指定、
 senderとhubはUTC 01:00／日曜02:00の予定枠を維持していた。
