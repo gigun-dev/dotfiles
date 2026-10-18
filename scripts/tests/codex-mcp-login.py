@@ -15,6 +15,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location("codex_mcp_login", ROOT / "scripts/codex-mcp-login.py")
@@ -23,7 +24,7 @@ spec.loader.exec_module(mod)
 
 AUTH_URL = "https://auth.example/authorize?state=STATE123&code_challenge=CHALLENGE"
 
-# 本物の codex mcp login --no-browser と同じ順に出力し、-c で渡された固定ポートで callback を待つ。
+# URL を受けた直後の callback が競合しないよう、固定ポートの待受け開始後に URL を公開する。
 FAKE_CODEX = r"""
 import http.server, os, sys, time
 args = sys.argv[1:]
@@ -32,9 +33,6 @@ mode = os.environ["FAKE_MODE"]
 if mode == "fail":
     print("Error: discovery boom", file=sys.stderr)
     sys.exit(3)
-print("Authorize the MCP server by opening this URL in your browser:", flush=True)
-print(os.environ["FAKE_AUTH_URL"], flush=True)
-print("", flush=True)
 result = {}
 class H(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
@@ -49,6 +47,9 @@ class H(http.server.BaseHTTPRequestHandler):
         pass
 server = http.server.HTTPServer(("127.0.0.1", port), H)
 server.timeout = 20
+print("Authorize the MCP server by opening this URL in your browser:", flush=True)
+print(os.environ["FAKE_AUTH_URL"], flush=True)
+print("", flush=True)
 server.handle_request()
 server.server_close()
 sys.exit(0 if result.get("ok") else 1)
@@ -59,6 +60,20 @@ def free_port():
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         return sock.getsockname()[1]
+
+
+class FakeCodex(unittest.TestCase):
+    def test_bind_failure_does_not_publish_auth_url(self):
+        output = io.StringIO()
+        with (
+            mock.patch.object(sys, "argv", ["codex", "mcp_oauth_callback_port=0"]),
+            mock.patch.dict(os.environ, FAKE_MODE="ok", FAKE_AUTH_URL=AUTH_URL),
+            mock.patch.object(http.server, "HTTPServer", side_effect=OSError("bind failed")),
+            contextlib.redirect_stdout(output),
+        ):
+            with self.assertRaisesRegex(OSError, "bind failed"):
+                exec(FAKE_CODEX, {})
+        self.assertNotIn(AUTH_URL, output.getvalue())
 
 
 class Endpoint(unittest.TestCase):
