@@ -26,13 +26,7 @@ ensure_zcompiled() {
 }
 source() { ensure_zcompiled "$1"; builtin source "$@"; }
 
-# =============================================================================
-# XDG Base Directory
-# =============================================================================
-export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
-export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
-export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
+# XDG Base Directory は .zshenv で設定 (非 interactive な zsh でも必要なため)
 
 # Locale
 export LANG="${LANG:-en_US.UTF-8}"

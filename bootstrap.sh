@@ -111,6 +111,7 @@ link() {
 }
 
 link "${DOTFILES_DIR}/zsh/.zshrc" "${HOME}/.zshrc"
+link "${DOTFILES_DIR}/zsh/.zshenv" "${HOME}/.zshenv"
 link "${DOTFILES_DIR}/sheldon" "${HOME}/.config/sheldon"
 link "${DOTFILES_DIR}/zeno" "${HOME}/.config/zeno"
 link "${DOTFILES_DIR}/zsh/functions" "${HOME}/.config/zsh/functions"
