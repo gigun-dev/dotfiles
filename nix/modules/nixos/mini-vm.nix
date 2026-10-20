@@ -1438,6 +1438,16 @@ in
 
     unitConfig.ConditionPathExists = "/home/${username}/.gemini/antigravity-cli/antigravity-oauth-token";
 
+    # 非 login shell での ghq get にも必要。ユーザープロファイル全体ではなく、
+    # 起動と clone の依存を固定し、home-manager の適用順に依存させない。
+    path = with pkgs; [
+      bash
+      git
+      ghq
+      gh
+      openssh
+    ];
+
     environment = {
       HOME = "/home/${username}";
       SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
