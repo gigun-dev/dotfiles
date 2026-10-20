@@ -307,6 +307,11 @@
 
           }
           // inputs.nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
+            antigravity-service = import ./nix/tests/antigravity-service.nix {
+              inherit pkgs;
+              nixos = inputs.self.nixosConfigurations.mini-vm;
+            };
+
             dotfiles-autoswitch-lifecycle = import ./nix/tests/dotfiles-autoswitch-lifecycle.nix {
               inherit pkgs;
               service = inputs.self.nixosConfigurations.mini-vm.config.systemd.services.dotfiles-autoswitch;
