@@ -165,6 +165,7 @@ in
       ln -sf "$src" "$dst"
     }
     link_force "${dotfilesPath}/zsh/.zshrc" "${config.home.homeDirectory}/.zshrc"
+    link_force "${dotfilesPath}/zsh/.zshenv" "${config.home.homeDirectory}/.zshenv"
 
     # Claude Code (~/.claude/ は memory/log 等があるので個別リンク)
     $DRY_RUN_CMD mkdir -p "${config.home.homeDirectory}/.claude"
