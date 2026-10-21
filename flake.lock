@@ -83,11 +83,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1792447336,
-        "narHash": "sha256-q1hJKXuv8ZGQr7otykirVQa/CixnF9dGgkS6w+wet/0=",
+        "lastModified": 1792551725,
+        "narHash": "sha256-Gy52oSC9hu1A3h9TrHeQeNFgLf4F1DWticWBxP+Sbes=",
         "owner": "ryoppippi",
         "repo": "claude-code-overlay",
-        "rev": "c66b9b15c1b1b73536460eea026c3bdffee98a52",
+        "rev": "941308ea415f37df18d64e769a605c193eb8bf31",
         "type": "github"
       },
       "original": {
@@ -268,11 +268,11 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1792490949,
-        "narHash": "sha256-vGjr+2nzejufjFvsqgGhvEEO6yN+fRj6ukKUItAULZ8=",
+        "lastModified": 1792577217,
+        "narHash": "sha256-YRvnXVnyZGr6+v118Lb4pTtzLzeJet2Y69qf00katjQ=",
         "owner": "numtide",
         "repo": "llm-agents.nix",
-        "rev": "06419f6a482c5a4d38d703f4b88b128740d3124e",
+        "rev": "4c0e549dab7167b1fe7433af15adf892a299fb83",
         "type": "github"
       },
       "original": {
