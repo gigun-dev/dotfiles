@@ -71,10 +71,10 @@ in
         # switch のたびに登録を促す表示が出るだけになる。docs/security.md §3。
         autoAdd = false;
 
-        # push の認証は `gh auth git-credential` (HTTPS) で行っており SSH 認証鍵は
-        # 使っていない。"both" にすると不要な認証用登録まで GitHub に生えるので、
-        # 署名用途 (signing) だけに絞る。
-        type = "signing";
+        # この鍵は push の SSH 認証にも使う (下の pushInsteadOf)。autoAdd = false の間は
+        # 登録の種類を示すだけで、Web の画面で Authentication key と Signing key の
+        # 両方に登録する。
+        type = "both";
       };
     };
 
@@ -120,6 +120,14 @@ in
   # までしか設定を持たず、検証用の allowedSigners は範囲外 — ソースを grep して
   # 確認済みで、upstream にオプションを足す余地は無いので自前で用意する。
   programs.git.settings.gpg.ssh.allowedSignersFile = allowedSignersFile;
+
+  # GitHub への push だけを SSH にし、Secure Enclave の鍵で認証する。HTTPS の push は
+  # gh のトークンで認証するが、トークンは盗めば Mac の外から使える。Enclave の鍵は
+  # 持ち出せないので、push の権限をこの鍵に寄せる (docs/security.md §3)。
+  # fetch は HTTPS のまま: insteadOf にすると nix の git+https の input の取得まで SSH に
+  # 変わり、鍵の無い文脈で止まりうる。pushInsteadOf は push にしか効かない。
+  # Linux (mini-vm / WSL) には Enclave が無いので、darwin 専用のこのファイルに置く。
+  programs.git.settings.url."git@github.com:".pushInsteadOf = "https://github.com/";
 
   # allowed_signers の中身は activation で生成する (nix の静的な値としては書けない)。
   # 理由: 中身に埋め込む公開鍵 (`~/.ssh/id_enclave_key.pub`) は Secure Enclave 上で
