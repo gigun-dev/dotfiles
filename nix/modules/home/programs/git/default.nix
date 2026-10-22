@@ -25,7 +25,8 @@ in
 
     settings = {
       user = {
-        name = "gigun";
+        # GitHub が web で作る merge commit はアカウント名で書かれるので、手元の commit もそろえる。
+        name = "gigun-dev";
         email = "117321963+gigun-dev@users.noreply.github.com";
       };
       ghq.user = "gigun-dev";

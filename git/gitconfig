@@ -1,7 +1,7 @@
 # nix 側の同設定は nix/modules/home/programs/git/default.nix。Windows が ~/.gitconfig へ symlink する。
 # 設定を足したら両方に反映する (nbstripout と plist は nix 側のみ)。
 [user]
-	name = gigun
+	name = gigun-dev
 	email = 117321963+gigun-dev@users.noreply.github.com
 [ghq]
 	user = gigun-dev
