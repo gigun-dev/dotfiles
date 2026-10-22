@@ -46,6 +46,7 @@
 | 2026-10-17 | 1Password などサブスクのパスワードマネージャは入れない | 費用。パスワードは Apple の「パスワード」、機械が読む秘密は agenix |
 | 2026-10-17 | Apple ID と Google に YubiKey を 2 本とも登録する。Apple ID はセキュリティキー、Google は高度な保護機能プログラムも有効にする。Nano は Mac に挿したまま、NFC 版は自宅で保管する。証券のパスキーはキーに入れない | 起点のアカウントで、数字コードや SMS などフィッシングできる経路を閉じる。iPhone で要るときは Nano (USB-C) か自宅の NFC 版を使う |
 | 2026-10-22 | Google は普段 Apple の「パスワード」の passkey (Touch ID) でログインし、YubiKey 2 本は passkey として予備と新しい環境用に登録する。認証システム (TOTP) と 2 段階認証の SMS は消した。パスワード・再設定用の電話番号とメールは残す。バックアップコード・自撮り動画・復旧用の連絡先は足さない | ログインの強さは残っている一番弱い経路で決まる。TOTP と SMS は偽サイトでその場で中継でき、SMS は SIM スワップも受ける。Apple から独立した鍵があるので弱い経路を消しても締め出されない。復旧の経路は増やすほど入口が増える |
+| 2026-10-22 | Cloudflare の 2 段階認証は Apple の「パスワード」の passkey (Touch ID) を普段使いにし、TOTP は消す。YubiKey は予備 | Cloudflare は passkey でのログインが無く毎回 2 段階認証が要り、Access (IdP が Cloudflare アカウント) の入口でもある。YubiKey はタッチ・PIN・タッチで日常には重い。Apple の passkey ならドメインに結びついたまま Touch ID 1 回で済む |
 | 2026-10-22 | 高度な保護機能プログラムでは、このアカウントの Gmail・Drive を自作の OAuth クライアントから読めなくなる (テストモードでも `policy_enforced`)。Gmail と連携するアプリの開発には、プログラムに入れていない別アカウントをテストユーザーに使う | gws は 3 月から使っておらず困らない。要るようになったらプログラムはいつでも抜けられる |
 | 2026-10-22 | FIDO2 の PIN はキー 1 本につき 1 つで全サービス共通。Nano と NFC は同じ値にし、Mac のログインパスワードとは別にして Apple の「パスワード」に保存する。要るのはキーの中に passkey を作るときだけ | Nano は Mac に挿したままなので、Mac と一緒に盗まれる。のぞき見た 1 つの秘密で両方が開かないようにする |
 | 2026-10-17 | GitHub に YubiKey を passkey / セキュリティキーとして 2 本とも登録し、TOTP のシードを YubiKey の OATH に移す。リカバリコードは Apple の「パスワード」に置く | TOTP は GitHub の仕様で外せないので、6 桁を出すのにもタッチを要求する。Apple ID を YubiKey で固めるので、保管庫は十分に強い |
@@ -76,7 +77,7 @@
 5. **開発プロジェクトの API キー** (長期、todo 0099。当面は平文のまま)。候補 (中間案): .env を SOPS (v3.10 以降で age プラグイン対応) + age-plugin-yubikey で暗号化して平文を消し、秘密を使う開発サーバーはエージェントの外の端末で `sops exec-env` から起動する。dotenvx は鍵の置き場が `.env.keys` か有料の Armor で、YubiKey に非対応。`dotenvx run --redact` は出力の文字列を伏せるだけでエージェントからの隔離にはならない ([docs](https://dotenvx.com/docs/cli/run-redact/))。
 6. **エージェントから秘密を切り離す設定**。Claude Code: `Read(**/.env*)` の deny、sandbox の `filesystem.denyRead` (`~/.ssh`、`.env`)、`allowUnsandboxedCommands: false`、`CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`。deny は `grep -r` や Python が自分で開く場合には効かない ([permissions](https://code.claude.com/docs/en/permissions)、[sandboxing](https://code.claude.com/docs/en/sandboxing))。Codex: 既定で環境変数をすべて子プロセスに渡すので、env policy と `*.env` の deny を足す。
 7. **課金の上限とキーの寿命**。Anthropic: 独自の月額上限、キーの期限 (作成時に選ぶ)、workspace 限定。OpenAI: project のハードリミット、Restricted キー。AWS: ハードキャップは無い。Budget actions で Deny ポリシーを自動適用、長期キーをやめて一時認証情報へ。Cloudflare: 予算アラートは通知のみ。トークンを権限・リソース・IP・TTL で絞る。
-8. **Cloudflare のログインと Access** (別セッションの todo 0097 / 0094 と連携)。Cloudflare アカウントのログインに YubiKey を 2 本登録し、TOTP を外す。Access の IdP は Cloudflare アカウントなので、新規ログインの強さはここで決まる。Access 側でハードウェアキーを要求できるか (independent MFA / AMR) は未確認。Logpush の扱いは決定済み (§3)。
+8. **Cloudflare のログインと Access** (別セッションの todo 0097 / 0094 と連携)。Cloudflare アカウントのログインに YubiKey を 2 本登録し、TOTP を外す。Access の IdP は Cloudflare アカウントなので、新規ログインの強さはここで決まる。Access 側でハードウェアキーを要求できるか (independent MFA / AMR) は未確認。 2 段階認証は §3 で決定済み (Apple の passkey)。Access の IdP を Google (passkey) に変える案は、急がない改善として残す。Logpush の扱いは決定済み (§3)。
 9. **IaC (OpenTofu) の秘密と state**。state は 2026-09-06 から暗号化済み (pbkdf2 + aes_gcm、平文の書き込みを拒否する enforced、`tofu/versions.tf`)。`tofu-env.age` には Cloudflare のトークン、R2 (state バケット) の AWS キー、state のパスフレーズ、Tailscale の OAuth が入っている。論点はこの `.age` を開ける鍵の扱いで、4 と同じ話として決める。受信者が `all` である件は §4。Cloudflare 以外に広げるときもこの形を踏襲するか。 スマホから変更したい場合の候補: tofu を GitHub Actions で実行し、apply の前に environment の承認を挟む (承認は GitHub へのログイン = YubiKey で守られる)。トークンは GitHub の secret に置くことになる。
 10. **GitHub Actions とリポの硬化** (ryoppippi の ccusage を参考に)。workflow 先頭の `permissions: {}` / `read-all`、checkout の `persist-credentials: false`、actionlint・zizmor・gitleaks (pre-commit と CI)、依存の取り込みに待ち期間 (renovate の `minimumReleaseAge: 3 days`、pnpm の `minimumReleaseAge` と `allowBuilds`)、npm 公開は OIDC の trusted publishing と `--provenance`、bot の commit は GitHub App で作る。
 11. **エージェント規則**。秘密をコマンドの文字列に書かず、実行時に `$(gh auth token)` などで読む。漏れたら rotate する (ryoppippi の `agents/shared/command-privacy.md`)。
@@ -99,7 +100,7 @@
 - [x] Google: キーを登録し、高度な保護機能プログラムを有効にする — 2026-10-22
 - [x] OpenAI (ChatGPT・API の課金): セキュリティキーを登録し、リカバリーコードを Apple の「パスワード」に置く — 2026-10-22
 - [ ] GitHub: passkey / セキュリティキーを登録する。TOTP のシードを YubiKey の OATH に移す (`ykman oath`)。リカバリコードを Apple の「パスワード」に置く
-- [ ] Cloudflare: アカウントのログインにセキュリティキーを登録する (未決事項 8 の決定次第で TOTP を外す)
+- [x] Cloudflare: Apple の「パスワード」の passkey をセキュリティキーとして登録し、TOTP を消し、バックアップコードを作り直して Apple の「パスワード」に置く — 2026-10-22。YubiKey 2 本を予備として足す
 - [ ] 決済・クラウド (AWS など) のうち、セキュリティキーに対応しているものに登録する (証券のパスキーはキーに入れない)
 - [ ] PIV があれば、sops + age-plugin-yubikey を 1 ファイルで試してから、未決事項 4 を決める
 
