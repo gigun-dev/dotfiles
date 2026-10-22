@@ -15,10 +15,13 @@ Mac 側 (`nix run .#switch`) と同じ運用感を **WinGet Configuration** で�
 **管理者権限の PowerShell** で:
 
 ```powershell
-# 1. dotfiles を clone (初回のみ)
+# 1. dotfiles を clone (初回のみ)。リポジトリが private なので、先に gh でログインする
+#    (winget で入れた直後は PATH に載らないので、PowerShell を開き直してから gh auth login)
+winget install --id GitHub.cli -e
+gh auth login
 mkdir $HOME\ghq\github.com\gigun-dev -Force
 cd $HOME\ghq\github.com\gigun-dev
-git clone https://github.com/gigun-dev/dotfiles
+gh repo clone gigun-dev/dotfiles
 cd dotfiles
 
 # 2. 宣言的構成を適用
