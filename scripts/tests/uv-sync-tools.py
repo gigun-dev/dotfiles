@@ -27,6 +27,8 @@ class SyncTools(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory(prefix="uv-sync-")
         self.addCleanup(self.tmp.cleanup)
         self.base = Path(self.tmp.name)
+        (self.base / "config/uv").mkdir(parents=True)
+        shutil.copyfile(ROOT / "uv/uv.toml", self.base / "config/uv/uv.toml")
         self.uv = self.base / "uv"
         self.uv.write_text('#!/bin/sh\necho "uv $*" >> "$FIXTURE/calls"\n'
                            'case "$1 $2" in\n'
@@ -43,7 +45,7 @@ class SyncTools(unittest.TestCase):
 
     def run_sync(self, platform, *args, shell=None, env=None, status=0):
         environment = dict(os.environ, FIXTURE=str(self.base), UV_BIN=str(self.uv),
-                           DOTFILES_PLATFORM=platform)
+                           DOTFILES_PLATFORM=platform, XDG_CONFIG_HOME=str(self.base / "config"))
         environment.update(env or {})
         environment.pop("UV_DEFAULT_INDEX", None)
         result = subprocess.run([shell or SHELLS[-1], str(SCRIPT), *args, str(self.decl)],
@@ -98,10 +100,15 @@ class SyncTools(unittest.TestCase):
         calls, result = self.run_sync("linux-x86_64", env={"UV_BIN": str(self.base / "nope")})
         self.assertEqual((calls, result.stdout, result.stderr), ("", "", ""))
 
-    def test_takumi_guard_index_defaults_on(self):
+    def test_guard_configuration_used_without_environment_override(self):
         self.uv.write_text('#!/bin/sh\necho "index=$UV_DEFAULT_INDEX $*" >> "$FIXTURE/calls"\n')
         calls, _ = self.run_sync("linux-x86_64")
-        self.assertIn("index=https://pypi.flatt.tech/simple/ tool install google-colab-cli", calls)
+        self.assertIn("index= tool install google-colab-cli", calls)
+
+    def test_missing_guard_configuration_stops_before_uv(self):
+        calls, result = self.run_sync("linux-x86_64", env={"XDG_CONFIG_HOME": str(self.base / "missing")}, status=1)
+        self.assertEqual(calls, "")
+        self.assertIn("configuration missing or unapplied", result.stderr)
 
 
 if __name__ == "__main__":

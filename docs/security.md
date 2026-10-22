@@ -23,7 +23,7 @@
 | アプリや自動処理がファイルから常に読む (npmrc、MCP のトークンなど) | タッチ不要の鍵 (Secure Enclave など) | 常に。だからトークンの権限を狭く・期限を短くする |
 | 無人のホスト (mini-vm) | そのホストの鍵 | 起動中 |
 
-例: cachix のトークンは `~/.config/cachix/cachix.dhall` (600) に平文で、dotfiles に入れていない。switch 後の背景 `cachix push` が自動で読むので、タッチは使えない。盗まれると gigun キャッシュに偽のビルド結果を上げられ、それを取り込む mini-vm などに入る。トークンを gigun への書き込みだけに絞っても、この「偽物を混ぜる」は防げない (防げるのはキャッシュの削除・設定変更・他キャッシュへの影響だけ)。根本の対策は「誰に push を許すか」で、未決事項 14。
+例: cachix のトークンは `~/.config/cachix/cachix.dhall` (600) に平文で、dotfiles に入れていない。この平文保存方式ではトークンを読み取って送信できる。通常 switch/update の自動送信は廃止したが、明示送信時の保管・認証方式は別途判断する。盗まれると gigun キャッシュに偽のビルド結果を上げられ、それを取り込む mini-vm などに入る。トークンを gigun への書き込みだけに絞っても、この「偽物を混ぜる」は防げない (防げるのはキャッシュの削除・設定変更・他キャッシュへの影響だけ)。根本の対策は「誰に push を許すか」で、未決事項 14。
 
 ## 2. 守るものと手段
 
@@ -85,7 +85,7 @@
 11. **エージェント規則**。秘密をコマンドの文字列に書かず、実行時に `$(gh auth token)` などで読む。漏れたら rotate する (ryoppippi の `agents/shared/command-privacy.md`)。
 12. **紛失・侵害時の手順書**。YubiKey の紛失、Mac の紛失、侵害の疑いそれぞれで、GitHub のトークンと鍵の失効、Apple ID・Google の鍵の削除、Cloudflare Access のセッション取り消し (Zero Trust > Users > Revoke)、クラウドのキーの rotate をどの順で行うか。
 13. **sudo は Touch ID のまま** の確認。挿しっぱなしの Nano をタッチするだけの pam-u2f は、生体認証の Touch ID より弱い。
-14. **cachix に push できるのは誰か**。今は Mac が switch のたびに `nix path-info --all | cachix push gigun` で手元の store を全部上げている。Mac が侵害されると、偽のビルド結果が mini-vm などに取り込まれる経路になる。ryoppippi は自分のキャッシュから取得するだけで、push は CI (GitHub Actions の secret) からだけ行う (`ryoppippi/nix-claude-code` の workflow)。CI か mini-vm だけに push を限るか。CLAUDE.md の「Mac の build 結果を個人キャッシュへ」とぶつかるので、その効果 (他マシンでの再利用) と比べて決める。 現状の事実 (2026-10-17): CI (`nix-build.yaml`) は ubuntu で mini-vm と x86_64-linux の home を build するだけで、darwin の build も cachix への push も無い。mini-vm も push していない。Mac が上げる darwin の build 結果を使うのは実質この Mac だけなので、汚染されて困るのは「侵害後に作り直した Mac が偽物を取り込む」場面 (再インストールしても残る)。ソースの tarball など内容の hash で検証されるものは偽装できない。CI だけに寄せるなら、GitHub Actions の macOS runner で darwin の構成を build して push する job が要る。
+14. **cachix に push できるのは誰か**。通常 switch/update からの自動送信は廃止した。明示的に送信する場合の対象と送信者は未決定。Mac が侵害されると、偽のビルド結果が mini-vm などに取り込まれる経路になる。ryoppippi は自分のキャッシュから取得するだけで、push は CI (GitHub Actions の secret) からだけ行う (`ryoppippi/nix-claude-code` の workflow)。CI か mini-vm だけに push を限るか。キャッシュ取得設定は維持し、送信の効果 (他マシンでの再利用) と公開・汚染のリスクを比べて決める。 現状の事実 (2026-10-17): CI (`nix-build.yaml`) は ubuntu で mini-vm と x86_64-linux の home を build するだけで、darwin の build も cachix への push も無い。mini-vm も push していない。Mac が上げる darwin の build 結果を使うのは実質この Mac だけなので、汚染されて困るのは「侵害後に作り直した Mac が偽物を取り込む」場面 (再インストールしても残る)。ソースの tarball など内容の hash で検証されるものは偽装できない。CI だけに寄せるなら、GitHub Actions の macOS runner で darwin の構成を build して push する job が要る。
 
 ## 6. YubiKey が届いたらやること
 

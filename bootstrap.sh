@@ -3,53 +3,11 @@ set -euo pipefail
 
 DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# ---------------------------------------------------------------------------
-# 0. 引数
-# ---------------------------------------------------------------------------
-# --net-watchdog: network-watchdog (番人) を launchd user agent として導入する。
-#   2026-09-03 に mini が 7 時間外部と通信できなくなった障害への手当て
-#   (経緯は nix/modules/darwin/network-watchdog.sh の冒頭)。
-#
-# なぜ自動判定ではなくフラグか (2026-09-03 の設計判断):
-#   番人を入れるべきかは「常時起動の拠点か」という**役割**で決まる。役割は機械の
-#   属性からは検出できず、人が決めて宣言するもの — flake.nix の mkDarwinSystem が
-#   `alwaysOn` を引数で受け取るのと同じ形を、nix の届かない側でも取る。
-#   Why not ホスト名/arch 分岐: mini が Intel なのは買った時期の偶然で、常時起動で
-#   ある事実とは無関係 (flake.nix の mkDarwinSystem のコメント参照)。ホスト名も
-#   同じ罠 — 機械を入れ替えた日に黙って番人が消える/現れる。
-#   Why not `nix eval` による能力検出: 「darwin 構成が評価できるか」は検出できても
-#   「番人が要るか」(役割) は分からない。しかも flake の全入力 fetch + モジュール
-#   全評価が要り、ネットワークが怪しい機械でこそ走らせたいスクリプトには重すぎる上、
-#   単にオフラインなだけの MacBook でも eval が失敗して「凍結ホスト」と誤判定する。
-WITH_NET_WATCHDOG=0
-for arg in "$@"; do
-  case "$arg" in
-  --net-watchdog) WITH_NET_WATCHDOG=1 ;;
-  *)
-    echo "usage: $0 [--net-watchdog]" >&2
-    exit 2
-    ;;
-  esac
-done
+. "${DOTFILES_DIR}/scripts/bootstrap-route.sh"
+dotfiles_bootstrap_route "$@"
 
-# ---------------------------------------------------------------------------
-# If nix is available, recommend nix run .#switch instead
-# ---------------------------------------------------------------------------
-# ⚠️ 「nix がある = nix で全部管理できる」ではない。mini (Intel) は Lima ゲスト
-# (mini-vm) の管理のため nix 自体は入っているが、darwin 構成は評価できない
-# ([実測 2026-09-03 mini] nixpkgs 26.11 の x86_64-darwin drop により
-# `gigun-x86_64-darwin` は nix eval すら通らない。CLAUDE.md の凍結の節を参照)。
-# そういう機械では --net-watchdog が「この機械には手で当てる」という宣言を兼ねる
-# ので、フラグ付きのときはこの早期 exit を素通りして下の手当てを全部実行する
-# (各節は冪等なので、nix 管理下の状態と二重に当たっても壊れない —
-# 「bootstrap.sh と dotfiles.nix は同じことをする」設計原則)。
-if command -v nix &>/dev/null && [ "$WITH_NET_WATCHDOG" != "1" ]; then
-  echo "nix is installed. Run 'git add . && nix run .#switch'"
-  echo "(nix はあるが darwin 構成が評価できない凍結ホスト — mini — では"
-  echo " './bootstrap.sh --net-watchdog' で番人ごと手当てする)"
-  exit 0
-fi
-
+# 以下は互換用 fallback。CLT/Homebrew/uv tools の導入や launchd の変更を伴う。
+# Pro の通常設定管理には使わない。Guard は同じ正本を guard-apply.sh で配置する。
 # ---------------------------------------------------------------------------
 # 1. Xcode Command Line Tools
 # ---------------------------------------------------------------------------
@@ -112,6 +70,7 @@ link() {
 
 link "${DOTFILES_DIR}/zsh/.zshrc" "${HOME}/.zshrc"
 link "${DOTFILES_DIR}/zsh/.zshenv" "${HOME}/.zshenv"
+link "${DOTFILES_DIR}/zsh/.zprofile" "${HOME}/.zprofile"
 link "${DOTFILES_DIR}/sheldon" "${HOME}/.config/sheldon"
 link "${DOTFILES_DIR}/zeno" "${HOME}/.config/zeno"
 link "${DOTFILES_DIR}/zsh/functions" "${HOME}/.config/zsh/functions"
@@ -119,9 +78,8 @@ link "${DOTFILES_DIR}/zsh/functions" "${HOME}/.config/zsh/functions"
 mkdir -p "${HOME}/.config/git"
 link "${DOTFILES_DIR}/git/ignore" "${HOME}/.config/git/ignore"
 
-# Takumi Guard (匿名モード、詳細は npm/npmrc のコメント参照)
-link "${DOTFILES_DIR}/npm/npmrc" "${HOME}/.npmrc"
-link "${DOTFILES_DIR}/bun/bunfig.toml" "${HOME}/.bunfig.toml"
+# 欠損や未知の既存設定を黙って飛ばさず、全件の事前検査後に Guard だけ配置する。
+/bin/sh "${DOTFILES_DIR}/scripts/guard-apply.sh" --apply
 link "${DOTFILES_DIR}/claude/langfuse-endpoints.env" "${HOME}/.config/claude-code/langfuse-endpoints.env"
 
 # Keep user-global agent instructions consistent with home-manager setup.

@@ -28,9 +28,13 @@ uv=${UV_BIN:-$(command -v uv || true)}
 [ -n "$uv" ] && [ -x "$uv" ] || exit 0
 [ -r "$decl" ] || exit 0
 
-# activation と bootstrap は .zshrc を読まないので、Takumi Guard の index をここでも向ける
-# (値の正は zsh/.zshrc。既に設定されていればそちらに従う)。
-export UV_DEFAULT_INDEX="${UV_DEFAULT_INDEX:-https://pypi.flatt.tech/simple/}"
+# Home Manager / bootstrap が先に uv/uv.toml を配置する。環境変数で上書きしない。
+guard_config="${XDG_CONFIG_HOME:-$HOME/.config}/uv/uv.toml"
+guard_source="$(cd "$(dirname "$0")" && pwd)/uv.toml"
+if ! cmp -s "$guard_source" "$guard_config"; then
+	echo "Takumi Guard configuration missing or unapplied; sync skipped (bootstrap.sh --guard-only)" >&2
+	exit 1
+fi
 
 platform=${DOTFILES_PLATFORM:-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m)}
 platform=${platform/arm64/aarch64}

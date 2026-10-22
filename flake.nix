@@ -147,7 +147,6 @@
                 apply_switch() {
                   sudo ${inputs.nix-darwin.packages.${system}.darwin-rebuild}/bin/darwin-rebuild \
                     switch --flake ".#${username}-${system}" "$@" || return
-                  push_cachix
                 }
               ''
             else
@@ -158,19 +157,8 @@
                   fi
                   ${inputs.home-manager.packages.${system}.home-manager}/bin/home-manager \
                     switch --flake ".#${username}-${system}" "$@" || return
-                  push_cachix
                 }
               '';
-
-          # cachix push in background (requires `cachix authtoken` to have been run)
-          pushCachix = ''
-            push_cachix() {
-              if command -v cachix &>/dev/null; then
-                echo "Pushing to cachix in background..."
-                nix path-info --all | cachix push gigun &>/dev/null &
-              fi
-            }
-          '';
 
           # lock を更新して適用し、変わっていれば commit まで行う。push はしない
           # (共有 main への公開は、人が commit を見てから打つ一手に残す)。
@@ -180,7 +168,6 @@
             name:
             { targets, lane }:
             mkApp name ''
-              ${pushCachix}
               ${applySwitch}
               cd "$(git rev-parse --show-toplevel)"
 
@@ -306,6 +293,14 @@
             '';
 
           }
+          // import ./nix/tests/developer-checks.nix {
+            inherit
+              pkgs
+              system
+              inputs
+              applySwitch
+              ;
+          }
           // inputs.nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
             antigravity-service = import ./nix/tests/antigravity-service.nix {
               inherit pkgs;
@@ -321,7 +316,6 @@
           # Apps — perSystem の system で正しい構成を選択 (分岐は applySwitch)
           apps = {
             switch = mkApp "switch" ''
-              ${pushCachix}
               ${applySwitch}
               apply_switch "$@"
             '';

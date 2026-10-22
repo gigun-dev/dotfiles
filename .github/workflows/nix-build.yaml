@@ -21,7 +21,8 @@ on:
   pull_request:
   workflow_dispatch:
 
-# この workflow は読むだけ。書き込みは一切しない (lock 更新の PR は mini-vm が出す)。
+# repository は read-only。成功した main の Nix store だけ Actions cache に保存する。
+# lock 更新の PR は mini-vm が出す。
 permissions:
   contents: read
 
@@ -49,27 +50,15 @@ jobs:
               - 'nix/**'
               - 'infra/langfuse/**'
               - 'secrets/**'
-              - 'scripts/tests/bark-routing.py'
-              - 'scripts/codex-mcp-login.py'
-              - 'scripts/tests/codex-mcp-login.py'
+              - 'scripts/**'
+              - 'bootstrap.sh'
+              - 'zsh/**'
+              - 'npm/**'
+              - 'bun/**'
+              - 'pip/**'
               - 'uv/**'
-              - 'scripts/tests/uv-sync-tools.py'
-              - 'scripts/verify.sh'
-              - 'scripts/tests/codex-bridge-refresh.py'
-              - 'scripts/tests/dotfiles-autoswitch.py'
-              - 'scripts/job-heartbeat.py'
-              - 'scripts/tests/job-heartbeat.py'
-              - 'scripts/tests/job-heartbeat-activation.py'
-              - 'scripts/tests/lock-propose-heartbeat.py'
-              - 'scripts/host-heartbeat*.py'
-              - 'scripts/prepare-host-heartbeat-registration.py'
-              - 'scripts/prepare-job-heartbeat-registration.py'
-              - 'scripts/tests/job-heartbeat-registration.py'
-              - 'scripts/ssh-path-observe.py'
-              - 'scripts/tests/host-heartbeat.py'
-              - 'scripts/tests/host-heartbeat-registration.py'
-              - 'scripts/tests/ssh-path-observe.py'
               - '.github/workflows/nix-build.yaml'
+              - '.github/actions/setup-nix/**'
 
   check:
     needs: changes
@@ -79,9 +68,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
-        with:
-          github_access_token: ${{ github.token }}
+      - uses: ./.github/actions/setup-nix
 
       # `--no-build` を付けないこと。ESP-IDF の devShell は
       # `builtins.readFile "${src}/tools/tools.json"` でソースを読む (IFD) ため、
@@ -118,14 +105,27 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
-        with:
-          github_access_token: ${{ github.token }}
-          extra_nix_config: |
-            accept-flake-config = true
+      - uses: ./.github/actions/setup-nix
 
       - name: Build mini-vm (NixOS)
         run: nix build --no-link --print-out-paths '.#nixosConfigurations.mini-vm.config.system.build.toplevel'
 
       - name: Build home (x86_64-linux)
         run: nix build --no-link --print-out-paths '.#homeConfigurations.gigun-x86_64-linux.activationPackage'
+
+  macos-regressions:
+    needs: changes
+    if: needs.changes.outputs.nix == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ./.github/actions/setup-nix
+      - name: Build isolated Darwin regression checks
+        run: >-
+          nix build --no-link --print-build-logs
+          .#checks.aarch64-darwin.guard-settings
+          .#checks.aarch64-darwin.guard-handoff
+          .#checks.aarch64-darwin.setup-routing
+          .#checks.aarch64-darwin.switch-routing
+          .#checks.aarch64-darwin.zsh-startup

@@ -12,6 +12,7 @@
   imports = [
     ./packages.nix
     ./dotfiles.nix
+    ./guard.nix
     ./programs/zsh
     ./programs/git
     ./programs/ssh

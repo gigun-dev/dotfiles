@@ -27,15 +27,7 @@ set -eu
 # `builtins.readFile "${src}/tools/tools.json"` でソースを読む (IFD) ため、
 # 評価に fetch が要る。--no-build だとそれが禁じられ、x86_64-linux では
 # `error: path '...-source.drv' is not valid` で必ず落ちる (CI 側にも同じ注記がある)。
-python3 scripts/tests/dotfiles-autoswitch.py
-python3 scripts/tests/lock-propose-heartbeat.py
-python3 -W error scripts/tests/job-heartbeat.py
-python3 -W error scripts/tests/job-heartbeat-activation.py
-python3 -W error scripts/tests/job-heartbeat-registration.py
-python3 scripts/tests/codex-bridge-refresh.py
-python3 scripts/tests/bark-routing.py
-python3 -W error scripts/tests/codex-mcp-login.py
-python3 -W error scripts/tests/uv-sync-tools.py
+# 個別回帰検査は flake checks が依存を固定して実行する。
 
 nix flake check
 nix fmt -- --ci .

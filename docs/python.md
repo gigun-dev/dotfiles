@@ -58,9 +58,10 @@ notebookからパッケージを足すときは `!uv add pkg` を使う。依存
 
 ## パッケージindex
 
-`zsh/.zshrc` が `UV_DEFAULT_INDEX`（と `UV_INDEX_URL`・`PIP_INDEX_URL`）をTakumi Guard（`https://pypi.flatt.tech/simple/`）に向けている。
-サプライチェーン攻撃への防御として意図的に置いている。外し方と匿名モードの理由は `npm/npmrc` のコメントにある。
+Home Manager が `uv/uv.toml` と `pip/pip.conf` をユーザー設定へ配置し、Takumi Guard
+（`https://pypi.flatt.tech/simple/`）に向ける。シェルの export には依存しない。
+配置先・限定反映・読み取り専用チェック・上書きの扱いは `docs/guard.md` にある。
 
 このため `uv.lock` に記録されるsourceとファイルのURLは `pypi.flatt.tech` になる（`nix/devshells/esp-idf-python/uv.lock` が実例）。これは想定どおりの挙動である。
 `uv init` は `pyproject.toml` に index を書かないが、続く `uv add` が環境変数の値を `[[tool.uv.index]]`（`default = true`）として書き込む（2026-10-15 に実測）。これも想定どおりで、消さずにコミットする。
-`.zshrc` を読まない経路（home.activationとbootstrap.sh）では、`uv/sync-tools.sh` が同じ値を既定として設定する。
+home.activation と bootstrap の `uv/sync-tools.sh` も同じユーザー設定を読み、設定が欠損・未反映なら同期前に停止する。

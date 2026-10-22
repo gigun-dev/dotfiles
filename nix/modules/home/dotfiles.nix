@@ -37,16 +37,8 @@ in
     "zed/keymap.json".source = mkLink "zed/keymap.json";
   };
 
-  # dotfile ($HOME 直下、XDG 非対応の設定ファイル)。
-  # Takumi Guard (GMO Flatt Security の npm/PyPI レジストリプロキシ、匿名モード) を
-  # npm/bun に効かせる。pnpm は ~/.npmrc を読むため npm/npmrc の symlink だけで一緒に
-  # カバーされる (専用ファイルは意図的に作らない、詳細は npm/npmrc のコメント参照)。
-  # トークン無しの理由・外し方も npm/npmrc のコメント参照。
-  # 全 OS (Mac / mini-vm / WSL) 共通 — npm/bun はどの環境でも使うため isDarwin で絞らない。
-  home.file = {
-    ".npmrc".source = mkLink "npm/npmrc";
-    ".bunfig.toml".source = mkLink "bun/bunfig.toml";
-  };
+  # login 専用の PATH 追加も repository を正本にする（既存 .zprofile は HM が退避）。
+  home.file.".zprofile".text = builtins.readFile ../../../zsh/.zprofile;
 
   # NotchBar: 開発ビルドをログイン時に自動起動 (darwin only)
   # 現状は起動しない方針 (enable = false)。再開したくなったら true に戻す
