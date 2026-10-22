@@ -101,7 +101,7 @@
 - [x] Google: キーを登録し、高度な保護機能プログラムを有効にする — 2026-10-22
 - [x] OpenAI (ChatGPT・API の課金): セキュリティキーを登録し、リカバリーコードを Apple の「パスワード」に置く — 2026-10-22
 - [x] GitHub: YubiKey 2 本を passkey として登録 (普段は Apple の passkey)。TOTP は Apple の「パスワード」のまま (§3)。backup email は primary (iCloud) だけ、メールを晒す push を止める設定を有効 — 2026-10-22
-- [ ] GitHub: リカバリコードを作り直して Apple の「パスワード」に置く。GitHub Mobile の 2 台が自分の端末か確かめる
+- [x] GitHub: リカバリコードを作り直して Apple の「パスワード」に置く。GitHub Mobile の 2 台が自分の端末か確かめる — 2026-10-22
 - [x] Cloudflare: Apple の「パスワード」の passkey をセキュリティキーとして登録し、TOTP を消し、バックアップコードを作り直して Apple の「パスワード」に置く 。YubiKey 2 本も予備として登録 — 2026-10-22
 - [ ] 決済・クラウド (AWS など) のうち、セキュリティキーに対応しているものに登録する (証券のパスキーはキーに入れない)
 - [ ] PIV があれば、sops + age-plugin-yubikey を 1 ファイルで試してから、未決事項 4 を決める
