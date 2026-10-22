@@ -6,6 +6,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -30,7 +31,10 @@ class Routing(unittest.TestCase):
                     else:
                         env.pop('BARK_PUSH_URL', None)
                     for name, body in {
-                        'curl': "#!/usr/bin/env python3\nimport json,os,sys\nfrom pathlib import Path\nPath(os.environ['FIXTURE'],'request').write_text(json.dumps(sys.argv[1:]))\nprint('{\"code\":200}')\n",
+                        # The Linux build sandbox need not provide /usr/bin/env.
+                        'curl': "#!" + sys.executable + "\nimport json,os,sys\nfrom pathlib import Path\nPath(os.environ['FIXTURE'],'curl-started').touch()\nPath(os.environ['FIXTURE'],'request').write_text(json.dumps(sys.argv[1:]))\nprint('{\"code\":200}')\n",
+                        # Prove that the stub does not resolve its interpreter via PATH.
+                        'python3': '#!/bin/sh\nexit 127\n',
                         'journalctl': '#!/bin/sh\nprintf fixture-body',
                         'age': '#!/bin/sh\nenv | sort | sed -n "/^BARK_/p"',
                     }.items():
@@ -59,12 +63,18 @@ class Routing(unittest.TestCase):
                         self.assertEqual(result.returncode, 0 if hook else 1)
                         self.assertFalse((base / 'request').exists())
                         continue
-                    self.assertEqual(result.returncode, 0, result.stderr)
+                    request_path = base / 'request'
                     for _ in range(100):
-                        if (base / 'request').exists():
+                        if request_path.exists() or result.returncode != 0:
                             break
                         time.sleep(0.02)
-                    request = json.loads((base / 'request').read_text())
+                    diagnostic = (f"curl fixture interpreter={sys.executable}; "
+                                  f"started={(base / 'curl-started').exists()}; "
+                                  f"request={request_path.exists()}; "
+                                  f"exit={result.returncode}; stderr={result.stderr}")
+                    self.assertEqual(result.returncode, 0, diagnostic)
+                    self.assertTrue(request_path.is_file(), diagnostic)
+                    request = json.loads(request_path.read_text())
                     self.assertEqual(request[-1], env.get('BARK_PUSH_URL', 'https://api.day.app/fixture-key'))
                     self.assertTrue(any(arg.startswith('ciphertext=') for arg in request))
                     self.assertIn('iv=' + 'i' * 16, request)
