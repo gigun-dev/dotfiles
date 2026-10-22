@@ -1,0 +1,21 @@
+name: Setup Nix
+description: Install Nix and restore the job-specific GitHub Actions store cache
+runs:
+  using: composite
+  steps:
+    - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31
+      with:
+        github_access_token: ${{ github.token }}
+        extra_nix_config: |
+          accept-flake-config = true
+
+    # GitHub Actions 内で再利用する。Cachix への公開送信は行わない。
+    # job ごとに分け、並列 check/build が同じ不変キーを取り合うのを避ける。
+    # PR は復元のみ。保存処理は action の post-if: success() で成功時に限る。
+    # /nix に復号済み秘密を置かず、HOME や認証ファイルを paths に追加しない。
+    - name: Restore Nix store cache
+      uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
+      with:
+        primary-key: nix-v1-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ hashFiles('flake.lock', 'flake.nix', 'nix/**', 'infra/langfuse/**', 'uv/**', 'scripts/**', 'secrets/**', '.github/workflows/nix-build.yaml', '.github/actions/setup-nix/**') }}
+        restore-prefixes-first-match: nix-v1-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-
+        save: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}

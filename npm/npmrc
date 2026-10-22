@@ -1,5 +1,5 @@
-# ~/.npmrc として symlink される (nix/modules/home/dotfiles.nix / bootstrap.sh / Windows DSC の
-# 3 経路)。npm install 全般を Takumi Guard (GMO Flatt Security) 経由にする。
+# Home Manager は ~/.npmrc の内容を世代に固定し、bootstrap は同じ正本をコピーする。
+# Windows DSC の経路もこの正本を参照する。詳細は docs/guard.md。
 #
 # Takumi Guard は npm レジストリのプロキシで、既知の悪性パッケージ (typosquatting・
 # supply chain 攻撃で報告済みのもの) を 403 で弾いてから npmjs 本家へフォワードする。
@@ -21,7 +21,7 @@
 # 外し方: この registry 行を削除するだけでよい。lockfile 側の修正は不要
 # (npm は resolved URL が変わっても再インストール時に registry 設定から解決し直す)。
 #
-# 動作確認: `npm install @panda-guard/test-malicious` が 403 で失敗すること。
+# 読み取り専用の配置・上書き検査: python3 -I -S -B scripts/guard-check.py
 #
 # pnpm にも効く: pnpm は独自の設定ファイルを持つが registry 解決時に ~/.npmrc も読むため、
 # このファイルだけで npm/pnpm 両方が Takumi Guard 経由になる (実測: `pnpm config get registry`

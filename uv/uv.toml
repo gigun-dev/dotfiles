@@ -1,0 +1,4 @@
+# Anonymous Takumi Guard. Project indexes and explicit overrides still take precedence.
+[[index]]
+url = "https://pypi.flatt.tech/simple/"
+default = true

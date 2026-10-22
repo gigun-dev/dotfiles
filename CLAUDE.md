@@ -6,13 +6,13 @@ nix-darwin + home-manager を基盤とし、nix なしでも最低限動作す�
 ## コマンド
 
 ```bash
-git add . && nix run .#switch  # 変更を適用
+nix run .#switch              # 変更を適用（新規ファイルは個別に stage）
 nix run .#build                # ビルドのみ（適用しない）
 nix run .#update               # pull --rebase + flake update + switch + lock を commit (push はしない)
 nix run .#update-ai-tools      # 同上。AI ツールの input だけ
 ```
 
-**重要**: nix は git index から評価するため、`nix run .#switch` の前に必ず `git add` すること。switch 用に stage したものが commit に混ざらないよう、エージェントは commit 前に `git diff --cached --stat` で確認する。
+**重要**: Git flake は未追跡の新規ファイルを含めないため、`nix run .#switch` の前に必要な新規ファイルだけ `git add <path>` すること。switch 用に stage したものが commit に混ざらないよう、エージェントは commit 前に `git diff --cached --stat` で確認する。
 
 **`flake.lock` は main から pull で受け取る**: lock の主な生産者は mini-vm で、定期的に PR で提案し、実機ビルドと required CI を通して自動 merge する。手元は `git pull` するだけでよく、`git/hooks` の post-merge / post-rewrite / post-checkout が flake.nix・flake.lock・nix/ の変化を見て `nix run .#switch` まで走らせる（main の主 checkout でのみ。linked worktree・feature branch・NixOS では何もしない）。手元で lock を更新するときは `nix run .#update` / `update-ai-tools` を使う。pull → update → switch の後に lock をその場で commit するので dirty な lock は残らない。push は手で行う。mini-vm の `dotfiles-autoswitch` は main の HEAD の CI が green のときだけ適用する（red / 未完了は見送って通知）。設計は `docs/adr/0011-push-without-a-local-gate-and-apply-only-green-commits.md`、現在の運用は `docs/mini-vm.md`、残課題は `todo.txt` を参照。
 
@@ -56,9 +56,9 @@ docs/                          # 現行運用・ADR
 ## 設計原則
 
 - **nix はオプション強化レイヤー**: 設定ファイル自体は nix に依存しない
-- **bootstrap.sh と dotfiles.nix は同じことをする**: 後者が前者を自動化するだけ
+- **bootstrap は初期準備の入口**: Nix 導入済みの Pro は共通 switch へ委譲。Nix なし・凍結ホストの fallback は同じ Guard 正本を使う。手順は `docs/setup.md`
 - **brew は GUI アプリのみ**: CLI ツールは nixpkgs、tap 限定の例外のみ brews
-- **cleanup = "zap"**: 宣言外のアプリは完全削除。使う GUI アプリは必ず casks に宣言する
+- **cleanup = "uninstall"**: 宣言外のアプリをアンインストールする。zap stanza による追加削除は行わない。使う GUI アプリは必ず casks に宣言する
 - **ensure_installed パターン**: ツールが未インストールなら静かにスキップ
 - **公式 pkg しか無いものは activation で入れる**: brew にも nixpkgs にも無い署名済み pkg (apple/container) は `fetchurl` で hash 固定し、activation で冪等に `installer` を叩く。手作業で入れると新規 Mac のセットアップが再現できなくなる
 - **`~/.local/bin` は例外レーン**: PATH 末尾に追加（nix/brew が常に優先）。self-update 前提のツールなど宣言管理できないものだけ許容する。nixpkgs にない Python CLI は `uv/tools.txt` に宣言し、`uv/sync-tools.sh`（home.activation と bootstrap.sh が呼ぶ）が未導入分だけ入れる。更新は手で `uv tool upgrade --all`、宣言外は警告のみ
@@ -75,7 +75,7 @@ docs/                          # 現行運用・ADR
 - `.zshrc` は `home.activation` で強制リンク（`programs.zsh` は home-manager 側では使わない）
 - **AI ツール**: claude-code は ryoppippi overlay。codex/opencode 等 llm-agents のツールは **overlay を使わず** `inputs.llm-agents.packages.${system}.*` を `extraSpecialArgs`（引数名 `llmAgents`）で home モジュールへ渡す。overlay 経由だと我々の nixpkgs に対して再ビルドされ numtide キャッシュ（llm-agents 自身の nixpkgs でビルド）にヒットせず毎回ソースビルドになる（codex の Rust フルビルドが顕著）。standalone 参照ならキャッシュ直ヒット
 - **キャッシュヒットを壊さない**: overlay で base パッケージを `overrideAttrs` すると上流キャッシュのハッシュと不一致になり、そのパッケージと依存元が全てソースビルドになる。zsh など基盤パッケージは公式 nixpkgs を使い、override を依存グラフへ波及させない
-- **個人キャッシュ**: `nix run .#switch`/`update` は完了後に `nix path-info --all | cachix push gigun` を背景実行する。`cachix` は `packages.nix` で導入済み。初回のみ `cachix authtoken <token>` を実行して push を有効化すること（未実行だと push が silently skip され個人キャッシュが空のままになる）
+- **個人キャッシュ**: `nix run .#switch`/`update` は Cachix へ自動送信しない。既存の substituter / trusted keys と `cachix` ツールは維持する。送信者・対象・公開範囲は明示的な送信前に別途判断し、通常適用に全 store 送信を混ぜない。
 
 ## Zsh 規約
 

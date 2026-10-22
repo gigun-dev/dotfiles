@@ -1,4 +1,4 @@
-# ~/.bunfig.toml として symlink される (npm/npmrc と同じ 3 経路)。
+# HOME と XDG_CONFIG_HOME の両探索先へ、同じ正本の内容を配置する (docs/guard.md)。
 # ccstatusline 等を `bunx` で都度実行しているため、bun 自身のパッケージ取得も
 # Takumi Guard (GMO Flatt Security の npm レジストリプロキシ) 経由にする。
 #
