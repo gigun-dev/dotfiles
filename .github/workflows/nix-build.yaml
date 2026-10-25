@@ -33,6 +33,10 @@ concurrency:
 jobs:
   changes:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # paths-filter は PR の変更ファイルを REST API で取得する。
+      pull-requests: read
     outputs:
       nix: ${{ steps.filter.outputs.nix }}
     steps:
