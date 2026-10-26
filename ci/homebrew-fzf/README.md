@@ -47,7 +47,8 @@ promoted into a new cache entry.
 
 `policy.json` keeps heavy builds and update PRs disabled, with no durable
 destination. The active heavy workflow has only a manual trigger and read-only
-permissions; pushing this PR runs only lightweight recipe checks plus existing
+permissions. An explicit manual `bounded_trial=true` dispatch permits one bounded
+validation while the default remains disabled; pushing this PR runs only lightweight recipe checks plus existing
 repository checks. Nix required checks remain unchanged; code lives outside
 `scripts/**` so this fzf-only PR does not request unrelated Nix builds.
 
@@ -78,9 +79,20 @@ fresh Intel runner without rebuilding Go, and validated it unlinked on mini.
 Run 40391238749 reused the build from 40389694444; source build phase 416 seconds,
 bottle 2348 KiB. SHA256:
 `a47f1156d5781a7539bf3ff7c654581e9908adb35bafae74e882d17cbba19ad8`.
-The new common recipe/cache orchestration has local unit/syntax tests, but has
-not been live-built again. No claim is made that all shell CLI dependencies are
-solved. Usage allowance was not independently verified; no paid-overage authority
+The new common recipe was live-built at commit `f03ba93` in run
+[40397272398](https://github.com/gigun-dev/dotfiles/actions/runs/40397272398):
+build job 9m10s (source-build/bottle phase492s), separate fresh-runner pour and
+validation1m54s. fzf0.74.5 and Go1.27.3; macOS15/x86_64, SDK15.5,
+Apple clang17.0.0, Homebrew6.0.18. Bottle2402197bytes, SHA256
+`45957f1abe8b2c450629c09c3ed9afa31feb8bc16935417949b387f53249e689`.
+The Go receipt/provenance check and poured-from-bottle receipt check passed.
+Actual artifact tampering and a wrong key were rejected locally. Unit tests also
+cover expiry, failed-run exclusion and update detection no-op/change outputs.
+The previous preflight failures were caused by an untracked runner formula;
+`prepare-ci` now preserves untracked files in its disposable-runner stash.
+A second run [40399031167](https://github.com/gigun-dev/dotfiles/actions/runs/40399031167)
+reused the validated artifact in22s, skipping build and verify jobs' mutation steps.
+No claim is made that all shell CLI dependencies are solved. Usage allowance was not independently verified; no paid-overage authority
 or new heavy run is assumed.
 
 Run local checks:

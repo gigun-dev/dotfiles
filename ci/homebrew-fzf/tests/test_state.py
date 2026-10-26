@@ -38,6 +38,9 @@ class StateTests(unittest.TestCase):
             m={'schema':1,'key':self.key(),'status':'validated','checks':['formula-test','x86_64','unlinked','no-nix-linkage','go-unchanged'],'files':{b.name:state.sha(b.read_bytes())}}
             def save(): (d/'validated.json').write_text(json.dumps(m))
             save();state.verify(d,self.key())
+            extra=d/'fzf--9.9.9.sequoia.bottle.tar.gz';extra.write_bytes(b'extra')
+            with self.assertRaises(AssertionError): state.verify(d,self.key())
+            extra.unlink()
             with self.assertRaises(AssertionError): state.verify(d,'a'*64)
             b.write_bytes(b'corrupt')
             with self.assertRaises(AssertionError): state.verify(d,self.key())
@@ -54,7 +57,6 @@ class StateTests(unittest.TestCase):
         self.assertEqual(p.returncode,2)
         self.assertIn('no changes made',p.stderr)
 
-if __name__=='__main__':unittest.main()
 
 class ReuseTests(unittest.TestCase):
     def test_only_successful_matching_workflow_can_be_reused(self):
@@ -118,3 +120,5 @@ class DetectionOutputTests(unittest.TestCase):
                 self.assertEqual(json.loads(captured.getvalue())['changed'],changed)
                 self.assertEqual(output.exists(),changed)
             self.assertEqual(state.read(output)['version'],'0.74.6')
+
+if __name__=='__main__':unittest.main()
