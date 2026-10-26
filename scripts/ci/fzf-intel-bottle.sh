@@ -34,6 +34,17 @@ build)
     brew install --build-from-source homebrew/core/go
   fi
   test "$(/usr/local/opt/go/bin/go env GOVERSION)" = go1.27.3
+  # Populate Homebrew's standard Go cache before its network-denied build.
+  # unpack verifies the source archive against the pinned official formula.
+  brew unpack --destdir "$RUNNER_TEMP/fzf-source" homebrew/core/fzf
+  (
+    cd "$RUNNER_TEMP/fzf-source/fzf-0.74.5"
+    export GOPATH="$(brew --cache)/go_mod_cache"
+    export GOCACHE="$(brew --cache)/go_cache"
+    export GOENV=off
+    /usr/local/opt/go/bin/go mod download
+    /usr/local/opt/go/bin/go mod verify
+  )
   brew install --build-bottle homebrew/core/fzf
   brew test fzf
   cd "$out"
