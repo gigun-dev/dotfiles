@@ -90,10 +90,10 @@ jobs:
           grep -qx '1.104.2' cli-version.txt
           grep -qx '1.104.2' daemon-binary-version.txt
           grep -q 'go1.27.3' cli-version.txt
+          grep -q 'go1.27.3' daemon-binary-version.txt
           for binary in tailscale tailscaled; do
             file "/usr/local/opt/tailscale/bin/$binary" | tee "$binary-architecture.txt"
             grep -q 'Mach-O 64-bit executable x86_64' "$binary-architecture.txt"
-            go version -m "/usr/local/opt/tailscale/bin/$binary" > "$binary-buildinfo.txt"
           done
           brew info --json=v2 tailscale > installed-formula.json
           ruby -rjson -e '
