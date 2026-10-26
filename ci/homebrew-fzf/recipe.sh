@@ -49,7 +49,7 @@ prepare-ci)
   brew tap --force homebrew/core
   core=$(brew --repo homebrew/core)
   git -C "$core" fetch --depth=1 origin "$core_rev"
-  git -C "$core" stash push -m fzf-disposable-runner-formulas
+  git -C "$core" stash push --include-untracked -m fzf-disposable-runner-formulas
   git -C "$core" checkout --detach "$core_rev"
   git -C "$core" status --short
   preflight
