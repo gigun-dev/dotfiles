@@ -1,0 +1,10 @@
+---
+all:
+  children:
+    mini_macos:
+      hosts:
+        mini:
+          ansible_host: mini
+          ansible_user: gigun
+          ansible_python_interpreter: /usr/bin/python3
+          ansible_ssh_common_args: -o BatchMode=yes -o StrictHostKeyChecking=yes

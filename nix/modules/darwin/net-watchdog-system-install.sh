@@ -75,6 +75,7 @@ cat >"$DAEMON_PLIST" <<EOF
   <key>RunAtLoad</key><true/>
   <key>EnvironmentVariables</key>
   <dict>
+    <key>NET_WATCHDOG_NO_REMEDIATE</key><string>1</string>
     <key>PATH</key><string>/usr/bin:/bin:/usr/sbin:/sbin</string>
   </dict>
   <key>StandardErrorPath</key><string>${LOG_DIR}/daemon.err</string>

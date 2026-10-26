@@ -1,0 +1,15 @@
+---
+- name: Require the reviewed cosmetic defaults only
+  ansible.builtin.assert:
+    that:
+      - >-
+        mini_defaults == [{'domain':'com.apple.dock','key':'autohide','type':'bool','value':true},
+        {'domain':'NSGlobalDomain','key':'KeyRepeat','type':'int','value':2}]
+- name: Apply owned user defaults without restarting applications
+  community.general.osx_defaults:
+    domain: "{{ item.domain }}"
+    key: "{{ item.key }}"
+    type: "{{ item.type }}"
+    value: "{{ item.value }}"
+    state: present
+  loop: "{{ mini_defaults }}"

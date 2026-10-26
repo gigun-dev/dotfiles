@@ -1,0 +1,37 @@
+---
+name: 'CI: mini Ansible'
+on:
+  pull_request:
+    paths:
+      - 'ansible/mini-macos/**'
+      - 'flake.nix'
+      - 'flake.lock'
+      - '.github/actions/setup-nix/**'
+      - 'nix/modules/darwin/network-watchdog.sh'
+      - 'nix/modules/darwin/network-watchdog.nix'
+      - 'nix/modules/darwin/net-watchdog-system-install.sh'
+      - 'bootstrap.sh'
+      - '.github/workflows/mini-ansible.yaml'
+  push:
+    branches: [main]
+    paths:
+      - 'ansible/mini-macos/**'
+      - 'flake.nix'
+      - 'flake.lock'
+      - '.github/actions/setup-nix/**'
+      - 'nix/modules/darwin/network-watchdog.sh'
+      - 'nix/modules/darwin/network-watchdog.nix'
+      - 'nix/modules/darwin/net-watchdog-system-install.sh'
+      - 'bootstrap.sh'
+      - '.github/workflows/mini-ansible.yaml'
+permissions:
+  contents: read
+jobs:
+  mini-ansible:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: ./.github/actions/setup-nix
+      - name: Verify Ansible locally with temporary fixture homes
+        run: nix shell --inputs-from . nixpkgs#uv -c sh ansible/mini-macos/verify.sh
