@@ -1,0 +1,46 @@
+---
+- name: Read mini migration state without credentials or broad facts
+  hosts: mini_macos
+  gather_facts: false
+  become: false
+  environment:
+    HOMEBREW_NO_AUTO_UPDATE: '1'
+    HOMEBREW_NO_ANALYTICS: '1'
+  tasks:
+    - name: Validate inventory and host
+      ansible.builtin.import_tasks: tasks/preflight.yml
+    - name: Read package names and selected defaults
+      ansible.builtin.command:
+        argv: "{{ item }}"
+      loop:
+        - [/usr/local/bin/brew, list, --formula]
+        - [/usr/local/bin/brew, list, --cask]
+        - [/usr/bin/defaults, read, com.apple.dock, autohide]
+        - [/usr/bin/defaults, read, NSGlobalDomain, KeyRepeat]
+        - [/bin/launchctl, list, dev.gigun.net-watchdog]
+      register: mini_audit
+      changed_when: false
+      failed_when: false
+      check_mode: false
+    - name: Show selected audit results including command failure
+      ansible.builtin.debug:
+        msg: "{{ item.item }} rc={{ item.rc }} stdout={{ item.stdout }} stderr={{ item.stderr }}"
+      loop: "{{ mini_audit.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+    - name: Read user link and generation metadata
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        follow: false
+      loop:
+        - '{{ mini_home }}/.zshenv'
+        - '{{ mini_home }}/.zshrc'
+        - '{{ mini_home }}/.zprofile'
+        - /run/current-system
+      register: mini_audit_links
+    - name: Show only path ownership metadata
+      ansible.builtin.debug:
+        msg: "{{ item.item }} exists={{ item.stat.exists }} link={{ item.stat.lnk_source | default('none') }}"
+      loop: "{{ mini_audit_links.results }}"
+      loop_control:
+        label: "{{ item.item }}"

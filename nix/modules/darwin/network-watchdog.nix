@@ -70,6 +70,8 @@ in
       # nc/dig/awk/sed (/usr/bin) は全てこの中にある。
       # [実測 2026-09-03 mini] 手動実行もこの PATH を明示して通している。
       # 明示するのは、将来 nix の PATH が混ざって「どの ping か」が変わるのを防ぐため。
+      # 観測のみ。Wi-Fi の自動 off/on は行わない。
+      EnvironmentVariables.NET_WATCHDOG_NO_REMEDIATE = "1";
       EnvironmentVariables.PATH = "/usr/bin:/bin:/usr/sbin:/sbin";
 
       # スクリプト自身の出力は samples.jsonl に行く。ここに来るのは想定外の

@@ -1,0 +1,56 @@
+---
+- name: Read source paths without following home links
+  ansible.builtin.stat:
+    path: "{{ mini_repo }}/{{ item.src }}"
+  loop: "{{ mini_shell_links }}"
+  register: mini_link_sources
+- name: Require every source before changing any link
+  ansible.builtin.assert:
+    that: item.stat.exists
+  loop: "{{ mini_link_sources.results }}"
+  loop_control:
+    label: "{{ item.item.src }}"
+- name: Inspect existing link destinations
+  ansible.builtin.stat:
+    path: "{{ mini_home }}/{{ item.dest }}"
+    follow: false
+  loop: "{{ mini_shell_links }}"
+  register: mini_link_destinations
+- name: Refuse regular files directories and links owned by another source
+  ansible.builtin.assert:
+    that:
+      - not item.stat.exists or (item.stat.islnk | default(false) and item.stat.lnk_source == mini_repo ~ '/' ~ item.item.src)
+    fail_msg: Preserve the existing object; resolve this ownership conflict before applying.
+  loop: "{{ mini_link_destinations.results }}"
+  loop_control:
+    label: "{{ item.item.dest }}"
+- name: Inspect shell parent directories without following links
+  ansible.builtin.stat:
+    path: "{{ mini_home }}/{{ item }}"
+    follow: false
+  loop: [.config, .config/zsh]
+  register: mini_shell_parents
+- name: Refuse shell parent links or non-directories
+  ansible.builtin.assert:
+    that:
+      - not item.stat.exists or (item.stat.isdir | default(false) and not item.stat.islnk | default(false))
+  loop: "{{ mini_shell_parents.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+- name: Create shell configuration parents
+  ansible.builtin.file:
+    path: "{{ item.item }}"
+    state: directory
+    mode: "0700"
+  loop: "{{ mini_shell_parents.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: not item.stat.exists
+- name: Link shared shell sources
+  ansible.builtin.file:
+    src: "{{ mini_repo }}/{{ item.src }}"
+    dest: "{{ mini_home }}/{{ item.dest }}"
+    state: link
+    force: false
+    follow: false
+  loop: "{{ mini_shell_links }}"

@@ -59,7 +59,9 @@ Pro は通常適用後、6件の内容一致と HM 世代リンクを実機確�
 
 ## 凍結ホストと互換経路
 
-Intel mini の Nix 適用凍結は解除しない。Nix 導入済み Intel Mac の bootstrap は停止する。
+Intel mini は [Ansible への段階移行](mini-ansible.md)を準備中。既存Nixは移行中の依存として残し、
+最新Intel構成が評価不能なため Nix 導入済み Intel Mac の bootstrap は引き続き停止する。
+移管済み対象には旧bootstrapを重ねず、対象別の管理者を確認する。
 Guard 限定は `bash bootstrap.sh --guard-only`、読取検査は `bash scripts/check.sh`。
 旧包括経路を意図して使う場合だけ `--legacy`、番人も必要なら `--net-watchdog`。
 Nix 未導入の場合もこの包括経路に入り、CLT/Homebrew/uv tools の導入やリンク・launchd変更を伴う。

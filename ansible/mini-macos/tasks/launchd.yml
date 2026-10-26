@@ -1,0 +1,53 @@
+---
+- name: Keep launchd staging separate from live service ownership
+  ansible.builtin.assert:
+    that:
+      - mini_owners.launchd == 'manual'
+      - mini_stage_dir == mini_home ~ '/Library/Application Support/dotfiles-migration/network-watchdog'
+- name: Check conflicting system watchdog declarations
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - /Library/LaunchDaemons/dev.gigun.net-watchdog.plist
+    - /Library/LaunchDaemons/org.nixos.network-watchdog.plist
+  register: mini_watchdog_conflicts
+- name: Reject ambiguous watchdog ownership
+  ansible.builtin.assert:
+    that: not item.stat.exists
+  loop: "{{ mini_watchdog_conflicts.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+- name: Inspect staging ancestors without following links
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+  loop:
+    - '{{ mini_home }}'
+    - '{{ mini_home }}/Library'
+    - '{{ mini_home }}/Library/Application Support'
+    - '{{ mini_home }}/Library/Application Support/dotfiles-migration'
+    - '{{ mini_stage_dir }}'
+  register: mini_stage_ancestors
+- name: Refuse staging through links or non-directories
+  ansible.builtin.assert:
+    that:
+      - not item.stat.exists or (item.stat.isdir | default(false) and not item.stat.islnk | default(false))
+  loop: "{{ mini_stage_ancestors.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+- name: Create candidate directory outside launchd search paths
+  ansible.builtin.file:
+    path: "{{ mini_stage_dir }}"
+    state: directory
+    mode: '0700'
+- name: Stage watchdog source without executing or replacing live copy
+  ansible.builtin.copy:
+    src: "{{ mini_controller_repo }}/nix/modules/darwin/network-watchdog.sh"
+    dest: "{{ mini_stage_dir }}/network-watchdog.sh"
+    mode: '0600'
+- name: Stage existing user agent shape for review only
+  ansible.builtin.template:
+    src: "{{ mini_controller_repo }}/ansible/mini-macos/templates/network-watchdog.plist.j2"
+    dest: "{{ mini_stage_dir }}/dev.gigun.net-watchdog.plist"
+    mode: '0600'
+    validate: /usr/bin/plutil -lint %s
