@@ -33,6 +33,9 @@ jobs:
           brew tap --force homebrew/core
           core=$(brew --repo homebrew/core)
           git -C "$core" fetch --depth=1 origin "$CORE_REV"
+          # Hosted images may carry modified formulas (for example rustup).
+          # Preserve those runner-only edits before selecting the pinned revision.
+          git -C "$core" stash push -m tailscale-bottle-runner-formulas
           git -C "$core" checkout --detach "$CORE_REV"
           test "$(git -C "$core" rev-parse HEAD)" = "$CORE_REV"
           cd "$core"
