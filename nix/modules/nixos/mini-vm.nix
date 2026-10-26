@@ -247,7 +247,7 @@ let
     }
     require_selected_system
     ${pkgs.sudo}/bin/sudo -u ${username} ${homeManager}/bin/home-manager \
-      switch --flake "${dotfilesSource}#${username}-x86_64-linux"
+      switch --flake "${dotfilesSource}#${username}-mini-vm"
     require_selected_system
 
     # 「switch は成功したが使えない」を検出する。DB を移行する image の対が
@@ -457,14 +457,14 @@ let
     # 本番と同じ機械・同じ構成で検証する。これがこの設計の主な利点で、GitHub Actions の
     # ubuntu runner でのビルドに勝る点。
     nix build --no-link '.#nixosConfigurations.mini-vm.config.system.build.toplevel'
-    nix build --no-link '.#homeConfigurations.gigun-x86_64-linux.activationPackage'
+    nix build --no-link '.#homeConfigurations.gigun-mini-vm.activationPackage'
 
     # 毎回 origin/main から作り直すので force で上書きする。PR が開いていれば
     # この push だけで中身が入れ替わる (作り直さない)。
     git push --quiet --force origin "HEAD:refs/heads/$branch"
 
     body=$(printf '%s\n\n```\n%s\n```\n' \
-      "mini-vm がこの lock で nixosConfigurations.mini-vm と homeConfigurations.gigun-x86_64-linux のビルドを確認済み。" \
+      "mini-vm がこの lock で nixosConfigurations.mini-vm と homeConfigurations.gigun-mini-vm のビルドを確認済み。" \
       "$(cat "$log")")
 
     # `.[0].number` ではなく `.[].number`。前者は PR が無いとき空ではなく "null" を出す。
@@ -726,6 +726,7 @@ in
 
   # tailnet の独立ノードとして参加させ、host の macOS を経由せず直接 ssh する
   services.tailscale.enable = true;
+  services.tailscale.package = (import ../../runtime-security/pinned-linux.nix).tailscale;
 
   # 上流 DNS を明示する。MagicDNS への依存を断ち切るための固定値。
   #
@@ -1757,7 +1758,7 @@ in
     description = "dotfiles-autoswitch を毎日回す";
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "*-*-* 04:00:00";
+      OnCalendar = "*-*-* 04:00:00 Asia/Tokyo";
       # 4 時ちょうどに substituter へ殺到しないよう散らす。
       RandomizedDelaySec = 1800;
       # VM が止まっていて発火を逃した分は、次に上がったときに 1 回だけ回す。
