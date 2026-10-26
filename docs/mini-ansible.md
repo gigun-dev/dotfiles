@@ -196,5 +196,8 @@ uv run --locked --project ansible/mini-macos ansible-playbook \
 判断しない。今後Nix/HMを再適用する際は所有境界を再確認する。
 他3リンク、defaults、packages、launchdは初回移管に含めない。
 実適用コマンドは上記から`--check --diff`を外し、`-e '{"mini_apply_ack":true}'`を追加する。
-既存2リンクが正しければ変更予定はゼロ。shell起動設定やPATH本文を変更せず、
+miniでは`.config`と`.config/zsh`も既存の通常ディレクトリであることを確認済み。
+既存2リンクとこの親2ディレクトリが正しければ変更予定はゼロ。親が欠けていれば
+共通shell taskはこの2ディレクトリも作成するため、適用前のdiffに含めて確認する。
+shell起動設定やPATH本文を変更せず、
 アプリ再起動・package更新・cleanup・sudoは行わない。
