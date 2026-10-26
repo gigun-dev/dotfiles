@@ -11,9 +11,7 @@
       x86_64-linux = let pkgs = nixpkgs.legacyPackages.x86_64-linux; in {
         # The auto-patched upstream ELF segfaults on mini-vm. Build from source
         # through the standard nixpkgs derivation with fixed bundled Brotli.
-        node = pkgs.nodejs_24.override {
-          nodejs-slim = import ./linux-node.nix { inherit pkgs; };
-        };
+        node = import ./linux-prebuilt.nix { inherit pkgs; };
         bun = pkgs.stdenvNoCC.mkDerivation {
           pname = "bun-security";
           version = "1.4.4";
