@@ -445,8 +445,10 @@
               hostName,
               alwaysOn ? false,
               shellLinksManagedByAnsible ? false,
+              userDefaultsManagedByAnsible ? false,
             }:
             inputs.nix-darwin.lib.darwinSystem {
+              specialArgs = { inherit userDefaultsManagedByAnsible; };
               modules = [
                 {
                   # プラットフォームは darwinSystem の `system` 引数ではなく
@@ -548,6 +550,7 @@
               hostName = "mini";
               alwaysOn = true;
               shellLinksManagedByAnsible = true;
+              userDefaultsManagedByAnsible = true;
             };
           };
 

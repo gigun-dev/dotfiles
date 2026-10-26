@@ -9,7 +9,7 @@ mini_update_ack: false
 mini_owners:
   shell: ansible
   packages: manual
-  defaults: legacy
+  defaults: ansible
   launchd: manual
 mini_shell_links:
   - {src: zsh/.zshenv, dest: .zshenv}
