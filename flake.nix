@@ -152,11 +152,13 @@
             else
               ''
                 apply_switch() {
+                  home_target="${username}-${system}"
                   if [ -e /etc/NIXOS ]; then
+                    home_target="${username}-mini-vm"
                     sudo nixos-rebuild switch --flake ".#mini-vm" "$@" || return
                   fi
                   ${inputs.home-manager.packages.${system}.home-manager}/bin/home-manager \
-                    switch --flake ".#${username}-${system}" "$@" || return
+                    switch --flake ".#$home_target" "$@" || return
                 }
               '';
 
@@ -328,11 +330,13 @@
                 ''
               else
                 ''
+                  home_target="${username}-${system}"
                   if [ -e /etc/NIXOS ]; then
+                    home_target="${username}-mini-vm"
                     nixos-rebuild build --flake ".#mini-vm" "$@"
                   fi
                   ${inputs.home-manager.packages.${system}.home-manager}/bin/home-manager \
-                    build --flake ".#${username}-${system}" "$@"
+                    build --flake ".#$home_target" "$@"
                 ''
             );
 
@@ -560,6 +564,28 @@
               };
               modules = [ ./nix/modules/home ];
             };
+            # Raw upstream Node requires mini-vm's existing nix-ld; keep WSL unchanged.
+            "${username}-mini-vm" =
+              let
+                base = inputs.self.homeConfigurations."${username}-x86_64-linux";
+                runtime = import ./nix/runtime-security/pinned-linux.nix;
+                replace =
+                  p:
+                  if
+                    builtins.elem (p.pname or "") [
+                      "nodejs"
+                      "nodejs-slim"
+                    ]
+                  then
+                    runtime.node
+                  else if (p.pname or "") == "bun" then
+                    runtime.bun
+                  else
+                    p;
+              in
+              base.extendModules {
+                modules = [ { home.packages = base.pkgs.lib.mkForce (map replace base.config.home.packages); } ];
+              };
           };
         };
     };

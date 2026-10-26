@@ -1,17 +1,19 @@
 # Isolated Brotli security runtimes
 
-Preparation packages only: no imports from the main flake, host activation or
-profile changes. The root flake.lock is unchanged. Node remains on major 24.
+mini-vm imports these narrowly pinned packages through its system and dedicated
+Home Manager output. WSL keeps the shared Linux output. Darwin packages remain
+preparation only. The root flake.lock is unchanged. Node remains on major 24.
 
 - Darwin: official Node 24.22.1 / Bun 1.4.4 archives fixed by upstream SHA256,
   packaged with the caller's compatible Nix toolchain. Preserve binary signatures
   and V8 executable integrity with dontStrip/dontPatchShebangs.
 - Intel Darwin: exact generation-26 nixpkgs revision and NAR hash are pinned in
   intel.nix. Never use current x86_64-darwin nixpkgs for this frozen host.
-- Linux Node: standard nixpkgs source derivation using official Node 24.22.1
-  source. The bundled fixed Brotli is compiled instead of the older shared
-  library. The standard Node wrapper retains npm/corepack. Auto-patching the
-  official upstream Linux ELF segfaulted even without stripping and is excluded.
+- Linux Node: unmodified official archive with fixed hash; mini-vm's existing
+  nix-ld runs its upstream loader. Auto-patching the ELF segfaulted, while the
+  unmodified binary passed startup, child spawning and Brotli checks. No new
+  nix-ld setting is introduced. The unused source fallback must not be resumed
+  automatically.
 - Linux Bun: official baseline archive, fixed hash, standard autoPatchelf hook.
 
 Build on the matching architecture:
@@ -31,16 +33,14 @@ Prefer verified standard package updates once upstream incorporates the fix.
 
 ## Validation and application boundary
 
-Pro and Intel isolated packages build and pass runtime checks. Linux Bun builds
-and starts; Linux Node source build is pending final native execution validation
-at the time of this document. Do not equate build preparation with remediation.
+Pro and Intel isolated packages build and pass runtime checks, but their profiles
+are not updated. mini-vm Node/Bun and Tailscale 1.104.2 were applied using an
+isolated candidate based on its running source. Its CLI paths and normal-input
+Brotli tests passed. The permanent source must be merged into the autoswitch's
+upstream main before a later automatic activation can retain these fixes.
 
-A separate Pro candidate branch is based on an exactly reproduced running
-snapshot and changes only Node/Bun. Its normal activation still runs existing
-Homebrew cleanup and Apple Container operations, so application is held.
-The mini-vm Home Manager candidate has identical home files and user services;
-its activation changes only the package-profile target. It awaits the source
-Node build/runtime validation.
+Normal Darwin activation includes Homebrew cleanup and Apple Container actions.
+Do not run an older candidate or replace managed profile links by hand.
 
 Already-running and embedded runtimes are not replaced by profile updates.
 Review service-specific ownership and restart impact separately. No production
