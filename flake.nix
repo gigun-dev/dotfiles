@@ -510,6 +510,23 @@
           darwinConfigurations = {
             # MacBook Pro (M4 Pro)。手元機なので alwaysOn ではない。
             "${username}-aarch64-darwin" = mkDarwinSystem "aarch64-darwin" { hostName = "MBPM4Pro"; };
+            # Explicit maintenance target; ordinary switch retains Homebrew/Container management.
+            "${username}-aarch64-darwin-runtime-maintenance" =
+              (mkDarwinSystem "aarch64-darwin" { hostName = "MBPM4Pro"; }).extendModules
+                {
+                  modules = [
+                    ({ lib, ... }: {
+                      disabledModules = [ ./nix/modules/darwin/apple-container.nix ];
+                      # Pinned nix-darwin internal module option; verify on every lock upgrade.
+                      system.activationScripts.homebrew.text = lib.mkForce "";
+                      homebrew.onActivation = {
+                        cleanup = lib.mkForce "none";
+                        upgrade = lib.mkForce false;
+                        autoUpdate = lib.mkForce false;
+                      };
+                    })
+                  ];
+                };
             # Mac Mini (Intel)。Lima ゲスト (mini-vm) を載せた 24/365 の拠点。
             # macOS 側は nix 管理を凍結中なのでこの hostName 宣言は当たらない。
             # network-watchdog / homebrew の brews と同じ「M チップ化した日に効く予約」。

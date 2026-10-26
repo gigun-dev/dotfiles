@@ -11,8 +11,18 @@
     with pkgs;
     [
       # JS / Python runtime
-      nodejs
-      bun
+      (
+        if stdenv.hostPlatform.isDarwin then
+          (import ../../runtime-security/darwin.nix { inherit pkgs; }).node
+        else
+          nodejs
+      )
+      (
+        if stdenv.hostPlatform.isDarwin then
+          (import ../../runtime-security/darwin.nix { inherit pkgs; }).bun
+        else
+          bun
+      )
       # deno は nixpkgs だと rusty-v8 フルビルドで重いため mise に移譲
       pnpm
       uv
