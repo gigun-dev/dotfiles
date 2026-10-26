@@ -27,31 +27,10 @@ export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_ANALYTICS=1 HOMEBREW_NO_AUTOREMOVE=
 export HOMEBREW_NO_INSTALL_CLEANUP=1 HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
 export HOMEBREW_NO_INSTALL_FROM_API=1 HOMEBREW_MAKE_JOBS=2 GOMAXPROCS=2 GOFLAGS=-p=2
 preflight() {
-  python3 - "$core_rev" "$go_version" "$root" "$lock" <<'PY'
-import json,os,pathlib,platform,subprocess,sys
-
-def run(*args):
-    try: p=subprocess.run(args,capture_output=True,text=True)
-    except FileNotFoundError: return ''
-    return p.stdout.strip() if p.returncode==0 else ''
-sys.path.insert(0,sys.argv[3]);import state
-identity={'os':platform.system(),'arch':platform.machine()}
-if identity != {'os':'Darwin','arch':'x86_64'}:
-    print(json.dumps({'identity':identity,'checks':{'target':False}}));sys.exit(0)
-identity.update(macos_major=run('sw_vers','-productVersion').split('.')[0],prefix=run('brew','--prefix'),
-    sdk=run('xcrun','--sdk','macosx','--show-sdk-version'),clang=run('xcrun','clang','--version').split('\n')[0],
-    brew=run('brew','--version').split('\n')[0])
-core=run('brew','--repo','homebrew/core')
-go_opt=pathlib.Path('/usr/local/opt/go')
-try: receipt=json.loads((go_opt/'INSTALL_RECEIPT.json').read_text())
-except (OSError,ValueError): receipt={}
-go_ok=state.go_matches(run(str(go_opt/'bin/go'),'env','GOVERSION'),go_opt.resolve().name,receipt,state.read(sys.argv[4]))
-checks={'target':identity['macos_major']=='15' and identity['prefix']=='/usr/local',
-    'core_pinned':bool(core) and run('git','-C',core,'rev-parse','HEAD')==sys.argv[1],
-    'core_clean':bool(core) and not run('git','-C',core,'status','--porcelain'),
-    'fzf_absent':not run('brew','list','--versions','fzf'),
-    'go_exact':go_ok}
-print(json.dumps({'identity':identity,'checks':checks},sort_keys=True))
+  python3 - "$root" "$lock" <<'PY'
+import json,sys
+sys.path.insert(0,sys.argv[1]);import state
+print(json.dumps(state.preflight(state.validate(state.read(sys.argv[2]))),sort_keys=True))
 PY
 }
 require_target() {
@@ -164,13 +143,14 @@ f=json.load(open(sys.argv[1]))['formulae'][0]
 expected=sys.argv[2]+('_'+sys.argv[3] if sys.argv[3]!='0' else '')
 assert any(i['version']==expected and i['poured_from_bottle'] for i in f['installed'])
 PYCODE
-    python3 - "$root" "$cached" "$key" "${bottles[0]}" "$work/environment.json" <<'PY'
+    python3 - "$root" "$cached" "$key" "${bottles[0]}" "$work/environment.json" "$artifact/environment.json" "$lock" <<'PY'
 import sys,pathlib,json,shutil
 sys.path.insert(0,sys.argv[1]);import state
 p=pathlib.Path(sys.argv[2]);p.mkdir(parents=True,exist_ok=False)
 b=pathlib.Path(sys.argv[4]);shutil.copy2(b,p/b.name)
 m={'schema':1,'key':sys.argv[3],'status':'validated','checks':['formula-test','x86_64','unlinked','no-nix-linkage','go-unchanged'],
- 'files':{b.name:state.sha(b.read_bytes())},'environment':state.read(sys.argv[5])}
+ 'files':{b.name:state.sha(b.read_bytes())},'environment':state.read(sys.argv[5]),
+ 'build_environment':state.read(sys.argv[6]),'inputs':state.inputs(state.validate(state.read(sys.argv[7])))}
 (p/'validated.json').write_text(json.dumps(m,indent=2)+'\n')
 state.verify(p,sys.argv[3]);print(p)
 PY

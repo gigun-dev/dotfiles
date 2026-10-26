@@ -1,6 +1,11 @@
 name: fzf Intel bottle
 on:
   workflow_dispatch:
+    inputs:
+      bounded_trial:
+        description: 'Explicit one-time Intel validation (30m build + 10m verify); no schedule or host adoption'
+        type: boolean
+        default: false
 permissions:
   contents: read
   actions: read
@@ -15,11 +20,13 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - id: policy
+        env:
+          BOUNDED_TRIAL: ${{ inputs.bounded_trial }}
         run: |
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          import json
+          import json, os
           p=json.load(open('ci/homebrew-fzf/policy.json'))
-          print('enabled='+str(p['build_enabled']).lower())
+          print('enabled='+str(p['build_enabled'] or os.environ.get('BOUNDED_TRIAL') == 'true').lower())
           PY
   build:
     needs: gate

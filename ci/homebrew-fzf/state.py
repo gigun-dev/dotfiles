@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import pathlib
+import platform
 import re
 import subprocess
 import urllib.request
@@ -39,6 +40,30 @@ def go_matches(version, cellar_version, receipt, lock):
             and source.get('tap') == 'homebrew/core'
             and source.get('tap_git_head') == lock['core_revision']
             and source.get('spec') == 'stable')
+
+def preflight(lock):
+
+    def run(*args):
+        try: p=subprocess.run(args,capture_output=True,text=True)
+        except FileNotFoundError: return ''
+        return p.stdout.strip() if p.returncode==0 else ''
+    identity={'os':platform.system(),'arch':platform.machine()}
+    if identity != {'os':'Darwin','arch':'x86_64'}:
+        return {'identity':identity,'checks':{'target':False}}
+    identity.update(macos_major=run('sw_vers','-productVersion').split('.')[0],prefix=run('brew','--prefix'),
+        sdk=run('xcrun','--sdk','macosx','--show-sdk-version'),clang=run('xcrun','clang','--version').split('\n')[0],
+        brew=run('brew','--version').split('\n')[0])
+    core=run('brew','--repo','homebrew/core')
+    go_opt=pathlib.Path('/usr/local/opt/go')
+    try: receipt=json.loads((go_opt/'INSTALL_RECEIPT.json').read_text())
+    except (OSError,ValueError): receipt={}
+    go_ok=go_matches(run(str(go_opt/'bin/go'),'env','GOVERSION'),go_opt.resolve().name,receipt,lock)
+    checks={'target':identity['macos_major']=='15' and identity['prefix']=='/usr/local',
+        'core_pinned':bool(core) and run('git','-C',core,'rev-parse','HEAD')==lock['core_revision'],
+        'core_clean':bool(core) and not run('git','-C',core,'status','--porcelain'),
+        'fzf_absent':not run('brew','list','--versions','fzf'),
+        'go_exact':go_ok}
+    return {'identity':identity,'checks':checks}
 
 def build_hash(text):
     # Bottle publication metadata does not change this fzf source recipe.

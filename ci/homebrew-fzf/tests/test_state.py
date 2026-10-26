@@ -82,3 +82,20 @@ class GoTests(unittest.TestCase):
         self.assertFalse(state.go_matches('go'+v,v+'_1',receipt,lock))
         receipt['source']['tap_git_head']='a'*40
         self.assertFalse(state.go_matches('go'+v,v,receipt,lock))
+
+class DetectionTests(unittest.TestCase):
+    def test_noop_change_and_expansion(self):
+        lock=state.read(state.ROOT/'fzf.lock.json')
+        fzf='  url "https://github.com/junegunn/fzf/archive/refs/tags/v0.74.5.tar.gz"\n  sha256 "'+ 'a'*64 +'"\n  depends_on "go" => :build\n  uses_from_macos "ncurses"\n'
+        go='  url "https://go.dev/dl/go1.27.3.src.tar.gz"\n  sha256 "'+ 'b'*64 +'"\n  depends_on macos: :monterey\n'
+        base=state.candidate(lock,'a'*40,fzf,go)
+        noop=state.candidate(base,'b'*40,fzf,go)
+        self.assertEqual(state.inputs(base),state.inputs(noop))
+        changed=state.candidate(base,'b'*40,fzf.replace('0.74.5','0.74.6'),go)
+        self.assertNotEqual(state.inputs(base),state.inputs(changed))
+        with self.assertRaises(AssertionError):state.candidate(base,'b'*40,fzf+'  depends_on "extra"\n',go)
+    def test_expired_hit_is_not_downloaded(self):
+        import reuse,os
+        key='a'*64
+        with tempfile.TemporaryDirectory() as tmp,patch.dict(os.environ,{'GITHUB_REPOSITORY':'owner/repo','GITHUB_OUTPUT':tmp+'/out'}),patch.object(sys,'argv',['reuse',key,tmp]),patch.object(reuse,'api',return_value={'artifacts':[{'expired':True,'name':'fzf-validated-'+key}]}),patch.object(reuse.subprocess,'run') as download:
+            reuse.main();download.assert_not_called()
