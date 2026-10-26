@@ -220,3 +220,15 @@ Pro・他ホストの設定は維持する。ホスト名を変更するとき�
 ホスト内の日時付き backup に rename して保全し、通常の shell apply で直リンクを作る。
 通常タスクの他管理者リンク拒否は緩めない。復元が必要なら新リンクが想定どおりであることを
 確認し、そのリンクだけを外して保存済みリンクを戻す（自動復元しない）。
+
+### user defaults の管理
+
+miniのDock `autohide=true` と `NSGlobalDomain.KeyRepeat=2` はAnsibleが所有する。
+`--check --diff -e '{"mini_targets":["defaults"],"mini_apply_ack":true}'` で現在値を確認し、
+同じ引数でcheckを外して適用する。他のdefaults、アプリ再起動、packagesは対象外。
+新しいmini用Nix宣言はこの2項目だけを除外し、Proには従来値を残す。
+凍結済みDarwin activationは変更しないため直接再実行しない。
+
+miniのsource同期は、作業差分を保全し、確認済みmainへのfast-forwardで行う。
+同期前にhookとIntel自動switch抑止、live参照ファイルの差分を確認する。
+Nix/Darwin switchをsource同期の一部として実行しない。
