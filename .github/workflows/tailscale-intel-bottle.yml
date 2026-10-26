@@ -1,0 +1,101 @@
+name: Build Tailscale 1.104.2 Intel bottle
+on:
+  push:
+    branches: [build/tailscale-intel-bottle]
+    paths: [.github/workflows/tailscale-intel-bottle.yml]
+permissions:
+  contents: read
+concurrency:
+  group: tailscale-intel-bottle
+  cancel-in-progress: false
+jobs:
+  bottle:
+    runs-on: macos-15-intel
+    timeout-minutes: 90
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      HOMEBREW_NO_INSTALL_FROM_API: '1'
+      HOMEBREW_NO_INSTALL_CLEANUP: '1'
+      HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: '1'
+      HOMEBREW_MAKE_JOBS: '2'
+      GOMAXPROCS: '2'
+      GOFLAGS: '-p=2'
+      CORE_REV: ee362014139a393afe148915f8dc4d2566a2da71
+    steps:
+      - name: Verify host and pin official formulas
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = x86_64
+          [[ "$(sw_vers -productVersion)" == 15.* ]]
+          test "$(brew --prefix)" = /usr/local
+          mkdir -p "$RUNNER_TEMP/tailscale-artifact"
+          brew tap --force homebrew/core
+          core=$(brew --repo homebrew/core)
+          git -C "$core" fetch --depth=1 origin "$CORE_REV"
+          git -C "$core" checkout --detach "$CORE_REV"
+          test "$(git -C "$core" rev-parse HEAD)" = "$CORE_REV"
+          cd "$core"
+          printf '%s  %s\n' \
+            9c46feaf66360a5b2832147322f8b0085874a212f180ecc0b3baa08f9023ec99 Formula/t/tailscale.rb \
+            60d78711c1300f95a5f3f5ef6f0a1892517e5bdff0c6068d2b0c71bd3233b1f9 Formula/g/go.rb | shasum -a 256 -c -
+          cp Formula/t/tailscale.rb Formula/g/go.rb "$RUNNER_TEMP/tailscale-artifact/"
+          brew config > "$RUNNER_TEMP/tailscale-artifact/brew-config.txt"
+          printf '%s\n' "$CORE_REV" > "$RUNNER_TEMP/tailscale-artifact/core-revision.txt"
+      - name: Build using pinned Go and official formula
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Go has no Intel macOS bottle: perform its bootstrap build here, not on mini.
+          if brew list --versions go >/dev/null 2>&1; then
+            brew reinstall --build-from-source homebrew/core/go
+          else
+            brew install --build-from-source homebrew/core/go
+          fi
+          test "$(/usr/local/opt/go/bin/go env GOVERSION)" = go1.27.3
+          # Avoid silently reusing a runner-installed Tailscale keg.
+          if brew list --versions tailscale >/dev/null 2>&1; then
+            echo 'Unexpected preinstalled Tailscale; stop for review.' >&2; exit 1
+          fi
+          brew install --build-bottle homebrew/core/tailscale
+          cd "$RUNNER_TEMP/tailscale-artifact"
+          brew bottle --json homebrew/core/tailscale
+      - name: Reinstall local bottle and verify management and binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/tailscale-artifact"
+          bottles=(tailscale--1.104.2*.bottle.tar.gz)
+          test "${#bottles[@]}" = 1
+          test -f "${bottles[0]}"
+          brew uninstall tailscale
+          # Local bottle, not a source fallback or handcrafted Cellar copy.
+          brew install "./${bottles[0]}"
+          test "$(command -v tailscale)" = /usr/local/bin/tailscale
+          test "$(brew --prefix tailscale)" = /usr/local/opt/tailscale
+          tailscale version | tee cli-version.txt
+          /usr/local/opt/tailscale/bin/tailscaled --version | tee daemon-binary-version.txt
+          grep -qx '1.104.2' cli-version.txt
+          grep -qx '1.104.2' daemon-binary-version.txt
+          grep -q 'go1.27.3' cli-version.txt
+          for binary in tailscale tailscaled; do
+            file "/usr/local/opt/tailscale/bin/$binary" | tee "$binary-architecture.txt"
+            grep -q 'Mach-O 64-bit executable x86_64' "$binary-architecture.txt"
+            /usr/local/opt/go/bin/go version -m "/usr/local/opt/tailscale/bin/$binary" > "$binary-buildinfo.txt"
+          done
+          brew info --json=v2 tailscale > installed-formula.json
+          ruby -rjson -e '
+            f=JSON.parse(File.read("installed-formula.json"))["formulae"].first
+            abort "wrong formula" unless f["full_name"] == "tailscale" && f["tap"] == "homebrew/core"
+            abort "not a poured 1.104.2 bottle" unless f["installed"].any? { |i| i["version"] == "1.104.2" && i["poured_from_bottle"] }
+          '
+          shasum -a 256 *.bottle.tar.gz > SHA256SUMS
+          shasum -a 256 /usr/local/opt/tailscale/bin/tailscale /usr/local/opt/tailscale/bin/tailscaled > BINARY-SHA256SUMS
+          # No VPN daemon startup, login, service restart, or tailnet connection in CI.
+      - name: Retain reviewable artifact (only when workflow is explicitly run)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: tailscale-1.104.2-sequoia-intel-bottle
+          path: ${{ runner.temp }}/tailscale-artifact/
+          retention-days: 7
+          if-no-files-found: error
