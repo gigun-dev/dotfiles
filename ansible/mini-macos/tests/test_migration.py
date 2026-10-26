@@ -48,7 +48,7 @@ class Migration(unittest.TestCase):
                 json.dumps({"ansible_python_interpreter": sys.executable})]
         if check:
             args += ["--check", "--diff"]
-        return subprocess.run(args, env=env, capture_output=True, text=True, timeout=60)
+        return subprocess.run(args, cwd=self.base, env=env, capture_output=True, text=True, timeout=60)
 
     def test_missing_link_preview_apply_and_second_apply(self):
         preview = self.run_tasks("shell.yml", check=True)
@@ -58,6 +58,8 @@ class Migration(unittest.TestCase):
         first = self.run_tasks("shell.yml")
         self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
         self.assertEqual((self.home / ".zshenv").resolve(), self.repo / "zsh/.zshenv")
+        self.assertTrue((self.home / ".config/zsh").is_dir())
+        self.assertFalse((self.base / ".config").exists())
         second = self.run_tasks("shell.yml")
         self.assertEqual(second.returncode, 0, second.stdout + second.stderr)
         self.assertRegex(second.stdout, r"changed=0\s")
@@ -82,6 +84,16 @@ class Migration(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("TASK [Require every source", result.stdout)
         self.assertFalse((self.home / ".zshenv").exists())
+
+    def test_manager_link_to_same_final_source_is_preserved(self):
+        managed = self.base / "manager-link"
+        managed.symlink_to(self.repo / "zsh/.zshenv")
+        dest = self.home / ".zshenv"
+        dest.symlink_to(managed)
+        result = self.run_tasks("shell.yml")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Preserve the existing object", result.stdout)
+        self.assertEqual(os.readlink(dest), str(managed))
 
     def test_preflight_rejects_unacknowledged_unknown_and_unowned_targets(self):
         # Assertions run before any remote command. The local fixture never contacts mini.
