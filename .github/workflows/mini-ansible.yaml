@@ -8,6 +8,9 @@ on:
       - 'flake.lock'
       - '.github/actions/setup-nix/**'
       - 'nix/modules/darwin/network-watchdog.sh'
+      - 'nix/modules/darwin/network-watchdog.nix'
+      - 'nix/modules/darwin/net-watchdog-system-install.sh'
+      - 'bootstrap.sh'
       - '.github/workflows/mini-ansible.yaml'
   push:
     branches: [main]
@@ -17,6 +20,9 @@ on:
       - 'flake.lock'
       - '.github/actions/setup-nix/**'
       - 'nix/modules/darwin/network-watchdog.sh'
+      - 'nix/modules/darwin/network-watchdog.nix'
+      - 'nix/modules/darwin/net-watchdog-system-install.sh'
+      - 'bootstrap.sh'
       - '.github/workflows/mini-ansible.yaml'
 permissions:
   contents: read

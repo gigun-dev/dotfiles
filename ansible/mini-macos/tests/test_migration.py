@@ -145,6 +145,7 @@ class Migration(unittest.TestCase):
         rendered = Environment(undefined=StrictUndefined).from_string(template).render(mini_home="/Users/gigun")
         plist = plistlib.loads(rendered.encode())
         self.assertEqual(plist["Label"], "dev.gigun.net-watchdog")
+        self.assertEqual(plist["EnvironmentVariables"]["NET_WATCHDOG_NO_REMEDIATE"], "1")
         self.assertEqual(plist["StartInterval"], 30)
         self.assertTrue(plist["RunAtLoad"])
         self.assertEqual(plist["ProgramArguments"], ["/bin/bash", "/Users/gigun/Library/Application Support/net-watchdog/network-watchdog.sh"])

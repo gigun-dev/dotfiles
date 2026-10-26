@@ -2,7 +2,7 @@
 
 Intel mini の macOS は Ansible への移行中、既存 Nix generation 26 を残し、移す範囲を個別に決める。
 NixOS の mini-vm、Pro の nix-darwin、既存の自動更新・監視は別の所有者のままとする。
-この初期実装はリポジトリ内の準備であり、読み取り棚卸しまで完了した段階であり、Ansible の実機適用・サービス操作は行っていない。
+Ansible の実機適用はまだ行っていない。既存watchdogの観測のみ設定は、別途承認を受けて最小変更で適用した。
 
 ## 所有者と移行の順序
 
@@ -113,7 +113,9 @@ system 側の両 watchdog plist は存在しなかった。終了コード 0 だ
 
 **稼働中 script と repo script の SHA-256 が異なる**（採取結果の prefix はそれぞれ
 `aaebae7f…` / `9e912aa9…`）。比較で判明した差分は過去の GUI セッション停止を説明するコメント 9 行の欠落だけで、
-実行コードの動作は同じだった。launchd は今回 staging に限定し、既存 script / plist を上書きしない。
+実行コードの動作は同じだった。Ansible の launchd 対象は staging のみ。
+別途承認された最小変更として、2026-10-26 に既存user plistへ `NET_WATCHDOG_NO_REMEDIATE=1` を
+追加し同じagentを再読み込みした。script・起動方式・間隔は維持し、Wi-Fi自動操作だけを無効化した。
 
 ## 既存記録の読み方
 
@@ -131,7 +133,11 @@ watchdog の user agent と system daemon のコードが両方存在するこ�
 DNS 失敗だけでは Wi-Fi を操作しない。状態が連続 2 サンプル続くと Wi-Fi off/on を一度試み、
 健全なサンプルを見るまで再発火しない。`NET_WATCHDOG_NO_REMEDIATE=1` なら復旧を実行しない。
 ルータ自体の停止も同じ条件に入るため、判定だけで Wi-Fi ドライバ障害とは断定できない。
-サンプルと復旧操作の結果をログへ残すが、実際の障害から復旧できることは未検証。今回この動作を変更しない。
+自動復旧の効果は保存ログで実証されていない。現在は全配布plist/宣言で
+`NET_WATCHDOG_NO_REMEDIATE=1` とし、サンプル記録だけを継続する。代替の自動再接続は導入しない。
+上記のoff/on分岐はスクリプト内に残るが、現在のサービス設定では実行されない。
+元plistは `~/Library/LaunchAgents/dev.gigun.net-watchdog.plist.before-observe-only` に保全。
+これを戻すと自動復旧が再び有効になるため、通常の復旧手順として無断で戻さない。
 
 ## 管理境界と復旧
 

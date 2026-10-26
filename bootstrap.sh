@@ -190,6 +190,7 @@ install_net_watchdog() {
   <key>RunAtLoad</key><true/>
   <key>EnvironmentVariables</key>
   <dict>
+    <key>NET_WATCHDOG_NO_REMEDIATE</key><string>1</string>
     <key>PATH</key><string>/usr/bin:/bin:/usr/sbin:/sbin</string>
     <key>NET_WATCHDOG_DIR</key><string>${log_dir}</string>
   </dict>

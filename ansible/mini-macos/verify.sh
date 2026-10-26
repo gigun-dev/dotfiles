@@ -9,4 +9,4 @@ uv run --locked ansible-lint --offline apply.yml audit.yml update.yml
 for playbook in apply audit update; do
   uv run --locked ansible-playbook -i inventory.yml "$playbook.yml" --syntax-check
 done
-uv run --locked python -I -B tests/test_migration.py
+uv run --locked python -I -B -m unittest discover -s tests -p 'test_*.py'
