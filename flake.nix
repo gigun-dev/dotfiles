@@ -519,6 +519,18 @@
                       disabledModules = [ ./nix/modules/darwin/apple-container.nix ];
                       # Pinned nix-darwin internal module option; verify on every lock upgrade.
                       system.activationScripts.homebrew.text = lib.mkForce "";
+                      home-manager.users.${username}.home.activation = {
+                        installLaunchdUI = lib.mkForce {
+                          data = "";
+                          after = [ "writeBoundary" ];
+                          before = [ ];
+                        };
+                        installUvPython = lib.mkForce {
+                          data = "";
+                          after = [ "writeBoundary" ];
+                          before = [ ];
+                        };
+                      };
                       homebrew.onActivation = {
                         cleanup = lib.mkForce "none";
                         upgrade = lib.mkForce false;
