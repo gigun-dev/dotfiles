@@ -201,3 +201,22 @@ miniでは`.config`と`.config/zsh`も既存の通常ディレクトリである
 共通shell taskはこの2ディレクトリも作成するため、適用前のdiffに含めて確認する。
 shell起動設定やPATH本文を変更せず、
 アプリ再起動・package更新・cleanup・sudoは行わない。
+
+### 5リンクの管理権限
+
+mini の shell owner は Ansible。通常の対象指定と apply acknowledgement は引き続き必要。
+`.zshenv` / `.zshrc` / `.config/sheldon` / `.config/zeno` /
+`.config/zsh/functions` を対象とし、`.zprofile` は移管しない。
+mini の新しい HM 構成では `shellLinksManagedByAnsible = true` によってこの5件の生成を除外する。
+bootstrap fallback は macOS の `LocalHostName=mini` の場合のみ5件を除外する。
+Pro・他ホストの設定は維持する。ホスト名を変更するときはこの所有権判定も見直す。
+
+凍結済みの HM generation は書き換わらないため、その activation を直接再実行しない。
+この変更のために mini の Nix/Darwin switch は行わない。新しい HM 構成の除外を
+旧 generation に適用済みとは扱わない。
+
+初回移管では、残る3件が既知の HM symlink で、解決先が同じ repo のディレクトリであることを
+全件確認する。未知のリンク・通常ファイル・ディレクトリなら停止する。元のsymlinkを
+ホスト内の日時付き backup に rename して保全し、通常の shell apply で直リンクを作る。
+通常タスクの他管理者リンク拒否は緩めない。復元が必要なら新リンクが想定どおりであることを
+確認し、そのリンクだけを外して保存済みリンクを戻す（自動復元しない）。

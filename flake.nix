@@ -444,6 +444,7 @@
               # 理由: 新ホストを足すときに書き忘れたら評価エラーで気づけるように。
               hostName,
               alwaysOn ? false,
+              shellLinksManagedByAnsible ? false,
             }:
             inputs.nix-darwin.lib.darwinSystem {
               modules = [
@@ -478,6 +479,7 @@
                     useUserPackages = true;
                     backupFileExtension = "backup";
                     extraSpecialArgs = {
+                      inherit shellLinksManagedByAnsible;
                       llmAgents = llmAgentsFor system;
                       cclens = cclensFor system;
                     };
@@ -545,6 +547,7 @@
             "${username}-x86_64-darwin" = mkDarwinSystem "x86_64-darwin" {
               hostName = "mini";
               alwaysOn = true;
+              shellLinksManagedByAnsible = true;
             };
           };
 
@@ -588,6 +591,7 @@
                 config.allowUnfree = true;
               };
               extraSpecialArgs = {
+                shellLinksManagedByAnsible = false;
                 llmAgents = llmAgentsFor "x86_64-linux";
                 cclens = cclensFor "x86_64-linux";
               };

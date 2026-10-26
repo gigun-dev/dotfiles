@@ -7,7 +7,7 @@ mini_targets: []
 mini_apply_ack: false
 mini_update_ack: false
 mini_owners:
-  shell: legacy
+  shell: ansible
   packages: manual
   defaults: legacy
   launchd: manual
