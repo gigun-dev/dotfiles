@@ -99,3 +99,22 @@ class DetectionTests(unittest.TestCase):
         key='a'*64
         with tempfile.TemporaryDirectory() as tmp,patch.dict(os.environ,{'GITHUB_REPOSITORY':'owner/repo','GITHUB_OUTPUT':tmp+'/out'}),patch.object(sys,'argv',['reuse',key,tmp]),patch.object(reuse,'api',return_value={'artifacts':[{'expired':True,'name':'fzf-validated-'+key}]}),patch.object(reuse.subprocess,'run') as download:
             reuse.main();download.assert_not_called()
+
+class DetectionOutputTests(unittest.TestCase):
+    def test_detect_writes_only_changed_candidate(self):
+        import io
+        lock=state.read(state.ROOT/'fzf.lock.json')
+        fzf='  url "https://github.com/junegunn/fzf/archive/refs/tags/v0.74.5.tar.gz"\n  sha256 "'+'a'*64+'"\n  depends_on "go" => :build\n  uses_from_macos "ncurses"\n'
+        go='  url "https://go.dev/dl/go1.27.3.src.tar.gz"\n  sha256 "'+'b'*64+'"\n  depends_on macos: :monterey\n'
+        base=state.candidate(lock,'a'*40,fzf,go)
+        with tempfile.TemporaryDirectory() as tmp:
+            source=pathlib.Path(tmp)/'lock.json';source.write_text(json.dumps(base))
+            output=pathlib.Path(tmp)/'candidate.json'
+            for changed in [False,True]:
+                text=fzf.replace('0.74.5','0.74.6') if changed else fzf
+                captured=io.StringIO()
+                with patch.object(sys,'argv',['state','detect','--lock',str(source),'--output',str(output)]),patch.object(state.subprocess,'check_output',return_value='b'*40),patch.object(state.urllib.request,'urlopen',side_effect=[io.BytesIO(text.encode()),io.BytesIO(go.encode())]),patch('sys.stdout',captured):
+                    state.main()
+                self.assertEqual(json.loads(captured.getvalue())['changed'],changed)
+                self.assertEqual(output.exists(),changed)
+            self.assertEqual(state.read(output)['version'],'0.74.6')

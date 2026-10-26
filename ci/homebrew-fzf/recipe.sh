@@ -51,6 +51,8 @@ prepare-ci)
   git -C "$core" fetch --depth=1 origin "$core_rev"
   git -C "$core" stash push -m fzf-disposable-runner-formulas
   git -C "$core" checkout --detach "$core_rev"
+  git -C "$core" status --short
+  preflight
   ;;
 build|verify|reuse)
   test -n "$work" || { echo '--work required' >&2; exit 2; }
@@ -74,6 +76,7 @@ PY
     exit
   fi
   require_execute
+  printf '%s\n' "$environment"
   printf '%s' "$environment" | python3 -c 'import json,sys; c=json.load(sys.stdin)["checks"]; assert c["core_pinned"] and c["core_clean"] and c["fzf_absent"], "prepare a clean pinned builder explicitly; existing fzf is never replaced"'
   core=$(brew --repo homebrew/core)
   (cd "$core"; printf '%s  %s\n' "$formula_sha" Formula/f/fzf.rb "$go_sha" Formula/g/go.rb | shasum -a 256 -c -)
