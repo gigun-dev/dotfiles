@@ -63,6 +63,7 @@ jobs:
           brew install --build-bottle homebrew/core/tailscale
           cd "$RUNNER_TEMP/tailscale-artifact"
           brew bottle --json homebrew/core/tailscale
+          shasum -a 256 *.bottle.tar.gz > SHA256SUMS
       - name: Reinstall local bottle and verify management and binaries
         shell: bash
         run: |
@@ -71,7 +72,9 @@ jobs:
           bottles=(tailscale--1.104.2*.bottle.tar.gz)
           test "${#bottles[@]}" = 1
           test -f "${bottles[0]}"
-          brew uninstall tailscale
+          # CI-only keg created above has no dependents; avoid scanning unrelated
+          # runner packages against the pinned core revision.
+          brew uninstall --ignore-dependencies tailscale
           # Local bottle, not a source fallback or handcrafted Cellar copy.
           brew install "./${bottles[0]}"
           test "$(command -v tailscale)" = /usr/local/bin/tailscale
@@ -95,7 +98,8 @@ jobs:
           shasum -a 256 *.bottle.tar.gz > SHA256SUMS
           shasum -a 256 /usr/local/opt/tailscale/bin/tailscale /usr/local/opt/tailscale/bin/tailscaled > BINARY-SHA256SUMS
           # No VPN daemon startup, login, service restart, or tailnet connection in CI.
-      - name: Retain reviewable artifact (only when workflow is explicitly run)
+      - name: Retain build evidence (run must succeed before installation)
+        if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: tailscale-1.104.2-sequoia-intel-bottle
