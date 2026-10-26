@@ -33,7 +33,8 @@ nix run .#update-ai-tools      # 同上。AI ツールの input だけ
 
 nixpkgs 26.11 が x86_64-darwin を drop したため。26.05 固定での延命は nixpkgs / home-manager / nix-darwin の 3 つを固定する必要がある上、llm-agents が x86_64-darwin 非対応で AI ツールは結局入らない。2026年末で切れる延命に複雑度を払わない判断。
 
-macOS 側は generation 26 で凍結。設定変更は手で当てる。Xcode 26.3 + iOS 26.2 SDK は動くので iOS ビルドには使える（26.4 以降は Tahoe 必須なのでここが上限）。
+macOS 側は generation 26 を移行中の依存として残し、[Ansible で対象別に管理を引き継ぐ](docs/mini-ansible.md)。
+`ansible/mini-macos` は初期準備段階で、実機移管済みではない。Pro / mini-vm の Nix は継続する。Xcode 26.3 + iOS 26.2 SDK は動くので iOS ビルドには使える（26.4 以降は Tahoe 必須なのでここが上限）。
 
 **手で当てたものの現在地**（凍結ホストに在るものはこの一覧から辿る。増やしたらここに足す）:
 

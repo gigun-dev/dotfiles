@@ -1,0 +1,28 @@
+---
+mini_controller_repo: "{{ playbook_dir }}/../.."
+mini_home: /Users/gigun
+mini_repo: /Users/gigun/ghq/github.com/gigun-dev/dotfiles
+# No target is transferred merely by running a playbook.
+mini_targets: []
+mini_apply_ack: false
+mini_update_ack: false
+mini_owners:
+  shell: legacy
+  packages: manual
+  defaults: legacy
+  launchd: manual
+mini_shell_links:
+  - {src: zsh/.zshenv, dest: .zshenv}
+  - {src: zsh/.zshrc, dest: .zshrc}
+  - {src: sheldon, dest: .config/sheldon}
+  - {src: zeno, dest: .config/zeno}
+  - {src: zsh/functions, dest: .config/zsh/functions}
+# Existing formulae only; network/auth tools remain outside this migration.
+mini_formulae: [lima, xcodegen, mo]
+mini_casks: []
+mini_update_formulae: []
+mini_update_casks: []
+mini_defaults:
+  - {domain: com.apple.dock, key: autohide, type: bool, value: true}
+  - {domain: NSGlobalDomain, key: KeyRepeat, type: int, value: 2}
+mini_stage_dir: /Users/gigun/Library/Application Support/dotfiles-migration/network-watchdog

@@ -1,0 +1,20 @@
+---
+- name: Require existing Homebrew without bootstrapping it
+  ansible.builtin.stat:
+    path: /usr/local/bin/brew
+  register: mini_brew
+- name: Validate package boundary
+  ansible.builtin.assert:
+    that:
+      - mini_brew.stat.exists
+      - mini_formulae | difference(['lima', 'xcodegen', 'mo']) | length == 0
+      - mini_casks | length == 0
+    fail_msg: Network tools and GUI changes require a separately reviewed expansion of ownership.
+- name: Ensure owned formulae are present
+  community.general.homebrew:
+    name: "{{ mini_formulae }}"
+    path: /usr/local/bin
+    state: present
+    update_homebrew: false
+    upgrade_all: false
+  when: mini_formulae | length > 0

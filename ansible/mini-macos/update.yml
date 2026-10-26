@@ -1,0 +1,28 @@
+---
+- name: Update explicitly selected owned packages separately from normal apply
+  hosts: mini_macos
+  gather_facts: false
+  become: false
+  environment:
+    HOMEBREW_NO_AUTO_UPDATE: '1'
+    HOMEBREW_NO_ANALYTICS: '1'
+  pre_tasks:
+    - name: Check update request
+      ansible.builtin.assert:
+        that:
+          - mini_targets == ['packages']
+          - ansible_check_mode or mini_update_ack | bool
+          - mini_update_formulae | length > 0
+          - mini_update_formulae | difference(mini_formulae) | length == 0
+          - mini_update_formulae | difference(['lima', 'xcodegen', 'mo']) | length == 0
+          - mini_update_casks | length == 0
+    - name: Validate host and ownership
+      ansible.builtin.import_tasks: tasks/preflight.yml
+  tasks:
+    - name: Update only selected formulae using existing Homebrew metadata
+      community.general.homebrew:
+        name: "{{ mini_update_formulae }}"
+        path: /usr/local/bin
+        state: latest
+        update_homebrew: false
+        upgrade_all: false

@@ -1,0 +1,36 @@
+---
+- name: Validate requested targets and explicit application acknowledgement
+  ansible.builtin.assert:
+    that:
+      - inventory_hostname == 'mini'
+      - ansible_host == 'mini'
+      - ansible_user == 'gigun'
+      - mini_home == '/Users/gigun'
+      - mini_repo == '/Users/gigun/ghq/github.com/gigun-dev/dotfiles'
+      - mini_targets is sequence and mini_targets is not string
+      - mini_targets | difference(['shell', 'packages', 'defaults', 'launchd_stage']) | length == 0
+      - ansible_check_mode or mini_targets | length == 0 or mini_apply_ack | bool
+    fail_msg: Review each target's diff and transfer its owner before acknowledging application.
+- name: Require a single declared owner for every active target
+  ansible.builtin.assert:
+    that: mini_owners[item] == 'ansible'
+    fail_msg: Retire the previous writer for this target before transferring ownership to Ansible.
+  loop: "{{ mini_targets | difference(['launchd_stage']) }}"
+# These two check_mode:false commands are read-only, including in --check.
+- name: Read target operating system and architecture
+  ansible.builtin.command:
+    argv: [/usr/bin/uname, -sm]
+  register: mini_platform
+  changed_when: false
+  check_mode: false
+- name: Read target effective user
+  ansible.builtin.command:
+    argv: [/usr/bin/id, -un]
+  register: mini_identity
+  changed_when: false
+  check_mode: false
+- name: Reject Pro Linux guest or elevated execution
+  ansible.builtin.assert:
+    that:
+      - mini_platform.stdout == 'Darwin x86_64'
+      - mini_identity.stdout == 'gigun'

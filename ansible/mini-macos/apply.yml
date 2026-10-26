@@ -1,0 +1,24 @@
+---
+- name: Apply explicitly transferred mini macOS targets
+  hosts: mini_macos
+  gather_facts: false
+  become: false
+  environment:
+    HOMEBREW_NO_AUTO_UPDATE: '1'
+    HOMEBREW_NO_ANALYTICS: '1'
+  pre_tasks:
+    - name: Validate host and requested transfer
+      ansible.builtin.import_tasks: tasks/preflight.yml
+  tasks:
+    - name: Manage shell links
+      ansible.builtin.include_tasks: tasks/shell.yml
+      when: "'shell' in mini_targets"
+    - name: Ensure selected packages are present without upgrading
+      ansible.builtin.include_tasks: tasks/packages.yml
+      when: "'packages' in mini_targets"
+    - name: Manage selected user defaults
+      ansible.builtin.include_tasks: tasks/defaults.yml
+      when: "'defaults' in mini_targets"
+    - name: Stage launchd candidates without activating them
+      ansible.builtin.include_tasks: tasks/launchd.yml
+      when: "'launchd_stage' in mini_targets"
