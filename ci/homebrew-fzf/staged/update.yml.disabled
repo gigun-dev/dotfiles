@@ -1,0 +1,35 @@
+# Inert proposal: copying into workflows and enabling policy require approval.
+name: Detect fzf update
+on:
+  workflow_dispatch:
+# No schedule until cadence and usage allowance are approved.
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 -c 'import json; assert json.load(open("ci/homebrew-fzf/policy.json"))["update_pr_enabled"]'
+          python3 ci/homebrew-fzf/state.py detect --output "$RUNNER_TEMP/candidate.json" > "$RUNNER_TEMP/detection.json"
+          test -f "$RUNNER_TEMP/candidate.json" || exit 0
+          key=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["source_key"])' "$RUNNER_TEMP/detection.json")
+          branch="update/fzf-$key"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then exit 0; fi
+          git switch -c "$branch"
+          cp "$RUNNER_TEMP/candidate.json" ci/homebrew-fzf/fzf.lock.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add ci/homebrew-fzf/fzf.lock.json
+          git commit -m 'build: propose fzf formula update'
+          git push origin "$branch"
+          gh pr create --draft --head "$branch" --title 'build: update Intel fzf inputs' --body 'Formula or build dependency inputs changed. Review the lock and dispatch the bounded build workflow on this branch. No host adoption is included.'
+          # Explicit dispatch is necessary: token-created PRs do not trigger PR CI.
+          gh workflow run fzf-intel-bottle.yml --ref "$branch"
+# This inert proposal needs contents/PR/actions write approval before activation.
+# The dispatched workflow still requires build_enabled=true in the reviewed policy.

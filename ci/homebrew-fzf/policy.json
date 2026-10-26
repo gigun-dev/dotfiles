@@ -1,0 +1,6 @@
+{
+  "build_enabled": false,
+  "update_pr_enabled": false,
+  "durable_destination": null,
+  "artifact_retention_days": 14
+}

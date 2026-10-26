@@ -1,63 +1,74 @@
-name: Trial fzf Intel bottle
+name: fzf Intel bottle
 on:
-  push:
-    branches: [build/fzf-intel-bottle]
-    paths: [.github/workflows/fzf-intel-bottle.yml, scripts/ci/fzf-intel-bottle.sh]
+  workflow_dispatch:
 permissions:
   contents: read
   actions: read
 concurrency:
-  group: fzf-intel-bottle-trial
+  group: fzf-intel-bottle
   cancel-in-progress: false
-env:
-  HOMEBREW_NO_AUTO_UPDATE: '1'
-  HOMEBREW_NO_AUTOREMOVE: '1'
-  HOMEBREW_NO_INSTALL_FROM_API: '1'
-  HOMEBREW_NO_INSTALL_CLEANUP: '1'
-  HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: '1'
-  HOMEBREW_MAKE_JOBS: '2'
-  GOMAXPROCS: '2'
-  GOFLAGS: '-p=2'
 jobs:
-  build:
-    runs-on: macos-15-intel
-    timeout-minutes: 30
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.policy.outputs.enabled }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - run: bash scripts/ci/fzf-intel-bottle.sh prepare
-      - name: Reuse successful source-build artifact (no rebuild)
+      - id: policy
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          p=json.load(open('ci/homebrew-fzf/policy.json'))
+          print('enabled='+str(p['build_enabled']).lower())
+          PY
+  build:
+    needs: gate
+    if: needs.gate.outputs.enabled == 'true'
+    runs-on: macos-15-intel
+    timeout-minutes: 30
+    outputs:
+      reused: ${{ steps.reuse.outputs.reused }}
+      key: ${{ steps.identity.outputs.key }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - id: identity
+        run: |
+          bash ci/homebrew-fzf/recipe.sh preflight > "$RUNNER_TEMP/preflight.json"
+          python3 -c 'import json,sys; json.dump(json.load(open(sys.argv[1]))["identity"],open(sys.argv[2],"w"))' "$RUNNER_TEMP/preflight.json" "$RUNNER_TEMP/environment.json"
+          echo "key=$(python3 ci/homebrew-fzf/state.py key --environment "$RUNNER_TEMP/environment.json")" >> "$GITHUB_OUTPUT"
+      - id: reuse
         env:
           GH_TOKEN: ${{ github.token }}
+          BUILD_KEY: ${{ steps.identity.outputs.key }}
+        run: python3 ci/homebrew-fzf/reuse.py "$BUILD_KEY" "$RUNNER_TEMP/reused"
+      - if: steps.reuse.outputs.reused != 'true'
         run: |
-          gh run download 40389694444 --repo "$GITHUB_REPOSITORY" --name fzf-0.74.5-sequoia-intel-build --dir "$RUNNER_TEMP/source-build"
-          cd "$RUNNER_TEMP/source-build"
-          printf '%s  %s\n' a47f1156d5781a7539bf3ff7c654581e9908adb35bafae74e882d17cbba19ad8 fzf--0.74.5.sequoia.bottle.tar.gz | shasum -a 256 -c -
-          cp ./*.bottle.* SHA256SUMS build-seconds.txt bottle-size-kib.txt buildinfo.txt "$RUNNER_TEMP/fzf-artifact/"
-          printf '%s\n' '40389694444 / e6fc95e / successful build job' > "$RUNNER_TEMP/fzf-artifact/source-build.txt"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+          bash ci/homebrew-fzf/recipe.sh prepare-ci --execute --disposable-runner
+          bash ci/homebrew-fzf/recipe.sh build --work "$RUNNER_TEMP/fzf" --execute --disposable-runner
+      - if: steps.reuse.outputs.reused != 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: fzf-0.74.5-sequoia-intel-build
-          path: ${{ runner.temp }}/fzf-artifact/
+          name: fzf-build-${{ steps.identity.outputs.key }}
+          path: ${{ runner.temp }}/fzf/build/
           retention-days: 14
           if-no-files-found: error
-  reuse:
+  verify:
     needs: build
+    if: needs.build.outputs.reused != 'true'
     runs-on: macos-15-intel
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - run: bash scripts/ci/fzf-intel-bottle.sh prepare
-      - name: Reuse bottle without rebuilding Go or fzf
-        env:
+      - env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name fzf-0.74.5-sequoia-intel-build --dir "$RUNNER_TEMP/fzf-artifact/build-evidence"
-          cp "$RUNNER_TEMP/fzf-artifact/build-evidence/"*.bottle.* "$RUNNER_TEMP/fzf-artifact/"
-          cp "$RUNNER_TEMP/fzf-artifact/build-evidence/SHA256SUMS" "$RUNNER_TEMP/fzf-artifact/"
-      - run: bash scripts/ci/fzf-intel-bottle.sh verify
+          BUILD_KEY: ${{ needs.build.outputs.key }}
+        run: gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "fzf-build-$BUILD_KEY" --dir "$RUNNER_TEMP/source-build"
+      - run: |
+          bash ci/homebrew-fzf/recipe.sh prepare-ci --execute --disposable-runner
+          bash ci/homebrew-fzf/recipe.sh verify --work "$RUNNER_TEMP/fzf" --artifact "$RUNNER_TEMP/source-build" --execute
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: fzf-0.74.5-sequoia-intel-verified
-          path: ${{ runner.temp }}/fzf-artifact/
+          name: fzf-validated-${{ needs.build.outputs.key }}
+          path: ${{ runner.temp }}/fzf/store/${{ needs.build.outputs.key }}/
           retention-days: 14
           if-no-files-found: error
