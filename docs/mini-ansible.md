@@ -173,3 +173,31 @@ stagingの親シンボリックリンクは拒否し、既存shellディレク�
 参考: [check mode](https://docs.ansible.com/projects/ansible/latest/playbook_guide/playbooks_checkmode.html)、
 [Homebrew](https://docs.ansible.com/projects/ansible/latest/collections/community/general/homebrew_module.html)、
 [macOS defaults](https://docs.ansible.com/projects/ansible/latest/collections/community/general/osx_defaults_module.html)。
+
+## 初回shell移管の限定プレビュー
+
+2026-10-26のminiでは、`.zshenv`と`.zshrc`はrepoへの直リンクだが、
+`.config/sheldon`・`.config/zeno`・`.config/zsh/functions`はHMの中間リンクを経由する。
+最終参照先が同じでもHM所有リンクの置換は移管とは別なので拒否する。
+親ディレクトリの作成先は常に`mini_home`配下とし、実行時のcwdに依存しない。
+
+以下は最初の2リンクだけのプレビュー。owner指定はこの呼び出し限りで、
+永続的な所有権移管や実適用の承認にはならない。
+
+```sh
+uv run --locked --project ansible/mini-macos ansible-playbook \
+  -i ansible/mini-macos/inventory.yml ansible/mini-macos/apply.yml --check --diff \
+  -e '{"mini_targets":["shell"],"mini_owners":{"shell":"ansible","packages":"manual","defaults":"legacy","launchd":"manual"},"mini_shell_links":[{"src":"zsh/.zshenv","dest":".zshenv"},{"src":"zsh/.zshrc","dest":".zshrc"}]}'
+```
+
+実適用を承認する場合は、この2リンクに限る所有権の移管を記録し、旧bootstrapと
+凍結HMのshellリンクactivationを併用しないことを確認する。HMにはこの2リンクを
+再作成するcustom activationも残るため、`home-files`にないことだけでは未管理と
+判断しない。今後Nix/HMを再適用する際は所有境界を再確認する。
+他3リンク、defaults、packages、launchdは初回移管に含めない。
+実適用コマンドは上記から`--check --diff`を外し、`-e '{"mini_apply_ack":true}'`を追加する。
+miniでは`.config`と`.config/zsh`も既存の通常ディレクトリであることを確認済み。
+既存2リンクとこの親2ディレクトリが正しければ変更予定はゼロ。親が欠けていれば
+共通shell taskはこの2ディレクトリも作成するため、適用前のdiffに含めて確認する。
+shell起動設定やPATH本文を変更せず、
+アプリ再起動・package更新・cleanup・sudoは行わない。
