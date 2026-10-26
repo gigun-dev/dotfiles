@@ -2,6 +2,7 @@
   config,
   pkgs,
   lib,
+  shellLinksManagedByAnsible ? false,
   ...
 }:
 let
@@ -20,15 +21,17 @@ let
 in
 {
   xdg.configFile = {
-    "sheldon".source = mkLink "sheldon";
-    "zeno".source = mkLink "zeno";
-    "zsh/functions".source = mkLink "zsh/functions";
     "ccstatusline".source = mkLink "ccstatusline";
     "mise".source = mkLink "mise";
     # global ignore。programs.git.ignores だと store 経由で nix なしの環境と中身を共有できない
     "git/ignore".source = mkLink "git/ignore";
     # Langfuse の非秘密接続先。鍵は ~/.config/claude-code/langfuse.env に分離する。
     "claude-code/langfuse-endpoints.env".source = mkLink "claude/langfuse-endpoints.env";
+  }
+  // lib.optionalAttrs (!shellLinksManagedByAnsible) {
+    "sheldon".source = mkLink "sheldon";
+    "zeno".source = mkLink "zeno";
+    "zsh/functions".source = mkLink "zsh/functions";
   }
   // lib.optionalAttrs isDarwin {
     "karabiner".source = mkLink "karabiner";
@@ -156,8 +159,10 @@ in
       [ -e "$dst" ] && mv "$dst" "$dst.backup"
       ln -sf "$src" "$dst"
     }
-    link_force "${dotfilesPath}/zsh/.zshrc" "${config.home.homeDirectory}/.zshrc"
-    link_force "${dotfilesPath}/zsh/.zshenv" "${config.home.homeDirectory}/.zshenv"
+    ${lib.optionalString (!shellLinksManagedByAnsible) ''
+      link_force "${dotfilesPath}/zsh/.zshrc" "${config.home.homeDirectory}/.zshrc"
+      link_force "${dotfilesPath}/zsh/.zshenv" "${config.home.homeDirectory}/.zshenv"
+    ''}
 
     # Claude Code (~/.claude/ は memory/log 等があるので個別リンク)
     $DRY_RUN_CMD mkdir -p "${config.home.homeDirectory}/.claude"
