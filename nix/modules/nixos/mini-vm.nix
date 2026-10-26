@@ -1758,7 +1758,7 @@ in
     description = "dotfiles-autoswitch を毎日回す";
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "*-*-* 04:00:00";
+      OnCalendar = "*-*-* 04:00:00 Asia/Tokyo";
       # 4 時ちょうどに substituter へ殺到しないよう散らす。
       RandomizedDelaySec = 1800;
       # VM が止まっていて発火を逃した分は、次に上がったときに 1 回だけ回す。
