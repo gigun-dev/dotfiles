@@ -74,7 +74,7 @@ jobs:
             brew uninstall --ignore-dependencies tailscale
           fi
           # Local bottle, not a source fallback or handcrafted Cellar copy.
-          brew install "./${bottles[0]}"
+          brew install "$PWD/${bottles[0]}"
           test "$(command -v tailscale)" = /usr/local/bin/tailscale
           test "$(brew --prefix tailscale)" = /usr/local/opt/tailscale
           tailscale version | tee cli-version.txt
