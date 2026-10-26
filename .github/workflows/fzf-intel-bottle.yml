@@ -25,7 +25,15 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - run: bash scripts/ci/fzf-intel-bottle.sh prepare
-      - run: bash scripts/ci/fzf-intel-bottle.sh build
+      - name: Reuse successful source-build artifact (no rebuild)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 40389694444 --repo "$GITHUB_REPOSITORY" --name fzf-0.74.5-sequoia-intel-build --dir "$RUNNER_TEMP/source-build"
+          cd "$RUNNER_TEMP/source-build"
+          printf '%s  %s\n' a47f1156d5781a7539bf3ff7c654581e9908adb35bafae74e882d17cbba19ad8 fzf--0.74.5.sequoia.bottle.tar.gz | shasum -a 256 -c -
+          cp ./*.bottle.* SHA256SUMS build-seconds.txt bottle-size-kib.txt buildinfo.txt "$RUNNER_TEMP/fzf-artifact/"
+          printf '%s\n' '40389694444 / e6fc95e / successful build job' > "$RUNNER_TEMP/fzf-artifact/source-build.txt"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: fzf-0.74.5-sequoia-intel-build

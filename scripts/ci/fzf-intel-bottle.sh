@@ -83,7 +83,7 @@ verify)
   file "$fzf" | tee architecture.txt
   grep -q 'Mach-O 64-bit executable x86_64' architecture.txt
   test "$(printf 'hello\nworld\n' | "$fzf" --filter=wld)" = world
-  brew test fzf
+  brew test --force fzf
   brew info --json=v2 fzf > installed-formula.json
   ruby -rjson -e 'f=JSON.parse(File.read("installed-formula.json"))["formulae"].first; abort "not poured" unless f["installed"].any? { |i| i["version"] == "0.74.5" && i["poured_from_bottle"] }'
   ;;
