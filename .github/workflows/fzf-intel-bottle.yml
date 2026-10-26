@@ -1,0 +1,55 @@
+name: Trial fzf Intel bottle
+on:
+  push:
+    branches: [build/fzf-intel-bottle]
+    paths: [.github/workflows/fzf-intel-bottle.yml, scripts/ci/fzf-intel-bottle.sh]
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: fzf-intel-bottle-trial
+  cancel-in-progress: false
+env:
+  HOMEBREW_NO_AUTO_UPDATE: '1'
+  HOMEBREW_NO_AUTOREMOVE: '1'
+  HOMEBREW_NO_INSTALL_FROM_API: '1'
+  HOMEBREW_NO_INSTALL_CLEANUP: '1'
+  HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: '1'
+  HOMEBREW_MAKE_JOBS: '2'
+  GOMAXPROCS: '2'
+  GOFLAGS: '-p=2'
+jobs:
+  build:
+    runs-on: macos-15-intel
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: bash scripts/ci/fzf-intel-bottle.sh prepare
+      - run: bash scripts/ci/fzf-intel-bottle.sh build
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: fzf-0.74.5-sequoia-intel-build
+          path: ${{ runner.temp }}/fzf-artifact/
+          retention-days: 14
+          if-no-files-found: error
+  reuse:
+    needs: build
+    runs-on: macos-15-intel
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: bash scripts/ci/fzf-intel-bottle.sh prepare
+      - name: Reuse bottle without rebuilding Go or fzf
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name fzf-0.74.5-sequoia-intel-build --dir "$RUNNER_TEMP/fzf-artifact/build-evidence"
+          cp "$RUNNER_TEMP/fzf-artifact/build-evidence/"*.bottle.* "$RUNNER_TEMP/fzf-artifact/"
+          cp "$RUNNER_TEMP/fzf-artifact/build-evidence/SHA256SUMS" "$RUNNER_TEMP/fzf-artifact/"
+      - run: bash scripts/ci/fzf-intel-bottle.sh verify
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: fzf-0.74.5-sequoia-intel-verified
+          path: ${{ runner.temp }}/fzf-artifact/
+          retention-days: 14
+          if-no-files-found: error
