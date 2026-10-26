@@ -1,10 +1,11 @@
-name: Build Tailscale 1.104.2 Intel bottle
+name: Verify Tailscale 1.104.2 Intel bottle
 on:
   push:
     branches: [build/tailscale-intel-bottle]
     paths: [.github/workflows/tailscale-intel-bottle.yml]
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: tailscale-intel-bottle
   cancel-in-progress: false
@@ -14,6 +15,7 @@ jobs:
     timeout-minutes: 90
     env:
       HOMEBREW_NO_AUTO_UPDATE: '1'
+      HOMEBREW_NO_AUTOREMOVE: '1'
       HOMEBREW_NO_INSTALL_FROM_API: '1'
       HOMEBREW_NO_INSTALL_CLEANUP: '1'
       HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: '1'
@@ -45,25 +47,19 @@ jobs:
           cp Formula/t/tailscale.rb Formula/g/go.rb "$RUNNER_TEMP/tailscale-artifact/"
           brew config > "$RUNNER_TEMP/tailscale-artifact/brew-config.txt"
           printf '%s\n' "$CORE_REV" > "$RUNNER_TEMP/tailscale-artifact/core-revision.txt"
-      - name: Build using pinned Go and official formula
+      - name: Reuse checksum-pinned bottle from completed build
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          # Go has no Intel macOS bottle: perform its bootstrap build here, not on mini.
-          if brew list --versions go >/dev/null 2>&1; then
-            brew reinstall --build-from-source homebrew/core/go
-          else
-            brew install --build-from-source homebrew/core/go
-          fi
-          test "$(/usr/local/opt/go/bin/go env GOVERSION)" = go1.27.3
-          # Avoid silently reusing a runner-installed Tailscale keg.
-          if brew list --versions tailscale >/dev/null 2>&1; then
-            echo 'Unexpected preinstalled Tailscale; stop for review.' >&2; exit 1
-          fi
-          brew install --build-bottle homebrew/core/tailscale
-          cd "$RUNNER_TEMP/tailscale-artifact"
-          brew bottle --json homebrew/core/tailscale
-          shasum -a 256 *.bottle.tar.gz > SHA256SUMS
+          gh run download 40280928385 --repo gigun-dev/dotfiles \
+            --name tailscale-1.104.2-sequoia-intel-bottle \
+            --dir "$RUNNER_TEMP/reused-bottle"
+          cd "$RUNNER_TEMP/reused-bottle"
+          printf '%s  %s\n' d7a634626c76f4636094768be1dd5c97413ec2470d2c074deac8a39279ba9e37 tailscale--1.104.2.sequoia.bottle.tar.gz | shasum -a 256 -c -
+          cp tailscale--1.104.2.sequoia.bottle.* SHA256SUMS "$RUNNER_TEMP/tailscale-artifact/"
+          printf '%s\n' '40280928385 / commit 15744e6' > "$RUNNER_TEMP/tailscale-artifact/source-build.txt"
       - name: Reinstall local bottle and verify management and binaries
         shell: bash
         run: |
@@ -74,7 +70,9 @@ jobs:
           test -f "${bottles[0]}"
           # CI-only keg created above has no dependents; avoid scanning unrelated
           # runner packages against the pinned core revision.
-          brew uninstall --ignore-dependencies tailscale
+          if brew list --versions tailscale >/dev/null 2>&1; then
+            brew uninstall --ignore-dependencies tailscale
+          fi
           # Local bottle, not a source fallback or handcrafted Cellar copy.
           brew install "./${bottles[0]}"
           test "$(command -v tailscale)" = /usr/local/bin/tailscale
@@ -87,7 +85,7 @@ jobs:
           for binary in tailscale tailscaled; do
             file "/usr/local/opt/tailscale/bin/$binary" | tee "$binary-architecture.txt"
             grep -q 'Mach-O 64-bit executable x86_64' "$binary-architecture.txt"
-            /usr/local/opt/go/bin/go version -m "/usr/local/opt/tailscale/bin/$binary" > "$binary-buildinfo.txt"
+            go version -m "/usr/local/opt/tailscale/bin/$binary" > "$binary-buildinfo.txt"
           done
           brew info --json=v2 tailscale > installed-formula.json
           ruby -rjson -e '
