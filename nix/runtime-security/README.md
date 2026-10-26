@@ -57,6 +57,6 @@ Intel remains outside the current main nix-darwin switch workflow because its
 architecture is unsupported by current nixpkgs. Its applied temporary candidate
 uses the existing frozen toolchain, not a new long-term pin policy. The same
 fixed official archives are retained in `intel.nix`; current main must not be
-switched onto Intel. Neither a Git update nor the VM autoswitch changes the
-Intel system profile. A later supported migration must retain these minimum
+switched onto Intel. The Git auto-switch hook explicitly skips Intel macOS, so pulling main or
+running the VM autoswitch does not change the Intel system profile. A later supported migration must retain these minimum
 runtime versions. Already-running processes are separate from CLI selection.
