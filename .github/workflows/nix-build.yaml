@@ -115,7 +115,10 @@ jobs:
         run: nix build --no-link --print-out-paths '.#nixosConfigurations.mini-vm.config.system.build.toplevel'
 
       - name: Build home (x86_64-linux)
-        run: nix build --no-link --print-out-paths '.#homeConfigurations.gigun-x86_64-linux.activationPackage'
+        run: >-
+          nix build --no-link --print-out-paths
+          '.#homeConfigurations.gigun-x86_64-linux.activationPackage'
+          '.#homeConfigurations.gigun-mini-vm.activationPackage'
 
   macos-regressions:
     needs: changes
