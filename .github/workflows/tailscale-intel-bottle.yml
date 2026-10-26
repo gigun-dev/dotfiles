@@ -74,7 +74,17 @@ jobs:
             brew uninstall --ignore-dependencies tailscale
           fi
           # Local bottle, not a source fallback or handcrafted Cellar copy.
-          brew install "$PWD/${bottles[0]}"
+          test -z "${HOMEBREW_DEVELOPER-}"
+          brew developer state > developer-before.txt
+          grep -q 'Developer mode is disabled' developer-before.txt
+          # One process only: no export, developer on, or persistent configuration.
+          install_status=0
+          HOMEBREW_DEVELOPER=1 brew install "$PWD/${bottles[0]}" || install_status=$?
+          test -z "${HOMEBREW_DEVELOPER-}"
+          brew developer state > developer-after.txt
+          cmp developer-before.txt developer-after.txt
+          grep -q 'Developer mode is disabled' developer-after.txt
+          test "$install_status" = 0
           test "$(command -v tailscale)" = /usr/local/bin/tailscale
           test "$(brew --prefix tailscale)" = /usr/local/opt/tailscale
           tailscale version | tee cli-version.txt
