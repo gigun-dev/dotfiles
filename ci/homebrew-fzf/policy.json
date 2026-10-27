@@ -1,0 +1,6 @@
+{
+  "build_enabled": true,
+  "update_pr_enabled": true,
+  "durable_destination": "gigun-dev/dotfiles",
+  "artifact_retention_days": 14
+}
