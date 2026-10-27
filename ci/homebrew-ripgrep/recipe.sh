@@ -56,7 +56,7 @@ import json,pathlib
 r=json.loads(pathlib.Path('/usr/local/Cellar/pcre2/10.49/INSTALL_RECEIPT.json').read_text())
 assert r.get('built_as_bottle') and not r.get('poured_from_bottle'), 'runner did not actually build pcre2; do not reuse preinstalled binary'
 PYRECEIPT
-  brew test pcre2
+  brew test --force pcre2
   (cd "$work"; brew bottle --json pcre2; shasum -a 256 ./*.bottle.tar.gz > SHA256SUMS)
   ;;
 verify)
@@ -75,7 +75,7 @@ PYVERIFY
   install_target pcre2 "$bottle"
   # force-bottle forbids any Rust build for ripgrep.
   install_target ripgrep --force-bottle ripgrep
-  brew test pcre2 ripgrep
+  brew test --force pcre2 ripgrep
   rg=/usr/local/opt/ripgrep/bin/rg
   "$rg" --version
   [[ $("$rg" --version | head -1) == 'ripgrep 15.2.0' ]]
@@ -83,7 +83,9 @@ PYVERIFY
   [[ $("$rg" -o 'alpha[0-9]+' "$work/fixture.txt") == alpha42 ]]
   [[ $("$rg" --pcre2 -o '(?<=alpha)[0-9]+' "$work/fixture.txt") == 42 ]]
   file "$rg" | grep -q x86_64
-  ! otool -L "$rg" | grep -q /nix/store
+  if otool -L "$rg" | grep -q /nix/store; then
+    echo "Unexpected Nix linkage" >&2; exit 1
+  fi
   otool -L "$rg"
   python3 - "$work" <<'PY'
 import json,pathlib,sys
