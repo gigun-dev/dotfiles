@@ -1,0 +1,33 @@
+---
+- name: Inspect the approved zoxide binary
+  ansible.builtin.stat:
+    path: "{{ mini_zoxide_source }}"
+    checksum_algorithm: sha256
+    follow: false
+  register: mini_zoxide_binary
+- name: Require the verified executable before selecting it
+  ansible.builtin.assert:
+    that:
+      - mini_zoxide_binary.stat.isreg | default(false)
+      - mini_zoxide_binary.stat.executable | default(false)
+      - mini_zoxide_binary.stat.checksum | default('') == mini_zoxide_sha256
+- name: Inspect the existing zoxide selection
+  ansible.builtin.stat:
+    path: "{{ mini_zoxide_destination }}"
+    follow: false
+  register: mini_zoxide_selection
+- name: Preserve unknown files and links
+  ansible.builtin.assert:
+    that:
+      - >-
+        not mini_zoxide_selection.stat.exists or
+        (mini_zoxide_selection.stat.islnk | default(false) and
+        mini_zoxide_selection.stat.lnk_target == mini_zoxide_source)
+    fail_msg: Preserve the existing zoxide selection and review its ownership before applying.
+- name: Select only zoxide without changing PATH or other Homebrew links
+  ansible.builtin.file:
+    src: "{{ mini_zoxide_source }}"
+    dest: "{{ mini_zoxide_destination }}"
+    state: link
+    force: false
+    follow: false

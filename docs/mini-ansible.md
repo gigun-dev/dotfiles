@@ -260,3 +260,23 @@ uv run --locked ansible-playbook -i inventory.yml apply.yml \
 承認済み Cellar 実体であることを確認して `/usr/local/bin/fzf` のリンクのみ
 取り除き、shell の `rehash` / 新規起動で Nix 版への解決を確認します。
 Homebrew package 自体や他のリンクは削除しません。
+
+### zoxide の隔離検証（通常利用への適用待ち）
+
+公式 Homebrew zoxide 0.10.0 Intel Sonoma bottle は Sequoia の既存
+Homebrewで `--force-bottle --skip-link` 導入できました。追加依存なし、
+receipt は poured_from_bottle=true。公式 bottle SHA-256 は
+`d3c9b69ac0b3d814619be69d32acfd5416d9e082ef5cddf21c698a5e0ae90ecb`。
+Intel は Homebrew の Tier 3 で、新しい Intel bottle の継続提供は保証されません。
+
+`mini_targets: [zoxide]` の実装は1リンクだけを選択しますが、owner は
+`manual` のままです。通常適用は移管承認と owner の変更後です。
+現在の Nix 0.9.9 とユーザーDB・shell cache は保持します。
+隔離検証は一時 `_ZO_DATA_DIR` と一時HOMEで z/zi を確認しました。
+
+通常採用時の影響は `/usr/local/bin/zoxide` の追加と、新規shellが既存の
+共通 `.zshrc` に従って init cache を更新することです。既存cacheの更新条件は
+実行ファイルのmtimeなので、採用時は旧cacheの保全と新版initとの整合確認が必要です。
+このPRではcacheを変更せず、通常コマンドは切り替えません。
+rollback は target適用を止め、承認したCellar実体を指すリンクだけを外し、
+保全したinit cacheを戻すか共通shellで再生成します。DB移行・削除は行いません。

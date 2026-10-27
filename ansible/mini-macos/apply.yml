@@ -10,6 +10,9 @@
     - name: Validate host and requested transfer
       ansible.builtin.import_tasks: tasks/preflight.yml
   tasks:
+    - name: Select the verified zoxide executable only
+      ansible.builtin.include_tasks: tasks/zoxide.yml
+      when: "'zoxide' in mini_targets"
     - name: Select the verified fzf executable only
       ansible.builtin.include_tasks: tasks/fzf.yml
       when: "'fzf' in mini_targets"
