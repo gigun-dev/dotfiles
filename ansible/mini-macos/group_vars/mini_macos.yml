@@ -7,6 +7,7 @@ mini_targets: []
 mini_apply_ack: false
 mini_update_ack: false
 mini_owners:
+  fzf: ansible
   shell: ansible
   packages: manual
   defaults: ansible
@@ -26,3 +27,7 @@ mini_defaults:
   - {domain: com.apple.dock, key: autohide, type: bool, value: true}
   - {domain: NSGlobalDomain, key: KeyRepeat, type: int, value: 2}
 mini_stage_dir: /Users/gigun/Library/Application Support/dotfiles-migration/network-watchdog
+# Exact binary from the validated private Release; package installation is separate.
+mini_fzf_source: /usr/local/Cellar/fzf/0.74.5/bin/fzf
+mini_fzf_destination: /usr/local/bin/fzf
+mini_fzf_sha256: ba4b0df70d7fd9e8dd0d2fa479d68c2bc10859449c86e6f7e2d1856d663d1111

@@ -232,3 +232,31 @@ miniのDock `autohide=true` と `NSGlobalDomain.KeyRepeat=2` はAnsibleが所有
 miniのsource同期は、作業差分を保全し、確認済みmainへのfast-forwardで行う。
 同期前にhookとIntel自動switch抑止、live参照ファイルの差分を確認する。
 Nix/Darwin switchをsource同期の一部として実行しない。
+
+### fzf の通常利用への移管
+
+`mini_targets: [fzf]` は検証済み Homebrew Cellar の fzf 実行ファイルを
+`/usr/local/bin/fzf` にリンクするだけです。PATH、共通 zsh 設定、fzf-tmux、
+fzf-preview.sh、man、Nix profile は変更しません。通常の packages/update
+対象にも fzf は追加しません。版の更新は別途検証し、この宣言を更新します。
+
+採用版は 0.74.5。private Release
+`fzf-bottle-8fbf99f81906e22c07d07e19157a2e51d7a4fdfea26e2f15a25b4bb4c80d5068`
+の bottle SHA-256 は
+`45957f1abe8b2c450629c09c3ed9afa31feb8bc16935417949b387f53249e689`。
+既存の隔離導入済み実行ファイルは同 Release 内の実行ファイルと同一で、
+Ansible は実行ファイルの SHA-256 を検証してからリンクします。
+未知の既存ファイル・リンクや異なる実行ファイルは上書きせず停止します。
+
+```sh
+cd ansible/mini-macos
+uv run --locked ansible-playbook -i inventory.yml apply.yml \
+  -e '{"mini_targets":["fzf"],"mini_apply_ack":true}' --check --diff
+# 差分が fzf の1リンクだけであることを確認後、--check --diff を外して適用
+```
+
+初回はリンクが存在しない状態を記録してから適用します。既存 Nix 0.71.0
+は保持されます。rollback はこの target の適用を止め、リンク先が上記の
+承認済み Cellar 実体であることを確認して `/usr/local/bin/fzf` のリンクのみ
+取り除き、shell の `rehash` / 新規起動で Nix 版への解決を確認します。
+Homebrew package 自体や他のリンクは削除しません。

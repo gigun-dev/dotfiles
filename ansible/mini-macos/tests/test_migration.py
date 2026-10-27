@@ -50,6 +50,34 @@ class Migration(unittest.TestCase):
             args += ["--check", "--diff"]
         return subprocess.run(args, cwd=self.base, env=env, capture_output=True, text=True, timeout=60)
 
+    def test_fzf_verified_selection_is_idempotent_and_rejects_collision(self):
+        import hashlib
+        source = self.home / "verified-fzf"
+        source.write_text("#!/bin/sh\nexit 0\n")
+        source.chmod(0o755)
+        dest = self.home / "fzf"
+        self.variables.update(mini_fzf_source=str(source), mini_fzf_destination=str(dest),
+                              mini_fzf_sha256=hashlib.sha256(source.read_bytes()).hexdigest())
+        result = self.run_tasks("fzf.yml", check=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertFalse(dest.exists())
+        for iteration in range(2):
+            result = self.run_tasks("fzf.yml")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(dest.resolve(), source)
+            if iteration:
+                self.assertRegex(result.stdout, r"changed=0\s")
+        dest.unlink()
+        dest.write_text("preserve")
+        result = self.run_tasks("fzf.yml")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(dest.read_text(), "preserve")
+        dest.unlink()
+        source.write_text("changed executable")
+        result = self.run_tasks("fzf.yml")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(dest.exists())
+
     def test_missing_link_preview_apply_and_second_apply(self):
         preview = self.run_tasks("shell.yml", check=True)
         self.assertEqual(preview.returncode, 0, preview.stdout + preview.stderr)

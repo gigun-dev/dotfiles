@@ -8,7 +8,7 @@
       - mini_home == '/Users/gigun'
       - mini_repo == '/Users/gigun/ghq/github.com/gigun-dev/dotfiles'
       - mini_targets is sequence and mini_targets is not string
-      - mini_targets | difference(['shell', 'packages', 'defaults', 'launchd_stage']) | length == 0
+      - mini_targets | difference(['shell', 'packages', 'defaults', 'launchd_stage', 'fzf']) | length == 0
       - ansible_check_mode or mini_targets | length == 0 or mini_apply_ack | bool
     fail_msg: Review each target's diff and transfer its owner before acknowledging application.
 - name: Require a single declared owner for every active target
