@@ -9,6 +9,7 @@ mini_update_ack: false
 mini_owners:
   zoxide: ansible
   fzf: ansible
+  ripgrep: ansible
   shell: ansible
   packages: manual
   defaults: ansible
@@ -36,3 +37,7 @@ mini_fzf_sha256: ba4b0df70d7fd9e8dd0d2fa479d68c2bc10859449c86e6f7e2d1856d663d111
 mini_zoxide_source: /usr/local/Cellar/zoxide/0.10.0/bin/zoxide
 mini_zoxide_destination: /usr/local/bin/zoxide
 mini_zoxide_sha256: e376d3046098c87fa25ed385bb4d1bc1e72c2c8b88f919ddaf912a19f6442a9f
+# Exact Homebrew 15.2.0 Intel executable validated on mini; package installation is separate.
+mini_ripgrep_source: /usr/local/Cellar/ripgrep/15.2.0/bin/rg
+mini_ripgrep_destination: /usr/local/bin/rg
+mini_ripgrep_sha256: f8cf484393a97aaaa4ce35df1c5ea2790f6b8af6d86c8d31b3e694369dc5ebb4

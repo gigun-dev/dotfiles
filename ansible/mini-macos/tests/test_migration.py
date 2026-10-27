@@ -106,6 +106,34 @@ class Migration(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(dest.exists())
 
+    def test_ripgrep_verified_selection_is_idempotent_and_rejects_collision(self):
+        import hashlib
+        source = self.home / "verified-rg"
+        source.write_text("#!/bin/sh\nexit 0\n")
+        source.chmod(0o755)
+        dest = self.home / "rg"
+        self.variables.update(mini_ripgrep_source=str(source), mini_ripgrep_destination=str(dest),
+                              mini_ripgrep_sha256=hashlib.sha256(source.read_bytes()).hexdigest())
+        result = self.run_tasks("ripgrep.yml", check=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertFalse(dest.exists())
+        for iteration in range(2):
+            result = self.run_tasks("ripgrep.yml")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(dest.resolve(), source)
+            if iteration:
+                self.assertRegex(result.stdout, r"changed=0\s")
+        dest.unlink()
+        dest.write_text("preserve")
+        result = self.run_tasks("ripgrep.yml")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(dest.read_text(), "preserve")
+        dest.unlink()
+        source.write_text("changed executable")
+        result = self.run_tasks("ripgrep.yml")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(dest.exists())
+
     def test_missing_link_preview_apply_and_second_apply(self):
         preview = self.run_tasks("shell.yml", check=True)
         self.assertEqual(preview.returncode, 0, preview.stdout + preview.stderr)
@@ -172,6 +200,16 @@ class Migration(unittest.TestCase):
         variables.update(ansible_host="mini", ansible_user="gigun",
                          mini_targets=["zoxide"], mini_apply_ack=True)
         variables["mini_owners"]["zoxide"] = "manual"
+        result = self.run_tasks("preflight.yml", variables)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Retire the previous writer", result.stdout)
+        self.assertNotIn("TASK [Read target operating", result.stdout)
+
+    def test_ripgrep_manual_owner_refuses_application(self):
+        variables = yaml.safe_load((ROOT / "group_vars/mini_macos.yml").read_text())
+        variables.update(ansible_host="mini", ansible_user="gigun",
+                         mini_targets=["ripgrep"], mini_apply_ack=True)
+        variables["mini_owners"]["ripgrep"] = "manual"
         result = self.run_tasks("preflight.yml", variables)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Retire the previous writer", result.stdout)
