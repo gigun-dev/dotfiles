@@ -1,14 +1,16 @@
 # Intel mini の macOS を段階的に管理する
 
-Intel mini の macOS は Ansible への移行中、既存 Nix generation 26 を残し、移す範囲を個別に決める。
+Intel mini の macOS は Ansible への移行中で、既存 Nix generation 26 と未移管の管理を残す。
+Ansible は fzf / zoxide / ripgrep / XcodeGen の選択リンク、共通 shell のリンク、選択した user defaults を管理する。
 NixOS の mini-vm、Pro の nix-darwin、既存の自動更新・監視は別の所有者のままとする。
-Ansible の実機適用はまだ行っていない。既存watchdogの観測のみ設定は、別途承認を受けて最小変更で適用した。
+watchdog の観測のみ設定は別途適用済みだが、稼働サービスの所有権は移していない。
 
 ## 所有者と移行の順序
 
 `mini_targets` の既定は空。playbook を指定しただけでは管理対象を選ばない。
-`mini_owners` は `shell` / `packages` / `defaults` / `launchd` ごとの所有者を持ち、
-`shell=legacy` / `packages=manual` / `defaults=legacy` / `launchd=manual` が既定。
+`mini_owners` は個別コマンドと管理グループの所有者を記録する。
+現在は `zoxide` / `fzf` / `ripgrep` / `xcodegen` / `shell` / `defaults` が `ansible`、
+`packages` / `launchd` が `manual`。
 通常の変更は所有者を `ansible` へ移管した対象だけ。例外の `launchd_stage` は所有者を
 `manual` のまま保ち、起動対象外の staging ディレクトリに候補だけを置く。
 対象の選択と所有権の移管は別であり、`mini_targets` に追加するだけでは移管にならない。
@@ -144,7 +146,8 @@ DNS 失敗だけでは Wi-Fi を操作しない。状態が連続 2 サンプル
 | 対象 | 初期実装の範囲 | 残す管理・依存 |
 |---|---|---|
 | shell | 既存 repo 正本への5リンク。通常ファイル・別リンク・親リンクを拒否 | `.zprofile`、`/etc/zsh*`、login shell は未移管 |
-| packages | Lima / XcodeGen / mo の存在維持。明示更新は別入口 | Nix CLI 群・GUI casks・VPN・cloudflared は現状維持 |
+| packages | Lima / XcodeGen / mo の存在維持。明示更新は別入口 | package install/update は manual。Nix CLI 群・GUI casks・VPN・cloudflared は現状維持 |
+| xcodegen | 検証済み 2.46.0 Cellar binary への `/usr/local/bin/xcodegen` 1リンク | Homebrew formula の導入・更新と Nix profile は変更しない |
 | defaults | Dock autohide / KeyRepeat の2項目 | 他のOS設定、電源、認証は未移管 |
 | launchd | 起動検索対象外へ候補2ファイルを配置 | 稼働 user watchdog、heartbeat、Lima等のサービスは現状維持 |
 
@@ -310,3 +313,32 @@ Ansible の再適用で `changed=0` を確認してください。
 rollback は対象指定を止め、`/usr/local/bin/rg` が上記の Cellar 実体を指すリンクで
 あることを確認してから、そのリンクだけを削除します。新規 zsh で Nix 15.1.0 が
 選ばれることを確認します。Homebrew package、Nix profile、他のリンクは削除しません。
+
+### XcodeGen の選択リンク
+
+mini に導入済みの XcodeGen 2.46.0 は Homebrew core の Intel Sonoma bottle から
+Sequoia に pour され、formula の依存はありません。公式 bottle SHA-256 は
+`d0e021076a96894c2d48a51003e99ab4885130f69ea922a67de8bef3062c5a50`。
+`/usr/local/bin/xcodegen` は同じ Cellar binary
+を指す Homebrew の相対 symlink でした。Ansible は実行ファイルの SHA-256
+`b8714a29ed5d40319ff8a653e08fa684c756deee1ff0db15cac66b6392a55ba3` を検査し、既知の
+Homebrew symlink だけを絶対パスの symlink に置き換えます。未知のファイルやリンクは
+そのまま拒否します。
+
+`mini_targets: [xcodegen]` はこの1リンクだけを扱います。Homebrew formula の導入・更新、
+PATH、shell 設定、Nix profile、他の Homebrew link は変更しません。
+
+```sh
+uv run --locked --project ansible/mini-macos ansible-playbook \
+  -i ansible/mini-macos/inventory.yml ansible/mini-macos/apply.yml \
+  --check --diff -e '{"mini_targets":["xcodegen"]}'
+# 差分が /usr/local/bin/xcodegen のリンク先表記だけだと確認後に適用する
+uv run --locked --project ansible/mini-macos ansible-playbook \
+  -i ansible/mini-macos/inventory.yml ansible/mini-macos/apply.yml \
+  -e '{"mini_targets":["xcodegen"],"mini_apply_ack":true}'
+```
+
+新規 login / interactive zsh で `/usr/local/bin/xcodegen` と版 2.46.0 を確認します。
+checksum-gate は同じ binary を検証し、再適用は `changed=0` です。rollback はリンク先が
+検証済み Cellar binary であることを確認し、Homebrew が元に作った相対 link
+`../Cellar/xcodegen/2.46.0/bin/xcodegen` に戻します。Cellar package は削除しません。

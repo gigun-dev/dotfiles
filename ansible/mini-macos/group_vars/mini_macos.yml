@@ -10,6 +10,7 @@ mini_owners:
   zoxide: ansible
   fzf: ansible
   ripgrep: ansible
+  xcodegen: ansible
   shell: ansible
   packages: manual
   defaults: ansible
@@ -41,3 +42,9 @@ mini_zoxide_sha256: e376d3046098c87fa25ed385bb4d1bc1e72c2c8b88f919ddaf912a19f644
 mini_ripgrep_source: /usr/local/Cellar/ripgrep/15.2.0/bin/rg
 mini_ripgrep_destination: /usr/local/bin/rg
 mini_ripgrep_sha256: f8cf484393a97aaaa4ce35df1c5ea2790f6b8af6d86c8d31b3e694369dc5ebb4
+# Existing Homebrew core XcodeGen 2.46.0 Intel bottle; package install/update stays manual.
+mini_xcodegen_source: /usr/local/Cellar/xcodegen/2.46.0/bin/xcodegen
+mini_xcodegen_destination: /usr/local/bin/xcodegen
+mini_xcodegen_sha256: b8714a29ed5d40319ff8a653e08fa684c756deee1ff0db15cac66b6392a55ba3
+# The only accepted pre-migration Homebrew link; other files or links are preserved.
+mini_xcodegen_legacy_link_target: ../Cellar/xcodegen/2.46.0/bin/xcodegen

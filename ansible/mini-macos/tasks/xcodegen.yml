@@ -1,0 +1,34 @@
+---
+- name: Inspect the approved XcodeGen binary
+  ansible.builtin.stat:
+    path: "{{ mini_xcodegen_source }}"
+    checksum_algorithm: sha256
+    follow: false
+  register: mini_xcodegen_binary
+- name: Require the verified executable before selecting it
+  ansible.builtin.assert:
+    that:
+      - mini_xcodegen_binary.stat.isreg | default(false)
+      - mini_xcodegen_binary.stat.executable | default(false)
+      - mini_xcodegen_binary.stat.checksum | default('') == mini_xcodegen_sha256
+- name: Inspect the existing XcodeGen selection
+  ansible.builtin.stat:
+    path: "{{ mini_xcodegen_destination }}"
+    follow: false
+  register: mini_xcodegen_selection
+- name: Preserve unknown XcodeGen files and links
+  ansible.builtin.assert:
+    that:
+      - >-
+        not mini_xcodegen_selection.stat.exists or
+        (mini_xcodegen_selection.stat.islnk | default(false) and
+        mini_xcodegen_selection.stat.lnk_target in
+        [mini_xcodegen_legacy_link_target, mini_xcodegen_source])
+    fail_msg: Preserve the existing XcodeGen selection and review its ownership before applying.
+- name: Select only XcodeGen without changing PATH or other Homebrew links
+  ansible.builtin.file:
+    src: "{{ mini_xcodegen_source }}"
+    dest: "{{ mini_xcodegen_destination }}"
+    state: link
+    force: true
+    follow: false

@@ -134,6 +134,54 @@ class Migration(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(dest.exists())
 
+    def test_xcodegen_verified_selection_transfers_only_known_link(self):
+        import hashlib
+        source = self.base / "usr/local/Cellar/xcodegen/2.46.0/bin/xcodegen"
+        source.parent.mkdir(parents=True)
+        source.write_text("#!/bin/sh\necho Version: 2.46.0\n")
+        source.chmod(0o755)
+        dest = self.base / "usr/local/bin/xcodegen"
+        dest.parent.mkdir(parents=True)
+        legacy = "../Cellar/xcodegen/2.46.0/bin/xcodegen"
+        dest.symlink_to(legacy)
+        self.variables.update(mini_xcodegen_source=str(source),
+                              mini_xcodegen_destination=str(dest),
+                              mini_xcodegen_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),
+                              mini_xcodegen_legacy_link_target=legacy)
+        result = self.run_tasks("xcodegen.yml", check=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(os.readlink(dest), legacy)
+        result = self.run_tasks("xcodegen.yml")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(dest.resolve(), source)
+        self.assertEqual(os.readlink(dest), str(source))
+        result = self.run_tasks("xcodegen.yml")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertRegex(result.stdout, r"changed=0\s")
+        dest.unlink()
+        dest.symlink_to(self.base / "other-missing-source")
+        result = self.run_tasks("xcodegen.yml")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(os.readlink(dest), str(self.base / "other-missing-source"))
+
+    def test_xcodegen_checksum_mismatch_preserves_existing_link(self):
+        import hashlib
+        source = self.base / "usr/local/Cellar/xcodegen/2.46.0/bin/xcodegen"
+        source.parent.mkdir(parents=True)
+        source.write_text("#!/bin/sh\nexit 0\n")
+        source.chmod(0o755)
+        dest = self.base / "usr/local/bin/xcodegen"
+        dest.parent.mkdir(parents=True)
+        legacy = "../Cellar/xcodegen/2.46.0/bin/xcodegen"
+        dest.symlink_to(legacy)
+        self.variables.update(mini_xcodegen_source=str(source),
+                              mini_xcodegen_destination=str(dest),
+                              mini_xcodegen_sha256="0" * 64,
+                              mini_xcodegen_legacy_link_target=legacy)
+        result = self.run_tasks("xcodegen.yml")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(os.readlink(dest), legacy)
+
     def test_missing_link_preview_apply_and_second_apply(self):
         preview = self.run_tasks("shell.yml", check=True)
         self.assertEqual(preview.returncode, 0, preview.stdout + preview.stderr)
@@ -210,6 +258,16 @@ class Migration(unittest.TestCase):
         variables.update(ansible_host="mini", ansible_user="gigun",
                          mini_targets=["ripgrep"], mini_apply_ack=True)
         variables["mini_owners"]["ripgrep"] = "manual"
+        result = self.run_tasks("preflight.yml", variables)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Retire the previous writer", result.stdout)
+        self.assertNotIn("TASK [Read target operating", result.stdout)
+
+    def test_xcodegen_manual_owner_refuses_application(self):
+        variables = yaml.safe_load((ROOT / "group_vars/mini_macos.yml").read_text())
+        variables.update(ansible_host="mini", ansible_user="gigun",
+                         mini_targets=["xcodegen"], mini_apply_ack=True)
+        variables["mini_owners"]["xcodegen"] = "manual"
         result = self.run_tasks("preflight.yml", variables)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Retire the previous writer", result.stdout)
