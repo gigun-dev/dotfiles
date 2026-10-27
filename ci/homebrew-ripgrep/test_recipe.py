@@ -6,7 +6,7 @@ class Preflight(unittest.TestCase):
    p=pathlib.Path(td);log=p/'calls'
    for name,body in {'uname':f'echo "{platform}"','sw_vers':'echo 15.7.9','brew':f'echo "$*" >> "{log}"; if [ "$1" = --prefix ]; then echo /usr/local; fi'}.items():
     q=p/name;q.write_text('#!/bin/sh\n'+body+'\n');q.chmod(0o755)
-   env=os.environ.copy();env['PATH']=td+':'+env['PATH']
+   env=os.environ.copy();env['PATH']=td+':'+env['PATH'];env.pop('BASH_ENV',None)
    r=subprocess.run(['bash',str(ROOT/'recipe.sh'),*args],env=env,capture_output=True,text=True)
    return r,log.read_text() if log.exists() else ''
  def test_default_is_read_only(self):

@@ -6,12 +6,16 @@ mode=${1:-preflight}; work=${2:-}; execute=${3:-}
 export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_ANALYTICS=1 HOMEBREW_NO_AUTOREMOVE=1
 export HOMEBREW_NO_INSTALL_CLEANUP=1 HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
 export HOMEBREW_NO_INSTALL_FROM_API=1 HOMEBREW_MAKE_JOBS=2
-[[ $(uname -sm) == 'Darwin x86_64' && $(sw_vers -productVersion) == 15.* && $(brew --prefix) == /usr/local ]]
+if ! [[ $(uname -sm) == 'Darwin x86_64' && $(sw_vers -productVersion) == 15.* && $(brew --prefix) == /usr/local ]]; then
+  echo 'requires Intel macOS15 /usr/local' >&2; exit 2
+fi
 if [[ $mode == preflight ]]; then
   brew list --versions pcre2 ripgrep || true
   exit
 fi
-[[ $execute == --execute && -n $work ]]
+if ! [[ $execute == --execute && -n $work ]]; then
+  echo 'Explicit --execute and work directory required' >&2; exit 2
+fi
 # Local consumers must be empty. Only disposable CI may replace preinstalled target packages.
 install_target() {
   local name=$1; shift
@@ -56,6 +60,10 @@ PYRECEIPT
   (cd "$work"; brew bottle --json pcre2; shasum -a 256 ./*.bottle.tar.gz > SHA256SUMS)
   ;;
 verify)
+  # Same-version install can be a no-op: never count the runner's old bottle as ours.
+  if [[ -d /usr/local/Cellar/pcre2/10.49 ]]; then
+    echo 'Preinstalled same-version pcre2 prevents independent bottle verification' >&2; exit 2
+  fi
   python3 - "$work" <<'PYVERIFY'
 import hashlib,pathlib,re,sys
 p=pathlib.Path(sys.argv[1]);lines=(p/'SHA256SUMS').read_text().splitlines();assert len(lines)==1
