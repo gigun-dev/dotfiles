@@ -281,3 +281,32 @@ Intel は Homebrew の Tier 3 で、新しい Intel bottle の継続提供は保
 未知の編集やリンクがあれば停止します。Ansibleの反復適用はcacheを書き換えません。
 rollback は target適用を止め、承認したCellar実体を指すリンクだけを外し、
 保全したinit cacheを戻すか共通shellで再生成します。DB移行・削除は行いません。
+
+
+### ripgrep の通常利用への移管
+
+mini の通常利用では、検証済み Homebrew ripgrep 15.2.0 を
+`/usr/local/bin/rg` に選択します。Ansible は Cellar の実行ファイルを SHA-256
+`f8cf484393a97aaaa4ce35df1c5ea2790f6b8af6d86c8d31b3e694369dc5ebb4` で確認してから
+この1リンクだけを作成します。Homebrew package の導入・更新・cleanup、PATH、Nix
+profile は変更せず、Nix ripgrep 15.1.0 を fallback として保持します。
+未知の既存ファイルや異なるリンクは上書きしません。
+
+```sh
+uv run --locked --project ansible/mini-macos ansible-playbook \
+  -i ansible/mini-macos/inventory.yml ansible/mini-macos/apply.yml \
+  --check --diff -e '{"mini_targets":["ripgrep"]}'
+# 差分が /usr/local/bin/rg の1リンクだけだと確認後に適用する
+uv run --locked --project ansible/mini-macos ansible-playbook \
+  -i ansible/mini-macos/inventory.yml ansible/mini-macos/apply.yml \
+  -e '{"mini_targets":["ripgrep"],"mini_apply_ack":true}'
+```
+
+新規シェルで `command -v rg` が `/usr/local/bin/rg`、`rg --version` が 15.2.0、
+normal と `--pcre2` の synthetic search が成功することを確認します。動的リンクに
+`/nix/store` が含まれないことと、git / gh の解決先が変わらないことも確認します。
+Ansible の再適用で `changed=0` を確認してください。
+
+rollback は対象指定を止め、`/usr/local/bin/rg` が上記の Cellar 実体を指すリンクで
+あることを確認してから、そのリンクだけを削除します。新規 zsh で Nix 15.1.0 が
+選ばれることを確認します。Homebrew package、Nix profile、他のリンクは削除しません。
