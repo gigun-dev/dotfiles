@@ -10,6 +10,9 @@
     - name: Validate host and requested transfer
       ansible.builtin.import_tasks: tasks/preflight.yml
   tasks:
+    - name: Select the verified fzf executable only
+      ansible.builtin.include_tasks: tasks/fzf.yml
+      when: "'fzf' in mini_targets"
     - name: Manage shell links
       ansible.builtin.include_tasks: tasks/shell.yml
       when: "'shell' in mini_targets"
