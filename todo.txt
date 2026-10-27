@@ -46,4 +46,3 @@
 2026-10-18 JST 深夜のfast/slow timer明示とsender/hub予定枠の修正をレビューし、本番反映の承認後に自然receiptを確認する（修正・境界/重複回帰検証済み、本番未適用） +notify +mini-vm see:docs/job-heartbeat-activation.md by:me id:0103
 2026-10-22 +security ダウンロードに置いたままの OAuth クライアントの秘密と GitHub App の秘密鍵を片付ける: 写しのある場所と使っているかを確かめ、使っていない OAuth クライアントは発行元で消してからファイルを消す。対象と確認状況は手元の棚卸しファイル (git の外) に置く see:docs/security.md by:me id:0108
 2026-10-22 +security sops exec-env を手早く呼ぶ仕組みを用意する: リポのルートや近くの暗号化済み .env を見つけ、複数あれば fzf で選んで `sops exec-env <file> <cmd>` を走らせる zsh 関数か zeno の snippet。エージェントは YubiKey のタッチを要する復号を自分でできない前提で、人が開発サーバーを起動する導線にする。NFC の YubiKey にも PIV の鍵を作り、2 本を受信者にしてから本格的に使う see:docs/security.md by:me id:0109
-2026-10-27 mini-vm の cloudflared を eMudhra セキュリティ通知に合わせ 2026.10.3 へ宣言的に更新し、同じ package の管理 CLI を追加して Tunnel と既存 endpoint を検証する by:me id:0111 @wip
