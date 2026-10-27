@@ -7,7 +7,7 @@ mini_targets: []
 mini_apply_ack: false
 mini_update_ack: false
 mini_owners:
-  zoxide: manual  # Isolated validation only; ordinary adoption is pending.
+  zoxide: ansible
   fzf: ansible
   shell: ansible
   packages: manual

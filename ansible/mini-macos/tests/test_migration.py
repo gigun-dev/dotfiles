@@ -167,10 +167,11 @@ class Migration(unittest.TestCase):
                 self.assertIn('"evaluated_to": false', result.stdout)
                 self.assertNotIn("TASK [Read target operating", result.stdout)
 
-    def test_zoxide_adoption_remains_unapproved(self):
+    def test_zoxide_manual_owner_refuses_application(self):
         variables = yaml.safe_load((ROOT / "group_vars/mini_macos.yml").read_text())
         variables.update(ansible_host="mini", ansible_user="gigun",
                          mini_targets=["zoxide"], mini_apply_ack=True)
+        variables["mini_owners"]["zoxide"] = "manual"
         result = self.run_tasks("preflight.yml", variables)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Retire the previous writer", result.stdout)
