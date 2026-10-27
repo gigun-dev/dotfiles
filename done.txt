@@ -56,3 +56,4 @@ x 2026-10-16 2026-10-16 +mini-vm codex の cloudflare MCP の OAuth を mini-vm 
 x 2026-10-17 2026-10-16 +mini-vm journal が約 1 日分しか残らない問題を直す: lima-guestagent の SyncTime (10 秒毎、約 180ms 巻き戻し) と systemd-timesyncd が時刻を取り合い、journald が「Time jumped backwards」で毎回 rotate して SystemMaxFiles=100 に当たっている。時刻源をどちらか一方にして、数日分残ることを確かめる by:claude id:0093
 x 2026-10-17 2026-10-17 +mini-vm Cloudflare Access のセッションを見直す: global session (現状未設定で、全体トークンは最初に入ったアプリの期間に従う) を 720h にし、アプリごとの session_duration をセキュリティ要件と利便性で決め直して tofu に反映する (organization も tofu 管理に入れる) by:me id:0097
 x 2026-10-19 2026-10-19 codex-mcp-login の fake callback listener を URL 公開前に bind し、決定的回帰試験と反復試験で検証する（旧順序で回帰失敗、修正後の9試験を30回成功） +ci by:me id:0104
+x 2026-10-27 2026-10-27 mini (macOS) の ripgrep 15.2.0 を Ansible 選択へ移管し、全シェル解決・normal/PCRE2 検索・冪等再適用を検証する +mini by:me id:0110
