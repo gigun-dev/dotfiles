@@ -16,6 +16,9 @@
     - name: Select the verified fzf executable only
       ansible.builtin.include_tasks: tasks/fzf.yml
       when: "'fzf' in mini_targets"
+    - name: Select the verified ripgrep executable only
+      ansible.builtin.include_tasks: tasks/ripgrep.yml
+      when: "'ripgrep' in mini_targets"
     - name: Manage shell links
       ansible.builtin.include_tasks: tasks/shell.yml
       when: "'shell' in mini_targets"
