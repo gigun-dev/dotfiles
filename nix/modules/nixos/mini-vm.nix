@@ -13,6 +13,25 @@
 let
   username = "gigun";
 
+  # nixpkgs の更新を待たず、Cloudflare のセキュリティ修正版だけを固定する。
+  # Tunnel service と host CLI は同じ derivation を参照する。
+  cloudflaredPackage = pkgs.cloudflared.overrideAttrs (previousAttrs: rec {
+    version = "2026.10.3";
+    src = pkgs.fetchFromGitHub {
+      owner = "cloudflare";
+      repo = "cloudflared";
+      tag = version;
+      hash = "sha256-k1OMkHHItOT5VHhQqgC8ODm/RCJEtwtZi0Lxyf/esLg=";
+    };
+    vendorHash = "sha256-KqTLXEm0jxJ1TsyYzxAwYMe8niIgJxBHQPz/aZKmS40=";
+    ldflags = lib.map (
+      flag: if lib.hasPrefix "-X main.Version=" flag then "-X main.Version=${version}" else flag
+    ) previousAttrs.ldflags;
+    meta = previousAttrs.meta // {
+      changelog = "https://raw.githubusercontent.com/cloudflare/cloudflared/refs/tags/${version}/RELEASE_NOTES";
+    };
+  });
+
   # Cloudflare OS のチェックアウト。4 箇所 (ConditionPathExists / WorkingDirectory /
   # ExecStartPre 2 本) から参照するので 1 箇所に括り出す。
   #
@@ -861,6 +880,7 @@ in
   # CLI ツール群は home-manager standalone (packages.nix) が入れる。
   # ここは VM を最低限操作できるだけの構成に留める。
   environment.systemPackages = with pkgs; [
+    config.services.cloudflared.package
     gitMinimal
     vim
 
@@ -1239,6 +1259,7 @@ in
   # 置きたいため (宣言的管理の方針)。remote 管理にすると ingress が git の外へ出る。
   services.cloudflared = {
     enable = true;
+    package = cloudflaredPackage;
     tunnels."5b8ec787-4730-4b2b-87b8-e86acbd3954b" = {
       # 秘密なので git には入れない。root 所有 0400 で置き、systemd の LoadCredential が
       # DynamicUser へ渡す (モジュールが serviceConfig.LoadCredential を設定している)。
