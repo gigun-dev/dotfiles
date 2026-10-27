@@ -73,4 +73,37 @@ class BuildPolicyTests(unittest.TestCase):
                 with self.assertRaisesRegex(AssertionError,'build activation disabled'):update.main()
                 command.assert_not_called()
 
+
+class LocalGitResumeTests(unittest.TestCase):
+    def test_real_branch_push_then_pr_failure_resumes_without_second_push(self):
+        # Real Git writes are confined to a temporary local remote; GitHub calls are mocks.
+        lock=state.read(state.ROOT/'fzf.lock.json')
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp);remote=root/'remote.git';repo=root/'repo'
+            def git(*args):subprocess.run(['git',*args],check=True,capture_output=True)
+            git('init','--bare',str(remote));git('init','-b','main',str(repo))
+            git('-C',str(repo),'config','user.name','Test');git('-C',str(repo),'config','user.email','test@example.invalid')
+            folder=repo/'ci/homebrew-fzf';folder.mkdir(parents=True)
+            (folder/'policy.json').write_text(json.dumps({'update_pr_enabled':True,'build_enabled':True}))
+            (folder/'fzf.lock.json').write_text(json.dumps(lock))
+            git('-C',str(repo),'add','.');git('-C',str(repo),'-c','commit.gpgsign=false','commit','-m','fixture')
+            git('-C',str(repo),'remote','add','origin',str(remote));git('-C',str(repo),'push','origin','main')
+            git('-C',str(repo),'config','commit.gpgsign','false')
+            proposed=dict(lock,version='0.74.6');candidate=root/'candidate.json';candidate.write_text(json.dumps(proposed))
+            content={'content':base64.b64encode(json.dumps(proposed).encode()).decode()}
+            commands=[]
+            def execute(*args):
+                commands.append(args)
+                if args[0]=='git':return subprocess.run(args,check=True,capture_output=True)
+                if args[:3]==('gh','pr','create'):raise subprocess.CalledProcessError(1,args)
+            previous=os.getcwd();os.chdir(repo)
+            try:
+                with patch.object(state,'ROOT',folder),patch.object(sys,'argv',['update',str(candidate)]),patch.dict(os.environ,{'GITHUB_REPOSITORY':'o/r'}),patch.object(releases,'api',side_effect=[content,[]]),patch.object(update,'command',side_effect=execute):
+                    with self.assertRaises(subprocess.CalledProcessError):update.main()
+                self.assertEqual(sum(c[:2]==('git','push') for c in commands),1)
+                with patch.object(state,'ROOT',folder),patch.object(sys,'argv',['update',str(candidate)]),patch.dict(os.environ,{'GITHUB_REPOSITORY':'o/r'}),patch.object(releases,'api',side_effect=[content,[],{'object':{'sha':'b'*40}},{'workflow_runs':[]}]),patch.object(update,'command') as resumed:
+                    update.main()
+                    self.assertEqual([c.args[:2] for c in resumed.call_args_list],[('gh','pr'),('gh','workflow')])
+            finally:os.chdir(previous)
+
 if __name__=='__main__':unittest.main()

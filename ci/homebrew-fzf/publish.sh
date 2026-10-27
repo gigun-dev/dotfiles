@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Inert release proposal. No destination or publication authority is configured.
+# Publish verified assets to the approved private repository only.
 set -euo pipefail
 : "${APPROVED_PRIVATE_REPOSITORY:?Destination approval required}"
 : "${VALIDATED_DIRECTORY:?}"
 : "${ENVIRONMENT_JSON:?}"
-root=$(cd "$(dirname "$0")/.." && pwd)
+root=$(cd "$(dirname "$0")" && pwd)
 python3 - "$root/policy.json" "$APPROVED_PRIVATE_REPOSITORY" <<'PY'
 import json,sys
 assert json.load(open(sys.argv[1]))['durable_destination']==sys.argv[2]
@@ -25,4 +25,4 @@ if [ "$existing" = true ]; then
 fi
 gh release create "$tag" "$VALIDATED_DIRECTORY/validated.json" "$VALIDATED_DIRECTORY/"*.bottle.tar.gz \
   --repo "$APPROVED_PRIVATE_REPOSITORY" --target "${APPROVED_COMMIT:?}" \
-  --title "Intel fzf $key" --notes 'Validated Intel macOS 15 bottle; see validated.json for inputs and checksum.'
+  --latest=false --title "Intel fzf $key" --notes 'Validated Intel macOS 15 bottle; see validated.json for inputs and checksum.'

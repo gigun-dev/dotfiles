@@ -1,8 +1,8 @@
-# Inert proposal: copying into workflows and enabling policy require approval.
 name: Detect fzf update
 on:
   workflow_dispatch:
-# No schedule until cadence and usage allowance are approved.
+  schedule:
+    - cron: "17 21 * * *" # 06:17 JST; detection only when unchanged
 permissions:
   contents: read
 concurrency:

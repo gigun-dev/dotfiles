@@ -2,7 +2,7 @@
 
 This is an fzf-only trial, not a general Homebrew package platform. Normal mini
 resolution remains Nix fzf 0.71.0; the separately validated unlinked bottle is
-0.74.5. Nothing here activates host adoption, a schedule, or publication.
+0.74.5. Daily detection and private artifact storage are enabled; normal host adoption is separate.
 
 ## One recipe, two execution locations
 
@@ -43,38 +43,44 @@ build. A cache is not a signature or a guarantee against repository compromise.
 The original successful trial predates this manifest format and is not silently
 promoted into a new cache entry.
 
-## Disabled automation and durable storage
+## Update detection and private storage
 
-`policy.json` keeps heavy builds and update PRs disabled, with no durable
-destination. The active heavy workflow has only a manual trigger and read-only
-permissions. An explicit manual `bounded_trial=true` dispatch permits one bounded
-validation while the default remains disabled; pushing this PR runs only lightweight recipe checks plus existing
-repository checks. Nix required checks remain unchanged; code lives outside
-`scripts/**` so this fzf-only PR does not request unrelated Nix builds.
+The repository remains private. `policy.json` enables builds and update PRs,
+and names `gigun-dev/dotfiles` as the private Release destination.
+`fzf-update.yml` runs lightweight detection daily at21:17UTC (06:17JST;
+GitHub scheduling is approximate) and can also be dispatched manually.
+No relevant input change means no PR or Intel job. A changed fzf/Go/formula
+creates one draft PR and explicitly dispatches bounded build/validation.
+There is no autoapproval, automerge or mini autoapply.
 
-`state.py detect --output /tmp/fzf-candidate.json` reads official immutable core
-sources and writes a candidate only when relevant inputs change. The inert
-`staged/update.yml.disabled` demonstrates deterministic branch deduplication and
-draft PR creation with partial-failure resumption. Existing closed PRs are not
-reopened; existing runs for the same head (including failures) are not dispatched
-again automatically. API errors stop. It has no schedule and is not an active workflow. GITHUB_TOKEN
-PR creation does not trigger pull_request checks: the inert template explicitly dispatches the bounded build on its new
-deterministic branch and declares the future `actions: write` requirement. No new credential is proposed. Approval is needed before enabling
-that write permission, schedule/cadence and build usage. No auto-merge or host
-adoption is included.
+`update.py` resumes partial failures after branch/PR creation, does not reopen
+closed PRs or automatically retry failed builds each day, and stops on API errors.
+The dispatched build gate runs lightweight tests because token-created PRs do not
+trigger normal PR workflows. Only the updater job receives contents/PR/actions
+write permissions; build/verify stays read-only. `actions:write` is for dispatch.
+The repository default token permission stays read; the combined repository
+Actions create/approve-PR setting is separately enabled for PR creation only.
 
-Recommended durable destination is a private Release in this existing repository,
-with immutable key-based tag and checksum/validation manifest. `state.py
-archive-plan --environment FILE --directory DIR` prints a plan only.
-`staged/publish.sh.disabled` is inert and refuses a missing approved destination;
-it never clobbers an existing release. Before activation, approve destination and
-publication scope and verify release access through existing controller authentication.
-The read-only Release backend is implemented and mock-tested: when configured it
-validates private visibility, complete assets, manifest/key/checksum before returning
-a hit. Missing releases fall back to Actions artifacts; API failures stop. Existing
-release publication retries download and verify the release instead of overwriting it. No release has
-been created. Making the repository public would also expose these assets and is
-a separate decision.
+Release lookup verifies private visibility, complete assets, manifest/key and
+checksum. A missing release falls back to14-day Actions artifacts; API failures
+stop. Existing releases are never overwritten. Promotion is explicit, after
+review of the input and successful build; unmerged update PRs do not publish.
+The already validated bottle can be saved without rebuilding:
+
+```sh
+APPROVED_PRIVATE_REPOSITORY=gigun-dev/dotfiles \
+VALIDATED_DIRECTORY=/absolute/path/to/validated-artifact \
+ENVIRONMENT_JSON=/absolute/path/to/environment.json \
+APPROVED_COMMIT=<reviewed-source-commit> bash ci/homebrew-fzf/publish.sh
+```
+
+The manifest contains the bottle checksum and builder provenance. Release tags
+are `fzf-bottle-<input-key>` and are not marked as the repository's latest release.
+Existing release retries download and verify before returning. A failed partial
+upload stops for inspection; no automatic overwrite/delete occurs. Existing
+controller authentication suffices; no new mini credential is required.
+Making this repository public also exposes its releases and remains out of scope.
+Normal mini PATH and Nix copies are unchanged.
 
 ## Evidence and limits
 
@@ -105,14 +111,3 @@ Run local checks:
 bash -n ci/homebrew-fzf/recipe.sh
 python3 -m unittest discover -s ci/homebrew-fzf/tests -v
 ```
-
-## Activation permission boundary
-
-Repository default token permissions remain read-only. The inert updater grants
-contents:write, pull-requests:write and actions:write only to its update job.
-The last permission is solely for explicit workflow dispatch; no token or registry
-is added. The dispatched build gate runs lightweight tests before any Intel job.
-No approve/merge/apply command is present. The repository's combined
-“Allow GitHub Actions to create and approve pull requests” setting was observed
-OFF; it must be approved separately before bot PR creation. Templates and policy
-remain disabled until activation is authorized. No Release has been uploaded.

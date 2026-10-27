@@ -63,6 +63,8 @@ class StateTests(unittest.TestCase):
 
 
 class ReuseTests(unittest.TestCase):
+    def setUp(self):
+        p=patch("reuse.releases.retrieve",return_value=False);p.start();self.addCleanup(p.stop)
     def test_only_successful_matching_workflow_can_be_reused(self):
         import reuse
         import os
@@ -71,11 +73,11 @@ class ReuseTests(unittest.TestCase):
         bad={'id':7,'conclusion':'failure','path':'.github/workflows/fzf-intel-bottle.yml','head_repository':{'full_name':'owner/repo'},'event':'workflow_dispatch'}
         with tempfile.TemporaryDirectory() as tmp:
             output=pathlib.Path(tmp)/'output'
-            with patch.dict(os.environ,{'GITHUB_REPOSITORY':'owner/repo','GITHUB_OUTPUT':str(output)}),patch.object(sys,'argv',['reuse',key,tmp]),patch.object(reuse,'api',side_effect=[{'artifacts':[artifact]},bad]),patch.object(reuse.subprocess,'run') as download:
+            with patch.object(state,'read',return_value={'durable_destination':'owner/repo'}),patch.dict(os.environ,{'GITHUB_REPOSITORY':'owner/repo','GITHUB_OUTPUT':str(output)}),patch.object(sys,'argv',['reuse',key,tmp]),patch.object(reuse,'api',side_effect=[{'artifacts':[artifact]},bad]),patch.object(reuse.subprocess,'run') as download:
                 reuse.main();download.assert_not_called()
             self.assertEqual(output.read_text(),'reused=false\n')
             good=dict(bad,conclusion='success')
-            with patch.dict(os.environ,{'GITHUB_REPOSITORY':'owner/repo','GITHUB_OUTPUT':str(output)}),patch.object(sys,'argv',['reuse',key,tmp]),patch.object(reuse,'api',side_effect=[{'artifacts':[artifact]},good]),patch.object(reuse.subprocess,'run') as download,patch.object(state,'verify') as verify:
+            with patch.object(state,'read',return_value={'durable_destination':'owner/repo'}),patch.dict(os.environ,{'GITHUB_REPOSITORY':'owner/repo','GITHUB_OUTPUT':str(output)}),patch.object(sys,'argv',['reuse',key,tmp]),patch.object(reuse,'api',side_effect=[{'artifacts':[artifact]},good]),patch.object(reuse.subprocess,'run') as download,patch.object(state,'verify') as verify:
                 reuse.main();download.assert_called_once();verify.assert_called_once_with(tmp,key)
             self.assertTrue(output.read_text().endswith('reused=true\n'))
 
@@ -90,6 +92,8 @@ class GoTests(unittest.TestCase):
         self.assertFalse(state.go_matches('go'+v,v,receipt,lock))
 
 class DetectionTests(unittest.TestCase):
+    def setUp(self):
+        p=patch("reuse.releases.retrieve",return_value=False);p.start();self.addCleanup(p.stop)
     def test_noop_change_and_expansion(self):
         lock=state.read(state.ROOT/'fzf.lock.json')
         fzf='  url "https://github.com/junegunn/fzf/archive/refs/tags/v0.74.5.tar.gz"\n  sha256 "'+ 'a'*64 +'"\n  depends_on "go" => :build\n  uses_from_macos "ncurses"\n'
@@ -103,7 +107,7 @@ class DetectionTests(unittest.TestCase):
     def test_expired_hit_is_not_downloaded(self):
         import reuse,os
         key='a'*64
-        with tempfile.TemporaryDirectory() as tmp,patch.dict(os.environ,{'GITHUB_REPOSITORY':'owner/repo','GITHUB_OUTPUT':tmp+'/out'}),patch.object(sys,'argv',['reuse',key,tmp]),patch.object(reuse,'api',return_value={'artifacts':[{'expired':True,'name':'fzf-validated-'+key}]}),patch.object(reuse.subprocess,'run') as download:
+        with tempfile.TemporaryDirectory() as tmp,patch.object(state,'read',return_value={'durable_destination':'owner/repo'}),patch.dict(os.environ,{'GITHUB_REPOSITORY':'owner/repo','GITHUB_OUTPUT':tmp+'/out'}),patch.object(sys,'argv',['reuse',key,tmp]),patch.object(reuse,'api',return_value={'artifacts':[{'expired':True,'name':'fzf-validated-'+key}]}),patch.object(reuse.subprocess,'run') as download:
             reuse.main();download.assert_not_called()
 
 class DetectionOutputTests(unittest.TestCase):
