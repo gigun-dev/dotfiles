@@ -13,8 +13,15 @@ key=$(python3 "$root/state.py" verify --directory "$VALIDATED_DIRECTORY" --envir
 tag="fzf-bottle-$key"
 # Check repository visibility before any release write. Never overwrite existing assets.
 test "$(gh repo view "$APPROVED_PRIVATE_REPOSITORY" --json visibility --jq .visibility)" = PRIVATE
-if gh release view "$tag" --repo "$APPROVED_PRIVATE_REPOSITORY" >/dev/null 2>&1; then
-  echo 'Existing release: download and verify it; do not overwrite.'; exit 0
+existing=$(python3 - "$root" "$APPROVED_PRIVATE_REPOSITORY" "$key" <<'PYCODE'
+import sys,tempfile,pathlib
+sys.path.insert(0,sys.argv[1]);import releases
+with tempfile.TemporaryDirectory() as tmp:
+    print(str(releases.retrieve(sys.argv[2],sys.argv[3],pathlib.Path(tmp)/'release')).lower())
+PYCODE
+)
+if [ "$existing" = true ]; then
+  echo 'Existing release downloaded and verified; no overwrite.'; exit 0
 fi
 gh release create "$tag" "$VALIDATED_DIRECTORY/validated.json" "$VALIDATED_DIRECTORY/"*.bottle.tar.gz \
   --repo "$APPROVED_PRIVATE_REPOSITORY" --target "${APPROVED_COMMIT:?}" \

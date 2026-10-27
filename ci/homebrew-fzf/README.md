@@ -55,7 +55,9 @@ repository checks. Nix required checks remain unchanged; code lives outside
 `state.py detect --output /tmp/fzf-candidate.json` reads official immutable core
 sources and writes a candidate only when relevant inputs change. The inert
 `staged/update.yml.disabled` demonstrates deterministic branch deduplication and
-draft PR creation. It has no schedule and is not an active workflow. GITHUB_TOKEN
+draft PR creation with partial-failure resumption. Existing closed PRs are not
+reopened; existing runs for the same head (including failures) are not dispatched
+again automatically. API errors stop. It has no schedule and is not an active workflow. GITHUB_TOKEN
 PR creation does not trigger pull_request checks: the inert template explicitly dispatches the bounded build on its new
 deterministic branch and declares the future `actions: write` requirement. No new credential is proposed. Approval is needed before enabling
 that write permission, schedule/cadence and build usage. No auto-merge or host
@@ -66,9 +68,11 @@ with immutable key-based tag and checksum/validation manifest. `state.py
 archive-plan --environment FILE --directory DIR` prints a plan only.
 `staged/publish.sh.disabled` is inert and refuses a missing approved destination;
 it never clobbers an existing release. Before activation, approve destination and
-publication scope, implement/read-test durable download reuse, and verify that
-release asset access remains available to mini without new credentials. Ordinary
-Actions artifacts remain the only implemented download backend. No release has
+publication scope and verify release access through existing controller authentication.
+The read-only Release backend is implemented and mock-tested: when configured it
+validates private visibility, complete assets, manifest/key/checksum before returning
+a hit. Missing releases fall back to Actions artifacts; API failures stop. Existing
+release publication retries download and verify the release instead of overwriting it. No release has
 been created. Making the repository public would also expose these assets and is
 a separate decision.
 
@@ -101,3 +105,14 @@ Run local checks:
 bash -n ci/homebrew-fzf/recipe.sh
 python3 -m unittest discover -s ci/homebrew-fzf/tests -v
 ```
+
+## Activation permission boundary
+
+Repository default token permissions remain read-only. The inert updater grants
+contents:write, pull-requests:write and actions:write only to its update job.
+The last permission is solely for explicit workflow dispatch; no token or registry
+is added. The dispatched build gate runs lightweight tests before any Intel job.
+No approve/merge/apply command is present. The repository's combined
+“Allow GitHub Actions to create and approve pull requests” setting was observed
+OFF; it must be approved separately before bot PR creation. Templates and policy
+remain disabled until activation is authorized. No Release has been uploaded.

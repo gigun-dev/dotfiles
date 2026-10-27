@@ -19,6 +19,9 @@ jobs:
       enabled: ${{ steps.policy.outputs.enabled }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: |
+          bash -n ci/homebrew-fzf/recipe.sh
+          python3 -m unittest discover -s ci/homebrew-fzf/tests -v
       - id: policy
         env:
           BOUNDED_TRIAL: ${{ inputs.bounded_trial }}

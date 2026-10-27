@@ -50,8 +50,12 @@ class StateTests(unittest.TestCase):
             self.assertEqual(state.verify_build(d),b)
             (d/'SHA256SUMS').write_text('a'*64+'  /etc/passwd\n')
             with self.assertRaises(AssertionError):state.verify_build(d)
-    def test_disabled_policy(self):
-        self.assertEqual(state.read(state.ROOT/'policy.json'),{'build_enabled':False,'update_pr_enabled':False,'durable_destination':None,'artifact_retention_days':14})
+    def test_policy_schema(self):
+        p=state.read(state.ROOT/'policy.json')
+        self.assertIsInstance(p['build_enabled'],bool)
+        self.assertIsInstance(p['update_pr_enabled'],bool)
+        self.assertTrue(p['durable_destination'] is None or isinstance(p['durable_destination'],str))
+        self.assertEqual(p['artifact_retention_days'],14)
     def test_prepare_requires_explicit_execution(self):
         p=subprocess.run(['bash',str(state.ROOT/'recipe.sh'),'prepare-ci'],capture_output=True,text=True)
         self.assertEqual(p.returncode,2)

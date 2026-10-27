@@ -7,6 +7,7 @@ import re
 import subprocess
 import sys
 import state
+import releases
 
 def api(endpoint):
     return json.loads(subprocess.check_output(['gh','api',endpoint],text=True))
@@ -15,6 +16,13 @@ def main():
     key, destination = sys.argv[1:]
     assert re.fullmatch('[0-9a-f]{64}',key)
     repo=os.environ['GITHUB_REPOSITORY']
+    policy=state.read(state.ROOT/'policy.json')
+    durable=policy['durable_destination']
+    if durable:
+        assert durable==repo, 'cross-repository storage is not configured'
+        if releases.retrieve(repo,key,destination):
+            with open(os.environ['GITHUB_OUTPUT'],'a') as out: out.write('reused=true\n')
+            print('Validated private Release reused');return
     name='fzf-validated-'+key
     artifacts=api(f'repos/{repo}/actions/artifacts?name={name}&per_page=100')['artifacts']
     reused=False
