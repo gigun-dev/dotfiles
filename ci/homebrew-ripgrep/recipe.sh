@@ -72,7 +72,7 @@ b=p/m[2];assert b.is_file() and not b.is_symlink();assert hashlib.sha256(b.read_
 PYVERIFY
   bottle=$(find "$work" -maxdepth 1 -name 'pcre2--10.49*.bottle.tar.gz')
   [[ -n $bottle && $(printf '%s\n' "$bottle" | wc -l) -eq 1 ]]
-  install_target pcre2 "$bottle"
+  HOMEBREW_DEVELOPER=1 install_target pcre2 "$bottle"
   # force-bottle forbids any Rust build for ripgrep.
   install_target ripgrep --force-bottle ripgrep
   brew test --force pcre2 ripgrep
