@@ -1,17 +1,42 @@
 # Intel mini の macOS を段階的に管理する
 
-Intel mini の macOS は Ansible への移行中、既存 Nix generation 26 を残し、移す範囲を個別に決める。
+Intel mini の macOS は Ansible への移行中で、既存 Nix generation 26 と未移管の管理を残す。
+Ansible は fzf / zoxide / ripgrep / XcodeGen の選択リンク、共通 shell のリンク、選択した user defaults を管理する。
 NixOS の mini-vm、Pro の nix-darwin、既存の自動更新・監視は別の所有者のままとする。
-Ansible の実機適用はまだ行っていない。既存watchdogの観測のみ設定は、別途承認を受けて最小変更で適用した。
+watchdog の観測のみ設定は別途適用済みだが、稼働サービスの所有権は移していない。
 
 ## 所有者と移行の順序
 
 `mini_targets` の既定は空。playbook を指定しただけでは管理対象を選ばない。
-`mini_owners` は `shell` / `packages` / `defaults` / `launchd` ごとの所有者を持ち、
-`shell=legacy` / `packages=manual` / `defaults=legacy` / `launchd=manual` が既定。
+`mini_owners` は shell / packages / defaults / launchd など管理グループの所有者を記録する。
+個々の CLI は `mini_tool_policy.<name>.adoption` に現在の owner と adoption state を記録し、
+`mini_tool_policy.<name>.target` に希望する版・取得元・checksum 種別・選択先・更新方針をまとめる。
+fzf / zoxide / ripgrep / XcodeGen は現在 `ansible` 所有として採用済み。`packages` / `launchd` は `manual` のまま。
 通常の変更は所有者を `ansible` へ移管した対象だけ。例外の `launchd_stage` は所有者を
 `manual` のまま保ち、起動対象外の staging ディレクトリに候補だけを置く。
 対象の選択と所有権の移管は別であり、`mini_targets` に追加するだけでは移管にならない。
+
+## CLI の共通宣言
+
+各 CLI の `target` は目標の版・配布元・checksum と選択方針、`adoption` は実機で確認した現在の
+所有者・状態を表す。目標を更新しても実機の adoption 状態は自動で変わらない。採用済み CLI は
+実体ファイルの SHA-256 を検査してから選択リンクを作り、未知の既存ファイルやリンクを保全する。
+パッケージ導入・更新は別操作であり、各 CLI の `update_policy` は手動のまま。
+
+`fd` は Nix 10.4.2 が login shell で有効で、Homebrew Cellar の 10.5.0 は未選択の候補。
+`vivid` は未導入で、Homebrew 0.11.1 の取得元・checksum が確認済みの候補。
+`asc` は mini への read-only SSH 棚卸しで、公式 5.17.1 Intel release asset と同一 SHA-256 の
+x86_64 実行ファイルとして確認した。release の `asc_5.17.1_macOS_amd64` は圧縮 archive ではなく raw Mach-O executable なので、checksum 種別は `release_executable_sha256`。
+[公式 release assets](https://github.com/rorkai/App-Store-Connect-CLI/releases/expanded_assets/5.17.1)
+の manifest と asset SHA が一致する。現在の手動配置 `~/.local/bin/asc` も mini で観測したが、login shell の選択先ではなく Ansible の destination にも指定しない。
+この3件は adoption / selection が `pending` なので、`mini_targets` に指定しても適用前検査で拒否する。
+
+`selection.mode: protected_service` は destination 文字列の allowlist だけを検査する。
+これは実際のファイル保護を証明しない。採用前に mini 上で実体と全親の symlink chain をたどり、
+実体・親ディレクトリそれぞれの owner、group、mode、ACL を確認し、ユーザーが書き込めないことを確認する。
+許可する文字列パターンは `/nix/store/<store-path>`、`/run/current-system/sw/bin/<name>`、
+`/Library/PrivilegedHelperTools/<name>` に限る。`/usr/local` 全体は allowlist に含めず、
+`/usr/local/bin` や `~/.local/bin` のようなユーザーが書き込める可能性のある場所はサービスの選択先にしない。
 
 1. audit で現状と既存の所有者を確認する。古い導入記録を現在の実機状態の代わりにしない。
 2. 対象のファイル、競合する既存管理、更新方法、復旧方法をレビューし、所有権を明示的に移す。
@@ -144,12 +169,13 @@ DNS 失敗だけでは Wi-Fi を操作しない。状態が連続 2 サンプル
 | 対象 | 初期実装の範囲 | 残す管理・依存 |
 |---|---|---|
 | shell | 既存 repo 正本への5リンク。通常ファイル・別リンク・親リンクを拒否 | `.zprofile`、`/etc/zsh*`、login shell は未移管 |
-| packages | Lima / XcodeGen / mo の存在維持。明示更新は別入口 | Nix CLI 群・GUI casks・VPN・cloudflared は現状維持 |
+| packages | Lima / XcodeGen / mo の存在維持。明示更新は別入口 | package install/update は manual。Nix CLI 群・GUI casks・VPN・cloudflared は現状維持 |
+| xcodegen | 検証済み 2.46.0 Cellar binary への `/usr/local/bin/xcodegen` 1リンク | Homebrew formula の導入・更新と Nix profile は変更しない |
 | defaults | Dock autohide / KeyRepeat の2項目 | 他のOS設定、電源、認証は未移管 |
 | launchd | 起動検索対象外へ候補2ファイルを配置 | 稼働 user watchdog、heartbeat、Lima等のサービスは現状維持 |
 
-`mini_owners` は移管の記録であり、旧管理者を自動停止するコードではない。変更前にその対象の
-旧writerを特定し、miniの旧bootstrap/HMを併用しない運用を確認してから記録を変更する。
+`mini_owners` と CLI ごとの `adoption.owner` は移管の記録であり、旧管理者を自動停止するコードではない。
+変更前にその対象の旧writerを特定し、miniの旧bootstrap/HMを併用しない運用を確認してから記録を変更する。
 既存のNix daemon・store・generationや自動更新・監視は一括停止しない。
 パッケージ更新は依存パッケージや実行中のLimaへの影響を伴い得るため、更新候補名だけで安全とは扱わない。
 
@@ -310,3 +336,32 @@ Ansible の再適用で `changed=0` を確認してください。
 rollback は対象指定を止め、`/usr/local/bin/rg` が上記の Cellar 実体を指すリンクで
 あることを確認してから、そのリンクだけを削除します。新規 zsh で Nix 15.1.0 が
 選ばれることを確認します。Homebrew package、Nix profile、他のリンクは削除しません。
+
+### XcodeGen の選択リンク
+
+mini に導入済みの XcodeGen 2.46.0 は Homebrew core の Intel Sonoma bottle から
+Sequoia に pour され、formula の依存はありません。公式 bottle SHA-256 は
+`d0e021076a96894c2d48a51003e99ab4885130f69ea922a67de8bef3062c5a50`。
+`/usr/local/bin/xcodegen` は同じ Cellar binary
+を指す Homebrew の相対 symlink でした。Ansible は実行ファイルの SHA-256
+`b8714a29ed5d40319ff8a653e08fa684c756deee1ff0db15cac66b6392a55ba3` を検査し、既知の
+Homebrew symlink だけを絶対パスの symlink に置き換えます。未知のファイルやリンクは
+そのまま拒否します。
+
+`mini_targets: [xcodegen]` はこの1リンクだけを扱います。Homebrew formula の導入・更新、
+PATH、shell 設定、Nix profile、他の Homebrew link は変更しません。
+
+```sh
+uv run --locked --project ansible/mini-macos ansible-playbook \
+  -i ansible/mini-macos/inventory.yml ansible/mini-macos/apply.yml \
+  --check --diff -e '{"mini_targets":["xcodegen"]}'
+# 差分が /usr/local/bin/xcodegen のリンク先表記だけだと確認後に適用する
+uv run --locked --project ansible/mini-macos ansible-playbook \
+  -i ansible/mini-macos/inventory.yml ansible/mini-macos/apply.yml \
+  -e '{"mini_targets":["xcodegen"],"mini_apply_ack":true}'
+```
+
+新規 login / interactive zsh で `/usr/local/bin/xcodegen` と版 2.46.0 を確認します。
+checksum-gate は同じ binary を検証し、再適用は `changed=0` です。rollback はリンク先が
+検証済み Cellar binary であることを確認し、Homebrew が元に作った相対 link
+`../Cellar/xcodegen/2.46.0/bin/xcodegen` に戻します。Cellar package は削除しません。

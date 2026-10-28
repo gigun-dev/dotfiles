@@ -10,15 +10,12 @@
     - name: Validate host and requested transfer
       ansible.builtin.import_tasks: tasks/preflight.yml
   tasks:
-    - name: Select the verified zoxide executable only
-      ansible.builtin.include_tasks: tasks/zoxide.yml
-      when: "'zoxide' in mini_targets"
-    - name: Select the verified fzf executable only
-      ansible.builtin.include_tasks: tasks/fzf.yml
-      when: "'fzf' in mini_targets"
-    - name: Select the verified ripgrep executable only
-      ansible.builtin.include_tasks: tasks/ripgrep.yml
-      when: "'ripgrep' in mini_targets"
+    - name: Select adopted policy-declared CLI executables only
+      ansible.builtin.include_tasks: tasks/select_tool.yml
+      loop: "{{ mini_targets | select('in', mini_tool_policy.keys() | list) | list }}"
+      loop_control:
+        loop_var: mini_tool_name
+        label: "{{ mini_tool_name }}"
     - name: Manage shell links
       ansible.builtin.include_tasks: tasks/shell.yml
       when: "'shell' in mini_targets"
