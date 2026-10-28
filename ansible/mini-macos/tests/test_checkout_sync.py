@@ -99,6 +99,15 @@ class CheckoutSync(unittest.TestCase):
         self.assertIn("executable Git hooks require review", result.stderr)
         self.assertFalse(marker.exists())
 
+    def test_custom_hook_path_is_rejected_before_fetch(self):
+        self.run_git(self.checkout, "config", "core.hooksPath", "future-hooks")
+        self.advance_remote()
+        old = self.run_git(self.checkout, "rev-parse", "HEAD")
+        result = self.sync()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("custom Git hook path requires review", result.stderr)
+        self.assertEqual(self.run_git(self.checkout, "rev-parse", "HEAD"), old)
+
     def test_ignored_collision_is_preserved(self):
         (self.checkout / ".git/info/exclude").write_text("collision\n")
         (self.checkout / "collision").write_text("local ignored\n")

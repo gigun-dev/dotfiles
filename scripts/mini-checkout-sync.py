@@ -44,7 +44,9 @@ def main():
         if git("symbolic-ref", "--quiet", "--short", "HEAD", allow_missing=True) != "main":
             raise RuntimeError("checkout is not on main")
         hooks = git("config", "--path", "--get", "core.hooksPath", allow_missing=True)
-        hookdir = (repo / hooks).resolve() if hooks and not Path(hooks).is_absolute() else Path(hooks) if hooks else gitdir / "hooks"
+        if hooks:
+            raise RuntimeError("custom Git hook path requires review")
+        hookdir = gitdir / "hooks"
         if hookdir.is_dir() and any(
             not item.name.endswith(".sample") and item.is_file() and os.access(item, os.X_OK)
             for item in hookdir.iterdir()
