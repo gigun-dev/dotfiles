@@ -24,11 +24,13 @@ fzf / zoxide / ripgrep / XcodeGen は現在 `ansible` 所有として採用済�
 パッケージ導入・更新は別操作であり、各 CLI の `update_policy` は手動のまま。
 
 `fd` は Nix 10.4.2 が login shell で有効で、Homebrew Cellar の 10.5.0 は未選択の候補。
-`vivid` は未導入で、Homebrew 0.11.1 の取得元・checksum が確認済みの候補。
+`vivid` は現在 Nix 0.10.1 が存在し、Homebrew 0.11.1 は取得元・checksum が確認済みの未採用候補。
 `asc` は mini への read-only SSH 棚卸しで、公式 5.17.1 Intel release asset と同一 SHA-256 の
 x86_64 実行ファイルとして確認した。release の `asc_5.17.1_macOS_amd64` は圧縮 archive ではなく raw Mach-O executable なので、checksum 種別は `release_executable_sha256`。
 [公式 release assets](https://github.com/rorkai/App-Store-Connect-CLI/releases/expanded_assets/5.17.1)
-の manifest と asset SHA が一致する。現在の手動配置 `~/.local/bin/asc` も mini で観測したが、login shell の選択先ではなく Ansible の destination にも指定しない。
+の manifest と asset SHA が一致する。現在は `~/.local/bin/asc` に手動配置され、rollback 用の 5.9.2 がある。
+起動設定から PATH を再構成すると interactive shell ではこの配置が選ばれ、noninteractive shell では見つからない。
+これは起動設定からの再構成であり、実際の shell 実行結果ではない。Ansible の destination には指定しない。
 この3件は adoption / selection が `pending` なので、`mini_targets` に指定しても適用前検査で拒否する。
 
 `selection.mode: protected_service` は destination 文字列の allowlist だけを検査する。

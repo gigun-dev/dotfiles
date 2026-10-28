@@ -131,7 +131,10 @@ mini_tool_policy:
         integrity: {kind: homebrew_bottle_sha256, platform: sonoma, sha256: e95541e49042260c75c278311a5777acd11e76a1cd7af9067436f625083097fd}
       selection: {mode: interactive_cli, state: pending}
       update_policy: manual
-    adoption: {state: pending, owner: none, current: {state: absent}}
+    adoption:
+      state: pending
+      owner: nix
+      current: {version: "0.10.1"}
   asc:
     target:
       version: "5.17.1"
@@ -152,4 +155,5 @@ mini_tool_policy:
         version: "5.17.1"
         path: /Users/gigun/.local/bin/asc
         integrity: {kind: executable_sha256, sha256: 5a71dbd252afd73bcf361770449eb5187530f794b6c29abcec3618b485533d53}
-        active_in_login_shell: false
+        path_reconstruction: {interactive: selected, noninteractive: absent}
+      rollback: {version: "5.9.2"}
