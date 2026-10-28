@@ -4,8 +4,25 @@ import argparse
 import fcntl
 import os
 from pathlib import Path
+import signal
 import subprocess
 import sys
+
+
+def run_command(argv, env, timeout):
+    process = subprocess.Popen(argv, env=env, stdin=subprocess.DEVNULL,
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                               text=True, start_new_session=True)
+    try:
+        stdout, _ = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        process.communicate()
+        raise
+    return process.returncode, stdout
 
 
 def main():
@@ -16,13 +33,12 @@ def main():
 
     def git(*args, allow_missing=False):
         try:
-            result = subprocess.run(["git", "-C", str(repo), *args], env=env,
-                                    capture_output=True, text=True, timeout=60)
+            returncode, stdout = run_command(["git", "-C", str(repo), *args], env, 60)
         except subprocess.TimeoutExpired:
             raise RuntimeError(f"git {args[0]} timed out") from None
-        if result.returncode and not (allow_missing and result.returncode == 1):
-            raise RuntimeError(f"git {args[0]} failed (exit {result.returncode})")
-        return result.stdout.strip()
+        if returncode and not (allow_missing and returncode == 1):
+            raise RuntimeError(f"git {args[0]} failed (exit {returncode})")
+        return stdout.strip()
 
     def guard(expected_head=None):
         if git("symbolic-ref", "--quiet", "--short", "HEAD", allow_missing=True) != "main":

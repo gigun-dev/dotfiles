@@ -2,9 +2,11 @@
 import os
 import fcntl
 from pathlib import Path
+import runpy
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 
 SCRIPT = Path(__file__).resolve().parents[3] / "scripts/mini-checkout-sync.py"
@@ -113,6 +115,19 @@ class CheckoutSync(unittest.TestCase):
             result = self.sync()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("another checkout sync is running", result.stderr)
+
+    def test_timeout_stops_the_child_process(self):
+        ready = self.root / "child-started"
+        late = self.root / "child-survived"
+        child = (f"from pathlib import Path; import time; Path({str(ready)!r}).touch(); "
+                 f"time.sleep(2); Path({str(late)!r}).touch()")
+        parent = f"import subprocess,sys,time; subprocess.Popen([sys.executable,'-c',{child!r}]); time.sleep(30)"
+        run_command = runpy.run_path(str(SCRIPT))["run_command"]
+        with self.assertRaises(subprocess.TimeoutExpired):
+            run_command([sys.executable, "-c", parent], self.env, 1)
+        self.assertTrue(ready.exists())
+        time.sleep(2)
+        self.assertFalse(late.exists())
 
 
 
