@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fast-forward a clean mini checkout; never activate host configuration."""
+"""Fast-forward a clean mini checkout without directly running Nix or Ansible."""
 import argparse
 import fcntl
 import os
@@ -65,7 +65,12 @@ def main():
     try:
         if Path(git("rev-parse", "--show-toplevel")).resolve() != repo:
             raise RuntimeError("repo is not the checkout root")
-        gitdir = Path(git("rev-parse", "--absolute-git-dir"))
+        gitdir = Path(git("rev-parse", "--absolute-git-dir")).resolve()
+        common = Path(git("rev-parse", "--git-common-dir"))
+        if not common.is_absolute():
+            common = repo / common
+        if common.resolve() != gitdir:
+            raise RuntimeError("linked worktree requires review")
         with (gitdir / "mini-checkout-sync.lock").open("a") as lock:
             try:
                 fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)

@@ -108,6 +108,23 @@ class CheckoutSync(unittest.TestCase):
         self.assertIn("custom Git hook path requires review", result.stderr)
         self.assertEqual(self.run_git(self.checkout, "rev-parse", "HEAD"), old)
 
+    def test_linked_worktree_is_rejected_before_common_hook(self):
+        self.run_git(self.checkout, "switch", "-c", "other")
+        linked = self.root / "linked"
+        self.run_git(self.checkout, "worktree", "add", str(linked), "main")
+        self.advance_remote()
+        marker = self.root / "common-hook-ran"
+        hook = self.checkout / ".git/hooks/post-merge"
+        hook.write_text(f"#!/bin/sh\ntouch '{marker}'\n")
+        hook.chmod(0o755)
+        old = self.run_git(linked, "rev-parse", "HEAD")
+        result = subprocess.run([sys.executable, str(SCRIPT), "--repo", str(linked)],
+                                env=self.env, capture_output=True, text=True, timeout=90)
+        self.assertFalse(marker.exists(), "common post-merge hook must not execute")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("linked worktree", result.stderr)
+        self.assertEqual(self.run_git(linked, "rev-parse", "HEAD"), old)
+
     def test_ignored_collision_is_preserved(self):
         (self.checkout / ".git/info/exclude").write_text("collision\n")
         (self.checkout / "collision").write_text("local ignored\n")
