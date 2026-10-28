@@ -262,9 +262,34 @@ class Migration(unittest.TestCase):
         variables["mini_tool_policy"]["test_signer"] = service
         selection = service["target"]["selection"]
         selection.update(mode="protected_service", destination="/nix/store/abc123/bin/signer")
-        result = self.run_tasks("validate_tool_policy.yml", variables)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        for destination in ("/Users/gigun/.local/bin/signer", "/usr/local/bin/signer"):
+        allowed = (
+            "/nix/store/abc123/bin/signer",
+            "/nix/store/abc123/libexec/vendor/bin/signer",
+            "/run/current-system/sw/bin/signer",
+            "/Library/PrivilegedHelperTools/signer",
+        )
+        for destination in allowed:
+            with self.subTest(destination=destination):
+                selection["destination"] = destination
+                result = self.run_tasks("validate_tool_policy.yml", variables)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+        rejected = (
+            "/Users/gigun/.local/bin/signer",
+            "/usr/local/bin/signer",
+            "/nix/store/abc123/../Users/gigun/.local/bin/asc",
+            "/nix/store/abc123/./bin/signer",
+            "/run/current-system/sw/bin/../Users/gigun/.local/bin/asc",
+            "/run/current-system/sw/bin/./signer",
+            "/Library/PrivilegedHelperTools/signer/../../../Users/gigun/.local/bin/asc",
+            "/Library/PrivilegedHelperTools/./signer",
+            "/run/current-system/sw/bin/signer/extra",
+            "/Library/PrivilegedHelperTools/signer/extra",
+            "/nix/storeevil/abc123/bin/signer",
+            "/run/current-system/sw/bin-extra/signer",
+            "/Library/PrivilegedHelperTools-extra/signer",
+        )
+        for destination in rejected:
             with self.subTest(destination=destination):
                 selection["destination"] = destination
                 result = self.run_tasks("validate_tool_policy.yml", variables)
