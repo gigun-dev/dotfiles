@@ -288,6 +288,8 @@ class Migration(unittest.TestCase):
             "/nix/storeevil/abc123/bin/signer",
             "/run/current-system/sw/bin-extra/signer",
             "/Library/PrivilegedHelperTools-extra/signer",
+            "/nix/store/abc123/tool\nname/../../../../Users/gigun/.local/bin/asc",
+            "/nix/store/abc123/bin/signer\n",
         )
         for destination in rejected:
             with self.subTest(destination=destination):
