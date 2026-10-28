@@ -28,7 +28,7 @@ mini_defaults:
 mini_stage_dir: /Users/gigun/Library/Application Support/dotfiles-migration/network-watchdog
 # Tool targets are policy metadata; adoption records the current owner separately.
 # Structural allowlist only; adoption must separately verify the real filesystem protections.
-mini_service_destination_allowlist_regex: '\A(?!.*(?:^|/)\.{1,2}(?:/|\Z))(?:/nix/store/[^/]+(?:/[^/]+)*|/run/current-system/sw/bin/[^/]+|/Library/PrivilegedHelperTools/[^/]+)\Z'
+mini_service_destination_allowlist_regex: '\A(?![\s\S]*(?:^|/)\.{1,2}(?:/|\Z))(?![\s\S]*[\x00-\x1f\x7f])(?:/nix/store/[^/]+(?:/[^/]+)*|/run/current-system/sw/bin/[^/]+|/Library/PrivilegedHelperTools/[^/]+)\Z'
 mini_tool_policy:
   fzf:
     target:
