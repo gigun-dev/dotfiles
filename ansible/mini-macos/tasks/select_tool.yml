@@ -1,0 +1,35 @@
+---
+- name: Inspect approved binary for {{ mini_tool_name }}
+  ansible.builtin.stat:
+    path: "{{ mini_tool_policy[mini_tool_name].target.source.path }}"
+    checksum_algorithm: sha256
+    follow: false
+  register: mini_tool_binary
+- name: Require the verified executable before selecting it
+  ansible.builtin.assert:
+    that:
+      - mini_tool_policy[mini_tool_name].target.source.integrity.kind == 'executable_sha256'
+      - mini_tool_binary.stat.isreg | default(false)
+      - mini_tool_binary.stat.executable | default(false)
+      - mini_tool_binary.stat.checksum | default('') == mini_tool_policy[mini_tool_name].target.source.integrity.sha256
+- name: Inspect existing selection for {{ mini_tool_name }}
+  ansible.builtin.stat:
+    path: "{{ mini_tool_policy[mini_tool_name].target.selection.destination }}"
+    follow: false
+  register: mini_tool_selection
+- name: Preserve unknown files and links for {{ mini_tool_name }}
+  ansible.builtin.assert:
+    that:
+      - >-
+        not mini_tool_selection.stat.exists or
+        (mini_tool_selection.stat.islnk | default(false) and
+        mini_tool_selection.stat.lnk_target in
+        mini_tool_policy[mini_tool_name].target.selection.accepted_existing)
+    fail_msg: Preserve the existing tool selection and review its ownership before applying.
+- name: Select without changing PATH or other links for {{ mini_tool_name }}
+  ansible.builtin.file:
+    src: "{{ mini_tool_policy[mini_tool_name].target.source.path }}"
+    dest: "{{ mini_tool_policy[mini_tool_name].target.selection.destination }}"
+    state: link
+    force: "{{ mini_tool_policy[mini_tool_name].target.selection.force }}"
+    follow: false

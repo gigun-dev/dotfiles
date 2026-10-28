@@ -8,13 +8,18 @@
       - mini_home == '/Users/gigun'
       - mini_repo == '/Users/gigun/ghq/github.com/gigun-dev/dotfiles'
       - mini_targets is sequence and mini_targets is not string
-      - mini_targets | difference(['shell', 'packages', 'defaults', 'launchd_stage', 'fzf', 'zoxide', 'ripgrep', 'xcodegen']) | length == 0
+      - mini_targets | unique | list | length == mini_targets | length
+      - mini_targets | difference(['shell', 'packages', 'defaults', 'launchd_stage'] + (mini_tool_policy.keys() | list)) | length == 0
       - ansible_check_mode or mini_targets | length == 0 or mini_apply_ack | bool
     fail_msg: Review each target's diff and transfer its owner before acknowledging application.
+- name: Validate the canonical tool declarations
+  ansible.builtin.import_tasks: tasks/validate_tool_policy.yml
 - name: Require a single declared owner for every active target
   ansible.builtin.assert:
-    that: mini_owners[item] == 'ansible'
-    fail_msg: Retire the previous writer for this target before transferring ownership to Ansible.
+    that:
+      - (mini_tool_policy[item].adoption.owner if item in mini_tool_policy else mini_owners[item]) == 'ansible'
+      - item not in mini_tool_policy or mini_tool_policy[item].adoption.state == 'adopted'
+    fail_msg: Retire the previous writer and adopt this tool before selecting it through Ansible.
   loop: "{{ mini_targets | difference(['launchd_stage']) }}"
 # These two check_mode:false commands are read-only, including in --check.
 - name: Read target operating system and architecture

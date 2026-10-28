@@ -8,12 +8,35 @@ watchdog の観測のみ設定は別途適用済みだが、稼働サービス�
 ## 所有者と移行の順序
 
 `mini_targets` の既定は空。playbook を指定しただけでは管理対象を選ばない。
-`mini_owners` は個別コマンドと管理グループの所有者を記録する。
-現在は `zoxide` / `fzf` / `ripgrep` / `xcodegen` / `shell` / `defaults` が `ansible`、
-`packages` / `launchd` が `manual`。
+`mini_owners` は shell / packages / defaults / launchd など管理グループの所有者を記録する。
+個々の CLI は `mini_tool_policy.<name>.adoption` に現在の owner と adoption state を記録し、
+`mini_tool_policy.<name>.target` に希望する版・取得元・checksum 種別・選択先・更新方針をまとめる。
+fzf / zoxide / ripgrep / XcodeGen は現在 `ansible` 所有として採用済み。`packages` / `launchd` は `manual` のまま。
 通常の変更は所有者を `ansible` へ移管した対象だけ。例外の `launchd_stage` は所有者を
 `manual` のまま保ち、起動対象外の staging ディレクトリに候補だけを置く。
 対象の選択と所有権の移管は別であり、`mini_targets` に追加するだけでは移管にならない。
+
+## CLI の共通宣言
+
+各 CLI の `target` は目標の版・配布元・checksum と選択方針、`adoption` は実機で確認した現在の
+所有者・状態を表す。目標を更新しても実機の adoption 状態は自動で変わらない。採用済み CLI は
+実体ファイルの SHA-256 を検査してから選択リンクを作り、未知の既存ファイルやリンクを保全する。
+パッケージ導入・更新は別操作であり、各 CLI の `update_policy` は手動のまま。
+
+`fd` は Nix 10.4.2 が login shell で有効で、Homebrew Cellar の 10.5.0 は未選択の候補。
+`vivid` は未導入で、Homebrew 0.11.1 の取得元・checksum が確認済みの候補。
+`asc` は mini への read-only SSH 棚卸しで、公式 5.17.1 Intel release asset と同一 SHA-256 の
+x86_64 実行ファイルとして確認した。release の `asc_5.17.1_macOS_amd64` は圧縮 archive ではなく raw Mach-O executable なので、checksum 種別は `release_executable_sha256`。
+[公式 release assets](https://github.com/rorkai/App-Store-Connect-CLI/releases/expanded_assets/5.17.1)
+の manifest と asset SHA が一致する。現在の手動配置 `~/.local/bin/asc` も mini で観測したが、login shell の選択先ではなく Ansible の destination にも指定しない。
+この3件は adoption / selection が `pending` なので、`mini_targets` に指定しても適用前検査で拒否する。
+
+`selection.mode: protected_service` は destination 文字列の allowlist だけを検査する。
+これは実際のファイル保護を証明しない。採用前に mini 上で実体と全親の symlink chain をたどり、
+実体・親ディレクトリそれぞれの owner、group、mode、ACL を確認し、ユーザーが書き込めないことを確認する。
+許可する文字列パターンは `/nix/store/<store-path>`、`/run/current-system/sw/bin/<name>`、
+`/Library/PrivilegedHelperTools/<name>` に限る。`/usr/local` 全体は allowlist に含めず、
+`/usr/local/bin` や `~/.local/bin` のようなユーザーが書き込める可能性のある場所はサービスの選択先にしない。
 
 1. audit で現状と既存の所有者を確認する。古い導入記録を現在の実機状態の代わりにしない。
 2. 対象のファイル、競合する既存管理、更新方法、復旧方法をレビューし、所有権を明示的に移す。
@@ -151,8 +174,8 @@ DNS 失敗だけでは Wi-Fi を操作しない。状態が連続 2 サンプル
 | defaults | Dock autohide / KeyRepeat の2項目 | 他のOS設定、電源、認証は未移管 |
 | launchd | 起動検索対象外へ候補2ファイルを配置 | 稼働 user watchdog、heartbeat、Lima等のサービスは現状維持 |
 
-`mini_owners` は移管の記録であり、旧管理者を自動停止するコードではない。変更前にその対象の
-旧writerを特定し、miniの旧bootstrap/HMを併用しない運用を確認してから記録を変更する。
+`mini_owners` と CLI ごとの `adoption.owner` は移管の記録であり、旧管理者を自動停止するコードではない。
+変更前にその対象の旧writerを特定し、miniの旧bootstrap/HMを併用しない運用を確認してから記録を変更する。
 既存のNix daemon・store・generationや自動更新・監視は一括停止しない。
 パッケージ更新は依存パッケージや実行中のLimaへの影響を伴い得るため、更新候補名だけで安全とは扱わない。
 
