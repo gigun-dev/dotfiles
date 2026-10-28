@@ -73,6 +73,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - uses: ./.github/actions/setup-nix
+        with:
+          store-cache: 'false'
 
       # `--no-build` を付けないこと。ESP-IDF の devShell は
       # `builtins.readFile "${src}/tools/tools.json"` でソースを読む (IFD) ため、
@@ -111,7 +113,7 @@ jobs:
 
       - uses: ./.github/actions/setup-nix
         # The build cache can take longer to restore than a build using substituters.
-        # Keep check's cache; evaluate the build duration again after this change.
+        # Evaluate the build duration again after this change.
         with:
           store-cache: 'false'
 
