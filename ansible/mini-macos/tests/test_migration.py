@@ -1,9 +1,11 @@
 """Run real Ansible file tasks against disposable local homes, never SSH."""
 import copy
+import hashlib
 import json
 import os
 from pathlib import Path
 import plistlib
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -24,6 +26,9 @@ class Migration(unittest.TestCase):
         self.home = self.base / "home"
         self.repo = self.base / "repo"
         self.home.mkdir()
+        (self.base / "tasks").mkdir()
+        shutil.copy2(ROOT / "tasks/validate_tool_policy.yml",
+                     self.base / "tasks/validate_tool_policy.yml")
         (self.base / "ansible.cfg").write_text("[defaults]\n")
         (self.repo / "zsh").mkdir(parents=True)
         (self.repo / "zsh/.zshenv").write_text("export XDG_CACHE_HOME=${HOME}/.cache\n")
@@ -50,92 +55,94 @@ class Migration(unittest.TestCase):
             args += ["--check", "--diff"]
         return subprocess.run(args, cwd=self.base, env=env, capture_output=True, text=True, timeout=60)
 
-    def test_fzf_verified_selection_is_idempotent_and_rejects_collision(self):
-        import hashlib
-        source = self.home / "verified-fzf"
-        source.write_text("#!/bin/sh\nexit 0\n")
-        source.chmod(0o755)
-        dest = self.home / "fzf"
-        self.variables.update(mini_fzf_source=str(source), mini_fzf_destination=str(dest),
-                              mini_fzf_sha256=hashlib.sha256(source.read_bytes()).hexdigest())
-        result = self.run_tasks("fzf.yml", check=True)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertFalse(dest.exists())
-        for iteration in range(2):
-            result = self.run_tasks("fzf.yml")
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertEqual(dest.resolve(), source)
-            if iteration:
-                self.assertRegex(result.stdout, r"changed=0\s")
-        dest.unlink()
-        dest.write_text("preserve")
-        result = self.run_tasks("fzf.yml")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertEqual(dest.read_text(), "preserve")
-        dest.unlink()
-        source.write_text("changed executable")
-        result = self.run_tasks("fzf.yml")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertFalse(dest.exists())
+    def configure_tool(self, name, source, destination, accepted_existing=None, force=False):
+        policy = self.variables["mini_tool_policy"][name]
+        policy["target"]["version"] = "1.0-test"
+        policy["target"]["source"] = {
+            "kind": "homebrew_cellar",
+            "path": str(source),
+            "integrity": {
+                "kind": "executable_sha256",
+                "sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+            },
+        }
+        policy["target"]["selection"] = {
+            "mode": "interactive_cli",
+            "state": "selected",
+            "destination": str(destination),
+            "accepted_existing": accepted_existing or [str(source)],
+            "force": force,
+        }
+        policy["adoption"] = {"state": "adopted", "owner": "ansible"}
+        self.variables["mini_tool_name"] = name
 
-    def test_zoxide_verified_selection_is_idempotent_and_rejects_collision(self):
-        import hashlib
-        source = self.home / "verified-zoxide"
-        source.write_text("#!/bin/sh\nexit 0\n")
-        source.chmod(0o755)
-        dest = self.home / "zoxide"
-        self.variables.update(mini_zoxide_source=str(source), mini_zoxide_destination=str(dest),
-                              mini_zoxide_sha256=hashlib.sha256(source.read_bytes()).hexdigest())
-        result = self.run_tasks("zoxide.yml", check=True)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertFalse(dest.exists())
-        for iteration in range(2):
-            result = self.run_tasks("zoxide.yml")
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertEqual(dest.resolve(), source)
-            if iteration:
-                self.assertRegex(result.stdout, r"changed=0\s")
-        dest.unlink()
-        dest.write_text("preserve")
-        result = self.run_tasks("zoxide.yml")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertEqual(dest.read_text(), "preserve")
-        dest.unlink()
-        source.write_text("changed executable")
-        result = self.run_tasks("zoxide.yml")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertFalse(dest.exists())
+    def test_adopted_tool_defaults_match_the_pre_refactor_values(self):
+        expected = {
+            "fzf": ("0.74.5", "/usr/local/Cellar/fzf/0.74.5/bin/fzf",
+                    "ba4b0df70d7fd9e8dd0d2fa479d68c2bc10859449c86e6f7e2d1856d663d1111",
+                    "/usr/local/bin/fzf", ["/usr/local/Cellar/fzf/0.74.5/bin/fzf"], False),
+            "zoxide": ("0.10.0", "/usr/local/Cellar/zoxide/0.10.0/bin/zoxide",
+                       "e376d3046098c87fa25ed385bb4d1bc1e72c2c8b88f919ddaf912a19f6442a9f",
+                       "/usr/local/bin/zoxide", ["/usr/local/Cellar/zoxide/0.10.0/bin/zoxide"], False),
+            "ripgrep": ("15.2.0", "/usr/local/Cellar/ripgrep/15.2.0/bin/rg",
+                        "f8cf484393a97aaaa4ce35df1c5ea2790f6b8af6d86c8d31b3e694369dc5ebb4",
+                        "/usr/local/bin/rg", ["/usr/local/Cellar/ripgrep/15.2.0/bin/rg"], False),
+            "xcodegen": ("2.46.0", "/usr/local/Cellar/xcodegen/2.46.0/bin/xcodegen",
+                         "b8714a29ed5d40319ff8a653e08fa684c756deee1ff0db15cac66b6392a55ba3",
+                         "/usr/local/bin/xcodegen",
+                         ["../Cellar/xcodegen/2.46.0/bin/xcodegen",
+                          "/usr/local/Cellar/xcodegen/2.46.0/bin/xcodegen"], True),
+        }
+        self.assertEqual(self.variables["mini_targets"], [])
+        for name, (version, source, checksum, destination, accepted, force) in expected.items():
+            with self.subTest(tool=name):
+                policy = self.variables["mini_tool_policy"][name]
+                self.assertEqual(policy["target"]["version"], version)
+                self.assertEqual(policy["target"]["source"]["path"], source)
+                self.assertEqual(policy["target"]["source"]["integrity"],
+                                 {"kind": "executable_sha256", "sha256": checksum})
+                self.assertEqual(policy["target"]["selection"]["mode"], "interactive_cli")
+                self.assertEqual(policy["target"]["selection"]["state"], "selected")
+                self.assertEqual(policy["target"]["selection"]["destination"], destination)
+                self.assertEqual(policy["target"]["selection"]["accepted_existing"], accepted)
+                self.assertEqual(policy["target"]["selection"]["force"], force)
+                self.assertEqual(policy["target"]["update_policy"], "manual")
+                self.assertEqual(policy["adoption"], {"state": "adopted", "owner": "ansible"})
 
-    def test_ripgrep_verified_selection_is_idempotent_and_rejects_collision(self):
-        import hashlib
-        source = self.home / "verified-rg"
-        source.write_text("#!/bin/sh\nexit 0\n")
-        source.chmod(0o755)
-        dest = self.home / "rg"
-        self.variables.update(mini_ripgrep_source=str(source), mini_ripgrep_destination=str(dest),
-                              mini_ripgrep_sha256=hashlib.sha256(source.read_bytes()).hexdigest())
-        result = self.run_tasks("ripgrep.yml", check=True)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertFalse(dest.exists())
-        for iteration in range(2):
-            result = self.run_tasks("ripgrep.yml")
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertEqual(dest.resolve(), source)
-            if iteration:
+    def test_policy_driven_selection_is_idempotent_and_preserves_unknown_state(self):
+        fixtures = {}
+        for name in ("fzf", "zoxide", "ripgrep", "xcodegen"):
+            with self.subTest(tool=name):
+                source = self.home / f"verified-{name}"
+                source.write_text("#!/bin/sh\nexit 0\n")
+                source.chmod(0o755)
+                destination = self.home / name
+                self.configure_tool(name, source, destination)
+                result = self.run_tasks("select_tool.yml", check=True)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertFalse(destination.exists())
+                result = self.run_tasks("select_tool.yml")
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertEqual(destination.resolve(), source)
+                result = self.run_tasks("select_tool.yml")
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 self.assertRegex(result.stdout, r"changed=0\s")
-        dest.unlink()
-        dest.write_text("preserve")
-        result = self.run_tasks("ripgrep.yml")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertEqual(dest.read_text(), "preserve")
-        dest.unlink()
-        source.write_text("changed executable")
-        result = self.run_tasks("ripgrep.yml")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertFalse(dest.exists())
+                fixtures[name] = (source, destination)
 
-    def test_xcodegen_verified_selection_transfers_only_known_link(self):
-        import hashlib
+        source, destination = fixtures["fzf"]
+        destination.unlink()
+        destination.write_text("preserve")
+        self.variables["mini_tool_name"] = "fzf"
+        result = self.run_tasks("select_tool.yml")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(destination.read_text(), "preserve")
+        destination.unlink()
+        source.write_text("changed executable")
+        result = self.run_tasks("select_tool.yml")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(destination.exists())
+
+    def test_xcodegen_known_legacy_link_transfers_only_that_link(self):
         source = self.base / "usr/local/Cellar/xcodegen/2.46.0/bin/xcodegen"
         source.parent.mkdir(parents=True)
         source.write_text("#!/bin/sh\necho Version: 2.46.0\n")
@@ -144,43 +151,23 @@ class Migration(unittest.TestCase):
         dest.parent.mkdir(parents=True)
         legacy = "../Cellar/xcodegen/2.46.0/bin/xcodegen"
         dest.symlink_to(legacy)
-        self.variables.update(mini_xcodegen_source=str(source),
-                              mini_xcodegen_destination=str(dest),
-                              mini_xcodegen_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),
-                              mini_xcodegen_legacy_link_target=legacy)
-        result = self.run_tasks("xcodegen.yml", check=True)
+        self.configure_tool("xcodegen", source, dest,
+                            accepted_existing=[legacy, str(source)], force=True)
+        result = self.run_tasks("select_tool.yml", check=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(os.readlink(dest), legacy)
-        result = self.run_tasks("xcodegen.yml")
+        result = self.run_tasks("select_tool.yml")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(dest.resolve(), source)
         self.assertEqual(os.readlink(dest), str(source))
-        result = self.run_tasks("xcodegen.yml")
+        result = self.run_tasks("select_tool.yml")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertRegex(result.stdout, r"changed=0\s")
         dest.unlink()
         dest.symlink_to(self.base / "other-missing-source")
-        result = self.run_tasks("xcodegen.yml")
+        result = self.run_tasks("select_tool.yml")
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(os.readlink(dest), str(self.base / "other-missing-source"))
-
-    def test_xcodegen_checksum_mismatch_preserves_existing_link(self):
-        import hashlib
-        source = self.base / "usr/local/Cellar/xcodegen/2.46.0/bin/xcodegen"
-        source.parent.mkdir(parents=True)
-        source.write_text("#!/bin/sh\nexit 0\n")
-        source.chmod(0o755)
-        dest = self.base / "usr/local/bin/xcodegen"
-        dest.parent.mkdir(parents=True)
-        legacy = "../Cellar/xcodegen/2.46.0/bin/xcodegen"
-        dest.symlink_to(legacy)
-        self.variables.update(mini_xcodegen_source=str(source),
-                              mini_xcodegen_destination=str(dest),
-                              mini_xcodegen_sha256="0" * 64,
-                              mini_xcodegen_legacy_link_target=legacy)
-        result = self.run_tasks("xcodegen.yml")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertEqual(os.readlink(dest), legacy)
 
     def test_missing_link_preview_apply_and_second_apply(self):
         preview = self.run_tasks("shell.yml", check=True)
@@ -243,35 +230,46 @@ class Migration(unittest.TestCase):
                 self.assertIn('"evaluated_to": false', result.stdout)
                 self.assertNotIn("TASK [Read target operating", result.stdout)
 
-    def test_zoxide_manual_owner_refuses_application(self):
-        variables = yaml.safe_load((ROOT / "group_vars/mini_macos.yml").read_text())
-        variables.update(ansible_host="mini", ansible_user="gigun",
-                         mini_targets=["zoxide"], mini_apply_ack=True)
-        variables["mini_owners"]["zoxide"] = "manual"
-        result = self.run_tasks("preflight.yml", variables)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("Retire the previous writer", result.stdout)
-        self.assertNotIn("TASK [Read target operating", result.stdout)
+    def test_pending_candidates_refuse_selection(self):
+        base = yaml.safe_load((ROOT / "group_vars/mini_macos.yml").read_text())
+        base.update(inventory_hostname="mini", ansible_host="mini", ansible_user="gigun")
+        for name in ("fd", "vivid", "asc"):
+            with self.subTest(tool=name):
+                variables = copy.deepcopy(base)
+                variables.update(mini_targets=[name], mini_apply_ack=True)
+                result = self.run_tasks("preflight.yml", variables)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("Retire the previous writer", result.stdout)
+                self.assertNotIn("TASK [Read target operating", result.stdout)
 
-    def test_ripgrep_manual_owner_refuses_application(self):
+    def test_tool_owner_cannot_be_declared_twice(self):
         variables = yaml.safe_load((ROOT / "group_vars/mini_macos.yml").read_text())
-        variables.update(ansible_host="mini", ansible_user="gigun",
-                         mini_targets=["ripgrep"], mini_apply_ack=True)
-        variables["mini_owners"]["ripgrep"] = "manual"
-        result = self.run_tasks("preflight.yml", variables)
+        variables["mini_owners"]["fzf"] = "ansible"
+        result = self.run_tasks("validate_tool_policy.yml", variables)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("Retire the previous writer", result.stdout)
-        self.assertNotIn("TASK [Read target operating", result.stdout)
+        self.assertIn("Declare each target owner in exactly one location", result.stdout)
 
-    def test_xcodegen_manual_owner_refuses_application(self):
+    def test_missing_tool_integrity_is_rejected(self):
         variables = yaml.safe_load((ROOT / "group_vars/mini_macos.yml").read_text())
-        variables.update(ansible_host="mini", ansible_user="gigun",
-                         mini_targets=["xcodegen"], mini_apply_ack=True)
-        variables["mini_owners"]["xcodegen"] = "manual"
-        result = self.run_tasks("preflight.yml", variables)
+        del variables["mini_tool_policy"]["fzf"]["target"]["source"]["integrity"]["sha256"]
+        result = self.run_tasks("validate_tool_policy.yml", variables)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("Retire the previous writer", result.stdout)
-        self.assertNotIn("TASK [Read target operating", result.stdout)
+        self.assertIn("Tool target metadata is incomplete", result.stdout)
+
+    def test_protected_service_path_is_allowed_but_user_path_is_rejected(self):
+        variables = yaml.safe_load((ROOT / "group_vars/mini_macos.yml").read_text())
+        service = copy.deepcopy(variables["mini_tool_policy"]["fzf"])
+        variables["mini_tool_policy"]["test_signer"] = service
+        selection = service["target"]["selection"]
+        selection.update(mode="protected_service", destination="/nix/store/abc123/bin/signer")
+        result = self.run_tasks("validate_tool_policy.yml", variables)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        for destination in ("/Users/gigun/.local/bin/signer", "/usr/local/bin/signer"):
+            with self.subTest(destination=destination):
+                selection["destination"] = destination
+                result = self.run_tasks("validate_tool_policy.yml", variables)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("Tool target metadata is incomplete", result.stdout)
 
     def test_other_host_is_rejected_before_any_command(self):
         variables = yaml.safe_load((ROOT / "group_vars/mini_macos.yml").read_text())

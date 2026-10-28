@@ -7,10 +7,6 @@ mini_targets: []
 mini_apply_ack: false
 mini_update_ack: false
 mini_owners:
-  zoxide: ansible
-  fzf: ansible
-  ripgrep: ansible
-  xcodegen: ansible
   shell: ansible
   packages: manual
   defaults: ansible
@@ -30,21 +26,130 @@ mini_defaults:
   - {domain: com.apple.dock, key: autohide, type: bool, value: true}
   - {domain: NSGlobalDomain, key: KeyRepeat, type: int, value: 2}
 mini_stage_dir: /Users/gigun/Library/Application Support/dotfiles-migration/network-watchdog
-# Exact binary from the validated private Release; package installation is separate.
-mini_fzf_source: /usr/local/Cellar/fzf/0.74.5/bin/fzf
-mini_fzf_destination: /usr/local/bin/fzf
-mini_fzf_sha256: ba4b0df70d7fd9e8dd0d2fa479d68c2bc10859449c86e6f7e2d1856d663d1111
-# Official Homebrew 0.10.0 Intel Sonoma bottle, installed with --skip-link.
-mini_zoxide_source: /usr/local/Cellar/zoxide/0.10.0/bin/zoxide
-mini_zoxide_destination: /usr/local/bin/zoxide
-mini_zoxide_sha256: e376d3046098c87fa25ed385bb4d1bc1e72c2c8b88f919ddaf912a19f6442a9f
-# Exact Homebrew 15.2.0 Intel executable validated on mini; package installation is separate.
-mini_ripgrep_source: /usr/local/Cellar/ripgrep/15.2.0/bin/rg
-mini_ripgrep_destination: /usr/local/bin/rg
-mini_ripgrep_sha256: f8cf484393a97aaaa4ce35df1c5ea2790f6b8af6d86c8d31b3e694369dc5ebb4
-# Existing Homebrew core XcodeGen 2.46.0 Intel bottle; package install/update stays manual.
-mini_xcodegen_source: /usr/local/Cellar/xcodegen/2.46.0/bin/xcodegen
-mini_xcodegen_destination: /usr/local/bin/xcodegen
-mini_xcodegen_sha256: b8714a29ed5d40319ff8a653e08fa684c756deee1ff0db15cac66b6392a55ba3
-# The only accepted pre-migration Homebrew link; other files or links are preserved.
-mini_xcodegen_legacy_link_target: ../Cellar/xcodegen/2.46.0/bin/xcodegen
+# Tool targets are policy metadata; adoption records the current owner separately.
+# Structural allowlist only; adoption must separately verify the real filesystem protections.
+mini_service_destination_allowlist_regex: '^(?:/nix/store/[^/]+(?:/|$)|/run/current-system/sw/bin/[^/]+(?:/|$)|/Library/PrivilegedHelperTools/[^/]+(?:/|$))'
+mini_tool_policy:
+  fzf:
+    target:
+      version: "0.74.5"
+      source:
+        kind: homebrew_cellar
+        formula: fzf
+        path: /usr/local/Cellar/fzf/0.74.5/bin/fzf
+        integrity: {kind: executable_sha256, sha256: ba4b0df70d7fd9e8dd0d2fa479d68c2bc10859449c86e6f7e2d1856d663d1111}
+        artifact: {kind: private_release_bottle_sha256, sha256: 45957f1abe8b2c450629c09c3ed9afa31feb8bc16935417949b387f53249e689}
+      selection:
+        mode: interactive_cli
+        state: selected
+        destination: /usr/local/bin/fzf
+        accepted_existing: [/usr/local/Cellar/fzf/0.74.5/bin/fzf]
+        force: false
+      update_policy: manual
+    adoption: {state: adopted, owner: ansible}
+  zoxide:
+    target:
+      version: "0.10.0"
+      source:
+        kind: homebrew_cellar
+        formula: zoxide
+        path: /usr/local/Cellar/zoxide/0.10.0/bin/zoxide
+        integrity: {kind: executable_sha256, sha256: e376d3046098c87fa25ed385bb4d1bc1e72c2c8b88f919ddaf912a19f6442a9f}
+        artifact: {kind: homebrew_bottle_sha256, platform: sonoma, sha256: d3c9b69ac0b3d814619be69d32acfd5416d9e082ef5cddf21c698a5e0ae90ecb}
+      selection:
+        mode: interactive_cli
+        state: selected
+        destination: /usr/local/bin/zoxide
+        accepted_existing: [/usr/local/Cellar/zoxide/0.10.0/bin/zoxide]
+        force: false
+      update_policy: manual
+    adoption: {state: adopted, owner: ansible}
+  ripgrep:
+    target:
+      version: "15.2.0"
+      source:
+        kind: homebrew_cellar
+        formula: ripgrep
+        path: /usr/local/Cellar/ripgrep/15.2.0/bin/rg
+        integrity: {kind: executable_sha256, sha256: f8cf484393a97aaaa4ce35df1c5ea2790f6b8af6d86c8d31b3e694369dc5ebb4}
+        artifact: {kind: homebrew_bottle_sha256, platform: sonoma, sha256: 9dd76bad725daf9ad1d4c983419e79ec92aefdae0cc9c92d465b424c8aea4808}
+      selection:
+        mode: interactive_cli
+        state: selected
+        destination: /usr/local/bin/rg
+        accepted_existing: [/usr/local/Cellar/ripgrep/15.2.0/bin/rg]
+        force: false
+      update_policy: manual
+    adoption: {state: adopted, owner: ansible}
+  xcodegen:
+    target:
+      version: "2.46.0"
+      source:
+        kind: homebrew_cellar
+        formula: xcodegen
+        path: /usr/local/Cellar/xcodegen/2.46.0/bin/xcodegen
+        integrity: {kind: executable_sha256, sha256: b8714a29ed5d40319ff8a653e08fa684c756deee1ff0db15cac66b6392a55ba3}
+        artifact: {kind: homebrew_bottle_sha256, platform: sonoma, sha256: d0e021076a96894c2d48a51003e99ab4885130f69ea922a67de8bef3062c5a50}
+      selection:
+        mode: interactive_cli
+        state: selected
+        destination: /usr/local/bin/xcodegen
+        accepted_existing:
+          - ../Cellar/xcodegen/2.46.0/bin/xcodegen
+          - /usr/local/Cellar/xcodegen/2.46.0/bin/xcodegen
+        force: true
+      update_policy: manual
+    adoption: {state: adopted, owner: ansible}
+  fd:
+    target:
+      version: "10.5.0"
+      source:
+        kind: homebrew_cellar
+        formula: fd
+        path: /usr/local/Cellar/fd/10.5.0/bin/fd
+        integrity: {kind: executable_sha256, sha256: 99d0efbc645043b6458983bb082c6a4080108d4a3c117d4e8e39a4045689be9f}
+        artifact: {kind: homebrew_bottle_sha256, platform: sonoma, sha256: c57f68964c5f724c61ab92d691e84d82123fe258e69d416bca3d58d403eeb73a}
+        archive_integrity: {kind: homebrew_source_sha256, sha256: e6d9e90730bf316101691e49d59cc02565278dc3779d33a77423801569484851}
+      selection: {mode: interactive_cli, state: pending}
+      update_policy: manual
+    adoption:
+      state: pending
+      owner: nix
+      current:
+        version: "10.4.2"
+        path: /etc/profiles/per-user/gigun/bin/fd
+        integrity: {kind: executable_sha256, sha256: a083021398fb6212798cb658b94ac912845d76f874d368a16c2bced33d644a15}
+        active_in_login_shell: true
+  vivid:
+    target:
+      version: "0.11.1"
+      source:
+        kind: homebrew_formula
+        formula: vivid
+        archive_url: https://github.com/sharkdp/vivid/archive/refs/tags/v0.11.1.tar.gz
+        archive_integrity: {kind: homebrew_source_sha256, sha256: a43ccfbc6554055181a08f2740664f9280fa2d0e57c4641850c60dd0e5323720}
+        integrity: {kind: homebrew_bottle_sha256, platform: sonoma, sha256: e95541e49042260c75c278311a5777acd11e76a1cd7af9067436f625083097fd}
+      selection: {mode: interactive_cli, state: pending}
+      update_policy: manual
+    adoption: {state: pending, owner: none, current: {state: absent}}
+  asc:
+    target:
+      version: "5.17.1"
+      source:
+        kind: github_release_asset
+        payload: raw_macho_executable
+        repository: rorkai/App-Store-Connect-CLI
+        tag: "5.17.1"
+        asset: asc_5.17.1_macOS_amd64
+        integrity: {kind: release_executable_sha256, sha256: 5a71dbd252afd73bcf361770449eb5187530f794b6c29abcec3618b485533d53}
+        checksum_manifest: {asset: asc_5.17.1_checksums.txt, kind: release_checksums_manifest_sha256, sha256: 6f2b39f4bd057406160944c42433d216c96dfe056dce45f7a80b53ca33d7e4b1}
+      selection: {mode: interactive_cli, state: pending}
+      update_policy: manual
+    adoption:
+      state: pending
+      owner: manual
+      current:
+        version: "5.17.1"
+        path: /Users/gigun/.local/bin/asc
+        integrity: {kind: executable_sha256, sha256: 5a71dbd252afd73bcf361770449eb5187530f794b6c29abcec3618b485533d53}
+        active_in_login_shell: false

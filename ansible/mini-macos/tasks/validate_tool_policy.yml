@@ -1,0 +1,48 @@
+---
+- name: Reject duplicate ownership across group and tool declarations
+  ansible.builtin.assert:
+    that:
+      - (mini_tool_policy.keys() | intersect(mini_owners.keys()) | length) == 0
+    fail_msg: Declare each target owner in exactly one location.
+- name: Validate canonical mini tool declarations
+  ansible.builtin.assert:
+    that:
+      - item.value.target.version is string and item.value.target.version | length > 0
+      - item.value.target.source.kind in ['homebrew_cellar', 'homebrew_formula', 'github_release_asset']
+      - item.value.target.source.integrity.kind in ['executable_sha256', 'homebrew_bottle_sha256', 'release_asset_sha256', 'release_executable_sha256']
+      - (item.value.target.source.integrity.sha256 | default('')) is match('^[0-9a-f]{64}$')
+      - >-
+        item.value.target.source.artifact is not defined or
+        (item.value.target.source.artifact.kind in ['homebrew_bottle_sha256', 'private_release_bottle_sha256'] and
+        (item.value.target.source.artifact.sha256 | default('')) is match('^[0-9a-f]{64}$'))
+      - >-
+        item.value.target.source.archive_integrity is not defined or
+        (item.value.target.source.archive_integrity.kind == 'homebrew_source_sha256' and
+        (item.value.target.source.archive_integrity.sha256 | default('')) is match('^[0-9a-f]{64}$'))
+      - >-
+        item.value.target.source.checksum_manifest is not defined or
+        (item.value.target.source.checksum_manifest.kind == 'release_checksums_manifest_sha256' and
+        (item.value.target.source.checksum_manifest.sha256 | default('')) is match('^[0-9a-f]{64}$'))
+      - item.value.target.selection.mode in ['interactive_cli', 'protected_service']
+      - item.value.target.selection.state in ['selected', 'pending']
+      - item.value.target.update_policy == 'manual'
+      - item.value.adoption.owner in ['ansible', 'nix', 'manual', 'none']
+      - item.value.adoption.state in ['adopted', 'pending']
+      - item.value.adoption.state != 'adopted' or item.value.adoption.owner == 'ansible'
+      - item.value.adoption.state != 'adopted' or item.value.target.selection.state == 'selected'
+      - item.value.adoption.state != 'adopted' or item.value.target.source.path is defined
+      - item.value.adoption.state != 'adopted' or item.value.target.source.integrity.kind == 'executable_sha256'
+      - item.value.target.selection.state != 'selected' or item.value.target.selection.destination is defined
+      - >-
+        item.value.target.selection.state != 'selected' or
+        (item.value.target.selection.accepted_existing is sequence and
+        item.value.target.selection.accepted_existing is not string and
+        item.value.target.selection.force is boolean)
+      - >-
+        item.value.target.selection.mode != 'protected_service' or
+        (item.value.target.selection.destination is defined and
+        item.value.target.selection.destination is match(mini_service_destination_allowlist_regex))
+    fail_msg: Tool target metadata is incomplete or conflicts with its adoption and selection state.
+  loop: "{{ mini_tool_policy | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
