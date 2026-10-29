@@ -196,6 +196,14 @@ verify はlint、3 playbookのsyntax、実Ansibleを使う一時ディレクト�
 SSHは実行しない。CIもmacOS runnerの一時領域だけを使い、inventoryのminiには接続しない。
 stagingの親シンボリックリンクは拒否し、既存shellディレクトリのpermissionは維持する。
 
+controller は project の `pyproject.toml` / `uv.lock` / `.python-version` を使う。
+2026-10-29 の Intel mini では lock 中の `cryptography` 50.0.2 に対応 wheel がなく、
+上流は 49 以降の macOS x86_64 サポートを終了している
+([上流 changelog](https://cryptography.io/en/50.0.2/changelog/#v49-0-0))。
+Pro の Apple Silicon では 2026-10-29 に固定依存で lint、3 playbook の構文検査、ローカル fixture 20 件が成功した。対象への SSH・apply は行っていない。
+Linux controller で inventory の解析・syntax 等を検討できても、macOS 固有の検証は別に必要。
+グローバル導入や未検討の依存 downgrade で解消済みとは扱わない。
+
 参考: [check mode](https://docs.ansible.com/projects/ansible/latest/playbook_guide/playbooks_checkmode.html)、
 [Homebrew](https://docs.ansible.com/projects/ansible/latest/collections/community/general/homebrew_module.html)、
 [macOS defaults](https://docs.ansible.com/projects/ansible/latest/collections/community/general/osx_defaults_module.html)。
