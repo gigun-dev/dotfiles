@@ -7,6 +7,16 @@ watchdog の観測のみ設定は別途適用済みだが、稼働サービス�
 
 ## 所有者と移行の順序
 
+2026-10-29 の mini 読み取り時点の整理。Pro が Ansible controller、mini が管理対象。
+導入された実体と、選択リンク・設定の所有者は別に扱う。
+
+| 対象 | 現在の管理元・確認範囲 |
+|---|---|
+| Nix | macOS の新規適用は凍結中。既存 generation と user profile は残り、一部 CLI の実体を供給している |
+| Homebrew | Lima / Tailscale や GUI cask 等の導入元。パッケージの導入・更新は手動管理のまま |
+| Ansible | shell・defaults と採用済み CLI 選択リンクの所有を宣言。4 CLI の Homebrew 実体へのリンクと shell リンクは実機で確認した。既定では対象を選択しない |
+| 常駐サービス | `launchd` の移管は未実施。既存の Lima 自動起動と watchdog の登録を維持し、候補の staging と稼働サービスの管理を区別する |
+
 `mini_targets` の既定は空。playbook を指定しただけでは管理対象を選ばない。
 `mini_owners` は shell / packages / defaults / launchd など管理グループの所有者を記録する。
 個々の CLI は `mini_tool_policy.<name>.adoption` に現在の owner と adoption state を記録し、
