@@ -78,7 +78,7 @@ jobs:
       - name: Configure reviewed runner Nix client
         if: ${{ runner.environment == 'self-hosted' }}
         run: |
-          printf 'NIX_CONFIG<<EOF\naccept-flake-config = true\nEOF\n' >> "$GITHUB_ENV"
+          printf 'NIX_CONFIG<<EOF\naccept-flake-config = true\nmax-jobs = 1\ncores = 2\nEOF\n' >> "$GITHUB_ENV"
       - uses: ./.github/actions/check-linux-runner
         if: ${{ runner.environment == 'self-hosted' }}
       - uses: ./.github/actions/setup-nix
@@ -123,7 +123,7 @@ jobs:
       - name: Configure reviewed runner Nix client
         if: ${{ runner.environment == 'self-hosted' }}
         run: |
-          printf 'NIX_CONFIG<<EOF\naccept-flake-config = true\nEOF\n' >> "$GITHUB_ENV"
+          printf 'NIX_CONFIG<<EOF\naccept-flake-config = true\nmax-jobs = 1\ncores = 2\nEOF\n' >> "$GITHUB_ENV"
       - uses: ./.github/actions/check-linux-runner
         if: ${{ runner.environment == 'self-hosted' }}
       - uses: ./.github/actions/setup-nix

@@ -10,6 +10,8 @@ runs:
         test "$(uname -m)" = x86_64
         command -v nix >/dev/null
         test "$(nix config show accept-flake-config)" = true
+        test "$(nix config show max-jobs)" = 1
+        test "$(nix config show cores)" = 2
         features=" $(nix config show experimental-features) "
         case "$features" in *' nix-command '*) ;; *) echo 'nix-command is required' >&2; exit 1;; esac
         case "$features" in *' flakes '*) ;; *) echo 'flakes is required' >&2; exit 1;; esac
