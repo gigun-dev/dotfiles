@@ -29,8 +29,7 @@ fzf / zoxide / ripgrep / XcodeGen は現在 `ansible` 所有として採用済�
 x86_64 実行ファイルとして確認した。release の `asc_5.17.1_macOS_amd64` は圧縮 archive ではなく raw Mach-O executable なので、checksum 種別は `release_executable_sha256`。
 [公式 release assets](https://github.com/rorkai/App-Store-Connect-CLI/releases/expanded_assets/5.17.1)
 の manifest と asset SHA が一致する。現在は `~/.local/bin/asc` に手動配置され、rollback 用の 5.9.2 がある。
-起動設定から PATH を再構成すると interactive shell ではこの配置が選ばれ、noninteractive shell では見つからない。
-これは起動設定からの再構成であり、実際の shell 実行結果ではない。Ansible の destination には指定しない。
+2026-10-31 の SSH 確認では、対話 login shell (`zsh -lic`、TTY なし) はこの配置を選び、noninteractive shell では見つからなかった。Ansible の destination には指定しない。
 この3件は adoption / selection が `pending` なので、`mini_targets` に指定しても適用前検査で拒否する。
 
 `selection.mode: protected_service` は destination 文字列の allowlist だけを検査する。
