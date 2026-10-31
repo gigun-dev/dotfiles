@@ -1,0 +1,16 @@
+name: Check isolated Linux runner
+description: Fail early if the preinstalled Nix cannot run the Linux CI checks
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -eu
+        test "$(uname -s)" = Linux
+        test "$(uname -m)" = x86_64
+        command -v nix >/dev/null
+        test "$(nix config show accept-flake-config)" = true
+        features=" $(nix config show experimental-features) "
+        case "$features" in *' nix-command '*) ;; *) echo 'nix-command is required' >&2; exit 1;; esac
+        case "$features" in *' flakes '*) ;; *) echo 'flakes is required' >&2; exit 1;; esac
+        test "$(nix eval --impure --raw --expr builtins.currentSystem)" = x86_64-linux
