@@ -8,7 +8,7 @@
 
 systemd は `ProtectHome` / `ProtectSystem` / `NoNewPrivileges` 等の NixOS module の既定に加え、Docker socket、agenix のリンクと実ディレクトリ、秘密ディレクトリと Tailscale socket を隠す。ただし、これは VM や強いネットワーク隔離ではない。ジョブは同じ kernel とネットワークを使い、公開された store や到達可能なサービス、ジョブ自身の token と runner の認証情報にはアクセスし得る。既存の秘密・socket・home の実際の権限とサービス到達先を登録前に確認する。信頼できないコードには使用しない。
 
-mini-vm の Nix daemon を非 trusted client として使用し、job ごとの Nix client だけに `accept-flake-config = true` を設定する。既存の daemon 設定や trusted-users は変えず、GitHub Actions の writable `/nix` cache も復元しない。ただし production と同じ store を読み、daemon を通じて新しい store path やディスク使用量を増やす。store は秘密の保管場所にしない。daemon の sandbox と binary cache の信頼設定、非 trusted client が必要な build / substituter を使えることは実機検証が必要。Nix sandbox は build を対象とし、checkout / action / shell 全体を覆わない。runner unit の CPU・メモリ制限は外部 nix-daemon が起動する build には自動的に伝播しないため、資源上限と既存サービスへの影響は別に検証する。
+mini-vm の Nix daemon を非 trusted client として使用し、job ごとの Nix client に `accept-flake-config = true`、`max-jobs = 1`、`cores = 2` を設定する。既存の daemon 設定や trusted-users は変えず、GitHub Actions の writable `/nix` cache も復元しない。ただし production と同じ store を読み、daemon を通じて新しい store path やディスク使用量を増やす。store は秘密の保管場所にしない。daemon の sandbox と binary cache の信頼設定、非 trusted client が必要な build / substituter を使えることは実機検証が必要。Nix sandbox は build を対象とし、checkout / action / shell 全体を覆わない。`max-jobs` は client の同時 local build 数、`cores` は builder への並列度の目安であり、他 client や builder 自身に対する厳密な CPU・メモリ上限ではない。runner unit の CPU・メモリ制限は外部 nix-daemon が起動する build に伝播しない。必要な空き資源を確認し、既存サービスへの影響を監視する。
 
 SHA 変数と label は認可境界ではない。同じ repository の別 workflow も label を指定でき、workflow 自体を編集できる人は SHA 条件も変更できる。private repository の本人確認済みコードだけを対象にし、runner を起動する前に実行対象と他の queued job を確認し、使用後は停止・登録解除と作業領域の消去を確認する。runner が利用可能な間の想定外 job 割当を完全には防げないため、repository と workflow の権限を確認する。再利用前に状態を消しても、信頼できないコードを安全に実行できる保証にはならない。
 
@@ -16,4 +16,4 @@ macOS の `macos-regressions` と `mini-ansible` は hosted のまま。Linux �
 
 ## 切り替えと戻し方
 
-利用前に対象 SHA を確認し、短命 token を用意して runner を一時的に登録・起動したうえで、2 変数を設定する。登録・ユーザー作成・systemd 適用・変数変更は別途承認する。検証後は変数を削除し、runner の停止・登録解除と task-local な状態の処理を確認する。既に待機中の job は変数変更で自動的に振り直されない。job ごとに再登録が必要であり、3 job の順次・並行実行や cleanup の手順は未検証。
+対象 SHA と他の待機 job を確認し、2 変数を設定してから新しい run を起動する。既に待機中の job は変数変更で自動的に振り直されない。短命 token を用意して runner を起動し、`changes` が終わったら登録解除を確認する。続く `check` と `build` はどちらが先に割り当てられてもよいが、一つずつ手動で再登録し、各 job の終了と登録解除を確認する。token が期限切れなら再発行する。いずれかの job が失敗した場合も後始末する。登録・ユーザー作成・systemd 適用・変数変更は別途承認する。検証後は service を停止し、残った runner の登録を解除、2 変数を元に戻し、専用 token・state・work・log を処理する。実際の 3 job、再登録、cleanup は未検証。
