@@ -1,4 +1,4 @@
-name: Check isolated Linux runner
+name: Check reviewed Linux runner
 description: Fail early if the preinstalled Nix cannot run the Linux CI checks
 runs:
   using: composite

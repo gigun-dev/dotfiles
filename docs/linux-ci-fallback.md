@@ -1,28 +1,19 @@
 # Linux CI の一時的な切り替え案
 
-通常は GitHub-hosted を使う。専用環境を用意・検証した後にだけ、repository variable `DOTFILES_LINUX_CI` を `self-hosted` にすると、Nix CI の `changes`、`check`、`build` が `self-hosted` / `linux` / `x64` / `dotfiles-isolated` の全ラベルを持つ runner に割り当てられる。自動切り替えではない。この案だけでは runner は存在せず、該当 runner がオフラインまたは存在しない場合はジョブが待機する。
+通常は GitHub-hosted を使う。本人が内容を確認した commit に限り、repository variable `DOTFILES_LINUX_CI=self-hosted` と `DOTFILES_CI_REVIEWED_SHA=<完全な commit SHA>` を設定すると、Nix CI の `changes` / `check` / `build` は専用 label `dotfiles-reviewed` の runner を選ぶ。PR は GitHub が生成する merge commit SHA、push / workflow_dispatch は実行対象 SHA を照合する。PR の head や base が進むと merge commit も変わるため再確認が必要。値が一致しなければ hosted を選ぶ。自動切り替えではない。
 
-## ネットワークの未解決事項
+## mini-vm の候補
 
-mini の Lima 2.2.0 の既定 user-mode network は、guest から `host.lima.internal` を介して host の loopback に到達できる。plain mode はこれを遮断しないため、現状の YAML は **runner を登録できる安全な構成ではない**。Lima の[公式説明](https://lima-vm.io/docs/config/network/user/)にある `networkOpts.hostLoopback: false` は 2.3 以降の機能で、確認時点の最新正式 release は 2.2.1。2.3 の release は未確認なので、設定に加えない。mini の 2.2.0 では未知のキーとして warning が出るが `limactl validate` は成功を返すため、終了コードだけで有効と判断しない。
+[未 import の NixOS module 案](../ci/linux-runner/mini-runner.nix) は、専用 system user、NixOS の GitHub runner と systemd sandbox を定義する。既定は無効で、明示的に import・有効化しない限りユーザーやサービスを作らない。短命の registration token は Nix store 外から渡す。1 job で登録解除する ephemeral runner とし、自動再登録・boot 起動はしない。ユーザーに sudo、docker group や `trusted-users` を与えない。NixOS 標準 runner module は登録前処理の一部を root で実行するため、導入・起動時はその権限と短命 token の受け渡しを別途確認する。
 
-将来、正式対応版で VZ / Intel macOS の互換性を確かめても、`hostLoopback: false` が防ぐのは host loopback への経路だけで、host の LAN アドレスや mini-vm / tailnet は別途保護が必要。guest 内の firewall は job が権限を得た場合に変更できるため、唯一の境界にしない。専用 guest の通信を guest の外側で制御し、GitHub・必要な取得先への通信だけを許可しつつ host・LAN・tailnet・既存 VM を遮断する方式が必要だが、現行 Lima 2.2 の標準機能だけでの実現方法は未確認。host 全体の firewall や既存ネットワークの変更はこの案に含まない。
+systemd は `ProtectHome` / `ProtectSystem` / `NoNewPrivileges` 等の NixOS module の既定に加え、Docker socket、agenix のリンクと実ディレクトリ、秘密ディレクトリと Tailscale socket を隠す。ただし、これは VM や強いネットワーク隔離ではない。ジョブは同じ kernel とネットワークを使い、公開された store や到達可能なサービス、ジョブ自身の token と runner の認証情報にはアクセスし得る。既存の秘密・socket・home の実際の権限とサービス到達先を登録前に確認する。信頼できないコードには使用しない。
 
-登録前には隔離された試験用の待受を用意し、IPv4 / IPv6、host loopback / LAN、tailnet、他 guest への拒否と、必要な outbound・DNS の成功を検証する。既存サービスを試験対象にしない。現状は VM 起動・登録に進まない。
+mini-vm の Nix daemon を非 trusted client として使用し、job ごとの Nix client だけに `accept-flake-config = true` を設定する。既存の daemon 設定や trusted-users は変えず、GitHub Actions の writable `/nix` cache も復元しない。ただし production と同じ store を読み、daemon を通じて新しい store path やディスク使用量を増やす。store は秘密の保管場所にしない。daemon の sandbox と binary cache の信頼設定、非 trusted client が必要な build / substituter を使えることは実機検証が必要。Nix sandbox は build を対象とし、checkout / action / shell 全体を覆わない。runner unit の CPU・メモリ制限は外部 nix-daemon が起動する build には自動的に伝播しないため、資源上限と既存サービスへの影響は別に検証する。
 
-## 専用 runner の前提
+SHA 変数と label は認可境界ではない。同じ repository の別 workflow も label を指定でき、workflow 自体を編集できる人は SHA 条件も変更できる。private repository の本人確認済みコードだけを対象にし、runner を起動する前に実行対象と他の queued job を確認し、使用後は停止・登録解除と作業領域の消去を確認する。runner が利用可能な間の想定外 job 割当を完全には防げないため、repository と workflow の権限を確認する。再利用前に状態を消しても、信頼できないコードを安全に実行できる保証にはならない。
 
-- x86_64 Linux の隔離された一時環境で、ホストの個人ファイル、鍵、認証情報、keychain、管理用ソケット、運用中の `/nix` store や VM を公開しない。共有ホスト上の別ユーザーや別ディレクトリだけでは不足する。
-- 信頼できる変更だけを実行し、PR のコードが任意のコマンドを実行できる前提で扱う。runner の権限、ネットワーク、実行後の破棄・初期化を登録前に確認する。[Lima 設定案](../ci/linux-runner/lima.yaml) は plain モードを使用するが、既定のゲストネットワークからホストや mini-vm に到達できない保証はない。登録前に通信境界を設計・検証する。
-- 専用 guest に Nix を事前導入し、[設定案](../ci/linux-runner/nix.conf)を使う。flake の substituter と署名鍵を受け入れられること、必要なアクセス・容量・時間制限と KVM の有無を事前に確認する。preflight は OS、architecture、設定を検査するが、隔離を証明しない。
-- self-hosted では setup-nix と GitHub Actions の writable `/nix` store cache を使わない。運用中の store にキャッシュを復元しない。hosted の setup と cache は従来どおり。
+macOS の `macos-regressions` と `mini-ansible` は hosted のまま。Linux 側の結果は macOS 検証を代替しない。branch protection の必須 check は `check` / `build` だが、mini-vm autoswitch は GitHub Actions の失敗 check 全体も判定する。macOS job が失敗すれば Linux の成功だけでは自動適用されない。
 
-Lima 設定案の 2 CPU / 4 GiB / 50 GiB は初回検証用の仮値で、現行 mini-vm と同時に稼働できることや build の所要量を証明しない。image の URL・digest は Lima 2.2.0 の固定例で、取得可否と provenance を作成前に確認する。plain mode でも Lima の管理用 SSH identity は存在する。ホストの秘密・store・checkout・管理 socket は mount しない。runner は常時稼働させず、1 job ごとに使い捨て、guest 自体も再初期化する。GitHub への outbound 接続と repo に限定した登録が必要。登録 credential は repo や guest image に焼き込まない。
+## 切り替えと戻し方
 
-macOS の `macos-regressions` と `mini-ansible` は変更しない。Linux 側だけでは macOS 検証を置き換えられない。branch protection の必須 check は `check` / `build` だが、mini-vm autoswitch は GitHub Actions の失敗 check 全体も判定する。macOS job が失敗すれば Linux の成功だけでは自動適用されない。
-
-## 戻すとき
-
-repository variable を削除するか `self-hosted` 以外に戻すと、新しいジョブは GitHub-hosted を選ぶ。既に作成・待機中のジョブは自動で振り直されないため、対象 run を個別に扱う。runner の登録・停止、変数変更や run の再実行は別の操作として判断する。
-
-runner 登録、短命 credential の発行、VM 作成・起動・資源割当、repository variable の変更は別途承認後に実施する。未使用時は guest と runner を停止する。候補 PR 自体で self-hosted を選ぶ場合も、この前提とチェックの実行結果を先に確認する。
+利用前に対象 SHA を確認し、短命 token を用意して runner を一時的に登録・起動したうえで、2 変数を設定する。登録・ユーザー作成・systemd 適用・変数変更は別途承認する。検証後は変数を削除し、runner の停止・登録解除と task-local な状態の処理を確認する。既に待機中の job は変数変更で自動的に振り直されない。job ごとに再登録が必要であり、3 job の順次・並行実行や cleanup の手順は未検証。
