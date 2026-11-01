@@ -183,11 +183,13 @@ in
         ''
       else
         ''
-          # This host keeps Claude's live updates outside the checkout.
+          # Reconcile declared changes with Claude's host-local updates.
           if [ -z "$DRY_RUN_CMD" ]; then
             ${pkgs.python3}/bin/python3 ${../../../claude/manage-local-settings.py} \
               "$claude_settings" "${dotfilesPath}/claude/settings.json" \
-              ${lib.escapeShellArg claudeLocalMarketplace}
+              ${../../../claude/settings.json} \
+              "${config.xdg.stateHome}/dotfiles/claude-settings-base.json" \
+              ${lib.escapeShellArg claudeLocalMarketplace} ${pkgs.git}/bin/git
           fi
         ''
     }
