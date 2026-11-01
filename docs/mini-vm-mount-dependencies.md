@@ -2,6 +2,8 @@
 
 この表は2026-11-01のrepository宣言と既存運用記録から作成した。下記のLima設定と固定path・unit propertyだけを非root read-onlyで追加確認した。process-tableは読んでいない。秘密、鍵、keychain内容は読んでいない。先行する限定canary/sudo観測は[PR #122](https://github.com/gigun-dev/dotfiles/pull/122)に記録し、この設計branchからは追加のsudo照会やcanary操作を行っていない。設定案の実機適用、mount・権限・ネットワーク変更、停止・再起動は含まない。
 
+適用前の実測と停止前保留の状態は[preflight記録](mini-vm-mount-preflight-2026-11-01.json)を参照する。
+
 ## VM内で保持するpath
 
 宣言上、常駐サービスと自動更新に必要なのはVM内のpathであり、ホストの `/Users/gigun` 全体を共有する必要は確認できない。実機のdotfiles/Cloudflare OS checkoutと主要auth pathはVM homeと同じdeviceにあり、host homeへのsymlinkではないことをmetadataで確認した。全ての利用者jobまで網羅したものではない。
@@ -75,7 +77,7 @@ ProのNOPASSWDの対象は、取得済み要約以上の分類ができないた
 | `codex-openai-bridge-refresh.timer` | `codex-openai-bridge-refresh.service` | 最新版確認後、bridgeをtry-restartする（[mini-vm.nix](../nix/modules/nixos/mini-vm.nix)） |
 | `langfuse-update-propose.timer` | `langfuse-update-propose.service` | build・branch push・PR作成/更新・auto-merge設定まで行う（[Langfuse module](../nix/modules/nixos/services/langfuse.nix)） |
 
-refreshを止めても、本番bridgeのExecStartは `uvx openai-api-server-via-codex@latest` なので必須のbootで版が変わり得る。Nix世代を戻すだけではその版を戻せない。保守draftは `import .../mini-vm-mount-maintenance.draft.nix { bridgeVersion = V; }` の形で、事前確認した既知稼働版Vを必須入力にする。current版は今回live照会しておらず、Vは未確定。check内の0.0.0は合成値で、実配置には使わない。
+refreshを止めても、本番bridgeのExecStartは `uvx openai-api-server-via-codex@latest` なので必須のbootで版が変わり得る。Nix世代を戻すだけではその版を戻せない。保守draftは `import .../mini-vm-mount-maintenance.draft.nix { bridgeVersion = V; }` の形で、事前確認した既知稼働版Vを必須入力にする。設計時にはVは未取得だった。後続の実測はpreflight記録を参照する。check内の0.0.0は合成値で、実配置には使わない。
 
 適用前に、承認された非秘密version記録（例 `/run/codex-bridge/version`）とreadinessからVを確定し、private receiptへ記録する。unknown・不一致なら適用を止め、process-table走査で埋めない。同じVでA/Bの起動と復帰が可能かを承認済み範囲で確認する。Vを含むcommand・package取得可能性・cache前提・healthを検証できなければ再起動しない。pinは主packageの版を固定するもので、依存解決/cacheのbit単位復元まで保証しない。
 

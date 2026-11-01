@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "scope": "Approved host-home mount removal; stopped before maintenance",
+  "applicationState": "blocked-before-timer-stop",
+  "observationWindowStartedAt": "2026-11-01T06:46:38Z",
+  "latestVmSnapshot": {
+    "checkedAt": "2026-11-01T07:03:05.531404+00:00",
+    "user": "gigun",
+    "uid": 501,
+    "bridgeVersion": "0.2.3",
+    "runningSystem": "/nix/store/qkj2hhnhcbb7cwv8wf1zx3jbwgrkg51n-nixos-system-mini-vm-26.11.20261020.5adc508",
+    "timerProperties": {
+      "dotfiles-autoswitch": {
+        "ActiveState": "active",
+        "SubState": "waiting",
+        "UnitFileState": "enabled",
+        "NextElapseUSecRealtime": "Mon 2026-11-02 04:16:50 JST",
+        "LastTriggerUSec": "Sun 2026-11-01 04:03:32 JST"
+      },
+      "dotfiles-lock-propose-fast": {
+        "ActiveState": "active",
+        "SubState": "waiting",
+        "UnitFileState": "enabled",
+        "NextElapseUSecRealtime": "Mon 2026-11-02 01:17:57 JST",
+        "LastTriggerUSec": "Sun 2026-11-01 01:13:05 JST"
+      },
+      "dotfiles-lock-propose-slow": {
+        "ActiveState": "active",
+        "SubState": "waiting",
+        "UnitFileState": "enabled",
+        "NextElapseUSecRealtime": "Sun 2026-11-08 02:21:28 JST",
+        "LastTriggerUSec": "Sun 2026-11-01 02:14:05 JST"
+      },
+      "codex-openai-bridge-refresh": {
+        "ActiveState": "active",
+        "SubState": "waiting",
+        "UnitFileState": "enabled",
+        "NextElapseUSecRealtime": "Mon 2026-11-02 04:34:55 JST",
+        "LastTriggerUSec": "Sun 2026-11-01 04:31:40 JST"
+      },
+      "langfuse-update-propose": {
+        "ActiveState": "active",
+        "SubState": "waiting",
+        "UnitFileState": "enabled",
+        "NextElapseUSecRealtime": "Mon 2026-11-02 02:21:39 JST",
+        "LastTriggerUSec": "Sun 2026-11-01 02:17:31 JST"
+      }
+    },
+    "units": {
+      "beszel": {
+        "LoadState": "loaded",
+        "ActiveState": "active",
+        "SubState": "running",
+        "Result": "success"
+      },
+      "beszel-agent": {
+        "LoadState": "loaded",
+        "ActiveState": "active",
+        "SubState": "running",
+        "Result": "success"
+      },
+      "cloudflare-os": {
+        "LoadState": "loaded",
+        "ActiveState": "active",
+        "SubState": "running",
+        "Result": "success"
+      },
+      "codex-openai-bridge": {
+        "LoadState": "loaded",
+        "ActiveState": "active",
+        "SubState": "running",
+        "Result": "success"
+      },
+      "codex-remote-control": {
+        "LoadState": "loaded",
+        "ActiveState": "active",
+        "SubState": "running",
+        "Result": "success"
+      },
+      "antigravity-remote-control": {
+        "LoadState": "loaded",
+        "ActiveState": "active",
+        "SubState": "running",
+        "Result": "success"
+      },
+      "langfuse": {
+        "LoadState": "loaded",
+        "ActiveState": "active",
+        "SubState": "exited",
+        "Result": "success"
+      },
+      "cloudflared-tunnel-5b8ec787-4730-4b2b-87b8-e86acbd3954b": {
+        "LoadState": "loaded",
+        "ActiveState": "active",
+        "SubState": "running",
+        "Result": "success"
+      }
+    }
+  },
+  "merges": {
+    "122": "03eab2e62823aacf61f5903d434710694ff52b32",
+    "123": "1999fe802af9a6d3ae9b26c5f3f1000b3166f370"
+  },
+  "approvedDesignHead": "c3147350f20a725dc736af769ea57b4bc998697b",
+  "conflictResolutionHead": "22364b87e753ecf02a229146c2a5d46b2e53e82c",
+  "reviewedDesignFilesUnchangedByConflictResolution": true,
+  "preflight": {
+    "bridgeRecordedVersion": "0.2.3",
+    "offlinePinnedVersionCommandExitCode": 0,
+    "offlinePinnedVersionMatched": true,
+    "localHttpStatus": {
+      "cloudflare-os": 200,
+      "langfuse-ready": 200,
+      "beszel": 200,
+      "bridge-unauthenticated-models": 401
+    },
+    "authenticatedCloudflareOsOrCodexInferenceTested": false,
+    "managementRecoveryPath": "Pro -> mini -> limactl shell --workdir /home/gigun mini-vm -> id -u",
+    "managementRecoveryUid": 501,
+    "bootFailureSerialRescueTested": false,
+    "limaInstanceDirectory": "/Users/gigun/.lima/mini-vm",
+    "limaConfigMode": "0644",
+    "limaBackend": "vz",
+    "globalDefaultExists": false,
+    "globalOverrideExists": false,
+    "tmp": {
+      "configuredHostSource": "/tmp/lima",
+      "guestMountPoint": "/tmp/lima",
+      "hostPathExists": false,
+      "privateTmpAliasExists": false,
+      "guestViewHasEntries": false,
+      "guestFilesystem": "virtiofs",
+      "guestSourceTag": "lima-1fd4cbcaa36d359d",
+      "guestOptions": "rw,relatime",
+      "runtimeHostSourceIdentity": "unconfirmed"
+    },
+    "updateJobsObservedInactive": [
+      "dotfiles-autoswitch",
+      "dotfiles-lock-propose@fast",
+      "dotfiles-lock-propose@slow",
+      "codex-openai-bridge-refresh",
+      "langfuse-update-propose"
+    ],
+    "undeclaredTransfersOrInteractiveJobsAbsent": "unconfirmed",
+    "existingAutoMergeReservationObserved": [
+      115
+    ],
+    "externalReservationsChanged": false,
+    "deployedDotfilesRevision": "9110f160121b3dc8aa7e654ef59c415daf40cf90"
+  },
+  "blockingCondition": "Configured host tmp source is absent while guest still has a writable virtiofs mount. Do not create an empty replacement or assume source identity; determine source/data/transfer handling before stop.",
+  "performed": {
+    "timerStop": false,
+    "servicePin": false,
+    "serviceRestart": false,
+    "profileABPrepared": false,
+    "guestBootProfileChanged": false,
+    "limaConfigEdited": false,
+    "vmStopped": false,
+    "vmRestarted": false,
+    "hostDirectoryCreated": false,
+    "existingSecretContentsRead": false,
+    "processTableOrLiveAclRead": false,
+    "dbOrDiskRollback": false
+  },
+  "inducedVmDowntimeSeconds": 0,
+  "homeShareRemovalAccepted": false,
+  "retainedExposure": "Existing /Users/gigun read-only export remains; no shared-secret invisibility acceptance was attempted.",
+  "operationState": "Original normal operation continues; maintenance A/B/C was not entered.",
+  "naturalAutoswitch": {
+    "previouslyExpected": "2026-11-02 04:04 JST",
+    "actualNextAtSnapshot": "2026-11-02 04:16:50 JST",
+    "timerActive": true,
+    "stillPossible": true,
+    "executionVerified": false,
+    "ourTimerOperationsPerformed": false
+  },
+  "remainingBeforeProceeding": [
+    "Resolve configured tmp host source and data/transfer handling",
+    "Confirm undeclared transfers and interactive work",
+    "Confirm management recovery path is sufficient for intended failure modes"
+  ]
+}
