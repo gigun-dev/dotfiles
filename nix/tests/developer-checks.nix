@@ -66,7 +66,6 @@ let
             pkgs.findutils
             pkgs.openssl
             pkgs.python3
-            pkgs.git
           ];
           TEST_PATH = lib.makeBinPath [
             pkgs.bash
@@ -116,12 +115,15 @@ in
   };
   developer-tools = run "developer-tools" [
     "linux-ci-runner"
-    "claude-local-settings"
+    "claude-user-settings"
     "codex-bridge-refresh"
     "bark-routing"
     "codex-mcp-login"
     "uv-sync-tools"
-  ] { };
+  ] {
+    CLAUDE_ACTIVATION = pkgs.writeText "claude-link-dotfiles" inputs.self.homeConfigurations.gigun-mini-vm.config.home.activation.linkDotfiles.data;
+    CLAUDE_HOME = inputs.self.homeConfigurations.gigun-mini-vm.config.home.homeDirectory;
+  };
 }
 // lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
   zsh-startup = run "zsh-startup" [ "zsh-startup" ] { TEST_ZSH = "/bin/zsh"; };
