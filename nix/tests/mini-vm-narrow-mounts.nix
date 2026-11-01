@@ -1,18 +1,25 @@
 { pkgs, inputs }:
 let
   base = inputs.self.nixosConfigurations.mini-vm;
+  # Synthetic version; this check never installs or starts the bridge.
+  bridgeVersion = "0.0.0";
+  maintenance = import ../../infra/lima/mini-vm-mount-maintenance.draft.nix {
+    inherit bridgeVersion;
+  };
   recovery = base.extendModules {
-    modules = [ ../../infra/lima/mini-vm-mount-maintenance.draft.nix ];
+    modules = [ maintenance ];
   };
   timerNames = [
     "dotfiles-autoswitch"
     "dotfiles-lock-propose-fast"
     "dotfiles-lock-propose-slow"
+    "codex-openai-bridge-refresh"
+    "langfuse-update-propose"
   ];
   draft = base.extendModules {
     modules = [
       ../../infra/lima/mini-vm-narrow-mounts.draft.nix
-      ../../infra/lima/mini-vm-mount-maintenance.draft.nix
+      maintenance
     ];
   };
 in
@@ -24,6 +31,38 @@ assert recovery.config.fileSystems == base.config.fileSystems;
 assert builtins.all (name: base.config.systemd.timers.${name}.enable) timerNames;
 assert builtins.all (name: !draft.config.systemd.units."${name}.timer".enable) timerNames;
 assert builtins.all (name: !recovery.config.systemd.units."${name}.timer".enable) timerNames;
+assert base.config.systemd.timers.codex-openai-bridge-refresh.timerConfig.Persistent;
+assert base.config.systemd.timers.langfuse-update-propose.timerConfig.Persistent;
+assert inputs.nixpkgs.lib.hasInfix "openai-api-server-via-codex@latest"
+  base.config.systemd.services.codex-openai-bridge.serviceConfig.ExecStart;
+assert builtins.all
+  (
+    candidate:
+    candidate.config.systemd.services.codex-openai-bridge.serviceConfig.ExecStart
+    == inputs.nixpkgs.lib.replaceStrings
+      [ "openai-api-server-via-codex@latest" ]
+      [ "openai-api-server-via-codex@${bridgeVersion}" ]
+      base.config.systemd.services.codex-openai-bridge.serviceConfig.ExecStart
+  )
+  [
+    draft
+    recovery
+  ];
+assert builtins.all
+  (
+    bridgeVersion:
+    !(builtins.tryEval (
+      import ../../infra/lima/mini-vm-mount-maintenance.draft.nix {
+        inherit bridgeVersion;
+      }
+    )).success
+  )
+  [
+    "latest"
+    ""
+    "1.2.3 --config other"
+    null
+  ];
 assert !(inputs.nixpkgs.lib.hasInfix "/Users/gigun" draft.config.environment.etc.fstab.text);
 pkgs.runCommand "mini-vm-narrow-mounts-draft"
   {
