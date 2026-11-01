@@ -49,5 +49,5 @@
 2026-10-27 mini の CLI 管理方針を所有・版・取得元・checksum種別・対話選択・更新方針の共通宣言へ揃え、fzf/zoxide/ripgrep/XcodeGen と検証済み候補の保留状態をテストする +mini by:me id:0114 @wip
 2026-10-29 Linux CI の Nix store cache 復元と短時間ジョブの消費を削減し、実行結果を確認する +dotfiles @ci by:me id:0115 @wip
 2026-10-29 mini の checkout 同期を実機設定の適用と分離し、安全な fast-forward と失敗時の停止を検証する +mini by:me id:0116 @wip
-2026-11-01 実効sudo一覧の非対話確認と、miniの指定2pathへの秘密を使わない共有canary検証について承認範囲を決める。UID/group/mode・VM共有mountは確認済み。既存拒否のprocess-tableとlive ACLは再試行しない +security @user see:docs/security-access-boundaries.md by:codex id:0119
 2026-11-01 公開前監査の未確認範囲（非公開backup、最新refs、PR review/添付、全Actions/cache、Release編集履歴）を確認し公開判断を残す +security see:docs/publication-audit-2026-11-01.md by:codex id:0121
+2026-11-01 miniのsudo一覧は認証要求で未確認のため、本人が一覧を確認して最小権限分類だけ返す手順を決める。自動認証や拒否経路への切替はしない +security @user see:docs/security-access-boundaries.md by:codex id:0122
