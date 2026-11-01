@@ -1,0 +1,7 @@
+# Draft fields only: replace the instance's mount fields after approval.
+# Never replace the full lima.yaml with this fragment or merge it additively.
+mountType: virtiofs
+mounts:
+  - location: /tmp/lima
+    mountPoint: /tmp/lima
+    writable: true

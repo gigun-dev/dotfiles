@@ -11,6 +11,7 @@
 | setup-routing | bootstrap が本番と同じ routing/preflight 関数を使う。委譲・失敗伝播・凍結ホスト・worktree・backup 衝突を stub で検査。legacy installer は実行しない |
 | switch-routing | 評価された共通 switch 本体の実行先を stub に置き換え、引数・終了コード・呼出し順・送信がないことを検査。sudo/rebuild は実行しない |
 | developer-tools | 従来 verify.sh にあった execution-context/bridge/login/Bark/uv 等の fixture テスト。依存は Nix で固定 |
+| mini-vm-narrow-mounts | 未適用の共有削減draft。本番宣言がhomeを保持し、純粋評価で拡張したcandidateだけがhomeを除外してtmp/rootを保持すること、Lima field案のpath allowlistと既存tmp tagを検査。実mount・VM停止・起動なし |
 | zsh-startup | Darwin のみ。四起動モード・再読込・Nix優先順位・一意性・standalone/未導入 fallback を実 zsh と一時 HOME で検査。OS層・brew・plugin は fixture |
 
 macOS 固有 check は Linux に存在させて skip するのでなく、Darwin checks と `macos-regressions` job で明示実行する。job は ARM macOS runner の対象 checks だけを build し、OS設定の全体build/switchをしない。`check` / `build` の既存 job 名は維持する。required status のサーバー側設定はこの変更で操作しない。

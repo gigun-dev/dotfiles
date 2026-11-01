@@ -157,6 +157,8 @@ mini-vm には性質の違う 2 つの信頼経路があり、1 本に両方を�
 
 ## 宣言管理から外れているもの
 
+ホストhome共有の削減は[依存表と未適用案](mini-vm-mount-dependencies.md)を参照する。Lima exportとguest fstabの対になる変更・計画停止・復旧は別承認で、この案は実機へ適用していない。
+
 - **mini の macOS**: generation 26 で凍結。設定変更は手で当てる。アンインストールはしていない
 - **Lima 本体**: brew で導入 (macOS 側が nix 管理外のため)。`limactl autostart enable mini-vm` で
   LaunchAgent 登録済み。**macOS の自動ログインが前提** — 無いと再起動後に VM が上がらない。
