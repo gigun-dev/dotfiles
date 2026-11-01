@@ -49,7 +49,7 @@ SSH 認証、Git の HTTPS credential、Git の SSH 署名は別の用途とし�
 | Mac の container | [apple-container module](../nix/modules/darwin/apple-container.nix) はユーザー権限へ降りて起動する | Docker socket と同じものとして扱わない。mini の現在の container / Docker 導入・socket 権限は未確認 |
 | Nix store / daemon | Pro / VM は上表の trusted-users を宣言。通常 switch / update からの Cachix 自動送信は廃止済み（[方針](security.md)） | store は秘密の保管先にしない。専用 CI の非 trusted client も daemon に build を依頼し store と disk を共有する。公開 cache への送信主体は未決定 |
 | mini → VM の共有 | [mini-vm.nix](../nix/modules/nixos/mini-vm.nix) は `/Users/gigun` を virtiofs read-only、`/tmp/lima` を read-write で mount。今回のVM側mount metadataは宣言と一致 | read-only は機密性を保証しない。共有 home 内の個別ファイルの読取範囲・ACLは未確認。VM root からの読み取り可能範囲も確定していない |
-| checkout / user 設定 | [agent execution](agent-execution.md) と Guard は checkout 衝突を防ぐ運用を定義する。home-manager の out-of-store symlink は repo を参照する | 専用 checkout はファイル競合の対策であり、同じ UID の credential / keychain / home を隔離しない。停止中の PR #118 を採用したものと扱わない |
+| checkout / user 設定 | [agent execution](agent-execution.md) と Guard は checkout 衝突を防ぐ運用を定義する。home-manager の out-of-store symlink は repo を参照する | 専用 checkout はファイル競合の対策であり、同じ UID の credential / keychain / home を隔離しない。設定の実機適用は別途判断する |
 
 ## Git 署名と復旧
 

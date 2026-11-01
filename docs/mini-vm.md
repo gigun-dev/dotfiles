@@ -17,6 +17,20 @@ mini-vm自体が停止した場合は同居するBeszelでは検出できない�
 Worker・KV・Cron・custom domainは`gigun-dev/hub`の`infra/uptime/`でOpenTofu管理する。
 設計は [ADR 0009](adr/0009-protect-monitoring-uis.md) を参照する。
 
+## Claude の設定
+
+`~/.claude/settings.json` は Claude とユーザーが所有する。Home Manager は設定をコピー・リンク・
+マージしない。hooks のスクリプトや commands、agents は従来どおり配布するが、hook の登録・削除や
+permissions、model、plugins、marketplace の変更は各端末の設定で明示的に行う。リポジトリの
+`claude/settings.json` は設定例として参照できるが、端末固有のパスなどを確認せずコピーしない。
+新規環境は Claude の既定設定から始めることもできる。
+
+既存の symlink はこの変更だけでは通常ファイルにならない。移行は別途、Claude や他の書き手が
+設定を更新しない時間に、実ファイルの内容と mode をバックアップして検証し、同じ内容の通常ファイルへ
+置換する。作業前後に byte と mode を確認し、バックアップを保持する。通常ファイルの場合は上書きしない。
+移行と checkout 同期の順序を確認し、旧 Home Manager の activation が symlink を再作成できる間は
+checkout を clean にして autoswitch を再開させない。新設定を含む main の適用と移行は別途判断する。
+
 ## mini-vm の自動更新 (2026-09-06 実装)
 
 **動機**: 無人機なので手で `pull && switch` を打つ機会が無く、push 済みの変更が届かないまま
@@ -174,7 +188,7 @@ mini-vm には性質の違う 2 つの信頼経路があり、1 本に両方を�
 - **`tailscale serve` の設定**: `sudo tailscale serve --bg 8787` は tailscaled の状態として永続し
   再起動も越えるが、宣言には無い。VM を作り直したら張り直しが要る
 - **mini の chrome-devtools MCP 登録**: `claude mcp add --scope user` で `~/.claude.json` に入る。
-  dotfiles が管理しているのは `claude/settings.json` / `hooks` / `commands` だけなので、ここは外
+  dotfiles が配布する `hooks` / `commands` とは別に保存される。
 - **apple/container**: 公式署名 pkg のみで brew にも nixpkgs にも無いが、pkg を `fetchurl` で hash 固定し
   activation から冪等に `installer` を叩く形で宣言管理下に置いた
   (`nix/modules/darwin/apple-container.nix`)。同種のツールが出たらこの形を踏襲する
