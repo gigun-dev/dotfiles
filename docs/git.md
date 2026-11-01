@@ -18,8 +18,9 @@ gh run watch                 # 走っている run を待つ
 - `git pull` は `pull.rebase = true` により rebase で取り込む。GitHub の新しい commit の後ろに、手元の未 push の commit を付け直す。merge commit を作らないので履歴が 1 本に並ぶ。push 済みの履歴や他人の commit は書き換えない。
 - commit は意味のある最小の単位。push 済みの修正は追加 commit。
 - main へ直接 push する。手元に pre-push は無く、CI が red なら直すまでが作業 ([ADR 0011](adr/0011-push-without-a-local-gate-and-apply-only-green-commits.md))。
-- mini-vm が `flake.lock` の更新を PR で出し、required CI を通して自動 merge する ([ADR 0003](adr/0003-update-mini-vm-through-lock-proposal-prs.md))。手元は定期的に `git pull` するだけでよい。
+- mini-vm が `flake.lock` の更新を PR で出し、required CI を通して自動 merge する ([ADR 0003](adr/0003-update-mini-vm-through-lock-proposal-prs.md))。Pro は手動で `git pull` する。
 - mini-vm の `dotfiles-autoswitch` は main の HEAD の CI が green のときだけ適用する。red なら次の push で直す。詳細は [mini-vm.md](mini-vm.md)。
+- mini の checkout 同期候補は `python3 scripts/mini-checkout-sync.py`。サービス登録は行っていない。checkout を参照する既存 symlink があるため、更新は次回の shell 起動などに影響し得る。自動化前に参照先と影響を確認する。
 - 手元で lock を更新するなら `nix run .#update` (pull、flake update、switch、lock の commit まで。push は手で)。AI ツールだけなら `nix run .#update-ai-tools`。
 - 溜めない。mini-vm が origin/main へ merge し続けるので、手元に溜めると ahead/behind に分岐する。
 

@@ -15,7 +15,7 @@ mini-vm自体が停止した場合は同居するBeszelでは検出できない�
 死活監視はCloudflare Worker Cronから5分ごとに行う。最新結果は
 `https://uptime.097969.xyz`で確認でき、2回連続失敗と復旧時はBarkへ通知する。
 Worker・KV・Cron・custom domainは`gigun-dev/hub`の`infra/uptime/`でOpenTofu管理する。
-詳細はADR 0008を参照する。
+設計は [ADR 0009](adr/0009-protect-monitoring-uis.md) を参照する。
 
 ## mini-vm の自動更新 (2026-09-06 実装)
 
