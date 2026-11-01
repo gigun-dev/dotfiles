@@ -32,7 +32,7 @@ concurrency:
 
 jobs:
   changes:
-    runs-on: ubuntu-slim
+    runs-on: ${{ fromJSON(vars.DOTFILES_LINUX_CI == 'self-hosted' && vars.DOTFILES_CI_REVIEWED_SHA != '' && github.sha == vars.DOTFILES_CI_REVIEWED_SHA && '["self-hosted", "linux", "x64", "dotfiles-reviewed"]' || '["ubuntu-slim"]') }}
     permissions:
       contents: read
       # paths-filter は PR の変更ファイルを REST API で取得する。
@@ -49,6 +49,7 @@ jobs:
           # (mini-vm.nix の ../../../ 参照) は漏らさず挙げる。
           filters: |
             nix:
+              - 'ci/linux-runner/**'
               - 'flake.nix'
               - 'flake.lock'
               - 'nix/**'
@@ -63,16 +64,25 @@ jobs:
               - 'uv/**'
               - '.github/workflows/nix-build.yaml'
               - '.github/actions/setup-nix/**'
+              - '.github/actions/check-linux-runner/**'
 
   check:
     needs: changes
     if: needs.changes.outputs.nix == 'true' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.DOTFILES_LINUX_CI == 'self-hosted' && vars.DOTFILES_CI_REVIEWED_SHA != '' && github.sha == vars.DOTFILES_CI_REVIEWED_SHA && '["self-hosted", "linux", "x64", "dotfiles-reviewed"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
+      # Only this job's client accepts flake config; the daemon's policy is unchanged.
+      - name: Configure reviewed runner Nix client
+        if: ${{ runner.environment == 'self-hosted' }}
+        run: |
+          printf 'NIX_CONFIG<<EOF\naccept-flake-config = true\nmax-jobs = 1\ncores = 2\nEOF\n' >> "$GITHUB_ENV"
+      - uses: ./.github/actions/check-linux-runner
+        if: ${{ runner.environment == 'self-hosted' }}
       - uses: ./.github/actions/setup-nix
+        if: ${{ runner.environment != 'self-hosted' }}
 
       # `--no-build` を付けないこと。ESP-IDF の devShell は
       # `builtins.readFile "${src}/tools/tools.json"` でソースを読む (IFD) ため、
@@ -87,7 +97,7 @@ jobs:
           if [ -c /dev/kvm ] && [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
             echo 'KVM is available for the isolated NixOS lifecycle test.'
           else
-            echo 'KVM is unavailable; the lifecycle test is not validated on this runner.'
+            echo 'KVM is unavailable to the runner; the lifecycle test may run without acceleration.'
           fi
 
       - name: Nix flake and fmt check
@@ -104,12 +114,20 @@ jobs:
   build:
     needs: changes
     if: needs.changes.outputs.nix == 'true' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.DOTFILES_LINUX_CI == 'self-hosted' && vars.DOTFILES_CI_REVIEWED_SHA != '' && github.sha == vars.DOTFILES_CI_REVIEWED_SHA && '["self-hosted", "linux", "x64", "dotfiles-reviewed"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
+      # Only this job's client accepts flake config; the daemon's policy is unchanged.
+      - name: Configure reviewed runner Nix client
+        if: ${{ runner.environment == 'self-hosted' }}
+        run: |
+          printf 'NIX_CONFIG<<EOF\naccept-flake-config = true\nmax-jobs = 1\ncores = 2\nEOF\n' >> "$GITHUB_ENV"
+      - uses: ./.github/actions/check-linux-runner
+        if: ${{ runner.environment == 'self-hosted' }}
       - uses: ./.github/actions/setup-nix
+        if: ${{ runner.environment != 'self-hosted' }}
         # The build cache can take longer to restore than a build using substituters.
         # Keep check's cache; evaluate the build duration again after this change.
         with:

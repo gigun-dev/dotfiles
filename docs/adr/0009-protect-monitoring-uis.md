@@ -1,9 +1,7 @@
-# 監視UIはBeszelとUptime KumaをAccessで保護する
+# 監視 UI は Cloudflare Access で保護する
 
 Date: 2026-09-21
 
-利用者の裁定により、ホスト資源はBeszel、サービス死活と履歴はUptime KumaのUIで確認し、どちらもmini-vmのnamed tunnelからCloudflare Accessで保護する。Uptime KumaとBeszelはAccessの認証済み利用者を信頼してアプリ内の二重ログインを省き、mini-vm停止も検出できるCloudflare Workerの外形監視は公開URLを持たない定期実行として残す。この決定はADR 0008の「公開ステータスページは作らない」を置き換える。
+ホスト資源は Beszel、サービス死活と履歴は Uptime Kuma で確認し、UI は Cloudflare Access で保護する。Access の認証済み利用者を信頼し、アプリ内の二重ログインは設けない。以前は公開ステータスページを作らない方針だったが、監視履歴と操作 UI が必要になり、この構成を選んだ。
 
-Rejected: Uptime Kumaの代わりにWorkerのJSONを公開する案は、利用者が求める監視履歴と操作UIを提供しない。
-
-Rejected: アプリ内認証も重ねる案は、Cloudflare Access通過後に再度資格情報を求めるためログイン経路が分かりにくい。
+VM 内の監視は VM・ホスト・Tunnel の停止時には一緒に止まるため、別の障害領域にある Cloudflare Worker の外形監視も残す。Worker は公開 UI を持たない定期実行とする。

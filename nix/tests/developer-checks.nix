@@ -114,6 +114,7 @@ in
     SWITCH_BODY = pkgs.writeText "apply-switch.sh" applySwitch;
   };
   developer-tools = run "developer-tools" [
+    "linux-ci-runner"
     "codex-bridge-refresh"
     "bark-routing"
     "codex-mcp-login"
