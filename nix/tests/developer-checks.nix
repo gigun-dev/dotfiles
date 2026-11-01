@@ -66,6 +66,7 @@ let
             pkgs.findutils
             pkgs.openssl
             pkgs.python3
+            pkgs.git
           ];
           TEST_PATH = lib.makeBinPath [
             pkgs.bash

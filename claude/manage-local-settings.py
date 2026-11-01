@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Keep host-specific Claude settings writable without changing the checkout."""
+"""Reconcile the declared Claude settings with host-local edits."""
 import json
 import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 
@@ -12,51 +13,112 @@ def identity(path):
     return (info.st_dev, info.st_ino, info.st_mode, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
 
 
-def main():
-    settings, template = map(Path, sys.argv[1:3])
-    marketplace = sys.argv[3]
-    was_symlink = settings.is_symlink()
-    if was_symlink:
-        if settings.resolve(strict=True) != template.resolve(strict=True):
-            raise ValueError("settings symlink is not the dotfiles template")
-        before = identity(settings)
-        original = settings.read_bytes()
-        settings_data = json.loads(original)
-        if settings_data["extraKnownMarketplaces"]["gigun"]["source"]["path"] != marketplace:
-            raise ValueError("existing marketplace path differs from declared path")
-        if identity(settings) != before or settings.read_bytes() != original:
-            raise ValueError("settings changed during migration")
-    elif settings.exists():
-        if not settings.is_file():
-            raise ValueError("settings is not a regular file")
-        settings_data = json.loads(settings.read_bytes())
-        if settings_data["extraKnownMarketplaces"]["gigun"]["source"]["path"] != marketplace:
-            raise ValueError("existing marketplace path differs from declared path")
-        return
-    else:
-        settings_data = json.loads(template.read_bytes())
-        settings_data["extraKnownMarketplaces"]["gigun"]["source"]["path"] = marketplace
-        original = (json.dumps(settings_data, ensure_ascii=False, indent=2) + "\n").encode()
+def encode(value):
+    return (json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode()
 
-    fd, temporary = tempfile.mkstemp(prefix=".settings.json.", dir=settings.parent)
+
+def unique_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON key in settings")
+        result[key] = value
+    return result
+
+
+def decode(data):
+    return json.loads(data, object_pairs_hook=unique_object)
+
+
+def with_marketplace(data, marketplace):
+    data["extraKnownMarketplaces"]["gigun"]["source"]["path"] = marketplace
+    return data
+
+
+MISSING = object()
+
+
+def same(left, right):
+    if left is MISSING or right is MISSING:
+        return left is right
+    return encode(left) == encode(right)
+
+
+def reconcile(base, local, desired):
+    if same(local, base):
+        return desired
+    if same(desired, base) or same(local, desired):
+        return local
+    if base is MISSING and isinstance(local, dict) and isinstance(desired, dict):
+        base = {}
+    if all(isinstance(value, dict) for value in (base, local, desired)):
+        result = {}
+        for key in base.keys() | local.keys() | desired.keys():
+            value = reconcile(base.get(key, MISSING), local.get(key, MISSING), desired.get(key, MISSING))
+            if value is not MISSING:
+                result[key] = value
+        return result
+    raise ValueError("local and declared settings conflict; no settings changed")
+
+
+def atomic_write(path, content):
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(prefix=".claude-settings-", dir=path.parent)
     try:
         with os.fdopen(fd, "wb") as output:
-            output.write(original)
-        # Don't overwrite a setting edited while the copy was prepared.
-        if was_symlink:
-            if not settings.is_symlink() or identity(settings) != before or settings.read_bytes() != original:
-                raise ValueError("settings changed during migration")
-        elif settings.exists() or settings.is_symlink():
-            raise ValueError("settings appeared during initialization")
-        os.replace(temporary, settings)
+            output.write(content)
+        os.replace(name, path)
     finally:
-        if os.path.exists(temporary):
-            os.unlink(temporary)
+        if os.path.exists(name):
+            os.unlink(name)
+
+
+def main():
+    settings, tracked, template, state = map(Path, sys.argv[1:5])
+    marketplace, git = sys.argv[5:7]
+    desired = with_marketplace(decode(template.read_bytes()), marketplace)
+    exists = settings.exists() or settings.is_symlink()
+    if exists:
+        if settings.is_symlink() and settings.resolve(strict=True) != tracked.resolve(strict=True):
+            raise ValueError("settings symlink is not the dotfiles template")
+        if not settings.is_file():
+            raise ValueError("settings is not a regular file")
+        before = identity(settings)
+        original = settings.read_bytes()
+        local = decode(original)
+        if local["extraKnownMarketplaces"]["gigun"]["source"]["path"] != marketplace:
+            raise ValueError("existing marketplace path differs from declared path")
+        if state.exists():
+            base = decode(state.read_bytes())
+        else:
+            # The checkout HEAD records the template before its local edits.
+            result = subprocess.run(
+                [git, "-C", str(tracked.parent.parent), "show", "HEAD:claude/settings.json"],
+                check=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            )
+            base = with_marketplace(decode(result.stdout), marketplace)
+        merged = reconcile(base, local, desired)
+        content = original if same(merged, local) else encode(merged)
+        if identity(settings) != before or settings.read_bytes() != original:
+            raise ValueError("settings changed during reconciliation")
+    else:
+        content = encode(desired)
+
+    # Write settings before recording the base: an interrupted retry stays conservative.
+    # Recheck just before replacement, including a file that appeared on first setup.
+    if exists:
+        if identity(settings) != before or settings.read_bytes() != original:
+            raise ValueError("settings changed during reconciliation")
+    elif settings.exists() or settings.is_symlink():
+        raise ValueError("settings appeared during initialization")
+    if not exists or settings.is_symlink() or content != original:
+        atomic_write(settings, content)
+    atomic_write(state, encode(desired))
 
 
 if __name__ == "__main__":
     try:
         main()
-    except (OSError, ValueError, KeyError, TypeError) as error:
+    except (OSError, ValueError, KeyError, TypeError, subprocess.CalledProcessError) as error:
         print(f"Claude settings: {error}", file=sys.stderr)
         sys.exit(1)

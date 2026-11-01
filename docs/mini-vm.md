@@ -20,9 +20,10 @@ Worker・KV・Cron・custom domainは`gigun-dev/hub`の`infra/uptime/`でOpenTof
 ## Claude のホスト別設定
 
 mini-vm の `~/.claude/settings.json` は書き込み可能なローカルファイルで、marketplace の
-パスは `flake.nix` で宣言する。初回は共通設定を雛形にし、既存設定があれば内容を保持する。
-権限設定を含む共通設定の後の変更は、既存ローカルファイルには自動反映されない。参照先を変更するときは
-宣言とローカル設定を合わせる。食い違う場合、Home Manager は上書きせず停止する。
+パスは `flake.nix` で宣言する。Home Manager は共通設定の前回宣言・今回宣言・ローカル設定を
+三者比較し、共通の権限・hook 設定の変更を取り込みつつ、ローカルだけの変更を保つ。
+同じ箇所の競合や宣言と異なる marketplace パスを検出した場合は、上書きせず停止する。
+前回の宣言は `~/.local/state/dotfiles/claude-settings-base.json` に保存する。
 
 ## mini-vm の自動更新 (2026-09-06 実装)
 
