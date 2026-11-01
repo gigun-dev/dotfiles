@@ -59,4 +59,6 @@ x 2026-10-19 2026-10-19 codex-mcp-login の fake callback listener を URL 公�
 x 2026-10-27 2026-10-27 mini (macOS) の ripgrep 15.2.0 を Ansible 選択へ移管し、全シェル解決・normal/PCRE2 検索・冪等再適用を検証する +mini by:me id:0110
 x 2026-10-27 2026-10-27 mini-vm の cloudflared を eMudhra セキュリティ通知に合わせ 2026.10.3 へ宣言的に更新し、同じ package の管理 CLI を追加して Tunnel と既存 endpoint を検証する by:me id:0111
 x 2026-10-27 2026-10-27 mini の既存 Homebrew XcodeGen 2.46.0 Intel bottle の単一コマンド選択を Ansible へ移し、checksum gate・既存リンク保護・zsh 解決・rollback を検証する +mini by:me id:0112
-x 2026-10-31 2026-10-31 macOSのキーボード競合の診断手順と受信先PID観測を再利用できる形で残す +infra see:docs/keyboard-conflicts.md by:me id:0116
+x 2026-10-31 2026-10-31 macOSのキーボード競合の診断手順と受信先PID観測を再利用できる形で残す +infra see:docs/keyboard-conflicts.md by:me id:0117
+x 2026-11-01 2026-10-27 sandbox のDNS・認証・署名検証のcontext記録と合成回帰を実装し、policy拒否時は代替経路へ進まないことを検証する +security see:docs/execution-context.md by:me id:0113
+x 2026-11-01 2026-11-01 Pro・mini・mini-vm のアクセス境界を宣言と未確認に分け、標準ascのbuild/sign/publish分離案をレビュー可能にする +security see:docs/security-access-boundaries.md by:me id:0118

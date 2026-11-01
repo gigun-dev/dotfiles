@@ -32,6 +32,15 @@ class ObservationTests(unittest.TestCase):
         self.assertNotIn("1234.56", json.dumps(result))
         self.assertEqual(runner.call_args.kwargs["timeout"], 25)
 
+    def test_policy_denial_never_attempts_alternative_path(self):
+        runner = Mock(return_value=subprocess.CompletedProcess([], 255, "PRIVATE", "TAILNET POLICY DENIED SECRET"))
+        result = observer.observe(runner)
+        self.assertEqual(runner.call_count, 1)
+        self.assertEqual(result["paths"]["direct"]["outcome"], "policy_denied")
+        self.assertEqual(result["paths"]["viaHost"]["outcome"], "not_attempted")
+        self.assertNotIn("SECRET", json.dumps(result))
+        self.assertNotIn("PRIVATE", json.dumps(result))
+
     def test_timeout_then_vm_alive_does_not_erase_direct_failure(self):
         runner = Mock(side_effect=[subprocess.TimeoutExpired([], 25, output="SECRET_TIMEOUT"), success()])
         result = observer.observe(runner)
