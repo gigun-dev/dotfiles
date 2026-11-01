@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "scope": "Approved host-home mount removal; stopped before maintenance",
-  "applicationState": "blocked-before-timer-stop",
+  "applicationState": "not-applied; source absence alone is not a technical startup blocker",
   "observationWindowStartedAt": "2026-11-01T06:46:38Z",
   "latestVmSnapshot": {
     "checkedAt": "2026-11-01T07:03:05.531404+00:00",
@@ -148,7 +148,6 @@
     "externalReservationsChanged": false,
     "deployedDotfilesRevision": "9110f160121b3dc8aa7e654ef59c415daf40cf90"
   },
-  "blockingCondition": "Configured host tmp source is absent while guest still has a writable virtiofs mount. Do not create an empty replacement or assume source identity; determine source/data/transfer handling before stop.",
   "performed": {
     "timerStop": false,
     "servicePin": false,
@@ -176,8 +175,75 @@
     "ourTimerOperationsPerformed": false
   },
   "remainingBeforeProceeding": [
-    "Resolve configured tmp host source and data/transfer handling",
-    "Confirm undeclared transfers and interactive work",
-    "Confirm management recovery path is sufficient for intended failure modes"
-  ]
+    "Recheck guest tmp emptiness and five update job quiescence immediately before stop",
+    "Undeclared transfer/dialog absence is not proven by these metadata observations; coordinate the planned interruption",
+    "Revalidate the previously specified version/cache/readiness/recovery preflight before application"
+  ],
+  "initialHoldReason": "Configured host tmp source is absent while guest still has a writable virtiofs mount. Do not create an empty replacement or assume source identity; determine source/data/transfer handling before stop.",
+  "sourceBehaviorInvestigation": {
+    "checkedAt": "2026-11-01T07:15:09.962495+00:00",
+    "officialVersion": "v2.2.0",
+    "sources": {
+      "vzDirectoryCreation": "https://github.com/lima-vm/lima/blob/v2.2.0/pkg/driver/vz/vm_darwin.go#L627-L651",
+      "vzLinuxDispatch": "https://github.com/lima-vm/lima/blob/v2.2.0/pkg/driver/vz/vm_darwin.go#L689-L702",
+      "missingPathValidation": "https://github.com/lima-vm/lima/blob/v2.2.0/pkg/limayaml/validate.go#L115-L135",
+      "mountTag": "https://github.com/lima-vm/lima/blob/v2.2.0/pkg/limayaml/defaults.go#L88-L93"
+    },
+    "behavior": "For a configured source that does not exist, the VZ Linux driver creates the directory with MkdirAll(location, 0750), subject to umask, before attaching the share. Errors abort VM construction. This is not deleted-file recovery.",
+    "hostParentMetadata": {
+      "tmpMode": "1777",
+      "privateTmpMode": "1777",
+      "currentUserWriteSearchAccess": true,
+      "sourceExists": false
+    },
+    "allowedGuestMetadata": {
+      "checkedAt": "2026-11-01T07:15:09.962495+00:00",
+      "tmpGuestViewHasEntries": false,
+      "mounts": [
+        {
+          "point": "/Users/gigun",
+          "fs": "virtiofs",
+          "source": "lima-87931a4782a6b63c",
+          "options": "ro,relatime"
+        },
+        {
+          "point": "/tmp/lima",
+          "fs": "virtiofs",
+          "source": "lima-1fd4cbcaa36d359d",
+          "options": "rw,relatime"
+        }
+      ],
+      "updateJobStates": {
+        "dotfiles-autoswitch": {
+          "ActiveState": "inactive",
+          "SubState": "dead"
+        },
+        "dotfiles-lock-propose@fast": {
+          "ActiveState": "inactive",
+          "SubState": "dead"
+        },
+        "dotfiles-lock-propose@slow": {
+          "ActiveState": "inactive",
+          "SubState": "dead"
+        },
+        "codex-openai-bridge-refresh": {
+          "ActiveState": "inactive",
+          "SubState": "dead"
+        },
+        "langfuse-update-propose": {
+          "ActiveState": "inactive",
+          "SubState": "dead"
+        }
+      }
+    },
+    "declaredServiceConsumerOfTmpShareFound": false,
+    "recommendedPath": "Keep the existing explicit /tmp/lima -> /tmp/lima writable entry and use the approved standard stop/edit/start path; do not manually mkdir, remove tmp, or select a different source.",
+    "technicalConclusion": "Source nonexistence alone is not a Lima startup blocker. The location/mountPoint and mount tag remain unchanged under the existing plan.",
+    "remainingConditions": [
+      "Recheck guest tmp emptiness and five update job quiescence immediately before stop",
+      "Undeclared transfer/dialog absence is not proven by these metadata observations; coordinate the planned interruption",
+      "Revalidate the previously specified version/cache/readiness/recovery preflight before application"
+    ],
+    "actualDirectoryCreationOrConfigurationChangePerformed": false
+  }
 }

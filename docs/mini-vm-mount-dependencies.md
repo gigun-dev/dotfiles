@@ -53,7 +53,7 @@ build/sign/publishを分ける案では、mini側のbuild checkoutと署名機�
 - Cloudflare OSのWorkingDirectoryはVM内checkout。Codex bridge/remote controlとagyは `/home/gigun`。autoswitchのUserはroot。指定6unitのUser / WorkingDirectory / RootDirectoryだけを読み、Environmentやprocess一覧は取得していない。
 - 実mountはvirtiofsでhome ro / tmp rw。Lima 2.2.0の[MountTag実装](https://github.com/lima-vm/lima/blob/v2.2.0/pkg/limayaml/defaults.go#L88-L93)から、locationとmountPointの組で既存2tagを再現できる。今回残すtmpのsource/pointを変えず、既存 `lima-1fd4cbcaa36d359d` を維持する。
 
-未確認なのは、未宣言のhost↔VM転送・対話job、realbind SSH aliasとWindsurfの利用要否、tmp共有の実利用・保管物である。tmpは必要性が確定したためではなく、転送経路を同時に変えないため一旦残す候補とする。先のmetadata観測ではhostの `/tmp/lima` が存在しなかったため、適用前にsourceの存在を再確認し、必要な再作成や一時データの扱いも承認対象に含める。秘密の横断検索やprocess-tableへ調査を広げない。
+未確認なのは、未宣言のhost↔VM転送・対話job、realbind SSH aliasとWindsurfの利用要否、tmp共有の実利用・保管物である。tmpは必要性が確定したためではなく、転送経路を同時に変えないため一旦残す候補とする。hostの `/tmp/lima` は不在だが、[Lima 2.2.0のVZ/Linux実装](https://github.com/lima-vm/lima/blob/v2.2.0/pkg/driver/vz/vm_darwin.go#L627-L651)は明示されたsourceが無ければ起動時にMkdirAll(location, 0750)で生成してから共有する（umaskの制約を受け、失敗時は起動を中止する）。親tmpは1777・管理ユーザーのwrite/search可、guest viewは空と確認した。source不在だけを起動不能条件とは扱わず、手動mkdirやtmp mount削除を追加せず標準stop/edit/start案を維持する。旧inodeや削除済みデータを復元する処理ではなく、未宣言転送・対話作業の停止可否は別に確認する。秘密の横断検索やprocess-tableへ調査を広げない。
 
 ProのNOPASSWDの対象は、取得済み要約以上の分類ができないため未確定のままにする。新しいsudo照会や、miniの認証要求の再試行は実施していない。
 
@@ -99,9 +99,9 @@ Lima 2.2.0の[edit実装](https://github.com/lima-vm/lima/blob/v2.2.0/cmd/limact
 
 承認後の順序は次のとおり。以下は未実行の保守案である。
 
-1. `/tmp/lima` の存在と実source/mountPoint、Lima global default/overrideからの追加共有、未宣言の転送・進行中作業、管理consoleの復旧経路を確認する。確認不能なら適用せず、上表の追加変更と停止を承認する。Lima設定全体をprivateにmode保持でbackupし、NixOSの現行世代とpinned source revisionを記録する。設定backupの中身はログへ出さない。
+1. `/tmp/lima` の存在/不在・標準生成先・親のwrite/search可否・guest viewが空であること、Lima global default/overrideからの追加共有、未宣言の転送・進行中作業、管理consoleの復旧経路を確認する。確認不能なら適用せず、上表の追加変更と停止を承認する。Lima設定全体をprivateにmode保持でbackupし、NixOSの現行世代とpinned source revisionを記録する。設定backupの中身はログへ出さない。
 2. 同じ固定revisionから、復旧用A（元mounts＋5timer無効＋V pin）、適用候補B（home除外＋5timer無効＋同じV pin）、検証後の通常運用C（home除外＋通常更新方針）をbuild・差分確認する。保守操作として現在の5timerを停止し、関連jobが終わっていることを確認してBを次のboot世代へ準備する。A/Bの両方で5timer unitが無効、bridge commandが同じVであることを起動前に確認する。無関係なlock更新やDB migrationを混ぜず、running guestのmountを先に切り替えない。
-3. miniで `limactl stop mini-vm` 後、既存設定のmount fieldsだけを `limactl edit mini-vm --mount-only /tmp/lima:w --mount-type virtiofs --tty=false` 相当にする。full field案で設定全体を上書きしない。global/defaultからhomeが再追加されないこと、tmp sourceの存在・扱いを確認してからstartする。
+3. miniで `limactl stop mini-vm` 後、既存設定のmount fieldsだけを `limactl edit mini-vm --mount-only /tmp/lima:w --mount-type virtiofs --tty=false` 相当にする。full field案で設定全体を上書きしない。global/defaultからhomeが再追加されないこと、tmp sourceが不在なら標準startの生成処理に任せる。直前にguest view空と5job静止を再確認し、予期しないfile/symlink/権限拒否があれば止める。手動mkdirは行わない。
 4. 起動後にhome export/deviceとguest mountが両方なく、tmpだけが意図したrwであることをmetadataで照合する。非秘密canaryの陰性確認は改めて承認された範囲で行い、実鍵を試さない。
 5. VM内checkoutとagent認可の存在、各サービスhealth、Cloudflare OSの認証済み経路、Langfuseのreadiness、heartbeat受理を確認する。期限切れ認証はmount障害と分けて止め、勝手に再認証しない。mount受入の確認後に限り、別段階でCのpin解除と5timer再開を行う。@latest再解決・Persistent追実行が起こり得るので、bridge版とhealthを再確認する受入窓も承認する。解除が未承認/未検証ならBの保守状態を継続し、通常復帰完了とはしない。
 
