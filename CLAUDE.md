@@ -18,6 +18,8 @@ nix run .#update-ai-tools      # 同上。AI ツールの input だけ
 
 **iTerm2 初回 bootstrap 順序**: `LoadPrefsFromCustomFolder` / `PrefsCustomFolder` は nix 側 (`system.defaults.CustomUserPreferences."com.googlecode.iterm2"`) で system plist に宣言する設計のため、**iTerm2 を起動する前に最初の `nix run .#switch` を完了させる**こと。先に iTerm2 を立ち上げると bootstrap meta key が無く、repo 内 plist が source of truth として読まれない（system plist に書かれた古い設定が継続使用される）。
 
+**キーボード競合**: ショートカットを登録できない、発火しない、別アプリが反応するときは [診断手順](docs/keyboard-conflicts.md) を読む。実入力・受信先PIDの観測を先に行い、候補を絞ってから設定解除や終了比較に進む。
+
 ## 対象マシン
 
 | マシン | アーキテクチャ | 管理 |
