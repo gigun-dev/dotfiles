@@ -622,7 +622,18 @@
                     p;
               in
               base.extendModules {
-                modules = [ { home.packages = base.pkgs.lib.mkForce (map replace base.config.home.packages); } ];
+                modules = [
+                  {
+                    options.dotfiles.claudeLocalMarketplace = base.pkgs.lib.mkOption {
+                      type = base.pkgs.lib.types.str;
+                      description = "Host-local Claude marketplace path.";
+                    };
+                    config = {
+                      home.packages = base.pkgs.lib.mkForce (map replace base.config.home.packages);
+                      dotfiles.claudeLocalMarketplace = "${base.config.home.homeDirectory}/.local/share/gigun-plugin-sources/claude-code-cb216d6afe920e5e7cdda49e001f9bc6e318ac71";
+                    };
+                  }
+                ];
               };
           };
         };

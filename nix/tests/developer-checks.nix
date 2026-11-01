@@ -115,6 +115,7 @@ in
   };
   developer-tools = run "developer-tools" [
     "linux-ci-runner"
+    "claude-local-settings"
     "codex-bridge-refresh"
     "bark-routing"
     "codex-mcp-login"
