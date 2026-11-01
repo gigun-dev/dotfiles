@@ -50,7 +50,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/gigun/.config/iterm2/cc-status"
+            "command": "test ! -x \"$HOME/.config/iterm2/cc-status\" || \"$HOME/.config/iterm2/cc-status\""
           }
         ]
       }
@@ -60,7 +60,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/gigun/.config/iterm2/cc-status"
+            "command": "test ! -x \"$HOME/.config/iterm2/cc-status\" || \"$HOME/.config/iterm2/cc-status\""
           }
         ]
       }
@@ -80,7 +80,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/gigun/.config/iterm2/cc-status"
+            "command": "test ! -x \"$HOME/.config/iterm2/cc-status\" || \"$HOME/.config/iterm2/cc-status\""
           }
         ]
       }
@@ -102,7 +102,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/gigun/.config/iterm2/cc-status"
+            "command": "test ! -x \"$HOME/.config/iterm2/cc-status\" || \"$HOME/.config/iterm2/cc-status\""
           }
         ]
       },
@@ -122,7 +122,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/gigun/.config/iterm2/cc-status"
+            "command": "test ! -x \"$HOME/.config/iterm2/cc-status\" || \"$HOME/.config/iterm2/cc-status\""
           }
         ]
       }
@@ -132,7 +132,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/gigun/.config/iterm2/cc-status"
+            "command": "test ! -x \"$HOME/.config/iterm2/cc-status\" || \"$HOME/.config/iterm2/cc-status\""
           }
         ]
       }
@@ -156,7 +156,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/gigun/.config/iterm2/cc-status"
+            "command": "test ! -x \"$HOME/.config/iterm2/cc-status\" || \"$HOME/.config/iterm2/cc-status\""
           }
         ]
       }
@@ -166,7 +166,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/gigun/.config/iterm2/cc-status"
+            "command": "test ! -x \"$HOME/.config/iterm2/cc-status\" || \"$HOME/.config/iterm2/cc-status\""
           }
         ]
       }
@@ -186,7 +186,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/gigun/.config/iterm2/cc-status"
+            "command": "test ! -x \"$HOME/.config/iterm2/cc-status\" || \"$HOME/.config/iterm2/cc-status\""
           }
         ]
       }
@@ -206,7 +206,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/gigun/.config/iterm2/cc-status"
+            "command": "test ! -x \"$HOME/.config/iterm2/cc-status\" || \"$HOME/.config/iterm2/cc-status\""
           }
         ]
       }

@@ -1,15 +1,7 @@
-# Langfuseはmini-vmのComposeとローカルBlob Storageで始める
+# Langfuse は mini-vm の Compose とローカルストレージで始める
 
 Date: 2026-09-20
 
-個人利用のOTLPをまずMac mini内へ収め、将来ほかのプロダクトで容量や予算が増えた場合にR2へ移せる必要がある。Langfuse v4は既存mini-vm内のDocker Composeで動かし、当初のBlob StorageにはローカルMinIOを使い、S3接続設定を差し替え可能な境界として保つ。実利用のCPU・RAM・ディスク・操作数を測らず外部ストレージを先に採用しない一方、Langfuse全構成をNixOSコンテナ定義へ翻訳せず公式Composeとの差分を小さく保てるためである。
+Langfuse は既存 mini-vm の公式に近い Compose とローカル MinIO で動かし、将来 S3 互換ストレージへ移せる境界を保つ。個人利用で必要な容量や費用を測る前に外部ストレージを増やさず、別の Linux 環境も作らないため。
 
-非major更新は固定タグとdigestを機械更新し、7日経過とNixOS buildを条件にPRを自動mergeする。major更新だけはデータ移行を伴うため止める。
-
-UIは既存named tunnelの`langfuse.097969.xyz`へ載せ、Cloudflare Accessでアカウントメンバーだけに公開する。署名付きmedia URLはUIと同じoriginの`/langfuse/`をnginxからMinIOへ流し、別ホストのAccessセッションを要求しない。
-
-OTLPはSwift実機や別プロダクトからtailnet無しで送れる必要があるため、`langfuse-otel.097969.xyz`を別に公開する。Cloudflare Accessの対話ログインをSDKへ要求せず、originのnginxで`/api/public/otel/`だけを許可し、Langfuse project keyのHTTP Basic認証を境界にする。
-
-Rejected: macOS上にColimaまたはOrbStackを追加すると、既存Limaゲストとは別のLinux環境と復旧経路が増える。
-
-Rejected: 当初からR2を使うとローカル運用の実測ができず、個人利用で必要か判断できない。
+UI は Cloudflare Access で保護する。tailnet 外の SDK から使う OTLP 入口は対話ログインを要求せず、限定したパスと Langfuse の project key 認証を境界とする。

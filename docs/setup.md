@@ -28,6 +28,22 @@ Guard 個別評価の成功は、全体ビルドや activation の成功を示�
 activation の dry-run でも独自処理が書き込む場合があるため、検査に使わない。
 新規ファイルは Git flake の対象になるよう、内容を確認して個別に stage する。
 
+## 開発と検証を行う場所
+
+用途は固定せず、対象コードと必要な検証で実行先を選ぶ。
+
+| 環境 | 用途と確認状況 |
+|---|---|
+| Pro (Apple Silicon) | macOS 開発と Ansible controller のローカル検証に使用。2026-10-29 に固定依存で lint、3 playbook の構文検査、ローカル fixture 20 件が成功。対象への SSH・apply は未実施 |
+| mini (Intel macOS) | Xcode と Swift 6.2.4 の存在を確認済み。`ebook2pdf` の `ce30bb0` で build と合成 fixture 4 件のテストが成功。画面取得・UI・Vision 等に依存する実画面の GUI 検証は未実施 |
+| mini-vm (Linux) | Linux のサービス・開発を担う。今回の guest runtime と開発依存の状態は未確認。macOS 固有 API や画面操作の検証は Mac で行う |
+
+`ebook2pdf` の一部テストは画面撮影・オーバーレイ表示を伴うため、非 GUI の fixture と区別する。
+GUI の実地検証は人の操作でも行える。Computer Use は観察・操作の補助であり、必須ではない。
+controller の依存とローカル検証は [mini Ansible](mini-ansible.md#ローカル検証) を参照。
+必要な `adr` / `todo` 等のスキルは各環境で利用可能か確認する。
+共有方針は [Claude / Codex の設定](../.codex/README.md) を参照し、導入元と導入手順は未確認として扱う。
+
 ## PATH の確認
 
 `.zshrc` は `__NIX_DARWIN_SET_ENVIRONMENT_DONE` がある場合、installer profile を

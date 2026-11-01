@@ -309,6 +309,8 @@
               nixos = inputs.self.nixosConfigurations.mini-vm;
             };
 
+            reviewed-ci-runner = import ./nix/tests/reviewed-ci-runner.nix { inherit pkgs inputs; };
+
             dotfiles-autoswitch-lifecycle = import ./nix/tests/dotfiles-autoswitch-lifecycle.nix {
               inherit pkgs;
               service = inputs.self.nixosConfigurations.mini-vm.config.systemd.services.dotfiles-autoswitch;
