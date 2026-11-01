@@ -107,7 +107,9 @@ autoswitchが旧home宣言を再導入しないよう、実適用するpinned so
 
 ## 復旧
 
-問題があれば、元Lima設定と復旧用A（元mounts＋5timer無効＋既知版V pin）のNixOS世代・sourceへ両方戻し、計画停止・起動で旧home ro / tmp rwへ復帰する。rawな旧世代ではboot時にPersistent timerが再開するため、Aを用意せずrollbackしない。復旧後のhealth確認まで保守状態とV pinを維持する。復旧はhome全体の秘密への公開範囲も元へ戻す操作である。mainのmount/更新方針が復旧方針と一致するまでは5timerを再開しない。guestが直接SSH可能なら既存のNixOS世代復旧を使い、SSH不能なら事前に承認・確認した管理console手順が必要となる。console未確認のまま実適用しない。拒否されたmini→VMのSSHを別経路で通す診断としては使わない。
+pin解除後の問題がbridge版だけなら、home除外を維持するB（既知版V pin＋5timer無効）へ戻してbridgeを再受入する。版問題の解消にhomeを再公開する必要はない。実際の世代切替・service再起動は別承認する。
+
+mount自体の問題で元へ戻す必要があれば、元Lima設定と復旧用A（元mounts＋5timer無効＋既知版V pin）のNixOS世代・sourceへ両方戻し、計画停止・起動で旧home ro / tmp rwへ復帰する。rawな旧世代ではboot時にPersistent timerが再開するため、Aを用意せずrollbackしない。復旧後のhealth確認まで保守状態とV pinを維持する。復旧はhome全体の秘密への公開範囲も元へ戻す操作である。mainのmount/更新方針が復旧方針と一致するまでは5timerを再開しない。guestが直接SSH可能なら既存のNixOS世代復旧を使い、SSH不能なら事前に承認・確認した管理console手順が必要となる。console未確認のまま実適用しない。拒否されたmini→VMのSSHを別経路で通す診断としては使わない。
 
 VM disk、Docker/DB volumes、host/guest checkoutを削除・巻戻ししない。guest世代rollbackではDBデータは戻らない。復旧後はmount metadataとサービスhealthを再確認し、元の秘密公開範囲も戻る点を確認する。main整合と別承認した通常復帰の条件が揃ってから、pin解除・timer再開とbridgeの再受入を行う。
 
