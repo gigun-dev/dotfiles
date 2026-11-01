@@ -126,6 +126,14 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(self.apply().returncode, 0)
         self.assertEqual(self.settings.read_bytes(), changed)
 
+    def test_missing_base_with_ambiguous_checkout_fails_safely(self):
+        self.assertEqual(self.apply().returncode, 0)
+        before = self.settings.read_bytes()
+        self.state.unlink()
+        self.assertNotEqual(self.apply().returncode, 0)
+        self.assertEqual(self.settings.read_bytes(), before)
+        self.assertFalse(self.state.exists())
+
     def test_duplicate_json_key_fails_without_mutation(self):
         self.settings.write_text('{"permissions": {}, "permissions": {}}')
         before = self.settings.read_bytes()

@@ -100,6 +100,9 @@ def main():
                 check=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
             )
             base = with_marketplace(decode(result.stdout), marketplace)
+            # Do not guess a prior declaration after the state file is lost.
+            if not same(decode(tracked.read_bytes()), base):
+                raise ValueError("cannot establish the previous declared settings")
         merged = reconcile(base, local, desired)
         content = original if same(merged, local) else encode(merged)
         if identity(settings) != before or stat.S_IMODE(settings.stat().st_mode) != mode or settings.read_bytes() != original:
