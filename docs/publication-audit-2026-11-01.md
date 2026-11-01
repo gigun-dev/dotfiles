@@ -7,7 +7,7 @@
 | 資料 | 確認方法・結果 | 限界 |
 |---|---|---|
 | 現行 tree | tracked 280 files。公開準備・security の章構成・inventory・SSH・秘密宣言・CI 宣言を確認 | 全文の機密性判定は未完 |
-| 到達可能 Git objects | 既存ローカル clone 由来 refs と取得した main から `rev-list --objects --all`、4,589 objects / 628 commits / 1,825 blobs / 18,878,274 bytes を検査。下記4形式の一致0 | remote 全refs取得の証明ではない。unreachable objects、削除refs、PR専用refsは対象外 |
+| 到達可能 Git objects | 既存ローカル clone 由来 refs と取得した main から `rev-list --objects --all`、4,589 objects / 628 commitsを列挙し、うち1,825 blobsの内容18,878,274 bytesを下記4形式で検査して一致0。commit messageとtree pathname自体は内容検査していない | remote 全refs取得の証明ではない。unreachable objects、削除refs、PR専用refsは対象外 |
 | 運用情報の履歴 | `git log --all -- docs/security.md` は22 commits、実inventoryは2 commits | 現行版の置換だけでは履歴を消せない |
 | PR / issues | `gh pr list --state all --limit 200 --json number,body,comments` で119 PR本文・118会話コメント。4形式の一致0。通常issueの全state一覧は0件 | inline review / review本文 / diff / 添付 / 削除済み内容は未検査。PR本文に運用語句候補あり |
 | Actions | latest10 run metadata。既知 PCRE2 run `40437718383` の取得ログ67,928 bytesは4形式の一致0 | 全runログ、全attempt、cache bytesは未検査。先行調査の694 runという総数は今回再計測していない |
@@ -23,6 +23,7 @@ PCRE2 bottleのSHA256は build / verified / Release で全て `16b7d45ac5e460460
 
 ## 公開前に扱う情報の種類と所在
 
+- `docs/security.md` L17の「dotfiles は public」は、現在privateである実状態と矛盾する。公開済みと解釈せず、公開判断・文書一般化の際に修正する。backup確認前の個人運用原文はこの監査では保持する。
 - `docs/security.md` はアカウント・鍵の役割、配置、既知の抜け道、復旧・移行計画を含む。値の検出とは別に、個人運用の分離判断が必要。
 - `AGENTS.md`、`docs/mini-vm.md`、関連運用docs、`todo.txt` はホスト運用・アクセス境界・復旧のメタデータを含み得る。公開可能な再現手順との一文単位の分類が必要。
 - `ansible/mini-macos/inventory.yml`、`nix/modules/home/programs/ssh/default.nix`、`tofu/`、`secrets/secrets.nix` は接続先・利用者・鍵参照・リソース・暗号化受信者の分類対象。
