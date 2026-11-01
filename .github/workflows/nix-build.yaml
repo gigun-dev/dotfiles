@@ -97,7 +97,7 @@ jobs:
           if [ -c /dev/kvm ] && [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
             echo 'KVM is available for the isolated NixOS lifecycle test.'
           else
-            echo 'KVM is unavailable; the lifecycle test is not validated on this runner.'
+            echo 'KVM is unavailable to the runner; the lifecycle test may run without acceleration.'
           fi
 
       - name: Nix flake and fmt check
