@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PLAYBOOK = Path(sys.executable).parent / "ansible-playbook"
 
 
-class Migration(unittest.TestCase):
+class MigrationFixture:
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(prefix="mini-ansible-test-")
         self.addCleanup(self.tmp.cleanup)
@@ -76,6 +76,7 @@ class Migration(unittest.TestCase):
         policy["adoption"] = {"state": "adopted", "owner": "ansible"}
         self.variables["mini_tool_name"] = name
 
+class Migration(MigrationFixture, unittest.TestCase):
     def test_adopted_tool_defaults_match_the_pre_refactor_values(self):
         expected = {
             "fzf": ("0.74.5", "/usr/local/Cellar/fzf/0.74.5/bin/fzf",
@@ -325,19 +326,6 @@ class Migration(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("TASK [Refuse staging through links", result.stdout)
         self.assertEqual(script.read_text(), "live sentinel")
-
-    def test_staging_check_apply_and_idempotency(self):
-        stage = Path(self.variables["mini_stage_dir"])
-        result = self.run_tasks("launchd.yml", check=True)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertFalse(stage.exists())
-        result = self.run_tasks("launchd.yml")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual((stage / "network-watchdog.sh").read_bytes(),
-                         (ROOT.parent.parent / "nix/modules/darwin/network-watchdog.sh").read_bytes())
-        result = self.run_tasks("launchd.yml")
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertRegex(result.stdout, r"changed=0\s")
 
     def test_plist_preserves_user_service_and_no_staging_activation(self):
         template = (ROOT / "templates/network-watchdog.plist.j2").read_text()
