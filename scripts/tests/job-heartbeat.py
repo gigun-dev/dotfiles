@@ -28,7 +28,7 @@ TOKEN = "fixture-bearer-secret-never-print"
 DAY = 86_400_000
 WEEK = 7 * DAY
 EXPECTED_SCHEDULES = {
-    "mini-vm-autoswitch": (14_400_000, DAY),
+    "mini-vm-autoswitch": (68_400_000, DAY),
     "mini-vm-lock-fast": (57_600_000, DAY),
     "mini-vm-lock-slow": (234_000_000, WEEK),
 }
@@ -170,7 +170,7 @@ class HeartbeatTests(unittest.TestCase):
         self.assertEqual(heartbeat.SCHEDULES, EXPECTED_SCHEDULES)
 
     def test_daily_slots_before_at_and_after_anchor(self):
-        for source, hour in [("mini-vm-autoswitch", "04"), ("mini-vm-lock-fast", "16")]:
+        for source, hour in [("mini-vm-autoswitch", "19"), ("mini-vm-lock-fast", "16")]:
             with self.subTest(source=source):
                 anchor = milliseconds(f"2026-10-04T{hour}:00:00")
                 for delta, expected in [(-1, anchor - DAY), (0, anchor), (1, anchor),
@@ -219,7 +219,7 @@ class HeartbeatTests(unittest.TestCase):
             for zone in ["UTC", "America/New_York", "Asia/Tokyo"]:
                 with mock.patch.dict(os.environ, {"TZ": zone}):
                     time.tzset()
-                    for instant in ["2026-03-08T04:00:00", "2026-11-01T04:00:00"]:
+                    for instant in ["2026-03-08T19:00:00", "2026-11-01T19:00:00"]:
                         with self.subTest(zone=zone, instant=instant):
                             now = milliseconds(instant)
                             receipt = heartbeat.begin("mini-vm-autoswitch", now_ms=now,

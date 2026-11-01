@@ -45,7 +45,7 @@ cat >> "$FIXTURE_CALLS"
 printf '\\n%s\\n202' '{"status":"accepted","result":{"kind":"accepted"}}'
 ''')
         self.receipt = json.dumps({"source": "mini-vm-autoswitch", "runId": "start-run",
-                                  "scheduledFor": 14_400_000})
+                                  "scheduledFor": 68_400_000})
 
     def write_exec(self, path, body):
         path.write_text("#!" + shutil.which("bash") + "\nset -eu\n" + body)
@@ -78,7 +78,7 @@ printf '\\n%s\\n202' '{"status":"accepted","result":{"kind":"accepted"}}'
         body += "\n" + after_snapshot + "\nexec " + shlex.quote(str(wrapper))
         receipt = json.loads(self.receipt)
         receipt["source"] = source
-        receipt["scheduledFor"] = {"mini-vm-autoswitch": 14_400_000,
+        receipt["scheduledFor"] = {"mini-vm-autoswitch": 68_400_000,
                                    "mini-vm-lock-fast": 57_600_000,
                                    "mini-vm-lock-slow": 234_000_000}[source]
         body += " send --receipt " + shlex.quote(json.dumps(receipt))
@@ -197,7 +197,7 @@ printf '\\n%s\\n202' '{"status":"accepted","result":{"kind":"accepted"}}'
         self.assertIn("exec \"$selected_system/etc/dotfiles-autoswitch/post-apply\"", SOURCE)
 
     def test_lock_timers_pin_jst_and_preserve_local_hours_jitter_and_persistence(self):
-        grids = ["*-*-* 04:00:00", "*-*-* 01:00:00 Asia/Tokyo", "Sun *-*-* 02:00:00 Asia/Tokyo"]
+        grids = ["*-*-* 04:00:00 Asia/Tokyo", "*-*-* 01:00:00 Asia/Tokyo", "Sun *-*-* 02:00:00 Asia/Tokyo"]
         names = ["dotfiles-autoswitch", "dotfiles-lock-propose-fast", "dotfiles-lock-propose-slow"]
         for name, grid in zip(names, grids):
             block = SOURCE.split("systemd.timers." + name + " =", 1)[1].split("\n  };", 1)[0]

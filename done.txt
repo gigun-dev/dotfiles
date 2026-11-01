@@ -1,4 +1,4 @@
-x 2026-09-10 意思決定(ADR)の置き場所を決める。harness の結論待ちをやめ、このリポジトリで docs/adr を使うことにした +docs old:DF-6 see:docs/adr/0001-keep-tasks-in-todo-txt-and-decisions-in-docs-adr.md id:0022
+x 2026-09-10 意思決定(ADR)の置き場所を決める。harness の結論待ちをやめ、このリポジトリで docs/adr を使うことにした +docs old:DF-6 see:docs/harness-retired.md id:0022
 x 2026-09-12 2026-09-11 同一 repo と別 repo の worktree 運用、Edit/Write ガードの範囲、dotfiles の例外と成果物引継ぎを ADR に記録する +claude @unattended see:docs/adr/0005-scope-worktrees-to-target-repositories.md id:0041
 x 2026-09-12 2026-09-11 重い検証を同一ホストで1枠とし、子の対象検証と親の統合全検証を分担する規約を定義する +claude @unattended see:docs/agent-execution.md id:0026
 x 2026-09-12 2026-09-11 worktree の掃除を cleanupPeriodDays から切り離す。2026-09-11 に esp32 で 43 個 19GB、うち変更なしで畳めるものが 34 個 16.3GB。自動掃除の条件に cleanupPeriodDays が入っているが、この値は local の session log を残すため 9999 から動かせない(利用者の確約、2026-09-11)。定期的に畳む手順か道具を用意する +claude @unattended id:0028
@@ -15,8 +15,8 @@ x 2026-09-20 2026-09-20 Langfuse UIを既存named tunnelのlangfuse.097969.xyz�
 x 2026-09-20 2026-09-20 Netdataをmini-vmへloopback限定で導入し、netdata.097969.xyzをnamed tunnelとCloudflare Accessで保護して、host・Docker・processのメトリクスをブラウザで確認する +mini-vm +cloudflare +observability @unattended id:0050
 x 2026-09-20 2026-09-20 旧Langfuse Cloudのclaude-codeプロジェクトをセルフホストLangfuseへ重複なく移行し、trace件数とサンプル階層を照合する +langfuse @unattended see:docs/adr/0007-run-langfuse-locally-first.md id:0051
 x 2026-09-20 2026-09-20 NixpkgsのNetdataをCloud UI同梱でビルドし、netdata.097969.xyzのルートでダッシュボードが表示されることを確認する +mini-vm +observability @unattended id:0052 @dropped Netdata UIのR2配信案を中止し、軽量なBeszelへ切り替えるため
-x 2026-09-21 2026-09-20 Beszelをmini-vmへloopback限定で導入し、host・LangfuseコンテナのCPU/RAM/ディスク/ネットワーク・履歴・アラートを実機確認し、VMに物理温度sensorが公開されない制約を記録して、beszel.097969.xyzを既存named tunnelとCloudflare Accessで保護して公開する +mini-vm +observability +cloudflare @unattended see:docs/adr/0008-split-beszel-and-external-probes.md id:0053
-x 2026-09-21 2026-09-21 LangfuseとCodex Proxyをmini-vm外から5分間隔で検査するCloudflare WorkerをKV・Cron・custom domain・Bark通知とともにhubのOpenTofuで宣言・デプロイし、自然発火した結果を確認する +mini-vm +observability +cloudflare @unattended see:docs/adr/0008-split-beszel-and-external-probes.md id:0054
+x 2026-09-21 2026-09-20 Beszelをmini-vmへloopback限定で導入し、host・LangfuseコンテナのCPU/RAM/ディスク/ネットワーク・履歴・アラートを実機確認し、VMに物理温度sensorが公開されない制約を記録して、beszel.097969.xyzを既存named tunnelとCloudflare Accessで保護して公開する +mini-vm +observability +cloudflare @unattended see:docs/adr/0009-protect-monitoring-uis.md id:0053
+x 2026-09-21 2026-09-21 LangfuseとCodex Proxyをmini-vm外から5分間隔で検査するCloudflare WorkerをKV・Cron・custom domain・Bark通知とともにhubのOpenTofuで宣言・デプロイし、自然発火した結果を確認する +mini-vm +observability +cloudflare @unattended see:docs/adr/0009-protect-monitoring-uis.md id:0054
 x 2026-09-21 2026-09-21 Uptime Kumaをmini-vmへ宣言的に配備し、BeszelとともにCloudflare Accessのみでログインできることを検証する +mini-vm @unattended see:docs/adr/0009-protect-monitoring-uis.md id:0055
 x 2026-10-03 2026-10-03 実際の回答・失敗を再び追跡できるようLangfuseの保存データをバックアップして移行済みDBと対応イメージを揃えAPIとトレース取得を復旧検証する +observability @user see:docs/mini-vm.md id:0058
 x 2026-10-03 2026-10-03 自動更新失敗で監視が停止しないようLangfuse移行後の旧版復帰を防ぎ健全性ゲートの対象と現行構成を一致させる +infra @unattended see:docs/mini-vm.md id:0059
@@ -56,3 +56,7 @@ x 2026-10-16 2026-10-16 +mini-vm codex の cloudflare MCP の OAuth を mini-vm 
 x 2026-10-17 2026-10-16 +mini-vm journal が約 1 日分しか残らない問題を直す: lima-guestagent の SyncTime (10 秒毎、約 180ms 巻き戻し) と systemd-timesyncd が時刻を取り合い、journald が「Time jumped backwards」で毎回 rotate して SystemMaxFiles=100 に当たっている。時刻源をどちらか一方にして、数日分残ることを確かめる by:claude id:0093
 x 2026-10-17 2026-10-17 +mini-vm Cloudflare Access のセッションを見直す: global session (現状未設定で、全体トークンは最初に入ったアプリの期間に従う) を 720h にし、アプリごとの session_duration をセキュリティ要件と利便性で決め直して tofu に反映する (organization も tofu 管理に入れる) by:me id:0097
 x 2026-10-19 2026-10-19 codex-mcp-login の fake callback listener を URL 公開前に bind し、決定的回帰試験と反復試験で検証する（旧順序で回帰失敗、修正後の9試験を30回成功） +ci by:me id:0104
+x 2026-10-27 2026-10-27 mini (macOS) の ripgrep 15.2.0 を Ansible 選択へ移管し、全シェル解決・normal/PCRE2 検索・冪等再適用を検証する +mini by:me id:0110
+x 2026-10-27 2026-10-27 mini-vm の cloudflared を eMudhra セキュリティ通知に合わせ 2026.10.3 へ宣言的に更新し、同じ package の管理 CLI を追加して Tunnel と既存 endpoint を検証する by:me id:0111
+x 2026-10-27 2026-10-27 mini の既存 Homebrew XcodeGen 2.46.0 Intel bottle の単一コマンド選択を Ansible へ移し、checksum gate・既存リンク保護・zsh 解決・rollback を検証する +mini by:me id:0112
+x 2026-10-31 2026-10-31 macOSのキーボード競合の診断手順と受信先PID観測を再利用できる形で残す +infra see:docs/keyboard-conflicts.md by:me id:0116

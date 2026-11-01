@@ -46,3 +46,7 @@
 2026-10-18 JST 深夜のfast/slow timer明示とsender/hub予定枠の修正をレビューし、本番反映の承認後に自然receiptを確認する（修正・境界/重複回帰検証済み、本番未適用） +notify +mini-vm see:docs/job-heartbeat-activation.md by:me id:0103
 2026-10-22 +security ダウンロードに置いたままの OAuth クライアントの秘密と GitHub App の秘密鍵を片付ける: 写しのある場所と使っているかを確かめ、使っていない OAuth クライアントは発行元で消してからファイルを消す。対象と確認状況は手元の棚卸しファイル (git の外) に置く see:docs/security.md by:me id:0108
 2026-10-22 +security sops exec-env を手早く呼ぶ仕組みを用意する: リポのルートや近くの暗号化済み .env を見つけ、複数あれば fzf で選んで `sops exec-env <file> <cmd>` を走らせる zsh 関数か zeno の snippet。エージェントは YubiKey のタッチを要する復号を自分でできない前提で、人が開発サーバーを起動する導線にする。NFC の YubiKey にも PIV の鍵を作り、2 本を受信者にしてから本格的に使う see:docs/security.md by:me id:0109
+2026-10-27 sandbox の DNS/transport 制限を GitHub 認証失効と誤判定しない手順を整える: 通信失敗と HTTP 401 を区別し、実行経路確認と承認付き read-only API 確認を行い、401 の確認前に資格情報更新や scope 追加をしない see:docs/security.md +security by:me id:0113
+2026-10-27 mini の CLI 管理方針を所有・版・取得元・checksum種別・対話選択・更新方針の共通宣言へ揃え、fzf/zoxide/ripgrep/XcodeGen と検証済み候補の保留状態をテストする +mini by:me id:0114 @wip
+2026-10-29 Linux CI の Nix store cache 復元と短時間ジョブの消費を削減し、実行結果を確認する +dotfiles @ci by:me id:0115 @wip
+2026-10-29 mini の checkout 同期を実機設定の適用と分離し、安全な fast-forward と失敗時の停止を検証する +mini by:me id:0116 @wip

@@ -237,7 +237,7 @@ esac
         self.assertNotIn("git pull", calls)
         self.assertEqual(calls.count("switch switch --flake"), 1)
         self.assertIn("?rev=fixed42#mini-vm", calls)
-        self.assertIn("home switch --flake /immutable-source-fixed42#fixture-user-x86_64-linux", calls)
+        self.assertIn("home switch --flake /immutable-source-fixed42#fixture-user-mini-vm", calls)
         self.assertEqual(calls.count("new-gate"), 1)
         self.assertNotIn("restored-gate", calls)
         self.assertEqual((self.repo / "checkout").read_text().strip(), "checkout-mutated")

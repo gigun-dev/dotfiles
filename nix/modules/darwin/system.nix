@@ -2,6 +2,7 @@
   config,
   pkgs,
   lib,
+  userDefaultsManagedByAnsible ? false,
   ...
 }:
 let
@@ -104,7 +105,7 @@ in
   system.defaults = {
     # Dock
     dock = {
-      autohide = true;
+      autohide = lib.mkIf (!userDefaultsManagedByAnsible) true;
       show-recents = true;
     };
 
@@ -121,7 +122,7 @@ in
     # Global
     NSGlobalDomain = {
       # Keyboard (ryoppippi pattern)
-      KeyRepeat = 2;
+      KeyRepeat = lib.mkIf (!userDefaultsManagedByAnsible) 2;
       InitialKeyRepeat = 25;
 
       # Disable auto-correct and substitutions

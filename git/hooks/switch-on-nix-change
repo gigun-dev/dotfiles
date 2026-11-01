@@ -15,6 +15,12 @@ shift
 
 [ -z "${DOTFILES_SKIP_AUTO_SWITCH:-}" ] || exit 0
 
+# Intel macOS uses a temporary frozen runtime fix; current main cannot build
+# its platform. Pulling main must not attempt a host-wide switch there.
+case "$(uname -s):$(uname -m)" in
+	Darwin:x86_64) exit 0 ;;
+esac
+
 # NixOS (mini-vm) では何もしない。そこでの適用は dotfiles-autoswitch が
 # CI green を確かめた commit にだけ行う。ここで switch すると、autoswitch 自身の
 # `git merge` がこのフックを踏み、CI ゲートと健全性ゲートを迂回した二重 switch になる。

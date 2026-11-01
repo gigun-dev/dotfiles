@@ -53,6 +53,19 @@ class Routing(unittest.TestCase):
         self.assertEqual(self.commands(), "nix:run .#switch\n")
         self.assertEqual(Path(str(self.log) + ".cwd").read_text().strip(), str(self.repo))
 
+    def test_git_auto_switch_skips_frozen_intel_only(self):
+        self.fake("git", 'echo git-invoked >> "$LOG"; exit 42')
+        for arch, expected in [("x86_64", ""), ("arm64", "git-invoked\n")]:
+            with self.subTest(arch=arch):
+                self.log.unlink(missing_ok=True)
+                self.fake("uname", f'case "$1" in -s) echo Darwin;; -m) echo {arch};; esac')
+                result = subprocess.run(
+                    [os.environ.get("TEST_BASH", "/bin/bash"),
+                     str(ROOT / "git/hooks/switch-on-nix-change"), "post-merge"],
+                    env=self.env, capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(self.commands(), expected)
+
     def test_switch_failure_never_falls_back(self):
         self.fake("nix", "exit 42")
         self.assertEqual(self.run_script().returncode, 42)
