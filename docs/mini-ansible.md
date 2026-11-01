@@ -7,6 +7,16 @@ watchdog の観測のみ設定は別途適用済みだが、稼働サービス�
 
 ## 所有者と移行の順序
 
+2026-10-29 の mini 読み取り時点の整理。Pro が Ansible controller、mini が管理対象。
+導入された実体と、選択リンク・設定の所有者は別に扱う。
+
+| 対象 | 現在の管理元・確認範囲 |
+|---|---|
+| Nix | macOS の新規適用は凍結中。既存 generation と user profile は残り、一部 CLI の実体を供給している |
+| Homebrew | Lima / Tailscale や GUI cask 等の導入元。パッケージの導入・更新は手動管理のまま |
+| Ansible | shell・defaults と採用済み CLI 選択リンクの所有を宣言。4 CLI の Homebrew 実体へのリンクと shell リンクは実機で確認した。既定では対象を選択しない |
+| 常駐サービス | `launchd` の移管は未実施。既存の Lima 自動起動と watchdog の登録を維持し、候補の staging と稼働サービスの管理を区別する |
+
 `mini_targets` の既定は空。playbook を指定しただけでは管理対象を選ばない。
 `mini_owners` は shell / packages / defaults / launchd など管理グループの所有者を記録する。
 個々の CLI は `mini_tool_policy.<name>.adoption` に現在の owner と adoption state を記録し、
@@ -24,11 +34,12 @@ fzf / zoxide / ripgrep / XcodeGen は現在 `ansible` 所有として採用済�
 パッケージ導入・更新は別操作であり、各 CLI の `update_policy` は手動のまま。
 
 `fd` は Nix 10.4.2 が login shell で有効で、Homebrew Cellar の 10.5.0 は未選択の候補。
-`vivid` は未導入で、Homebrew 0.11.1 の取得元・checksum が確認済みの候補。
+`vivid` は現在 Nix 0.10.1 が存在し、Homebrew 0.11.1 は取得元・checksum が確認済みの未採用候補。
 `asc` は mini への read-only SSH 棚卸しで、公式 5.17.1 Intel release asset と同一 SHA-256 の
 x86_64 実行ファイルとして確認した。release の `asc_5.17.1_macOS_amd64` は圧縮 archive ではなく raw Mach-O executable なので、checksum 種別は `release_executable_sha256`。
 [公式 release assets](https://github.com/rorkai/App-Store-Connect-CLI/releases/expanded_assets/5.17.1)
-の manifest と asset SHA が一致する。現在の手動配置 `~/.local/bin/asc` も mini で観測したが、login shell の選択先ではなく Ansible の destination にも指定しない。
+の manifest と asset SHA が一致する。現在は `~/.local/bin/asc` に手動配置され、rollback 用の 5.9.2 がある。
+2026-10-31 の SSH 確認では、対話 login shell (`zsh -lic`、TTY なし) はこの配置を選び、noninteractive shell では見つからなかった。Ansible の destination には指定しない。
 この3件は adoption / selection が `pending` なので、`mini_targets` に指定しても適用前検査で拒否する。
 
 `selection.mode: protected_service` は destination 文字列の allowlist だけを検査する。
@@ -194,7 +205,18 @@ uv.lock で controller の Ansible / ansible-lint を固定する。初回はツ
 Python 3.12 はcontroller用、miniのPython 3.9はこの固定Ansible coreの対象実行に使う。
 verify はlint、3 playbookのsyntax、実Ansibleを使う一時ディレクトリのリンク・staging検証を実行する。
 SSHは実行しない。CIもmacOS runnerの一時領域だけを使い、inventoryのminiには接続しない。
+`verify.sh portable` は lint・syntax と macOS 固有ツールを使わない fixture を実行し、
+`verify.sh native` は macOS の `plutil` が必要な fixture を実行する。引数なしは両方を含み、native の前提がなければ失敗する。
+2026-10-29 に NixOS x86_64 の固定依存で portable 24 件が成功した。native や macOS 固有の動作の検証には代わらない。
 stagingの親シンボリックリンクは拒否し、既存shellディレクトリのpermissionは維持する。
+
+controller は project の `pyproject.toml` / `uv.lock` / `.python-version` を使う。
+2026-10-29 の Intel mini では lock 中の `cryptography` 50.0.2 に対応 wheel がなく、
+上流は 49 以降の macOS x86_64 サポートを終了している
+([上流 changelog](https://cryptography.io/en/50.0.2/changelog/#v49-0-0))。
+Pro の Apple Silicon では 2026-10-29 に固定依存で lint、3 playbook の構文検査、ローカル fixture 20 件が成功した。対象への SSH・apply は行っていない。
+Linux controller で inventory の解析・syntax 等を検討できても、macOS 固有の検証は別に必要。
+グローバル導入や未検討の依存 downgrade で解消済みとは扱わない。
 
 参考: [check mode](https://docs.ansible.com/projects/ansible/latest/playbook_guide/playbooks_checkmode.html)、
 [Homebrew](https://docs.ansible.com/projects/ansible/latest/collections/community/general/homebrew_module.html)、
