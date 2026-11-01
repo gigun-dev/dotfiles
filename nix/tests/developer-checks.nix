@@ -113,13 +113,21 @@ in
   switch-routing = run "switch-routing" [ "switch-routing" ] {
     SWITCH_BODY = pkgs.writeText "apply-switch.sh" applySwitch;
   };
-  developer-tools = run "developer-tools" [
-    "linux-ci-runner"
-    "codex-bridge-refresh"
-    "bark-routing"
-    "codex-mcp-login"
-    "uv-sync-tools"
-  ] { };
+  developer-tools =
+    run "developer-tools"
+      [
+        "execution-context"
+        "linux-ci-runner"
+        "claude-user-settings"
+        "codex-bridge-refresh"
+        "bark-routing"
+        "codex-mcp-login"
+        "uv-sync-tools"
+      ]
+      {
+        CLAUDE_ACTIVATION = pkgs.writeText "claude-link-dotfiles" inputs.self.homeConfigurations.gigun-mini-vm.config.home.activation.linkDotfiles.data;
+        CLAUDE_HOME = inputs.self.homeConfigurations.gigun-mini-vm.config.home.homeDirectory;
+      };
 }
 // lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
   zsh-startup = run "zsh-startup" [ "zsh-startup" ] { TEST_ZSH = "/bin/zsh"; };
