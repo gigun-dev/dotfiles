@@ -21,10 +21,14 @@ Worker・KV・Cron・custom domainは`gigun-dev/hub`の`infra/uptime/`でOpenTof
 
 mini-vm の `~/.claude/settings.json` は書き込み可能なローカルファイルで、marketplace の
 パスは `flake.nix` で宣言する。Home Manager は共通設定の前回宣言・今回宣言・ローカル設定を
-三者比較し、共通の権限・hook 設定の変更を取り込みつつ、ローカルだけの変更を保つ。
-同じ箇所の競合や宣言と異なる marketplace パスを検出した場合は、上書きせず停止する。
-前回の宣言は `~/.local/state/dotfiles/claude-settings-base.json` に保存する。これがない場合は
-checkout の内容を検証できたときだけ基準を復元し、検証できなければ停止する。
+三者比較する。共通設定にある JSON キーは宣言の変更を取り込み、ローカルだけのキーは保持する。
+辞書はキー単位、配列・スカラーは値全体で比較し、双方が同じ値を異なる内容に変更した場合は
+上書きせず停止する。marketplace パスも同様に比較し、ローカルが前回宣言と一致すれば宣言の
+変更を反映する。前回の宣言は `~/.local/state/dotfiles/claude-settings-base.json` に保存し、
+失われたときは checkout の内容を検証できる場合だけ復元する。
+
+適用中に Claude が設定を書き込まない時間帯を使う。書き換え中の変更は検出して停止するが、
+最終確認とファイル置換の間の書き込みは排他できず、失われる可能性がある。
 
 ## mini-vm の自動更新 (2026-09-06 実装)
 

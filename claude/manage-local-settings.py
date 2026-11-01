@@ -62,13 +62,15 @@ def reconcile(base, local, desired):
     raise ValueError("local and declared settings conflict; no settings changed")
 
 
-def atomic_write(path, content, mode=0o600):
+def atomic_write(path, content, mode=0o600, verify=None):
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     fd, name = tempfile.mkstemp(prefix=".claude-settings-", dir=path.parent)
     try:
         os.fchmod(fd, mode)
         with os.fdopen(fd, "wb") as output:
             output.write(content)
+        if verify is not None:
+            verify()
         os.replace(name, path)
     finally:
         if os.path.exists(name):
@@ -89,8 +91,6 @@ def main():
         mode = stat.S_IMODE(settings.stat().st_mode)
         original = settings.read_bytes()
         local = decode(original)
-        if local["extraKnownMarketplaces"]["gigun"]["source"]["path"] != marketplace:
-            raise ValueError("existing marketplace path differs from declared path")
         if state.exists():
             base = decode(state.read_bytes())
         else:
@@ -104,21 +104,26 @@ def main():
             if not same(decode(tracked.read_bytes()), base):
                 raise ValueError("cannot establish the previous declared settings")
         merged = reconcile(base, local, desired)
+        if merged["extraKnownMarketplaces"]["gigun"]["source"]["path"] != marketplace:
+            raise ValueError("local marketplace path differs from declared path")
         content = original if same(merged, local) else encode(merged)
         if identity(settings) != before or stat.S_IMODE(settings.stat().st_mode) != mode or settings.read_bytes() != original:
             raise ValueError("settings changed during reconciliation")
     else:
         content = encode(desired)
 
+    def verify_settings():
+        if exists:
+            if identity(settings) != before or stat.S_IMODE(settings.stat().st_mode) != mode or settings.read_bytes() != original:
+                raise ValueError("settings changed during reconciliation")
+        elif settings.exists() or settings.is_symlink():
+            raise ValueError("settings appeared during initialization")
+
     # Write settings before recording the base: an interrupted retry stays conservative.
-    # Recheck just before replacement, including a file that appeared on first setup.
-    if exists:
-        if identity(settings) != before or stat.S_IMODE(settings.stat().st_mode) != mode or settings.read_bytes() != original:
-            raise ValueError("settings changed during reconciliation")
-    elif settings.exists() or settings.is_symlink():
-        raise ValueError("settings appeared during initialization")
+    # Recheck after staging as well; rename is not a compare-and-swap operation.
+    verify_settings()
     if not exists or settings.is_symlink() or content != original:
-        atomic_write(settings, content, mode if exists else 0o600)
+        atomic_write(settings, content, mode if exists else 0o600, verify=verify_settings)
     atomic_write(state, encode(desired))
 
 
