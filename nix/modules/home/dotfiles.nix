@@ -9,7 +9,6 @@ let
   dotfilesPath = "${config.home.homeDirectory}/ghq/github.com/gigun-dev/dotfiles";
   mkLink = path: config.lib.file.mkOutOfStoreSymlink "${dotfilesPath}/${path}";
   isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
-  claudeLocalMarketplace = config.dotfiles.claudeLocalMarketplace or null;
 
   # SF Symbols の CLI は自分の実行ファイルパスから親の .app を遡ってリソース
   # (Contents/Resources) を読むため、bundle の外へ symlink を張ると
@@ -171,28 +170,7 @@ in
     # Global instructions must survive setup on a new host, not only manual edits.
     $DRY_RUN_CMD mkdir -p "${config.home.homeDirectory}/.codex"
     link_force "${dotfilesPath}/codex/AGENTS.md" "${config.home.homeDirectory}/.codex/AGENTS.md"
-    claude_settings="${config.home.homeDirectory}/.claude/settings.json"
-    ${
-      if claudeLocalMarketplace == null then
-        ''
-          # Claude may replace the symlink on write; retain those updates in dotfiles.
-          if [ -f "$claude_settings" ] && [ ! -L "$claude_settings" ]; then
-            $DRY_RUN_CMD cp "$claude_settings" "${dotfilesPath}/claude/settings.json"
-          fi
-          link_force "${dotfilesPath}/claude/settings.json" "$claude_settings"
-        ''
-      else
-        ''
-          # Reconcile declared changes with Claude's host-local updates.
-          if [ -z "$DRY_RUN_CMD" ]; then
-            ${pkgs.python3}/bin/python3 ${../../../claude/manage-local-settings.py} \
-              "$claude_settings" "${dotfilesPath}/claude/settings.json" \
-              ${../../../claude/settings.json} \
-              "${config.xdg.stateHome}/dotfiles/claude-settings-base.json" \
-              ${lib.escapeShellArg claudeLocalMarketplace} ${pkgs.git}/bin/git
-          fi
-        ''
-    }
+    # settings.json は Claude とユーザーが所有し、activation では触れない。
     link_force "${dotfilesPath}/claude/hooks" "${config.home.homeDirectory}/.claude/hooks"
     link_force "${dotfilesPath}/claude/commands" "${config.home.homeDirectory}/.claude/commands"
     # 2026-07-12 から手で張られていて、新マシンでは再現しなかった
