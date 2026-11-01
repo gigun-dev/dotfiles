@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'ansible/mini-macos/**'
+      - 'scripts/mini-checkout-sync.py'
       - 'flake.nix'
       - 'flake.lock'
       - '.github/actions/setup-nix/**'
@@ -16,6 +17,7 @@ on:
     branches: [main]
     paths:
       - 'ansible/mini-macos/**'
+      - 'scripts/mini-checkout-sync.py'
       - 'flake.nix'
       - 'flake.lock'
       - '.github/actions/setup-nix/**'

@@ -13,6 +13,25 @@
 let
   username = "gigun";
 
+  # nixpkgs の更新を待たず、Cloudflare のセキュリティ修正版だけを固定する。
+  # Tunnel service と host CLI は同じ derivation を参照する。
+  cloudflaredPackage = pkgs.cloudflared.overrideAttrs (previousAttrs: rec {
+    version = "2026.10.3";
+    src = pkgs.fetchFromGitHub {
+      owner = "cloudflare";
+      repo = "cloudflared";
+      tag = version;
+      hash = "sha256-k1OMkHHItOT5VHhQqgC8ODm/RCJEtwtZi0Lxyf/esLg=";
+    };
+    vendorHash = "sha256-KqTLXEm0jxJ1TsyYzxAwYMe8niIgJxBHQPz/aZKmS40=";
+    ldflags = lib.map (
+      flag: if lib.hasPrefix "-X main.Version=" flag then "-X main.Version=${version}" else flag
+    ) previousAttrs.ldflags;
+    meta = previousAttrs.meta // {
+      changelog = "https://raw.githubusercontent.com/cloudflare/cloudflared/refs/tags/${version}/RELEASE_NOTES";
+    };
+  });
+
   # Cloudflare OS のチェックアウト。4 箇所 (ConditionPathExists / WorkingDirectory /
   # ExecStartPre 2 本) から参照するので 1 箇所に括り出す。
   #
@@ -247,7 +266,7 @@ let
     }
     require_selected_system
     ${pkgs.sudo}/bin/sudo -u ${username} ${homeManager}/bin/home-manager \
-      switch --flake "${dotfilesSource}#${username}-x86_64-linux"
+      switch --flake "${dotfilesSource}#${username}-mini-vm"
     require_selected_system
 
     # 「switch は成功したが使えない」を検出する。DB を移行する image の対が
@@ -457,14 +476,14 @@ let
     # 本番と同じ機械・同じ構成で検証する。これがこの設計の主な利点で、GitHub Actions の
     # ubuntu runner でのビルドに勝る点。
     nix build --no-link '.#nixosConfigurations.mini-vm.config.system.build.toplevel'
-    nix build --no-link '.#homeConfigurations.gigun-x86_64-linux.activationPackage'
+    nix build --no-link '.#homeConfigurations.gigun-mini-vm.activationPackage'
 
     # 毎回 origin/main から作り直すので force で上書きする。PR が開いていれば
     # この push だけで中身が入れ替わる (作り直さない)。
     git push --quiet --force origin "HEAD:refs/heads/$branch"
 
     body=$(printf '%s\n\n```\n%s\n```\n' \
-      "mini-vm がこの lock で nixosConfigurations.mini-vm と homeConfigurations.gigun-x86_64-linux のビルドを確認済み。" \
+      "mini-vm がこの lock で nixosConfigurations.mini-vm と homeConfigurations.gigun-mini-vm のビルドを確認済み。" \
       "$(cat "$log")")
 
     # `.[0].number` ではなく `.[].number`。前者は PR が無いとき空ではなく "null" を出す。
@@ -709,6 +728,24 @@ in
   # lima-init / lima-guestagent 等、Lima ゲストとして動くのに必要な一式
   services.lima.enable = true;
 
+  # lima-init の fstab 追記だけでは switch 時に共有が消えるため、同じ公開範囲を宣言する。
+  fileSystems."/Users/gigun" = {
+    device = "lima-87931a4782a6b63c";
+    fsType = "virtiofs";
+    options = [
+      "ro"
+      "nofail"
+    ];
+  };
+  fileSystems."/tmp/lima" = {
+    device = "lima-1fd4cbcaa36d359d";
+    fsType = "virtiofs";
+    options = [
+      "rw"
+      "nofail"
+    ];
+  };
+
   services.openssh.enable = true;
 
   # 公開鍵認証だけに絞る。2026-08-11 のセキュリティ監査 (M-1) で、既定の
@@ -726,6 +763,7 @@ in
 
   # tailnet の独立ノードとして参加させ、host の macOS を経由せず直接 ssh する
   services.tailscale.enable = true;
+  services.tailscale.package = (import ../../runtime-security/pinned-linux.nix).tailscale;
 
   # 上流 DNS を明示する。MagicDNS への依存を断ち切るための固定値。
   #
@@ -842,6 +880,7 @@ in
   # CLI ツール群は home-manager standalone (packages.nix) が入れる。
   # ここは VM を最低限操作できるだけの構成に留める。
   environment.systemPackages = with pkgs; [
+    config.services.cloudflared.package
     gitMinimal
     vim
 
@@ -1220,6 +1259,7 @@ in
   # 置きたいため (宣言的管理の方針)。remote 管理にすると ingress が git の外へ出る。
   services.cloudflared = {
     enable = true;
+    package = cloudflaredPackage;
     tunnels."5b8ec787-4730-4b2b-87b8-e86acbd3954b" = {
       # 秘密なので git には入れない。root 所有 0400 で置き、systemd の LoadCredential が
       # DynamicUser へ渡す (モジュールが serviceConfig.LoadCredential を設定している)。
@@ -1757,7 +1797,7 @@ in
     description = "dotfiles-autoswitch を毎日回す";
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "*-*-* 04:00:00";
+      OnCalendar = "*-*-* 04:00:00 Asia/Tokyo";
       # 4 時ちょうどに substituter へ殺到しないよう散らす。
       RandomizedDelaySec = 1800;
       # VM が止まっていて発火を逃した分は、次に上がったときに 1 回だけ回す。

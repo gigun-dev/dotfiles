@@ -43,10 +43,15 @@ fi
 # ---------------------------------------------------------------------------
 echo "Creating symlinks..."
 
-mkdir -p "${HOME}/.config/sheldon" \
-  "${HOME}/.config/zeno" \
-  "${HOME}/.config/zsh" \
-  "${HOME}/.config/claude-code"
+# mini の5リンクは Ansible が所有する。DHCP由来の hostname やCPUで判定しない。
+mini_shell_ansible=0
+if [[ "$(uname -s)" == Darwin ]] && [[ "$(/usr/sbin/scutil --get LocalHostName 2>/dev/null)" == mini ]]; then
+  mini_shell_ansible=1
+fi
+if [[ "$mini_shell_ansible" == 0 ]]; then
+  mkdir -p "${HOME}/.config/sheldon" "${HOME}/.config/zeno"
+fi
+mkdir -p "${HOME}/.config/zsh" "${HOME}/.config/claude-code"
 
 link() {
   local src="$1" dst="$2"
@@ -68,12 +73,14 @@ link() {
   echo "  $dst → $src"
 }
 
-link "${DOTFILES_DIR}/zsh/.zshrc" "${HOME}/.zshrc"
-link "${DOTFILES_DIR}/zsh/.zshenv" "${HOME}/.zshenv"
+if [[ "$mini_shell_ansible" == 0 ]]; then
+  link "${DOTFILES_DIR}/zsh/.zshrc" "${HOME}/.zshrc"
+  link "${DOTFILES_DIR}/zsh/.zshenv" "${HOME}/.zshenv"
+  link "${DOTFILES_DIR}/sheldon" "${HOME}/.config/sheldon"
+  link "${DOTFILES_DIR}/zeno" "${HOME}/.config/zeno"
+  link "${DOTFILES_DIR}/zsh/functions" "${HOME}/.config/zsh/functions"
+fi
 link "${DOTFILES_DIR}/zsh/.zprofile" "${HOME}/.zprofile"
-link "${DOTFILES_DIR}/sheldon" "${HOME}/.config/sheldon"
-link "${DOTFILES_DIR}/zeno" "${HOME}/.config/zeno"
-link "${DOTFILES_DIR}/zsh/functions" "${HOME}/.config/zsh/functions"
 # global ignore (nix 側は dotfiles.nix が同じ場所へ張る)
 mkdir -p "${HOME}/.config/git"
 link "${DOTFILES_DIR}/git/ignore" "${HOME}/.config/git/ignore"

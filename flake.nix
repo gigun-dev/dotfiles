@@ -152,11 +152,13 @@
             else
               ''
                 apply_switch() {
+                  home_target="${username}-${system}"
                   if [ -e /etc/NIXOS ]; then
+                    home_target="${username}-mini-vm"
                     sudo nixos-rebuild switch --flake ".#mini-vm" "$@" || return
                   fi
                   ${inputs.home-manager.packages.${system}.home-manager}/bin/home-manager \
-                    switch --flake ".#${username}-${system}" "$@" || return
+                    switch --flake ".#$home_target" "$@" || return
                 }
               '';
 
@@ -328,11 +330,13 @@
                 ''
               else
                 ''
+                  home_target="${username}-${system}"
                   if [ -e /etc/NIXOS ]; then
+                    home_target="${username}-mini-vm"
                     nixos-rebuild build --flake ".#mini-vm" "$@"
                   fi
                   ${inputs.home-manager.packages.${system}.home-manager}/bin/home-manager \
-                    build --flake ".#${username}-${system}" "$@"
+                    build --flake ".#$home_target" "$@"
                 ''
             );
 
@@ -440,8 +444,11 @@
               # 理由: 新ホストを足すときに書き忘れたら評価エラーで気づけるように。
               hostName,
               alwaysOn ? false,
+              shellLinksManagedByAnsible ? false,
+              userDefaultsManagedByAnsible ? false,
             }:
             inputs.nix-darwin.lib.darwinSystem {
+              specialArgs = { inherit userDefaultsManagedByAnsible; };
               modules = [
                 {
                   # プラットフォームは darwinSystem の `system` 引数ではなく
@@ -474,6 +481,7 @@
                     useUserPackages = true;
                     backupFileExtension = "backup";
                     extraSpecialArgs = {
+                      inherit shellLinksManagedByAnsible;
                       llmAgents = llmAgentsFor system;
                       cclens = cclensFor system;
                     };
@@ -506,12 +514,43 @@
           darwinConfigurations = {
             # MacBook Pro (M4 Pro)。手元機なので alwaysOn ではない。
             "${username}-aarch64-darwin" = mkDarwinSystem "aarch64-darwin" { hostName = "MBPM4Pro"; };
+            # Explicit maintenance target; ordinary switch retains Homebrew/Container management.
+            "${username}-aarch64-darwin-runtime-maintenance" =
+              (mkDarwinSystem "aarch64-darwin" { hostName = "MBPM4Pro"; }).extendModules
+                {
+                  modules = [
+                    ({ lib, ... }: {
+                      disabledModules = [ ./nix/modules/darwin/apple-container.nix ];
+                      # Pinned nix-darwin internal module option; verify on every lock upgrade.
+                      system.activationScripts.homebrew.text = lib.mkForce "";
+                      home-manager.users.${username}.home.activation = {
+                        installLaunchdUI = lib.mkForce {
+                          data = "";
+                          after = [ "writeBoundary" ];
+                          before = [ ];
+                        };
+                        installUvPython = lib.mkForce {
+                          data = "";
+                          after = [ "writeBoundary" ];
+                          before = [ ];
+                        };
+                      };
+                      homebrew.onActivation = {
+                        cleanup = lib.mkForce "none";
+                        upgrade = lib.mkForce false;
+                        autoUpdate = lib.mkForce false;
+                      };
+                    })
+                  ];
+                };
             # Mac Mini (Intel)。Lima ゲスト (mini-vm) を載せた 24/365 の拠点。
             # macOS 側は nix 管理を凍結中なのでこの hostName 宣言は当たらない。
             # network-watchdog / homebrew の brews と同じ「M チップ化した日に効く予約」。
             "${username}-x86_64-darwin" = mkDarwinSystem "x86_64-darwin" {
               hostName = "mini";
               alwaysOn = true;
+              shellLinksManagedByAnsible = true;
+              userDefaultsManagedByAnsible = true;
             };
           };
 
@@ -555,11 +594,34 @@
                 config.allowUnfree = true;
               };
               extraSpecialArgs = {
+                shellLinksManagedByAnsible = false;
                 llmAgents = llmAgentsFor "x86_64-linux";
                 cclens = cclensFor "x86_64-linux";
               };
               modules = [ ./nix/modules/home ];
             };
+            # Raw upstream Node requires mini-vm's existing nix-ld; keep WSL unchanged.
+            "${username}-mini-vm" =
+              let
+                base = inputs.self.homeConfigurations."${username}-x86_64-linux";
+                runtime = import ./nix/runtime-security/pinned-linux.nix;
+                replace =
+                  p:
+                  if
+                    builtins.elem (p.pname or "") [
+                      "nodejs"
+                      "nodejs-slim"
+                    ]
+                  then
+                    runtime.node
+                  else if (p.pname or "") == "bun" then
+                    runtime.bun
+                  else
+                    p;
+              in
+              base.extendModules {
+                modules = [ { home.packages = base.pkgs.lib.mkForce (map replace base.config.home.packages); } ];
+              };
           };
         };
     };

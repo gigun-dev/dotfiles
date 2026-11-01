@@ -1,0 +1,23 @@
+name: fzf recipe checks
+on:
+  pull_request:
+    paths:
+      - 'ci/homebrew-fzf/**'
+      - '.github/workflows/fzf-*.yml'
+  push:
+    branches: [build/fzf-intel-bottle]
+    paths:
+      - 'ci/homebrew-fzf/**'
+      - '.github/workflows/fzf-*.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: |
+          bash -n ci/homebrew-fzf/recipe.sh
+          python3 -m unittest discover -s ci/homebrew-fzf/tests -v
+          bash ci/homebrew-fzf/recipe.sh preflight

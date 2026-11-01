@@ -1,0 +1,84 @@
+name: fzf Intel bottle
+on:
+  workflow_dispatch:
+    inputs:
+      bounded_trial:
+        description: 'Explicit one-time Intel validation (30m build + 10m verify); no schedule or host adoption'
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: fzf-intel-bottle
+  cancel-in-progress: false
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.policy.outputs.enabled }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: |
+          bash -n ci/homebrew-fzf/recipe.sh
+          python3 -m unittest discover -s ci/homebrew-fzf/tests -v
+      - id: policy
+        env:
+          BOUNDED_TRIAL: ${{ inputs.bounded_trial }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os
+          p=json.load(open('ci/homebrew-fzf/policy.json'))
+          print('enabled='+str(p['build_enabled'] or os.environ.get('BOUNDED_TRIAL') == 'true').lower())
+          PY
+  build:
+    needs: gate
+    if: needs.gate.outputs.enabled == 'true'
+    runs-on: macos-15-intel
+    timeout-minutes: 30
+    outputs:
+      reused: ${{ steps.reuse.outputs.reused }}
+      key: ${{ steps.identity.outputs.key }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - id: identity
+        run: |
+          bash ci/homebrew-fzf/recipe.sh preflight > "$RUNNER_TEMP/preflight.json"
+          python3 -c 'import json,sys; json.dump(json.load(open(sys.argv[1]))["identity"],open(sys.argv[2],"w"))' "$RUNNER_TEMP/preflight.json" "$RUNNER_TEMP/environment.json"
+          echo "key=$(python3 ci/homebrew-fzf/state.py key --environment "$RUNNER_TEMP/environment.json")" >> "$GITHUB_OUTPUT"
+      - id: reuse
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_KEY: ${{ steps.identity.outputs.key }}
+        run: python3 ci/homebrew-fzf/reuse.py "$BUILD_KEY" "$RUNNER_TEMP/reused"
+      - if: steps.reuse.outputs.reused != 'true'
+        run: |
+          bash ci/homebrew-fzf/recipe.sh prepare-ci --execute --disposable-runner
+          bash ci/homebrew-fzf/recipe.sh build --work "$RUNNER_TEMP/fzf" --execute --disposable-runner
+      - if: steps.reuse.outputs.reused != 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: fzf-build-${{ steps.identity.outputs.key }}
+          path: ${{ runner.temp }}/fzf/build/
+          retention-days: 14
+          if-no-files-found: error
+  verify:
+    needs: build
+    if: needs.build.outputs.reused != 'true'
+    runs-on: macos-15-intel
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_KEY: ${{ needs.build.outputs.key }}
+        run: gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "fzf-build-$BUILD_KEY" --dir "$RUNNER_TEMP/source-build"
+      - run: |
+          bash ci/homebrew-fzf/recipe.sh prepare-ci --execute --disposable-runner
+          bash ci/homebrew-fzf/recipe.sh verify --work "$RUNNER_TEMP/fzf" --artifact "$RUNNER_TEMP/source-build" --execute
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: fzf-validated-${{ needs.build.outputs.key }}
+          path: ${{ runner.temp }}/fzf/store/${{ needs.build.outputs.key }}/
+          retention-days: 14
+          if-no-files-found: error

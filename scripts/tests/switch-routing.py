@@ -47,7 +47,8 @@ class Switch(unittest.TestCase):
                         if nixos:
                             expected.append('nixos-rebuild:switch --flake .#mini-vm --option fixture value')
                         if not nixos or status == 0:
-                            expected.append(f'home-manager:switch --flake .#gigun-{system} --option fixture value')
+                            target = 'mini-vm' if nixos else system
+                            expected.append(f'home-manager:switch --flake .#gigun-{target} --option fixture value')
                     self.assertEqual(log.read_text().splitlines(), expected)
 
 if __name__ == '__main__':
