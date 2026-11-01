@@ -116,6 +116,7 @@ in
   developer-tools =
     run "developer-tools"
       [
+        "execution-context"
         "linux-ci-runner"
         "claude-user-settings"
         "codex-bridge-refresh"
