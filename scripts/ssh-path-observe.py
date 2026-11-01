@@ -44,6 +44,13 @@ def parse_boot_id(stdout):
     return boot_id
 
 
+def policy_denied(stderr):
+    # TimeoutExpired can retain bytes even when run(text=True) was requested.
+    if isinstance(stderr, bytes):
+        return b"tailnet policy denied" in stderr.lower()
+    return "tailnet policy denied" in (stderr or "").lower()
+
+
 def observe_path(command, runner=subprocess.run, clock=time.monotonic):
     started = clock()
     result = {"status": "unknown", "outcome": "execution_error", "elapsedSeconds": None, "bootId": None, "exitCode": None}
@@ -55,7 +62,7 @@ def observe_path(command, runner=subprocess.run, clock=time.monotonic):
             # Classify only the diagnostic phrase in memory; never persist stderr.
             message = (process.stderr or "").lower()
             outcome = "command_failed"
-            if "tailnet policy denied" in message:
+            if policy_denied(process.stderr):
                 outcome = "policy_denied"
             elif "connection refused" in message:
                 outcome = "connection_refused"
@@ -69,8 +76,8 @@ def observe_path(command, runner=subprocess.run, clock=time.monotonic):
                 result["outcome"] = "invalid_output"
             else:
                 result.update(status="ok", outcome="completed", bootId=boot_id)
-    except subprocess.TimeoutExpired:
-        result.update(status="failed", outcome="timeout")
+    except subprocess.TimeoutExpired as error:
+        result.update(status="failed", outcome="policy_denied" if policy_denied(error.stderr) else "timeout")
     except (OSError, UnicodeError):
         # 例外本文・stderr は鍵パスや remote の秘密を含み得るため出力しない。
         pass

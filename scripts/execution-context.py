@@ -40,8 +40,14 @@ def record(host, target, context, probe, result, http_status=None):
             "result": result, "httpStatus": http_status, "assessment": assessment}
 
 
+class DiagnosticParser(argparse.ArgumentParser):
+    def error(self, message):
+        # argparse's choice/type/unknown-option errors embed the rejected input.
+        self.exit(2, "invalid diagnostic arguments\n")
+
+
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = DiagnosticParser(prog="execution-context.py", description=__doc__)
     parser.add_argument("--host", required=True, choices=HOSTS)
     parser.add_argument("--target", required=True, choices=HOSTS + ("github",))
     parser.add_argument("--context", required=True, choices=CONTEXTS)
@@ -51,8 +57,8 @@ def main():
     args = parser.parse_args()
     try:
         value = record(args.host, args.target, args.context, args.probe, args.result, args.http_status)
-    except ValueError as error:
-        parser.error(str(error))
+    except ValueError:
+        parser.error("")
     json.dump(value, sys.stdout, sort_keys=True)
     print()
 
