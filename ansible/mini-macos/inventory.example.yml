@@ -1,0 +1,12 @@
+---
+# Parsing example only. Select a private inventory explicitly; never use this for apply.
+# The example host and user intentionally do not pass the mini identity preflight.
+all:
+  children:
+    mini_macos:
+      hosts:
+        example_mini:
+          ansible_host: mini.example.invalid
+          ansible_user: example_user
+          ansible_python_interpreter: /usr/bin/python3
+          ansible_ssh_common_args: -o BatchMode=yes -o StrictHostKeyChecking=yes
