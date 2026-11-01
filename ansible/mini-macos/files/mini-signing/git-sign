@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+here=$(/usr/bin/dirname "$0")
+exec "$here/nu" "$here/nix-secure-enclave-key-git-sign.nu" "$@"
