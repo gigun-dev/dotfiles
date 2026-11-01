@@ -1,18 +1,20 @@
 { pkgs, inputs }:
 let
-  evaluate = enabled: token: (inputs.nixpkgs.lib.nixosSystem {
-    system = "x86_64-linux";
-    modules = [
-      ../../ci/linux-runner/mini-runner.nix
-      {
-        system.stateVersion = "26.05";
-        dotfiles.reviewedCiRunner = {
-          enable = enabled;
-          registrationTokenFile = token;
-        };
-      }
-    ];
-  }).config;
+  evaluate =
+    enabled: token:
+    (inputs.nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        ../../ci/linux-runner/mini-runner.nix
+        {
+          system.stateVersion = "26.05";
+          dotfiles.reviewedCiRunner = {
+            enable = enabled;
+            registrationTokenFile = token;
+          };
+        }
+      ];
+    }).config;
   disabled = evaluate false null;
   enabled = evaluate true "/run/keys/dotfiles-ci-test-token";
   service = enabled.systemd.services.github-runner-dotfiles-ci;
