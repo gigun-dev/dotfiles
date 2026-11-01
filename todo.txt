@@ -51,4 +51,4 @@
 2026-10-29 mini の checkout 同期を実機設定の適用と分離し、安全な fast-forward と失敗時の停止を検証する +mini by:me id:0116 @wip
 2026-11-01 公開前監査の未確認範囲（非公開backup、最新refs、PR review/添付、全Actions/cache、Release編集履歴）を確認し公開判断を残す +security see:docs/publication-audit-2026-11-01.md by:codex id:0121
 2026-11-01 miniのsudo一覧は認証要求で未確認のため、本人が一覧を確認して最小権限分類だけ返す手順を決める。自動認証や拒否経路への切替はしない +security @user see:docs/security-access-boundaries.md by:codex id:0122
-2026-11-01 停止前条件の解消後、承認済みhome共有縮小をA/Bで適用し、サービスと共有不可視を受入してC復帰または保守継続を記録する +security +mini-vm @device dep:0125 see:docs/mini-vm-mount-dependencies.md by:me id:0126
+2026-11-01 home共有除去とB受入は完了。PR124をmainへ反映してCをbuild・独立受入し5timerを再開、自然autoswitchを検証する +security +mini-vm @user see:docs/mini-vm-mount-dependencies.md by:me id:0126
