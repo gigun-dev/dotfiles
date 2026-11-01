@@ -46,9 +46,11 @@ class SettingsTest(unittest.TestCase):
     def test_symlink_migration_and_reapply_preserves_updates(self):
         original = (json.dumps(self.live_data(), indent=4) + "\n").encode()
         self.tracked.write_bytes(original)
+        self.tracked.chmod(0o644)
         self.settings.symlink_to(self.tracked)
         self.assertEqual(self.apply().returncode, 0)
         self.assertFalse(self.settings.is_symlink())
+        self.assertEqual(self.settings.stat().st_mode & 0o777, 0o644)
         self.assertEqual(self.settings.read_bytes(), original)
         data = json.loads(original)
         data["unmanaged"] = "Claude update"

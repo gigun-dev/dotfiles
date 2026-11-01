@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import stat
 import sys
 import tempfile
 
@@ -61,10 +62,11 @@ def reconcile(base, local, desired):
     raise ValueError("local and declared settings conflict; no settings changed")
 
 
-def atomic_write(path, content):
+def atomic_write(path, content, mode=0o600):
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     fd, name = tempfile.mkstemp(prefix=".claude-settings-", dir=path.parent)
     try:
+        os.fchmod(fd, mode)
         with os.fdopen(fd, "wb") as output:
             output.write(content)
         os.replace(name, path)
@@ -84,6 +86,7 @@ def main():
         if not settings.is_file():
             raise ValueError("settings is not a regular file")
         before = identity(settings)
+        mode = stat.S_IMODE(settings.stat().st_mode)
         original = settings.read_bytes()
         local = decode(original)
         if local["extraKnownMarketplaces"]["gigun"]["source"]["path"] != marketplace:
@@ -99,7 +102,7 @@ def main():
             base = with_marketplace(decode(result.stdout), marketplace)
         merged = reconcile(base, local, desired)
         content = original if same(merged, local) else encode(merged)
-        if identity(settings) != before or settings.read_bytes() != original:
+        if identity(settings) != before or stat.S_IMODE(settings.stat().st_mode) != mode or settings.read_bytes() != original:
             raise ValueError("settings changed during reconciliation")
     else:
         content = encode(desired)
@@ -107,12 +110,12 @@ def main():
     # Write settings before recording the base: an interrupted retry stays conservative.
     # Recheck just before replacement, including a file that appeared on first setup.
     if exists:
-        if identity(settings) != before or settings.read_bytes() != original:
+        if identity(settings) != before or stat.S_IMODE(settings.stat().st_mode) != mode or settings.read_bytes() != original:
             raise ValueError("settings changed during reconciliation")
     elif settings.exists() or settings.is_symlink():
         raise ValueError("settings appeared during initialization")
     if not exists or settings.is_symlink() or content != original:
-        atomic_write(settings, content)
+        atomic_write(settings, content, mode if exists else 0o600)
     atomic_write(state, encode(desired))
 
 
