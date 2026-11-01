@@ -195,6 +195,9 @@ uv.lock で controller の Ansible / ansible-lint を固定する。初回はツ
 Python 3.12 はcontroller用、miniのPython 3.9はこの固定Ansible coreの対象実行に使う。
 verify はlint、3 playbookのsyntax、実Ansibleを使う一時ディレクトリのリンク・staging検証を実行する。
 SSHは実行しない。CIもmacOS runnerの一時領域だけを使い、inventoryのminiには接続しない。
+`verify.sh portable` は lint・syntax と macOS 固有ツールを使わない fixture を実行し、
+`verify.sh native` は macOS の `plutil` が必要な fixture を実行する。引数なしは両方を含み、native の前提がなければ失敗する。
+2026-10-29 に NixOS x86_64 の固定依存で portable 24 件が成功した。native や macOS 固有の動作の検証には代わらない。
 stagingの親シンボリックリンクは拒否し、既存shellディレクトリのpermissionは維持する。
 
 参考: [check mode](https://docs.ansible.com/projects/ansible/latest/playbook_guide/playbooks_checkmode.html)、
