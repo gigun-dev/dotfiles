@@ -3,6 +3,8 @@
 import importlib.util
 import json
 from pathlib import Path
+import subprocess
+import sys
 import unittest
 
 spec = importlib.util.spec_from_file_location("context", Path(__file__).parents[1] / "execution-context.py")
@@ -43,6 +45,44 @@ class ContextTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             context.record("SECRET_HOST", "mini", "sandbox", "dns", "success")
         self.assertNotIn("SECRET", json.dumps(self.evidence("success")))
+
+
+class CliTests(unittest.TestCase):
+    arguments = ["--host", "pro", "--target", "github", "--context", "sandbox",
+                 "--probe", "github-api", "--result", "success"]
+
+    def run_cli(self, arguments):
+        return subprocess.run([sys.executable, "-I", "-S", "-B", str(Path(context.__file__)), *arguments],
+                              capture_output=True, text=True, timeout=10)
+
+    def assert_sanitized_error(self, arguments):
+        result = self.run_cli(arguments)
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(result.stdout, "")
+        self.assertEqual(result.stderr, "invalid diagnostic arguments\n")
+
+    def test_invalid_choices_do_not_echo_raw_input(self):
+        for option in ("--host", "--target", "--context", "--probe", "--result"):
+            with self.subTest(option=option):
+                arguments = self.arguments.copy()
+                arguments[arguments.index(option) + 1] = "syntheticsecret\nPRIVATE"
+                self.assert_sanitized_error(arguments)
+
+    def test_invalid_types_unknown_options_and_extra_values_are_sanitized(self):
+        for extra in (["--http-status", "syntheticsecret"], ["--syntheticsecret"],
+                      ["syntheticsecret"], ["--result"]):
+            with self.subTest(argument_kind=extra[0]):
+                self.assert_sanitized_error([*self.arguments, *extra])
+
+    def test_semantic_errors_and_missing_arguments_are_sanitized(self):
+        self.assert_sanitized_error([])
+        self.assert_sanitized_error([*self.arguments, "--http-status", "200"])
+
+    def test_valid_cli_keeps_metadata_output(self):
+        result = self.run_cli(self.arguments)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stderr, "")
+        self.assertEqual(json.loads(result.stdout)["assessment"], "succeeded-in-this-context")
 
 
 if __name__ == "__main__":

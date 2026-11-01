@@ -51,6 +51,18 @@ class ObservationTests(unittest.TestCase):
         self.assertEqual(runner.call_args.args[0], observer.VIA_HOST)
         self.assertNotIn("SECRET", json.dumps(result))
 
+    def test_policy_denial_before_timeout_never_attempts_alternative_path(self):
+        for stderr in (b"TAILNET POLICY DENIED SECRET\xff", "TAILNET POLICY DENIED SECRET"):
+            with self.subTest(stderr_type=type(stderr).__name__):
+                runner = Mock(side_effect=[subprocess.TimeoutExpired(
+                    [], 25, output=b"PRIVATE", stderr=stderr), success()])
+                result = observer.observe(runner)
+                self.assertEqual(runner.call_count, 1)
+                self.assertEqual(result["paths"]["direct"]["outcome"], "policy_denied")
+                self.assertEqual(result["paths"]["viaHost"]["outcome"], "not_attempted")
+                self.assertNotIn("SECRET", json.dumps(result))
+                self.assertNotIn("PRIVATE", json.dumps(result))
+
     def test_refusal_and_connection_timeout_are_distinct_without_stderr(self):
         for message, outcome in [("ssh: connect to host fixture port 22: Connection refused SECRET", "connection_refused"),
                                  ("ssh: connect to host fixture port 22: Operation timed out SECRET", "timeout")]:
