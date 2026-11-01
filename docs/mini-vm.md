@@ -17,6 +17,13 @@ mini-vm自体が停止した場合は同居するBeszelでは検出できない�
 Worker・KV・Cron・custom domainは`gigun-dev/hub`の`infra/uptime/`でOpenTofu管理する。
 設計は [ADR 0009](adr/0009-protect-monitoring-uis.md) を参照する。
 
+## Claude のホスト別設定
+
+mini-vm の `~/.claude/settings.json` は書き込み可能なローカルファイルで、marketplace の
+パスは `flake.nix` で宣言する。初回は共通設定を雛形にし、既存設定があれば内容を保持する。
+共通設定の後の変更は既存ローカルファイルには自動反映されない。参照先を変更するときは
+宣言とローカル設定を合わせる。食い違う場合、Home Manager は上書きせず停止する。
+
 ## mini-vm の自動更新 (2026-09-06 実装)
 
 **動機**: 無人機なので手で `pull && switch` を打つ機会が無く、push 済みの変更が届かないまま
