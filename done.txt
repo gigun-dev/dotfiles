@@ -63,3 +63,4 @@ x 2026-10-31 2026-10-31 macOSのキーボード競合の診断手順と受信先
 x 2026-11-01 2026-10-27 sandbox のDNS・認証・署名検証のcontext記録と合成回帰を実装し、policy拒否時は代替経路へ進まないことを検証する +security see:docs/execution-context.md by:me id:0113
 x 2026-11-01 2026-11-01 Pro・mini・mini-vm のアクセス境界を宣言と未確認に分け、標準ascのbuild/sign/publish分離案をレビュー可能にする +security see:docs/security-access-boundaries.md by:me id:0118
 x 2026-11-01 2026-11-01 SSH timeout内のpolicy拒否でfallbackを停止し、診断CLIの引数エラーに生入力を出さない回帰を検証する +security see:docs/execution-context.md by:me id:0120
+x 2026-11-01 2026-11-01 mini home共有を外す依存表・未適用のLima/NixOS設定案・停止影響と復旧を合成検証しDraft PRにする +security +mini-vm see:docs/mini-vm-mount-dependencies.md by:me id:0123

@@ -294,6 +294,7 @@
               touch "$out"
             '';
 
+            mini-vm-narrow-mounts = import ./nix/tests/mini-vm-narrow-mounts.nix { inherit pkgs inputs; };
           }
           // import ./nix/tests/developer-checks.nix {
             inherit
