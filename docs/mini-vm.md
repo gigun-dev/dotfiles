@@ -23,7 +23,8 @@ mini-vm の `~/.claude/settings.json` は書き込み可能なローカルファ
 パスは `flake.nix` で宣言する。Home Manager は共通設定の前回宣言・今回宣言・ローカル設定を
 三者比較し、共通の権限・hook 設定の変更を取り込みつつ、ローカルだけの変更を保つ。
 同じ箇所の競合や宣言と異なる marketplace パスを検出した場合は、上書きせず停止する。
-前回の宣言は `~/.local/state/dotfiles/claude-settings-base.json` に保存する。
+前回の宣言は `~/.local/state/dotfiles/claude-settings-base.json` に保存する。これがない場合は
+checkout の内容を検証できたときだけ基準を復元し、検証できなければ停止する。
 
 ## mini-vm の自動更新 (2026-09-06 実装)
 
