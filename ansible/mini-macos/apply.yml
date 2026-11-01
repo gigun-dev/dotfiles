@@ -16,6 +16,9 @@
       loop_control:
         loop_var: mini_tool_name
         label: "{{ mini_tool_name }}"
+    - name: Distribute explicitly selected signing tools
+      ansible.builtin.include_tasks: tasks/signing_tools.yml
+      when: "'signing_tools' in mini_targets"
     - name: Manage shell links
       ansible.builtin.include_tasks: tasks/shell.yml
       when: "'shell' in mini_targets"

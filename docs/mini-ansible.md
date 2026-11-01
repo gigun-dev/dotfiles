@@ -96,6 +96,26 @@ uv run --locked --project ansible/mini-macos ansible-playbook -i ansible/mini-ma
 含まれている必要がある。`mini_casks` / `mini_update_casks` は空を要求し、cloudflared / Tailscale は対象外。
 Homebrew metadata 自体は更新せず、既存 metadata に対して適用する。配布最新版の確認とは区別する。
 
+## Git 署名ツールの配布候補
+
+`signing_tools` は既定で未選択、所有者は `manual`。移管と適用の承認後にのみ
+`ansible` へ変更し、`mini_targets: [signing_tools]` と `mini_apply_ack: true` で選ぶ。
+この対象は鍵の作成・参照の自動採用・Git 設定・GitHub 登録を行わない。
+
+Pro 上の専用 cache に公式 Nushell 0.116.1 Intel archive と、upstream commit
+`7975b7d33ec2b6c733e08c87c9cb1e7945462a1c` の 2 script を取得し、archive、展開後の
+`nu`、各 script の SHA-256 を宣言値と照合する。mini の
+`~/.local/share/dotfiles/mini-signing/versions/<bundle>/` へ検証済みの `nu`、script、
+引数を渡す wrapper を配置し、全ファイルの hash と mode を検証してから `current` を選ぶ。
+`current/git-sign` は将来 Git から参照できる候補で、今回の playbook は Git を設定しない。
+
+更新は新しい版・source・hash を宣言し、旧 `current` の絶対パスを
+`mini_signing_approved_previous` に列挙したうえで `mini_update_ack: true` も要する。
+rollback も戻す版の宣言と、現在の選択先の明示承認・同じ確認フラグを要する。以前の
+version ディレクトリは削除しない。未知のファイルやリンク、異なる hash は上書きせず停止する。
+`--check` は既存選択を検査するが、download・展開・配置後の hash は実行しない。
+実機への適用、鍵参照の検証、署名試験および GitHub 登録は別の作業である。
+
 ## launchd はまず配置候補だけ
 
 初期段階は `mini_targets=["launchd_stage"]` で staging のみとし、稼働中の plist の差し替え、load / unload、

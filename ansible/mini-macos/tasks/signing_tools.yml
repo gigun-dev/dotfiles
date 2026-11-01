@@ -1,0 +1,282 @@
+---
+- name: Validate the requested signing bundle
+  ansible.builtin.assert:
+    that:
+      - mini_signing_root == mini_home ~ '/.local/share/dotfiles/mini-signing'
+      - mini_signing_bundle_id is match('^[A-Za-z0-9][A-Za-z0-9._-]*$')
+      - mini_signing_archive_member is match('^[A-Za-z0-9._-]+/nu$')
+      - mini_signing_nu_sha256 is match('^[0-9a-f]{64}$')
+      - mini_signing_artifacts | map(attribute='name') | list == ['nu.tar.gz', 'nix-secure-enclave-key.nu', 'nix-secure-enclave-key-git-sign.nu']
+      - mini_signing_artifacts | map(attribute='sha256') | select('match', '^[0-9a-f]{64}$') | list | length == 3
+      - mini_signing_approved_previous is sequence and mini_signing_approved_previous is not string
+      - ansible_check_mode or mini_apply_ack | bool
+
+- name: Restrict approved previous selections to versioned bundle paths
+  ansible.builtin.assert:
+    that:
+      - item is match('^' ~ (mini_signing_root | regex_escape) ~ '/versions/[A-Za-z0-9][A-Za-z0-9._-]*$')
+  loop: "{{ mini_signing_approved_previous }}"
+
+- name: Inspect signing directories and current selection
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+  register: mini_signing_paths
+  loop:
+    - "{{ mini_home }}/.local"
+    - "{{ mini_home }}/.local/share"
+    - "{{ mini_home }}/.local/share/dotfiles"
+    - "{{ mini_signing_root }}"
+    - "{{ mini_signing_root }}/versions"
+    - "{{ mini_signing_root }}/versions/{{ mini_signing_bundle_id }}"
+    - "{{ mini_signing_root }}/current"
+
+- name: Refuse to replace unknown paths or selections
+  ansible.builtin.assert:
+    that:
+      - not item.stat.exists or (item.stat.isdir | default(false) and not item.stat.islnk | default(false))
+    fail_msg: Preserve the existing signing directory and review ownership.
+  loop: "{{ mini_signing_paths.results[:6] }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Require an approved previous selection and explicit update acknowledgement
+  ansible.builtin.assert:
+    that:
+      - >-
+        not mini_signing_paths.results[6].stat.exists or
+        (mini_signing_paths.results[6].stat.islnk | default(false) and
+        mini_signing_paths.results[6].stat.lnk_target in
+        ([mini_signing_root ~ '/versions/' ~ mini_signing_bundle_id] + mini_signing_approved_previous))
+      - >-
+        ansible_check_mode or not mini_signing_paths.results[6].stat.exists or
+        mini_signing_paths.results[6].stat.lnk_target == mini_signing_root ~ '/versions/' ~ mini_signing_bundle_id or
+        mini_update_ack | bool
+    fail_msg: Preserve the current selection; review and explicitly acknowledge updates or rollback.
+
+- name: Inspect the existing selected bundle
+  ansible.builtin.stat:
+    path: "{{ mini_signing_root }}/current"
+    follow: true
+  register: mini_signing_existing_bundle
+
+- name: Require an existing selected bundle to resolve to a directory
+  ansible.builtin.assert:
+    that:
+      - not mini_signing_paths.results[6].stat.exists or mini_signing_existing_bundle.stat.isdir | default(false)
+    fail_msg: Preserve the broken current selection; restore its version before proceeding.
+
+- name: Explain check mode
+  ansible.builtin.debug:
+    msg: Check mode inspects selection only; archive retrieval, extraction and file checks require a real apply.
+  when: ansible_check_mode
+
+- name: Stage and select the approved signing bundle
+  when: not ansible_check_mode
+  block:
+    - name: Inspect controller cache
+      ansible.builtin.stat:
+        path: "{{ mini_signing_cache }}"
+        follow: false
+      register: mini_signing_cache_dir
+      delegate_to: localhost
+
+    - name: Preserve an unexpected controller cache
+      ansible.builtin.assert:
+        that:
+          - >-
+            not mini_signing_cache_dir.stat.exists or
+            (mini_signing_cache_dir.stat.isdir | default(false) and not mini_signing_cache_dir.stat.islnk | default(false))
+
+    - name: Create missing controller cache
+      ansible.builtin.file:
+        path: "{{ mini_signing_cache }}"
+        state: directory
+        mode: '0700'
+      when: not mini_signing_cache_dir.stat.exists
+      delegate_to: localhost
+
+    - name: Inspect cached downloads
+      ansible.builtin.stat:
+        path: "{{ mini_signing_cache }}/{{ item.sha256 }}"
+        checksum_algorithm: sha256
+        follow: false
+      loop: "{{ mini_signing_artifacts }}"
+      register: mini_signing_cached
+      delegate_to: localhost
+
+    - name: Preserve unexpected cached downloads
+      ansible.builtin.assert:
+        that:
+          - not item.stat.exists or (item.stat.isreg | default(false) and item.stat.checksum | default('') == item.item.sha256)
+      loop: "{{ mini_signing_cached.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+
+    - name: Download only pinned controller artifacts
+      ansible.builtin.get_url:
+        url: "{{ item.url }}"
+        dest: "{{ mini_signing_cache }}/{{ item.sha256 }}"
+        checksum: "sha256:{{ item.sha256 }}"
+        mode: '0600'
+      loop: "{{ mini_signing_artifacts }}"
+      loop_control:
+        label: "{{ item.name }}"
+      delegate_to: localhost
+
+    - name: Inspect controller extraction directory
+      ansible.builtin.stat:
+        path: "{{ mini_signing_cache }}/nu-{{ mini_signing_nu_sha256 }}"
+        follow: false
+      register: mini_signing_extraction_dir
+      delegate_to: localhost
+
+    - name: Preserve an unexpected extraction directory
+      ansible.builtin.assert:
+        that:
+          - >-
+            not mini_signing_extraction_dir.stat.exists or
+            (mini_signing_extraction_dir.stat.isdir | default(false) and not mini_signing_extraction_dir.stat.islnk | default(false))
+
+    - name: Create missing controller extraction directory
+      ansible.builtin.file:
+        path: "{{ mini_signing_cache }}/nu-{{ mini_signing_nu_sha256 }}"
+        state: directory
+        mode: '0700'
+      when: not mini_signing_extraction_dir.stat.exists
+      delegate_to: localhost
+
+    - name: Inspect extracted Nushell
+      ansible.builtin.stat:
+        path: "{{ mini_signing_cache }}/nu-{{ mini_signing_nu_sha256 }}/nu"
+        checksum_algorithm: sha256
+        follow: false
+      register: mini_signing_cached_nu
+      delegate_to: localhost
+
+    - name: Preserve unexpected extracted files
+      ansible.builtin.assert:
+        that:
+          - >-
+            not mini_signing_cached_nu.stat.exists or
+            (mini_signing_cached_nu.stat.isreg | default(false) and
+             mini_signing_cached_nu.stat.checksum | default('') == mini_signing_nu_sha256)
+
+    - name: Extract only the pinned Nushell executable
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/tar
+          - -xzf
+          - "{{ mini_signing_cache }}/{{ mini_signing_artifacts[0].sha256 }}"
+          - -C
+          - "{{ mini_signing_cache }}/nu-{{ mini_signing_nu_sha256 }}"
+          - --strip-components=1
+          - "{{ mini_signing_archive_member }}"
+        creates: "{{ mini_signing_cache }}/nu-{{ mini_signing_nu_sha256 }}/nu"
+      delegate_to: localhost
+
+    - name: Verify extracted Nushell before copying
+      ansible.builtin.stat:
+        path: "{{ mini_signing_cache }}/nu-{{ mini_signing_nu_sha256 }}/nu"
+        checksum_algorithm: sha256
+        follow: false
+      register: mini_signing_verified_nu
+      delegate_to: localhost
+
+    - name: Require the expected executable bytes
+      ansible.builtin.assert:
+        that:
+          - mini_signing_verified_nu.stat.isreg | default(false)
+          - mini_signing_verified_nu.stat.checksum | default('') == mini_signing_nu_sha256
+
+    - name: Prepare versioned destination
+      ansible.builtin.file:
+        path: "{{ item.item }}"
+        state: directory
+        mode: '0755'
+      loop: "{{ mini_signing_paths.results[3:6] }}"
+      when: not item.stat.exists
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Define destination files and expected checksums
+      ansible.builtin.set_fact:
+        mini_signing_files:
+          - name: nu
+            src: "{{ mini_signing_cache }}/nu-{{ mini_signing_nu_sha256 }}/nu"
+            sha256: "{{ mini_signing_nu_sha256 }}"
+            mode: '0755'
+          - name: nix-secure-enclave-key.nu
+            src: "{{ mini_signing_cache }}/{{ mini_signing_artifacts[1].sha256 }}"
+            sha256: "{{ mini_signing_artifacts[1].sha256 }}"
+            mode: '0644'
+          - name: nix-secure-enclave-key-git-sign.nu
+            src: "{{ mini_signing_cache }}/{{ mini_signing_artifacts[2].sha256 }}"
+            sha256: "{{ mini_signing_artifacts[2].sha256 }}"
+            mode: '0644'
+          - name: enclave-key
+            src: "{{ mini_controller_repo }}/ansible/mini-macos/files/mini-signing/enclave-key"
+            sha256: >-
+              {{ lookup('file', mini_controller_repo ~ '/ansible/mini-macos/files/mini-signing/enclave-key', rstrip=False) | hash('sha256') }}
+            mode: '0755'
+          - name: git-sign
+            src: "{{ mini_controller_repo }}/ansible/mini-macos/files/mini-signing/git-sign"
+            sha256: >-
+              {{ lookup('file', mini_controller_repo ~ '/ansible/mini-macos/files/mini-signing/git-sign', rstrip=False) | hash('sha256') }}
+            mode: '0755'
+
+    - name: Inspect versioned destination files
+      ansible.builtin.stat:
+        path: "{{ mini_signing_root }}/versions/{{ mini_signing_bundle_id }}/{{ item.name }}"
+        checksum_algorithm: sha256
+        follow: false
+      register: mini_signing_destinations
+      loop: "{{ mini_signing_files }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Preserve unexpected destination files
+      ansible.builtin.assert:
+        that:
+          - not item.stat.exists or (item.stat.isreg | default(false) and item.stat.checksum | default('') == item.item.sha256)
+      loop: "{{ mini_signing_destinations.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+
+    - name: Copy verified bundle without touching keys or Git configuration
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ mini_signing_root }}/versions/{{ mini_signing_bundle_id }}/{{ item.name }}"
+        mode: "{{ item.mode }}"
+        force: false
+      loop: "{{ mini_signing_files }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Verify installed files before selection
+      ansible.builtin.stat:
+        path: "{{ mini_signing_root }}/versions/{{ mini_signing_bundle_id }}/{{ item.name }}"
+        checksum_algorithm: sha256
+        follow: false
+      register: mini_signing_installed
+      loop: "{{ mini_signing_files }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Require verified bytes and expected permissions
+      ansible.builtin.assert:
+        that:
+          - item.stat.isreg | default(false)
+          - item.stat.checksum | default('') == item.item.sha256
+          - item.stat.mode | default('') == item.item.mode
+      loop: "{{ mini_signing_installed.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+
+    - name: Select verified version
+      ansible.builtin.file:
+        src: "{{ mini_signing_root }}/versions/{{ mini_signing_bundle_id }}"
+        dest: "{{ mini_signing_root }}/current"
+        state: link
+        force: true
+        follow: false
