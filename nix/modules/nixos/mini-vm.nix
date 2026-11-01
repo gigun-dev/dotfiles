@@ -728,15 +728,7 @@ in
   # lima-init / lima-guestagent 等、Lima ゲストとして動くのに必要な一式
   services.lima.enable = true;
 
-  # lima-init の fstab 追記だけでは switch 時に共有が消えるため、同じ公開範囲を宣言する。
-  fileSystems."/Users/gigun" = {
-    device = "lima-87931a4782a6b63c";
-    fsType = "virtiofs";
-    options = [
-      "ro"
-      "nofail"
-    ];
-  };
+  # Host home is deliberately not exported; only the non-secret transfer mount remains.
   fileSystems."/tmp/lima" = {
     device = "lima-1fd4cbcaa36d359d";
     fsType = "virtiofs";
