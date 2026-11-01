@@ -21,7 +21,7 @@ Worker・KV・Cron・custom domainは`gigun-dev/hub`の`infra/uptime/`でOpenTof
 
 mini-vm の `~/.claude/settings.json` は書き込み可能なローカルファイルで、marketplace の
 パスは `flake.nix` で宣言する。初回は共通設定を雛形にし、既存設定があれば内容を保持する。
-共通設定の後の変更は既存ローカルファイルには自動反映されない。参照先を変更するときは
+権限設定を含む共通設定の後の変更は、既存ローカルファイルには自動反映されない。参照先を変更するときは
 宣言とローカル設定を合わせる。食い違う場合、Home Manager は上書きせず停止する。
 
 ## mini-vm の自動更新 (2026-09-06 実装)
