@@ -115,3 +115,7 @@
 - [age-plugin-yubikey](https://github.com/str4d/age-plugin-yubikey)、[age-plugin-se](https://github.com/remko/age-plugin-se)、[SOPS の age](https://getsops.io/docs/usage/identities/age/)、[agenix-rekey](https://github.com/oddlama/agenix-rekey)
 - 平文の認証情報を盗んだ実例: [s1ngularity (Nx)](https://github.com/nrwl/nx/security/advisories/GHSA-cxm3-wv7p-598c)、[Shai-Hulud (CISA)](https://www.cisa.gov/news-events/alerts/2025/09/23/widespread-supply-chain-compromise-impacting-npm-ecosystem)
 - 課金の上限: [Anthropic](https://platform.claude.com/docs/en/api/rate-limits)、[OpenAI](https://help.openai.com/en/articles/6614457)、[AWS Budget actions](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-controls.html)、[Cloudflare](https://developers.cloudflare.com/billing/manage/budget-alerts/)
+
+## 実行環境とアクセス境界の確認
+
+[診断手順](execution-context.md)でsandbox内の失敗と認証・署名の問題を区別する。[ホスト別のアクセス境界](security-access-boundaries.md)は、宣言と実機未確認を分けて記載する。秘密の棚卸しは既存の非公開記録に置き、ここには値を持ち込まない。

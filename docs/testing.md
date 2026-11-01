@@ -10,7 +10,7 @@
 | guard-handoff | pin された HM の最小 fixture 世代から collision/link helper を読み、一時 HOME の既存ファイル・backup・リンクを検査。世代全体の activation は実行しない |
 | setup-routing | bootstrap が本番と同じ routing/preflight 関数を使う。委譲・失敗伝播・凍結ホスト・worktree・backup 衝突を stub で検査。legacy installer は実行しない |
 | switch-routing | 評価された共通 switch 本体の実行先を stub に置き換え、引数・終了コード・呼出し順・送信がないことを検査。sudo/rebuild は実行しない |
-| developer-tools | 従来 verify.sh にあった bridge/login/Bark/uv 等の fixture テスト。依存は Nix で固定 |
+| developer-tools | 従来 verify.sh にあった execution-context/bridge/login/Bark/uv 等の fixture テスト。依存は Nix で固定 |
 | zsh-startup | Darwin のみ。四起動モード・再読込・Nix優先順位・一意性・standalone/未導入 fallback を実 zsh と一時 HOME で検査。OS層・brew・plugin は fixture |
 
 macOS 固有 check は Linux に存在させて skip するのでなく、Darwin checks と `macos-regressions` job で明示実行する。job は ARM macOS runner の対象 checks だけを build し、OS設定の全体build/switchをしない。`check` / `build` の既存 job 名は維持する。required status のサーバー側設定はこの変更で操作しない。
