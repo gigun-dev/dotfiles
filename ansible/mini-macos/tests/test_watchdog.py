@@ -33,9 +33,16 @@ fi''',
                 p = commands / name
                 p.write_text("#!/bin/sh\n" + body + "\n")
                 p.chmod(0o755)
+            # Expose only required local utilities, never the host's network tools.
+            for name in ("mkdir", "date", "awk", "sed", "cat", "stat", "mv"):
+                locations = (Path("/usr/bin") / name, Path("/bin") / name,
+                             Path("/run/current-system/sw/bin") / name)
+                tool = next((path for path in locations if os.access(path, os.X_OK)), None)
+                self.assertIsNotNone(tool, f"Required system utility is missing: {name}")
+                (commands / name).symlink_to(tool)
             log = base / "logs"
             forbidden = base / "forbidden"
-            env = {"PATH": str(commands) + ":/usr/bin:/bin", "HOME": str(base),
+            env = {"PATH": str(commands), "HOME": str(base),
                    "NET_WATCHDOG_DIR": str(log), "NET_WATCHDOG_NO_REMEDIATE": "1",
                    "FORBIDDEN_CALLS": str(forbidden)}
             for _ in range(3):
