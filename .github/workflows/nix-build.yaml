@@ -32,7 +32,7 @@ concurrency:
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       # paths-filter は PR の変更ファイルを REST API で取得する。
@@ -110,6 +110,10 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - uses: ./.github/actions/setup-nix
+        # The build cache can take longer to restore than a build using substituters.
+        # Keep check's cache; evaluate the build duration again after this change.
+        with:
+          store-cache: 'false'
 
       - name: Build mini-vm (NixOS)
         run: nix build --no-link --print-out-paths '.#nixosConfigurations.mini-vm.config.system.build.toplevel'
