@@ -29,9 +29,7 @@ let
         set -o pipefail
 
         state=''${STATE_DIRECTORY:-/var/lib/langfuse-update-trial}
-        trial="$state/worktree"
         branch="auto/langfuse-v4"
-        source_compose=${dotfilesDir}/infra/langfuse/compose.yaml
         cutoff=$(( $(date +%s) - 7 * 24 * 60 * 60 ))
 
         release=$(${pkgs.curl}/bin/curl -fsSL \
@@ -42,6 +40,13 @@ let
               | select((.published_at | fromdateiso8601) <= $cutoff)][0].tag_name // empty')
         [ -n "$release" ] || { echo "7日経過したLangfuse v4 releaseは無い"; exit 0; }
         version=''${release#v}
+
+        # Independent upstream clone: runtime refs and legacy worktrees stay untouched.
+        trial=$(mktemp -d "$state/clone.XXXXXX")
+        trap 'status=$?; if [ "$status" -eq 0 ]; then rm -rf "$trial"; else echo "proposal failed; retained clone: $trial" >&2; fi' EXIT
+        git clone --quiet --no-hardlinks --single-branch --branch main \
+          https://github.com/gigun-dev/dotfiles.git "$trial"
+        source_compose="$trial/infra/langfuse/compose.yaml"
 
         current=$(${pkgs.gnused}/bin/sed -nE \
           's#.*docker.langfuse.com/langfuse/langfuse:([^@]+)@.*#\1#p' "$source_compose")
@@ -60,13 +65,6 @@ let
           "docker://docker.langfuse.com/langfuse/langfuse:$version")
         worker_digest=$(${pkgs.skopeo}/bin/skopeo inspect --format '{{.Digest}}' \
           "docker://docker.langfuse.com/langfuse/langfuse-worker:$version")
-
-        cd ${dotfilesDir}
-        git fetch --quiet origin
-        rm -rf "$trial"
-        git worktree prune
-        git worktree add --quiet --detach "$trial" origin/main
-        trap 'cd ${dotfilesDir}; git worktree remove --force "$trial" >/dev/null 2>&1 || rm -rf "$trial"' EXIT
 
         target="$trial/infra/langfuse/compose.yaml"
         ${pkgs.gnused}/bin/sed -i -E \
