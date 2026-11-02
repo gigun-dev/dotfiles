@@ -57,6 +57,10 @@ timer の時刻(autoswitch 04:00 など)はすべて JST。mini-vm のシステ�
   Git設定とcredential helperを使うが、稼働checkoutのlocal設定は引き継がない。実機固有の
   identity/認証overrideと上流への実認証は適用前に確認する。秘密や設定のコピーは行わない。
   Actions移行や新しい排他は前提にしない。
+  localのhooksPathはbootstrapとHMが稼働checkoutに設定する。追跡済みpre-commitはstage済み
+  `.nix`の整形だけで、proposalがstageするlock/YAMLは対象外である。適用hookはNixOSと
+  linked worktreeでは既に停止する。独立cloneへの非継承でこのproposalの安全検査は落ちず、
+  既存CIのformat/buildと適用後healthは維持する。実機に追加・変更されたhookがあれば別確認する。
   失敗通知時は既存Beszelのdisk使用率と各StateDirectoryの保持候補数・容量を確認する。
   自動削除や保存期限は追加しない。job静止と候補の所有者・対象pathを確認し、必要な候補とlogを
   保全してから不要な専用cloneだけを人が整理する。容量不足なら再試行前に整理し、稼働checkoutや
