@@ -9,6 +9,20 @@ let
   dotfilesPath = "${config.home.homeDirectory}/ghq/github.com/gigun-dev/dotfiles";
   mkLink = path: config.lib.file.mkOutOfStoreSymlink "${dotfilesPath}/${path}";
   isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
+  uvActivationInputs = builtins.path {
+    path = ../../../uv;
+    name = "uv-activation-inputs";
+    filter =
+      path: _:
+      builtins.elem path (
+        map toString [
+          ../../../uv
+          ../../../uv/sync-tools.sh
+          ../../../uv/tools.txt
+          ../../../uv/uv.toml
+        ]
+      );
+  };
 
   # SF Symbols の CLI は自分の実行ファイルパスから親の .app を遡ってリソース
   # (Contents/Resources) を読むため、bundle の外へ symlink を張ると
@@ -26,7 +40,8 @@ in
     # global ignore。programs.git.ignores だと store 経由で nix なしの環境と中身を共有できない
     "git/ignore".source = mkLink "git/ignore";
     # Langfuse の非秘密接続先。鍵は ~/.config/claude-code/langfuse.env に分離する。
-    "claude-code/langfuse-endpoints.env".source = mkLink "claude/langfuse-endpoints.env";
+    "claude-code/langfuse-endpoints.env".text =
+      builtins.readFile ../../../claude/langfuse-endpoints.env;
   }
   // lib.optionalAttrs (!shellLinksManagedByAnsible) {
     "sheldon".source = mkLink "sheldon";
@@ -117,9 +132,7 @@ in
   # uv/tools.txt に宣言した uv tool の未導入分を入れる (bootstrap.sh と同じ uv/sync-tools.sh)。
   # 失敗しても switch は止めない: tool 1 つの PyPI 障害で system 適用全体を巻き戻す理由が無い。
   home.activation.syncUvTools = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-    if [ -f "${dotfilesPath}/uv/sync-tools.sh" ]; then
-      UV_BIN=${pkgs.uv}/bin/uv $DRY_RUN_CMD ${pkgs.bash}/bin/bash "${dotfilesPath}/uv/sync-tools.sh" || true
-    fi
+    UV_BIN=${pkgs.uv}/bin/uv $DRY_RUN_CMD ${pkgs.bash}/bin/bash "${uvActivationInputs}/sync-tools.sh" || true
   '';
 
   # dotfiles リポの git hooks を有効化。pre-commit は nix fmt 自動適用 (CI fmt 失敗防止)、
