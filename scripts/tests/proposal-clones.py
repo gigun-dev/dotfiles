@@ -74,9 +74,9 @@ class CloneTests(unittest.TestCase):
             self.scripts[kind] = self.root / (kind + ".sh")
             self.scripts[kind].write_text(body)
 
-    def git(self, cwd, *args, check=True):
+    def git(self, cwd, *args, check=True, input=None):
         return subprocess.run([GIT, "-C", str(cwd), *args], env=self.env,
-                              capture_output=True, text=True, check=check)
+                              capture_output=True, text=True, check=check, input=input)
 
     @staticmethod
     def identity(path):
@@ -97,6 +97,10 @@ class CloneTests(unittest.TestCase):
         self.command("git", """
             import os, subprocess, sys, json
             args = sys.argv[1:]
+            if args and args[0] == os.environ.get('FAIL_GIT'):
+                with open(os.environ['AUDIT'] + '/' + os.environ['KIND'] + '.events', 'a') as f:
+                    f.write(json.dumps({'type':'injected-failure', 'command':args[0]}) + '\\n')
+                sys.exit(23)
             if args and args[0] == 'push':
                 head = subprocess.check_output([os.environ['REAL_GIT'], 'rev-parse', 'HEAD'], text=True).strip()
                 with open(os.environ['AUDIT'] + '/' + os.environ['KIND'] + '.events', 'a') as f:
@@ -114,10 +118,20 @@ class CloneTests(unittest.TestCase):
             common = pathlib.Path(subprocess.check_output([git, 'rev-parse', '--path-format=absolute', '--git-common-dir'], text=True).strip()).resolve()
             head = subprocess.check_output([git, 'rev-parse', 'HEAD'], text=True).strip()
             clean = subprocess.run([git, 'diff', '--quiet']).returncode == 0
+            identity = subprocess.check_output([git, 'show', '-s', '--format=%an%n%ae%n%cn%n%ce', 'HEAD'], text=True).splitlines()
+            local_config = subprocess.run([git, 'config', '--local', '--get-regexp', r'^(user\\.|credential\\.|core\\.hookspath)'], capture_output=True, text=True)
+            assert local_config.returncode in (0, 1)
             objects = [[p.stat().st_dev, p.stat().st_ino] for p in (common/'objects').rglob('*') if p.is_file()]
             with open(root / (kind + '.events'), 'a') as f:
                 f.write(json.dumps({'type':'build','head':head,'common':str(common),'clean':clean,
-                                   'alternates':(common/'objects/info/alternates').exists(),'objects':objects}) + '\\n')
+                                   'alternates':(common/'objects/info/alternates').exists(),'objects':objects,
+                                   'identity':identity,'localIdentityHooksCredentials':local_config.stdout}) + '\\n')
+            if os.environ.get('CHECK_CREDENTIALS') == '1':
+                credential = subprocess.run([git, 'credential', 'fill'], input='protocol=https\\nhost=synthetic.invalid\\n\\n', capture_output=True, text=True)
+                assert credential.returncode == 0
+                fields = dict(s.split('=', 1) for s in credential.stdout.splitlines() if '=' in s)
+                assert fields.get('username') == 'synthetic-global'
+                assert fields.get('password') == 'fixed-fake-global-password'
             (root / (kind + '.ready')).touch()
             if os.environ.get('BARRIER') == '1':
                 deadline = time.monotonic() + 15
@@ -160,7 +174,8 @@ class CloneTests(unittest.TestCase):
         return subprocess.Popen(args, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
     def events(self, kind):
-        return [json.loads(x) for x in (self.audit / (kind + ".events")).read_text().splitlines()]
+        path = self.audit / (kind + ".events")
+        return [json.loads(x) for x in path.read_text().splitlines()] if path.exists() else []
 
     def test_parallel_proposals_have_independent_refs_and_leave_runtime_untouched(self):
         processes = {k: self.start(k, BARRIER="1") for k in ("fast", "slow", "langfuse")}
@@ -217,6 +232,78 @@ class CloneTests(unittest.TestCase):
         self.assertEqual(list((self.root / 'state-langfuse').glob('clone.*')), [])
         self.assertTrue((self.root / 'state-langfuse/worktree/preserve.txt').exists())
         self.assertEqual(self.snapshot(self.native), self.before)
+
+    def test_clone_and_commit_failures_keep_candidates_without_publish(self):
+        for kind in ('fast', 'langfuse'):
+            for failure in ('clone', 'commit'):
+                with self.subTest(kind=kind, failure=failure):
+                    state = self.root / ('state-' + kind)
+                    pattern = 'clone.*' if kind == 'langfuse' else 'fast-clone.*'
+                    previous = set(state.glob(pattern))
+                    process = self.start(kind, FAIL_GIT=failure)
+                    stdout, stderr = process.communicate(timeout=10)
+                    self.assertEqual(process.returncode, 23, (stdout, stderr))
+                    self.assertEqual(self.events(kind)[-1], {'type': 'injected-failure', 'command': failure})
+                    retained = set(state.glob(pattern)) - previous
+                    self.assertEqual(len(retained), 1)
+                    candidate = retained.pop()
+                    self.assertEqual((candidate / '.git').is_dir(), failure == 'commit')
+                    if failure == 'commit':
+                        self.assertEqual(self.git(candidate, 'rev-parse', 'HEAD').stdout.strip(), self.base)
+                        self.assertEqual(self.git(candidate, 'diff', '--cached', '--quiet', check=False).returncode, 1)
+                    self.assertIn('retained clone:', stderr)
+                    self.assertFalse(any(e['type'] == 'push' for e in self.events(kind)))
+                    branch = 'auto/langfuse-v4' if kind == 'langfuse' else 'auto/lock-fast'
+                    self.assertEqual(self.git(self.remote, 'show-ref', '--verify', 'refs/heads/' + branch, check=False).returncode, 128)
+                    self.assertEqual(self.snapshot(self.native), self.before)
+
+    def test_clones_use_global_identity_and_helper_without_runtime_local_overrides(self):
+        self.command('global-credential', """
+            import sys
+            sys.stdin.read()
+            if sys.argv[1] == 'get':
+                print('username=synthetic-global')
+                print('password=fixed-fake-global-password')
+        """)
+        self.command('runtime-credential', """
+            import sys
+            sys.stdin.read()
+            if sys.argv[1] == 'get':
+                print('username=synthetic-runtime')
+                print('password=fixed-fake-runtime-password')
+        """)
+        self.git(self.root, 'config', '--file', str(self.config), 'credential.helper', shlex.quote(str(self.bin / 'global-credential')))
+        self.git(self.native, 'config', '--local', 'user.name', 'Runtime Only')
+        self.git(self.native, 'config', '--local', 'user.email', 'runtime@example.invalid')
+        hooks = self.root / 'runtime-hooks'
+        hooks.mkdir()
+        hook = hooks / 'pre-commit'
+        hook_marker = self.root / 'runtime-hook-ran'
+        hook.write_text('#!/bin/sh\nprintf ran > ' + shlex.quote(str(hook_marker)) + '\nexit 91\n')
+        hook.chmod(0o755)
+        self.git(self.native, 'config', '--local', 'core.hooksPath', str(hooks))
+        self.git(self.native, 'config', '--local', '--add', 'credential.helper', '')
+        self.git(self.native, 'config', '--local', '--add', 'credential.helper', shlex.quote(str(self.bin / 'runtime-credential')))
+        self.env['GIT_TERMINAL_PROMPT'] = '0'
+        native_head = self.git(self.native, 'rev-parse', 'HEAD').stdout
+        blocked_commit = self.git(self.native, 'commit', '--allow-empty', '-qm', 'synthetic hook probe', check=False)
+        self.assertNotEqual(blocked_commit.returncode, 0)
+        self.assertEqual(hook_marker.read_text(), 'ran')
+        self.assertEqual(self.git(self.native, 'rev-parse', 'HEAD').stdout, native_head)
+        native_credential = self.git(self.native, 'credential', 'fill', input='protocol=https\nhost=synthetic.invalid\n\n').stdout
+        self.assertIn('username=synthetic-runtime', native_credential)
+        self.before = self.snapshot(self.native)
+        for kind in ('fast', 'langfuse'):
+            with self.subTest(kind=kind):
+                process = self.start(kind, CHECK_CREDENTIALS='1')
+                stdout, stderr = process.communicate(timeout=10)
+                self.assertEqual(process.returncode, 0, (stdout, stderr))
+                builds = [e for e in self.events(kind) if e['type'] == 'build']
+                self.assertTrue(builds)
+                self.assertTrue(all(e['head'] != self.base and e['clean'] for e in builds))
+                self.assertTrue(all(e['identity'] == ['Synthetic', 'synthetic@example.invalid', 'Synthetic', 'synthetic@example.invalid'] for e in builds))
+                self.assertTrue(all(not e['localIdentityHooksCredentials'] for e in builds))
+                self.assertEqual(self.snapshot(self.native), self.before)
 
 
 if __name__ == '__main__':
