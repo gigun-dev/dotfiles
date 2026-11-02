@@ -67,3 +67,4 @@ x 2026-11-01 2026-11-01 承認済みの非対話sudo一覧とminiの指定2path�
 x 2026-11-01 2026-11-01 mini home共有を外す依存表・未適用のLima/NixOS設定案・停止影響と復旧を合成検証しDraft PRにする +security +mini-vm see:docs/mini-vm-mount-dependencies.md by:me id:0123
 x 2026-11-01 2026-11-01 PR123の保守対象を更新5timerへ揃え、bridge起動時latestの一時pin・復帰・受入条件を未適用draftと回帰で確認する +security +mini-vm see:docs/mini-vm-mount-dependencies.md by:me id:0124
 x 2026-11-01 2026-11-01 Lima標準のtmp source自動生成は公式実装で確認済み。未宣言転送・対話作業の停止可否を確認し、空tmpと更新5jobの静止を停止直前に再確認して適用前条件を解消する +security +mini-vm @user see:docs/mini-vm-mount-preflight-2026-11-01.json by:me id:0125
+x 2026-11-03 2026-11-01 PR124 merge後、fast単独再試行をjournalで成功確認し、最新mainへ5timerを順次復帰。通常C・health・共有不可視・mainとlive一致を受入済み +security +mini-vm see:docs/mini-vm-mount-dependencies.md by:me id:0126

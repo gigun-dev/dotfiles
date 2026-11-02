@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "scope": "Approved host-home export and guest fstab removal",
-  "applicationState": "PR124 merged; C service acceptance passed, timer catch-up acceptance failed; safely restored B",
+  "applicationState": "Normal C accepted after sequential timer resumption",
   "observationWindowStartedAt": "2026-11-01T06:46:38Z",
   "latestVmSnapshot": {
     "checkedAt": "2026-11-01T07:03:05.531404+00:00",
@@ -164,18 +164,18 @@
   },
   "homeShareRemovalAccepted": true,
   "retainedExposure": "Host home export/device and guest mount removed; .ssh and Keychains paths absent through former share. Host SSH/GUI runner/network and VM root/credentials remain unchanged. No secret contents read.",
-  "operationState": "B restored on 2026-11-02T22:43:25.500597+00:00: home remains excluded, bridge pinned 0.2.3, five update timers masked/inactive",
+  "operationState": "Normal C: main/deployed/boot revision aligned, five timers enabled and waiting, bridge @latest policy restored with observed version 0.2.3, host home export/fstab absent",
   "naturalAutoswitch": {
     "previouslyExpected": "2026-11-02 04:04 JST",
-    "actualNextAtSnapshot": "none after safe B restoration",
-    "timerActive": false,
-    "stillPossible": false,
-    "executionVerified": "natural Persistent catch-up succeeded; regular daily schedule not yet verified",
+    "actualNextAtSnapshot": "Wed 2026-11-04 04:12:14 JST",
+    "timerActive": true,
+    "stillPossible": true,
+    "executionVerified": "Persistent catch-up on Nov3 07:41 JST succeeded; next regular daily execution remains unverified",
     "ourTimerOperationsPerformed": true
   },
   "remainingBeforeProceeding": [
-    "Resolve or avoid simultaneous catch-up fetch of origin/main before a new five-timer acceptance attempt; do not remove Git locks or force-reset checkout",
-    "After successful normal return, record next regular autoswitch time and verify a scheduled daily run; natural Persistent catch-up already succeeded at 2026-11-02 22:41:07–22:42:23 UTC"
+    "Verify the regular daily dotfiles-autoswitch.service execution after 2026-11-04 04:12:14 JST using trigger/start/exit timestamps, Result, exit status, applied revision and health",
+    "Permanent shared Git-operation exclusion remains unimplemented; sequential resumption does not prevent future boot/Persistent or overlapping slow/Langfuse races"
   ],
   "initialHoldReason": "Configured host tmp source is absent while guest still has a writable virtiofs mount. Do not create an empty replacement or assume source identity; determine source/data/transfer handling before stop.",
   "sourceBehaviorInvestigation": {
@@ -436,5 +436,499 @@
       "manuallyTriggered": false,
       "regularDailyRunVerified": false
     }
-  }
+  },
+  "sequentialNormalReturn20261102": {
+    "startedAt": "2026-11-02T22:46:59.774241+00:00",
+    "sourceRevision": "6a0a527d7eb31a19f24c6cf1c717d730e32db816",
+    "method": "temporary cumulative timer enablement; autoswitch last; no job implementation change",
+    "fastPriorFailure": "origin/main compare-and-swap fetch failure before worktree/update/commit/push; no lock removal",
+    "fastRetryStartedAt": "2026-11-02T22:46:59.774249+00:00",
+    "fastRetryTerminalEvents": [
+      {
+        "kind": "deactivated-successfully",
+        "time": "2026-11-02T22:48:13.415602+00:00",
+        "result": null
+      },
+      {
+        "kind": "finished",
+        "time": "2026-11-02T22:48:13.416081+00:00",
+        "result": "done"
+      }
+    ],
+    "stages": [
+      {
+        "stage": 1,
+        "sourceRevision": "c3e3ce168a77e0b92976f7af5e5576142720b159",
+        "system": "/nix/store/csm07v1hms43g49r9rf9wn92q1x4jzz9-nixos-system-mini-vm-26.11.20261020.5adc508",
+        "startedAt": "2026-11-02T22:58:29.214233+00:00",
+        "switchExit": 0,
+        "health": {
+          "cloudflare-os": 200,
+          "langfuse": 200,
+          "beszel": 200,
+          "bridge": 401
+        },
+        "healthGateExit": 0,
+        "timers": {
+          "dotfiles-lock-propose-fast": {
+            "ActiveState": "active",
+            "SubState": "waiting",
+            "UnitFileState": "enabled",
+            "NextElapseUSecRealtime": "Wed 2026-11-04 01:22:02 JST",
+            "LastTriggerUSec": "Tue 2026-11-03 07:41:07 JST"
+          },
+          "dotfiles-lock-propose-slow": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "UnitFileState": "masked",
+            "NextElapseUSecRealtime": "",
+            "LastTriggerUSec": ""
+          },
+          "codex-openai-bridge-refresh": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "UnitFileState": "masked",
+            "NextElapseUSecRealtime": "",
+            "LastTriggerUSec": ""
+          },
+          "langfuse-update-propose": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "UnitFileState": "masked",
+            "NextElapseUSecRealtime": "",
+            "LastTriggerUSec": ""
+          },
+          "dotfiles-autoswitch": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "UnitFileState": "masked",
+            "NextElapseUSecRealtime": "",
+            "LastTriggerUSec": ""
+          }
+        },
+        "jobs": {
+          "dotfiles-lock-propose@fast": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "Result": "success",
+            "ExecMainStatus": "0"
+          },
+          "dotfiles-lock-propose@slow": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "Result": "success",
+            "ExecMainStatus": "0"
+          },
+          "codex-openai-bridge-refresh": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "Result": "success",
+            "ExecMainStatus": "0"
+          },
+          "langfuse-update-propose": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "Result": "success",
+            "ExecMainStatus": "0"
+          },
+          "dotfiles-autoswitch": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "Result": "success",
+            "ExecMainStatus": "0"
+          }
+        },
+        "homeFstabAbsent": true,
+        "sshInvisible": true,
+        "keychainsInvisible": true,
+        "bridgeVersion": "0.2.3",
+        "accepted": true,
+        "completedAt": "2026-11-02T23:01:26.070805+00:00"
+      },
+      {
+        "stage": 2,
+        "sourceRevision": "c3e3ce168a77e0b92976f7af5e5576142720b159",
+        "system": "/nix/store/aq810xgnng83vli38ls65jm9a9j3243s-nixos-system-mini-vm-26.11.20261020.5adc508",
+        "startedAt": "2026-11-02T23:01:50.625060+00:00",
+        "switchExit": 0,
+        "health": {
+          "cloudflare-os": 200,
+          "langfuse": 200,
+          "beszel": 200,
+          "bridge": 401
+        },
+        "healthGateExit": 0,
+        "timers": {
+          "dotfiles-lock-propose-fast": {
+            "ActiveState": "active",
+            "SubState": "waiting",
+            "UnitFileState": "enabled",
+            "NextElapseUSecRealtime": "Wed 2026-11-04 01:04:23 JST",
+            "LastTriggerUSec": "Tue 2026-11-03 07:41:07 JST"
+          },
+          "dotfiles-lock-propose-slow": {
+            "ActiveState": "active",
+            "SubState": "waiting",
+            "UnitFileState": "enabled",
+            "NextElapseUSecRealtime": "Sun 2026-11-08 02:29:51 JST",
+            "LastTriggerUSec": "Sun 2026-11-01 02:14:05 JST"
+          },
+          "codex-openai-bridge-refresh": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "UnitFileState": "masked",
+            "NextElapseUSecRealtime": "",
+            "LastTriggerUSec": ""
+          },
+          "langfuse-update-propose": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "UnitFileState": "masked",
+            "NextElapseUSecRealtime": "",
+            "LastTriggerUSec": ""
+          },
+          "dotfiles-autoswitch": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "UnitFileState": "masked",
+            "NextElapseUSecRealtime": "",
+            "LastTriggerUSec": ""
+          }
+        },
+        "jobs": {
+          "dotfiles-lock-propose@fast": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "Result": "success",
+            "ExecMainStatus": "0"
+          },
+          "dotfiles-lock-propose@slow": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "Result": "success",
+            "ExecMainStatus": "0"
+          },
+          "codex-openai-bridge-refresh": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "Result": "success",
+            "ExecMainStatus": "0"
+          },
+          "langfuse-update-propose": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "Result": "success",
+            "ExecMainStatus": "0"
+          },
+          "dotfiles-autoswitch": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "Result": "success",
+            "ExecMainStatus": "0"
+          }
+        },
+        "homeFstabAbsent": true,
+        "sshInvisible": true,
+        "keychainsInvisible": true,
+        "bridgeVersion": "0.2.3",
+        "accepted": true,
+        "completedAt": "2026-11-02T23:01:54.022703+00:00"
+      },
+      {
+        "stage": 3,
+        "sourceRevision": "c3e3ce168a77e0b92976f7af5e5576142720b159",
+        "system": "/nix/store/lwn2hnrm86r3zym19yr9f1dsf5351bqs-nixos-system-mini-vm-26.11.20261020.5adc508",
+        "startedAt": "2026-11-02T23:02:15.479710+00:00",
+        "switchExit": 0,
+        "health": {
+          "cloudflare-os": 200,
+          "langfuse": 200,
+          "beszel": 200,
+          "bridge": 401
+        },
+        "healthGateExit": 0,
+        "timers": {
+          "dotfiles-lock-propose-fast": {
+            "ActiveState": "active",
+            "SubState": "waiting",
+            "UnitFileState": "enabled",
+            "NextElapseUSecRealtime": "Wed 2026-11-04 01:16:37 JST",
+            "LastTriggerUSec": "Tue 2026-11-03 07:41:07 JST"
+          },
+          "dotfiles-lock-propose-slow": {
+            "ActiveState": "active",
+            "SubState": "waiting",
+            "UnitFileState": "enabled",
+            "NextElapseUSecRealtime": "Sun 2026-11-08 02:19:15 JST",
+            "LastTriggerUSec": "Sun 2026-11-01 02:14:05 JST"
+          },
+          "codex-openai-bridge-refresh": {
+            "ActiveState": "active",
+            "SubState": "waiting",
+            "UnitFileState": "enabled",
+            "NextElapseUSecRealtime": "Wed 2026-11-04 04:34:16 JST",
+            "LastTriggerUSec": "Tue 2026-11-03 07:41:07 JST"
+          },
+          "langfuse-update-propose": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "UnitFileState": "masked",
+            "NextElapseUSecRealtime": "",
+            "LastTriggerUSec": ""
+          },
+          "dotfiles-autoswitch": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "UnitFileState": "masked",
+            "NextElapseUSecRealtime": "",
+            "LastTriggerUSec": ""
+          }
+        },
+        "jobs": {
+          "dotfiles-lock-propose@fast": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "Result": "success",
+            "ExecMainStatus": "0"
+          },
+          "dotfiles-lock-propose@slow": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "Result": "success",
+            "ExecMainStatus": "0"
+          },
+          "codex-openai-bridge-refresh": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "Result": "success",
+            "ExecMainStatus": "0"
+          },
+          "langfuse-update-propose": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "Result": "success",
+            "ExecMainStatus": "0"
+          },
+          "dotfiles-autoswitch": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "Result": "success",
+            "ExecMainStatus": "0"
+          }
+        },
+        "homeFstabAbsent": true,
+        "sshInvisible": true,
+        "keychainsInvisible": true,
+        "bridgeVersion": "0.2.3",
+        "accepted": true,
+        "completedAt": "2026-11-02T23:02:18.184731+00:00"
+      },
+      {
+        "stage": 4,
+        "sourceRevision": "c3e3ce168a77e0b92976f7af5e5576142720b159",
+        "system": "/nix/store/dszy8bvqjy0a1x49sa8gisrcqb37ffh3-nixos-system-mini-vm-26.11.20261020.5adc508",
+        "startedAt": "2026-11-02T23:02:26.727728+00:00",
+        "switchExit": 0,
+        "health": {
+          "cloudflare-os": 200,
+          "langfuse": 200,
+          "beszel": 200,
+          "bridge": 401
+        },
+        "healthGateExit": 0,
+        "timers": {
+          "dotfiles-lock-propose-fast": {
+            "ActiveState": "active",
+            "SubState": "waiting",
+            "UnitFileState": "enabled",
+            "NextElapseUSecRealtime": "Wed 2026-11-04 01:29:48 JST",
+            "LastTriggerUSec": "Tue 2026-11-03 07:41:07 JST"
+          },
+          "dotfiles-lock-propose-slow": {
+            "ActiveState": "active",
+            "SubState": "waiting",
+            "UnitFileState": "enabled",
+            "NextElapseUSecRealtime": "Sun 2026-11-08 02:06:20 JST",
+            "LastTriggerUSec": "Sun 2026-11-01 02:14:05 JST"
+          },
+          "codex-openai-bridge-refresh": {
+            "ActiveState": "active",
+            "SubState": "waiting",
+            "UnitFileState": "enabled",
+            "NextElapseUSecRealtime": "Wed 2026-11-04 04:35:05 JST",
+            "LastTriggerUSec": "Tue 2026-11-03 07:41:07 JST"
+          },
+          "langfuse-update-propose": {
+            "ActiveState": "active",
+            "SubState": "waiting",
+            "UnitFileState": "enabled",
+            "NextElapseUSecRealtime": "Wed 2026-11-04 02:04:05 JST",
+            "LastTriggerUSec": "Tue 2026-11-03 07:41:07 JST"
+          },
+          "dotfiles-autoswitch": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "UnitFileState": "masked",
+            "NextElapseUSecRealtime": "",
+            "LastTriggerUSec": ""
+          }
+        },
+        "jobs": {
+          "dotfiles-lock-propose@fast": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "Result": "success",
+            "ExecMainStatus": "0"
+          },
+          "dotfiles-lock-propose@slow": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "Result": "success",
+            "ExecMainStatus": "0"
+          },
+          "codex-openai-bridge-refresh": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "Result": "success",
+            "ExecMainStatus": "0"
+          },
+          "langfuse-update-propose": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "Result": "success",
+            "ExecMainStatus": "0"
+          },
+          "dotfiles-autoswitch": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "Result": "success",
+            "ExecMainStatus": "0"
+          }
+        },
+        "homeFstabAbsent": true,
+        "sshInvisible": true,
+        "keychainsInvisible": true,
+        "bridgeVersion": "0.2.3",
+        "accepted": true,
+        "completedAt": "2026-11-02T23:02:29.323068+00:00"
+      },
+      {
+        "stage": 5,
+        "sourceRevision": "c3e3ce168a77e0b92976f7af5e5576142720b159",
+        "system": "/nix/store/m8sb2ir0zk5bamirn2m1pdh41989ma98-nixos-system-mini-vm-26.11.20261020.5adc508",
+        "startedAt": "2026-11-02T23:02:46.494354+00:00",
+        "switchExit": 0,
+        "health": {
+          "cloudflare-os": 200,
+          "langfuse": 200,
+          "beszel": 200,
+          "bridge": 401
+        },
+        "healthGateExit": 0,
+        "timers": {
+          "dotfiles-lock-propose-fast": {
+            "ActiveState": "active",
+            "SubState": "waiting",
+            "UnitFileState": "enabled",
+            "NextElapseUSecRealtime": "Wed 2026-11-04 01:12:06 JST",
+            "LastTriggerUSec": "Tue 2026-11-03 07:41:07 JST"
+          },
+          "dotfiles-lock-propose-slow": {
+            "ActiveState": "active",
+            "SubState": "waiting",
+            "UnitFileState": "enabled",
+            "NextElapseUSecRealtime": "Sun 2026-11-08 02:23:32 JST",
+            "LastTriggerUSec": "Sun 2026-11-01 02:14:05 JST"
+          },
+          "codex-openai-bridge-refresh": {
+            "ActiveState": "active",
+            "SubState": "waiting",
+            "UnitFileState": "enabled",
+            "NextElapseUSecRealtime": "Wed 2026-11-04 04:32:04 JST",
+            "LastTriggerUSec": "Tue 2026-11-03 07:41:07 JST"
+          },
+          "langfuse-update-propose": {
+            "ActiveState": "active",
+            "SubState": "waiting",
+            "UnitFileState": "enabled",
+            "NextElapseUSecRealtime": "Wed 2026-11-04 02:27:49 JST",
+            "LastTriggerUSec": "Tue 2026-11-03 07:41:07 JST"
+          },
+          "dotfiles-autoswitch": {
+            "ActiveState": "active",
+            "SubState": "waiting",
+            "UnitFileState": "enabled",
+            "NextElapseUSecRealtime": "Wed 2026-11-04 04:12:14 JST",
+            "LastTriggerUSec": "Tue 2026-11-03 07:41:07 JST"
+          }
+        },
+        "jobs": {
+          "dotfiles-lock-propose@fast": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "Result": "success",
+            "ExecMainStatus": "0"
+          },
+          "dotfiles-lock-propose@slow": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "Result": "success",
+            "ExecMainStatus": "0"
+          },
+          "codex-openai-bridge-refresh": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "Result": "success",
+            "ExecMainStatus": "0"
+          },
+          "langfuse-update-propose": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "Result": "success",
+            "ExecMainStatus": "0"
+          },
+          "dotfiles-autoswitch": {
+            "ActiveState": "inactive",
+            "SubState": "dead",
+            "Result": "success",
+            "ExecMainStatus": "0"
+          }
+        },
+        "homeFstabAbsent": true,
+        "sshInvisible": true,
+        "keychainsInvisible": true,
+        "bridgeVersion": "0.2.3",
+        "accepted": true,
+        "completedAt": "2026-11-02T23:02:49.970938+00:00"
+      }
+    ],
+    "finalVerification": {
+      "observedAt": "2026-11-02T23:03:41.621600+00:00",
+      "running": "/nix/store/m8sb2ir0zk5bamirn2m1pdh41989ma98-nixos-system-mini-vm-26.11.20261020.5adc508",
+      "boot": "/nix/store/m8sb2ir0zk5bamirn2m1pdh41989ma98-nixos-system-mini-vm-26.11.20261020.5adc508",
+      "deployedRevision": "c3e3ce168a77e0b92976f7af5e5576142720b159",
+      "normalBridgeLatest": true,
+      "virtiofs": [
+        {
+          "point": "/tmp/lima",
+          "tag": "lima-1fd4cbcaa36d359d",
+          "options": "rw,relatime"
+        }
+      ],
+      "heartbeat": "Result=success\nExecMainExitTimestamp=Tue 2026-11-03 08:03:07 JST\nExecMainStatus=0",
+      "currentRecoveryB": "/nix/store/4lrq9shmsmcgk68fz6k8nj1yxix6cms6-nixos-system-mini-vm-26.11.20261020.5adc508",
+      "currentRecoveryRootExists": true
+    },
+    "mainCiRuns": {
+      "nix": 41540823225,
+      "ansible": 41540823223
+    },
+    "completed": true,
+    "currentRecoveryWarning": "Use same-revision recovery B after Langfuse v4.70.1 update; no automatic downgrade to historical B and no DB/disk rollback"
+  },
+  "currentMainRevision": "c3e3ce168a77e0b92976f7af5e5576142720b159",
+  "currentNormalSystem": "/nix/store/m8sb2ir0zk5bamirn2m1pdh41989ma98-nixos-system-mini-vm-26.11.20261020.5adc508",
+  "currentRecoverySystem": "/nix/store/4lrq9shmsmcgk68fz6k8nj1yxix6cms6-nixos-system-mini-vm-26.11.20261020.5adc508",
+  "currentRecoveryWarning": "Use same-revision recovery B after Langfuse v4.70.1 update; no automatic downgrade to historical B and no DB/disk rollback",
+  "resumptionEvidenceQualification": "The failed fast job was explicitly retried once alone and journal Finished confirmed at 2026-11-02T22:48:13.416081Z. During the five sequential enablement stages, all jobs stayed inactive and timer LastTrigger values were retained; no new catch-up run was claimed for a timer that was not due."
 }

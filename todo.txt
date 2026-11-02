@@ -51,4 +51,5 @@
 2026-10-29 mini の checkout 同期を実機設定の適用と分離し、安全な fast-forward と失敗時の停止を検証する +mini by:me id:0116 @wip
 2026-11-01 公開前監査の未確認範囲（非公開backup、最新refs、PR review/添付、全Actions/cache、Release編集履歴）を確認し公開判断を残す +security see:docs/publication-audit-2026-11-01.md by:codex id:0121
 2026-11-01 miniのsudo一覧は認証要求で未確認のため、本人が一覧を確認して最小権限分類だけ返す手順を決める。自動認証や拒否経路への切替はしない +security @user see:docs/security-access-boundaries.md by:codex id:0122
-2026-11-01 PR124 mergeとC health受入は完了。追実行のorigin/main同時fetchでfastが失敗したためBへ安全復旧済み。競合を避けて5timerを再受入し通常Cへ戻す。自然追実行autoswitchは成功、定時日次実行は未確認 +security +mini-vm @device see:docs/mini-vm-mount-dependencies.md by:me id:0126
+2026-11-03 通常復帰後の日次autoswitchを定時実行後に確認。次回2026-11-04T04-12-14-JSTのunit開始終了時刻・Result・exit status・適用revision・healthを記録。07時41分の自然追実行成功とは区別する +security +mini-vm @device see:docs/mini-vm-mount-preflight-2026-11-01.json id:0127
+2026-11-03 共有Git操作の恒久排他を設計・合成回帰。autoswitch・lock proposal・Langfuse proposalのfetchとworktree操作を共通lockで保護しrootとgigunの所有権・timeout・helper保持・異常終了後解放を検証 +security +mini-vm @repo see:docs/mini-vm-mount-dependencies.md id:0128

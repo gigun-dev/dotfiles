@@ -2,7 +2,7 @@
 
 この表は2026-11-01のrepository宣言と既存運用記録から作成した。下記のLima設定と固定path・unit propertyだけを非root read-onlyで追加確認した。process-tableは読んでいない。秘密、鍵、keychain内容は読んでいない。先行する限定canary/sudo観測は[PR #122](https://github.com/gigun-dev/dotfiles/pull/122)に記録し、この設計branchからは追加のsudo照会やcanary操作を行っていない。設定案の実機適用、mount・権限・ネットワーク変更、停止・再起動は含まない。
 
-以下は設計時点の記録である。後続の承認済み適用でhome export/fstabを除去し、[PR #124](https://github.com/gigun-dev/dotfiles/pull/124)もmerge済み。通常Cの主要healthは通ったが、5timerのPersistent追実行でorigin/mainの同時fetch競合によりfast jobが失敗したため、home除外・bridge 0.2.3固定・5timer無効のBへ復旧した。自然追実行のautoswitch自体は成功した。時刻・確認範囲・残る条件は[実行記録](mini-vm-mount-preflight-2026-11-01.json)を参照する。
+以下は設計時点の記録である。後続の承認済み適用でhome export/fstabを除去し、[PR #124](https://github.com/gigun-dev/dotfiles/pull/124)もmerge済み。一度目の通常復帰ではPersistent追実行の同時fetchでfastが失敗したためBへ戻した。その後fastの単独再試行をjournalで正常終了確認し、最新mainと同じ復旧世代を保持して5timerを順次復帰した。2026-11-02 23:03 UTC時点は通常C・5timer active/waiting・主要health成功・home不可視である。自然追実行autoswitchの成功は日次定時実行とは区別する。時刻・確認範囲は[実行記録](mini-vm-mount-preflight-2026-11-01.json)を参照する。
 
 ## VM内で保持するpath
 
@@ -109,6 +109,8 @@ autoswitchが旧home宣言を再導入しないよう、実適用するpinned so
 
 ## 復旧
 
+後続の通常更新でLangfuse v4.70.1が入ったため、現在の復旧先は同じmain revisionからbuildした保守世代を実行記録で特定する。歴史的なA/Bへ自動的に戻してアプリ版をdowngradeしない。DB/diskの巻戻しは行わない。
+
 pin解除後の問題がbridge版だけなら、home除外を維持するB（既知版V pin＋5timer無効）へ戻してbridgeを再受入する。版問題の解消にhomeを再公開する必要はない。実際の世代切替・service再起動は別承認する。
 
 mount自体の問題で元へ戻す必要があれば、元Lima設定と復旧用A（元mounts＋5timer無効＋既知版V pin）のNixOS世代・sourceへ両方戻し、計画停止・起動で旧home ro / tmp rwへ復帰する。rawな旧世代ではboot時にPersistent timerが再開するため、Aを用意せずrollbackしない。復旧後のhealth確認まで保守状態とV pinを維持する。復旧はhome全体の秘密への公開範囲も元へ戻す操作である。mainのmount/更新方針が復旧方針と一致するまでは5timerを再開しない。guestが直接SSH可能なら既存のNixOS世代復旧を使い、SSH不能なら事前に承認・確認した管理console手順が必要となる。console未確認のまま実適用しない。拒否されたmini→VMのSSHを別経路で通す診断としては使わない。
@@ -122,3 +124,5 @@ VM disk、Docker/DB volumes、host/guest checkoutを削除・巻戻ししない�
 同じGUI sessionのgigunでbuildとsignを実行する限り、工程を分けてもUnix/keychainの隔離にはならない。hostへのSSH、GUI runner、既存credential、VM rootとnetworkの到達性は別の境界として残る。専用主体作成・権限変更・署名・publishはこのdraftの適用対象外である。
 
 観測と未採用の候補を整理する段階のため、新しいADRや独自の転送・署名frameworkは作らない。
+
+今回の順次復帰は恒久排他を実装しない。lock fast/slow、Langfuse proposal、autoswitchが共有checkoutのfetch/ref更新とworktree操作を行い、Persistent追実行や日曜02:00–02:30 JSTのslow/Langfuse窓で再競合し得る。最小の恒久修正対象はmini-vm.nixの2 scriptとservices/langfuse.nixのproposal scriptへの共通排他である。root/gigunが同じlockを使う所有権、待機を含むtimeout、後半helperまでの保持、異常終了後の解放を設計し、合成共有repositoryで同時起動を回帰検証する。今回の本番復帰へ別コードは混ぜていない。
