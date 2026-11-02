@@ -7,7 +7,19 @@ let
     inherit bridgeVersion;
   };
   recovery = base.extendModules {
-    modules = [ maintenance ];
+    modules = [
+      maintenance
+      ({ ... }: {
+        fileSystems."/Users/gigun" = {
+          device = "lima-87931a4782a6b63c";
+          fsType = "virtiofs";
+          options = [
+            "ro"
+            "nofail"
+          ];
+        };
+      })
+    ];
   };
   timerNames = [
     "dotfiles-autoswitch"
@@ -23,11 +35,14 @@ let
     ];
   };
 in
-# The draft must remain inert in the actual production configuration.
-assert inputs.self.nixosConfigurations.mini-vm.config.fileSystems ? "/Users/gigun";
+# The accepted production policy excludes host home; recovery explicitly restores it.
+assert !(base.config.fileSystems ? "/Users/gigun");
 assert !(draft.config.fileSystems ? "/Users/gigun");
 assert draft.config.fileSystems == builtins.removeAttrs base.config.fileSystems [ "/Users/gigun" ];
-assert recovery.config.fileSystems == base.config.fileSystems;
+assert recovery.config.fileSystems ? "/Users/gigun";
+assert
+  builtins.removeAttrs recovery.config.fileSystems [ "/Users/gigun" ] == base.config.fileSystems;
+assert !(inputs.nixpkgs.lib.hasInfix "/Users/gigun" base.config.environment.etc.fstab.text);
 assert builtins.all (name: base.config.systemd.timers.${name}.enable) timerNames;
 assert builtins.all (name: !draft.config.systemd.units."${name}.timer".enable) timerNames;
 assert builtins.all (name: !recovery.config.systemd.units."${name}.timer".enable) timerNames;
