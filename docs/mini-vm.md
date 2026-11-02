@@ -57,6 +57,10 @@ timer の時刻(autoswitch 04:00 など)はすべて JST。mini-vm のシステ�
   Git設定とcredential helperを使うが、稼働checkoutのlocal設定は引き継がない。実機固有の
   identity/認証overrideと上流への実認証は適用前に確認する。秘密や設定のコピーは行わない。
   Actions移行や新しい排他は前提にしない。
+  失敗通知時は既存Beszelのdisk使用率と各StateDirectoryの保持候補数・容量を確認する。
+  自動削除や保存期限は追加しない。job静止と候補の所有者・対象pathを確認し、必要な候補とlogを
+  保全してから不要な専用cloneだけを人が整理する。容量不足なら再試行前に整理し、稼働checkoutや
+  旧worktree登録を一括削除しない。レーン共通の既存logは次回実行で更新され得るため先に保全する。
 - **CI green の commit だけを適用する**(2026-10-15、`docs/adr/0011-push-without-a-local-gate-and-apply-only-green-commits.md`)。
   手元の pre-push 関門を外したので、main には CI 前の commit が直接入る。autoswitch は fetch した
   `@{upstream}` の commit について `gh api repos/gigun-dev/dotfiles/commits/<sha>/check-runs` を
