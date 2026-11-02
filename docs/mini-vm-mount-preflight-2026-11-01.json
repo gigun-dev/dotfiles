@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "scope": "Approved host-home export and guest fstab removal",
-  "applicationState": "B applied and major service health accepted; normal-operation C held for main policy alignment",
+  "applicationState": "PR124 merged; C service acceptance passed, timer catch-up acceptance failed; safely restored B",
   "observationWindowStartedAt": "2026-11-01T06:46:38Z",
   "latestVmSnapshot": {
     "checkedAt": "2026-11-01T07:03:05.531404+00:00",
@@ -164,19 +164,18 @@
   },
   "homeShareRemovalAccepted": true,
   "retainedExposure": "Host home export/device and guest mount removed; .ssh and Keychains paths absent through former share. Host SSH/GUI runner/network and VM root/credentials remain unchanged. No secret contents read.",
-  "operationState": "B maintenance: five update timers masked/inactive, known bridge version pinned. No C switch or timer restart.",
+  "operationState": "B restored on 2026-11-02T22:43:25.500597+00:00: home remains excluded, bridge pinned 0.2.3, five update timers masked/inactive",
   "naturalAutoswitch": {
     "previouslyExpected": "2026-11-02 04:04 JST",
-    "actualNextAtSnapshot": "none while masked in B",
+    "actualNextAtSnapshot": "none after safe B restoration",
     "timerActive": false,
     "stillPossible": false,
-    "executionVerified": false,
+    "executionVerified": "natural Persistent catch-up succeeded; regular daily schedule not yet verified",
     "ourTimerOperationsPerformed": true
   },
   "remainingBeforeProceeding": [
-    "Merge reviewed green production policy PR124 so main excludes host home, then build and independently accept C before resuming five timers",
-    "Authenticated application/inference path was not exercised; local HTTP readiness and existing health gate passed",
-    "Lima boot-failure serial rescue and zero-touch future LaunchAgent restart remain unverified"
+    "Resolve or avoid simultaneous catch-up fetch of origin/main before a new five-timer acceptance attempt; do not remove Git locks or force-reset checkout",
+    "After successful normal return, record next regular autoswitch time and verify a scheduled daily run; natural Persistent catch-up already succeeded at 2026-11-02 22:41:07–22:42:23 UTC"
   ],
   "initialHoldReason": "Configured host tmp source is absent while guest still has a writable virtiofs mount. Do not create an empty replacement or assume source identity; determine source/data/transfer handling before stop.",
   "sourceBehaviorInvestigation": {
@@ -311,6 +310,131 @@
     "number": 124,
     "head": "fa1ff11c7e675cc88f826d59cebfd6270f17cd49",
     "ci": "all terminal success",
-    "state": "draft; not merged"
+    "state": "merged",
+    "mergeCommit": "6a0a527d7eb31a19f24c6cf1c717d730e32db816",
+    "mainCiRun": 41538571955,
+    "mainCiConclusion": "success"
+  },
+  "normalReturnAttempt20261102": {
+    "sourceRevision": "6a0a527d7eb31a19f24c6cf1c717d730e32db816",
+    "B": "/nix/store/r1pr7xidkwbxa20vlbgdlq9k3gjw56im-nixos-system-mini-vm-26.11.20261020.5adc508",
+    "CStaging": "/nix/store/2jgwc00k2ijdy9y057rhvz3n98x28ckc-nixos-system-mini-vm-26.11.20261020.5adc508",
+    "stagingStartedAt": "2026-11-02T22:38:39.127349+00:00",
+    "stagingSwitchExit": 0,
+    "stagingCompletedAt": "2026-11-02T22:38:42.215482+00:00",
+    "stagingAcceptance": {
+      "time": "2026-11-02T22:39:04.517601+00:00",
+      "bridgeVersion": "0.2.3",
+      "health": {
+        "cloudflare-os": 200,
+        "langfuse": 200,
+        "beszel": 200,
+        "bridge": 401
+      },
+      "homeFstabAbsent": true,
+      "sshInvisible": true,
+      "keychainsInvisible": true,
+      "healthGateExit": 0,
+      "normalLatestCommand": true
+    },
+    "mainCiRun": 41538571955,
+    "mainCiConclusion": "success",
+    "normalSwitchStartedAt": "2026-11-02T22:41:05.827117+00:00",
+    "normalSwitchExit": 0,
+    "normalSwitchCompletedAt": "2026-11-02T22:41:08.150531+00:00",
+    "C": "/nix/store/nkjlsvnipb1lnhsahxqzg1g35082v2p8-nixos-system-mini-vm-26.11.20261020.5adc508",
+    "normalAcceptance": {
+      "observedAt": "2026-11-02T22:41:37.452242+00:00",
+      "runningSystem": "/nix/store/nkjlsvnipb1lnhsahxqzg1g35082v2p8-nixos-system-mini-vm-26.11.20261020.5adc508",
+      "bootSystem": "/nix/store/nkjlsvnipb1lnhsahxqzg1g35082v2p8-nixos-system-mini-vm-26.11.20261020.5adc508",
+      "sourceRevision": "6a0a527d7eb31a19f24c6cf1c717d730e32db816",
+      "bridgeVersion": "0.2.3",
+      "homeFstabAbsent": true,
+      "sshInvisible": true,
+      "keychainsInvisible": true,
+      "virtiofs": [
+        {
+          "point": "/tmp/lima",
+          "tag": "lima-1fd4cbcaa36d359d",
+          "options": "rw,relatime"
+        }
+      ],
+      "health": {
+        "cloudflare-os": 200,
+        "langfuse": 200,
+        "beszel": 200,
+        "bridge": 401
+      },
+      "normalLatestCommand": true,
+      "healthGateExit": 0
+    },
+    "acceptanceFailure": "Persistent catch-up lock-fast failed with Git cannot-lock-ref; no normal-operation completion claimed",
+    "rollbackStartedAt": "2026-11-02T22:43:22.621617+00:00",
+    "rollbackBExit": 0,
+    "rollbackCompletedAt": "2026-11-02T22:43:25.500597+00:00",
+    "finalSafeState": {
+      "observedAt": "2026-11-02T22:43:57.594167+00:00",
+      "runningSystem": "/nix/store/r1pr7xidkwbxa20vlbgdlq9k3gjw56im-nixos-system-mini-vm-26.11.20261020.5adc508",
+      "bootSystem": "/nix/store/r1pr7xidkwbxa20vlbgdlq9k3gjw56im-nixos-system-mini-vm-26.11.20261020.5adc508",
+      "bridgeVersion": "0.2.3",
+      "homeFstabAbsent": true,
+      "sshInvisible": true,
+      "keychainsInvisible": true,
+      "virtiofs": [
+        {
+          "point": "/tmp/lima",
+          "tag": "lima-1fd4cbcaa36d359d"
+        }
+      ],
+      "health": {
+        "cloudflare-os": 200,
+        "langfuse": 200,
+        "beszel": 200,
+        "bridge": 401
+      },
+      "timers": {
+        "dotfiles-autoswitch": {
+          "ActiveState": "inactive",
+          "UnitFileState": "masked",
+          "NextElapseUSecRealtime": ""
+        },
+        "dotfiles-lock-propose-fast": {
+          "ActiveState": "inactive",
+          "UnitFileState": "masked",
+          "NextElapseUSecRealtime": ""
+        },
+        "dotfiles-lock-propose-slow": {
+          "ActiveState": "inactive",
+          "UnitFileState": "masked",
+          "NextElapseUSecRealtime": ""
+        },
+        "codex-openai-bridge-refresh": {
+          "ActiveState": "inactive",
+          "UnitFileState": "masked",
+          "NextElapseUSecRealtime": ""
+        },
+        "langfuse-update-propose": {
+          "ActiveState": "inactive",
+          "UnitFileState": "masked",
+          "NextElapseUSecRealtime": ""
+        }
+      },
+      "healthGateExit": 0
+    },
+    "failureClassification": {
+      "cannotLockRef": true,
+      "refIsOriginMain": true,
+      "expectedShaChanged": true,
+      "staleLockFileError": false
+    },
+    "naturalCatchUpAutoswitch": {
+      "unit": "dotfiles-autoswitch.service",
+      "startedAt": "2026-11-03 07:41:07 JST",
+      "exitedAt": "2026-11-03 07:42:23 JST",
+      "result": "success",
+      "exitStatus": 0,
+      "manuallyTriggered": false,
+      "regularDailyRunVerified": false
+    }
   }
 }

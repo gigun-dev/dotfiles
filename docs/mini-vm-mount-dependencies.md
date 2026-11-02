@@ -2,7 +2,7 @@
 
 この表は2026-11-01のrepository宣言と既存運用記録から作成した。下記のLima設定と固定path・unit propertyだけを非root read-onlyで追加確認した。process-tableは読んでいない。秘密、鍵、keychain内容は読んでいない。先行する限定canary/sudo観測は[PR #122](https://github.com/gigun-dev/dotfiles/pull/122)に記録し、この設計branchからは追加のsudo照会やcanary操作を行っていない。設定案の実機適用、mount・権限・ネットワーク変更、停止・再起動は含まない。
 
-以下は設計時点の記録である。後続の承認済み適用ではhome export/fstabを除去し、B保守世代で主要healthを受入済み。5timerは停止・bridgeは0.2.3に固定したまま、本番方針の[PR #124](https://github.com/gigun-dev/dotfiles/pull/124)反映と通常運用Cの独立受入を待つ。停止・復旧時刻と確認範囲は[実行記録](mini-vm-mount-preflight-2026-11-01.json)を参照する。
+以下は設計時点の記録である。後続の承認済み適用でhome export/fstabを除去し、[PR #124](https://github.com/gigun-dev/dotfiles/pull/124)もmerge済み。通常Cの主要healthは通ったが、5timerのPersistent追実行でorigin/mainの同時fetch競合によりfast jobが失敗したため、home除外・bridge 0.2.3固定・5timer無効のBへ復旧した。自然追実行のautoswitch自体は成功した。時刻・確認範囲・残る条件は[実行記録](mini-vm-mount-preflight-2026-11-01.json)を参照する。
 
 ## VM内で保持するpath
 
