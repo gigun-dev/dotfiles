@@ -21,6 +21,22 @@ let
       }
     ];
   };
+  activationFixture = inputs.home-manager.lib.homeManagerConfiguration {
+    extraSpecialArgs.shellLinksManagedByAnsible = false;
+    pkgs = pkgs // {
+      uv = pkgs.writeTextDir "bin/uv" "fixture";
+      bash = pkgs.writeTextDir "bin/bash" "fixture";
+    };
+    modules = [
+      ../modules/home/dotfiles.nix
+      ../modules/home/guard.nix
+      {
+        home.username = "fixture";
+        home.homeDirectory = "/tmp/activation-fixture";
+        home.stateVersion = "26.05";
+      }
+    ];
+  };
   files = lib.listToAttrs (
     map (file: lib.nameValuePair file.target file) (
       lib.filter (
@@ -123,10 +139,24 @@ in
         "bark-routing"
         "codex-mcp-login"
         "uv-sync-tools"
+        "activation-inputs"
       ]
       {
         CLAUDE_ACTIVATION = pkgs.writeText "claude-link-dotfiles" inputs.self.homeConfigurations.gigun-mini-vm.config.home.activation.linkDotfiles.data;
         CLAUDE_HOME = inputs.self.homeConfigurations.gigun-mini-vm.config.home.homeDirectory;
+        UV_ACTIVATION = pkgs.writeText "uv-activation" activationFixture.config.home.activation.syncUvTools.data;
+        UV_GUARD = pkgs.writeText "uv-guard" activationFixture.config.xdg.configFile."uv/uv.toml".text;
+        LANGFUSE_ENDPOINTS =
+          pkgs.writeText "langfuse-endpoints"
+            activationFixture.config.xdg.configFile."claude-code/langfuse-endpoints.env".text;
+        LANGFUSE_SECRET_DECLARED =
+          if
+            builtins.hasAttr "claude-code/langfuse.env" activationFixture.config.xdg.configFile
+            || builtins.hasAttr ".config/claude-code/langfuse.env" activationFixture.config.home.file
+          then
+            "1"
+          else
+            "0";
       };
 }
 // lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
