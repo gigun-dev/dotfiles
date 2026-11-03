@@ -44,6 +44,7 @@
 |---|---|---|
 | 2026-10-17 | commit 署名は今のまま (Secure Enclave の鍵、Touch ID なし、`nix/modules/darwin/secure-enclave-key.nix`)。YubiKey は署名に使わない | 鍵は持ち出せないので、他のマシンからのなりすましは防げる。署名のたびにタッチを求めるとエージェントの commit が止まる。ryoppippi も同じ選択 (理由はエージェントが止まらないこと) |
 | 2026-10-17 | 1Password などサブスクのパスワードマネージャは入れない | 費用。パスワードは Apple の「パスワード」、機械が読む秘密は agenix |
+| 2026-11-03 | 既存アカウントを使うため、Pro に 1Password アプリと CLI を導入する | 保管先の移行や CLI 連携、SSH agent の利用は別途判断する |
 | 2026-10-17 | Apple ID と Google に YubiKey を 2 本とも登録する。Apple ID はセキュリティキー、Google は高度な保護機能プログラムも有効にする。Nano は Mac に挿したまま、NFC 版は自宅で保管する。証券のパスキーはキーに入れない | 起点のアカウントで、数字コードや SMS などフィッシングできる経路を閉じる。iPhone で要るときは Nano (USB-C) か自宅の NFC 版を使う |
 | 2026-10-22 | Google は普段 Apple の「パスワード」の passkey (Touch ID) でログインし、YubiKey 2 本は passkey として予備と新しい環境用に登録する。認証システム (TOTP) と 2 段階認証の SMS は消した。パスワード・再設定用の電話番号とメールは残す。バックアップコード・自撮り動画・復旧用の連絡先は足さない | ログインの強さは残っている一番弱い経路で決まる。TOTP と SMS は偽サイトでその場で中継でき、SMS は SIM スワップも受ける。Apple から独立した鍵があるので弱い経路を消しても締め出されない。復旧の経路は増やすほど入口が増える |
 | 2026-10-22 | Mac から GitHub への push は Secure Enclave の SSH 鍵 (`pushInsteadOf`)、fetch は HTTPS のまま。Enclave の鍵は Web の画面で Authentication key としても登録する。mini-vm・WSL・Windows は HTTPS とトークンのまま | 持ち出せない鍵に push を寄せ、盗んだトークンや鍵ファイルで push させない (サプライチェーン攻撃の典型)。Enclave は Mac ごとに作られ同期されないので、Linux には置けない。いちばん使っていて外部のコードが多く入る Mac から固める |
