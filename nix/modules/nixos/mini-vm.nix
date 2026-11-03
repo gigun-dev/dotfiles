@@ -442,22 +442,15 @@ let
 
     # systemd が StateDirectory で用意する。手で叩くときのために既定値も持たせる。
     state=''${STATE_DIRECTORY:-/var/lib/dotfiles-lock-trial}
-    trial="$state/$lane"
     log="$state/$lane.log"
     branch="auto/lock-$lane"
 
-    # **dotfilesDir の作業コピーには触らない**。ここで `nix flake update` すると
-    # dotfiles-autoswitch の dirty ガードと `git pull --ff-only` の両方を踏み、毎朝の
-    # 自動更新が恒久停止する。使い捨ての worktree に隔離するのはそのため
-    # (worktree の作成は .git 配下にしか書かないので、作業コピーは clean のまま)。
-    cd ${dotfilesDir}
-    git fetch --quiet origin
-
-    rm -rf "$trial"
-    git worktree prune # VM が落ちて trap を逃した前回分の登録を消す
-    git worktree add --quiet --detach "$trial" origin/main
-    trap 'cd ${dotfilesDir}; git worktree remove --force "$trial" > /dev/null 2>&1 || rm -rf "$trial"' EXIT
-
+    # Clone from upstream so proposal refs never share the runtime checkout's .git.
+    # Keep failed candidates for inspection; never prune legacy runtime worktrees.
+    trial=$(mktemp -d "$state/$lane-clone.XXXXXX")
+    trap 'status=$?; if [ "$status" -eq 0 ]; then rm -rf "$trial"; else echo "proposal failed; retained clone: $trial" >&2; fi' EXIT
+    git clone --quiet --no-hardlinks --single-branch --branch main \
+      https://github.com/${dotfilesRepo}.git "$trial"
     cd "$trial"
     # shellcheck disable=SC2086  # 空なら「全 input」の意味なので、あえて分割展開させる
     nix flake update $targets 2>&1 | tee "$log"
