@@ -46,6 +46,25 @@ timer の時刻(autoswitch 04:00 など)はすべて JST。mini-vm のシステ�
   人の lock 差分レビューは前提にしない。`dotfiles-autoswitch` 自体は lock を更新せず、
   merge 済みの変更を fetch → CI ゲート → ff → switch → 健全性確認する。失敗時の復帰先は今回の
   開始時に稼働していた構成だけとし、Langfuse の image pair が変わる場合は戻さない。
+- **proposalのGit状態を稼働用から分ける。** fast / slow / Langfuseは上流mainから
+  StateDirectory内の一意な専用directoryへ独立cloneする。worktreeやlocal cloneの共有objectを
+  使わず、稼働checkoutのfetch・refs・worktree登録を触らない。Langfuseの比較元も取得した
+  mainのComposeとする。候補をcommitしてからVMでbuildし、その同じHEADを提案する流れは維持する。
+  成功時は自分のcloneだけを削除し、失敗時はcloneと既存logを調査用に残す。失敗候補は手動で
+  確認・整理する必要があり、取得量と一時disk使用量もworktreeより増える。過去のworktree領域と
+  登録情報はこの変更では削除しない。既存のcheckout存在条件、認証・Git identity、schedule、
+  PR/auto-merge経路とautoswitchのCI/health/DB保護は変更しない。専用cloneは同じHOMEのglobal
+  Git設定とcredential helperを使うが、稼働checkoutのlocal設定は引き継がない。実機固有の
+  identity/認証overrideと上流への実認証は適用前に確認する。秘密や設定のコピーは行わない。
+  Actions移行や新しい排他は前提にしない。
+  localのhooksPathはbootstrapとHMが稼働checkoutに設定する。追跡済みpre-commitはstage済み
+  `.nix`の整形だけで、proposalがstageするlock/YAMLは対象外である。適用hookはNixOSと
+  linked worktreeでは既に停止する。独立cloneへの非継承でこのproposalの安全検査は落ちず、
+  既存CIのformat/buildと適用後healthは維持する。実機に追加・変更されたhookがあれば別確認する。
+  失敗通知時は既存Beszelのdisk使用率と各StateDirectoryの保持候補数・容量を確認する。
+  自動削除や保存期限は追加しない。job静止と候補の所有者・対象pathを確認し、必要な候補とlogを
+  保全してから不要な専用cloneだけを人が整理する。容量不足なら再試行前に整理し、稼働checkoutや
+  旧worktree登録を一括削除しない。レーン共通の既存logは次回実行で更新され得るため先に保全する。
 - **CI green の commit だけを適用する**(2026-10-15、`docs/adr/0011-push-without-a-local-gate-and-apply-only-green-commits.md`)。
   手元の pre-push 関門を外したので、main には CI 前の commit が直接入る。autoswitch は fetch した
   `@{upstream}` の commit について `gh api repos/gigun-dev/dotfiles/commits/<sha>/check-runs` を

@@ -32,7 +32,7 @@ class ProposalTests(unittest.TestCase):
 echo "git $*" >> "$FIXTURE/calls"
 [ "$FAIL" != "git-$1" ] || exit 9
 case "$1 $2" in
-'worktree add') mkdir -p "$5";;
+'clone --quiet') for target; do :; done; mkdir -p "$target";;
 'diff --quiet') exit "$DIFF";;
 esac
 ''')
@@ -54,6 +54,7 @@ esac
 ''')
         body = SOURCE.split('pkgs.writeShellScript "dotfiles-lock-propose" \'\'\n', 1)[1].split("\n  '';", 1)[0]
         body = body.replace("${dotfilesDir}", shlex.quote(str(self.repo)))
+        body = body.replace("${dotfilesRepo}", "fixture/repository")
         body = body.replace("${jobHeartbeatSnapshot}", "export DOTFILES_JOB_HEARTBEAT_ENABLED=0 DOTFILES_JOB_HEARTBEAT_ENDPOINT= DOTFILES_JOB_HEARTBEAT_TOKEN_FILE=")
         body = body.replace("${jobHeartbeat}", shlex.quote(str(self.bin / "heartbeat")))
         body = body.replace("''${", "${")
@@ -114,7 +115,7 @@ esac
                     self.run_job(lane)
 
     def test_each_failed_stage_does_not_send_success(self):
-        for failure in ["git-fetch", "nix-flake", "git-commit", "nix-build", "git-push", "gh-list", "gh-create", "gh-view", "gh-merge"]:
+        for failure in ["git-clone", "nix-flake", "git-commit", "nix-build", "git-push", "gh-list", "gh-create", "gh-view", "gh-merge"]:
             with self.subTest(failure=failure):
                 (self.root / "calls").unlink(missing_ok=True)
                 self.env["FAIL"] = failure

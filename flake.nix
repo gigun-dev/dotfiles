@@ -267,6 +267,27 @@
               touch "$out"
             '';
 
+            proposal-clones =
+              pkgs.runCommand "proposal-clones-tests"
+                {
+                  nativeBuildInputs = [
+                    pkgs.git
+                    pkgs.python3
+                    pkgs.bash
+                    pkgs.coreutils
+                    pkgs.jq
+                    pkgs.gnused
+                  ];
+                }
+                ''
+                  mkdir -p nix/modules/nixos/services scripts/tests
+                  cp ${./nix/modules/nixos/mini-vm.nix} nix/modules/nixos/mini-vm.nix
+                  cp ${./nix/modules/nixos/services/langfuse.nix} nix/modules/nixos/services/langfuse.nix
+                  cp ${./scripts/tests/proposal-clones.py} scripts/tests/proposal-clones.py
+                  ${pkgs.python3}/bin/python3 -B scripts/tests/proposal-clones.py
+                  touch "$out"
+                '';
+
             job-heartbeat-config = import ./nix/tests/job-heartbeat-config.nix {
               inherit pkgs;
               nixos = inputs.self.nixosConfigurations.mini-vm;
