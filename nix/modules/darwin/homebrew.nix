@@ -37,6 +37,10 @@ in
       "claude-devtools" # Claude Code のセッション transcript を可視化する Electron アプリ。実体は GUI なので nix ではなく cask
       "cmux"
     ]
+    ++ lib.optionals isAarch64 [
+      "1password"
+      "1password-cli" # 公式の macOS 配布経路。Nix の CLI は unfree。
+    ]
     ++ lib.optionals (!isAarch64) [
       "codex" # Intel Mac のみ brew cask (Rust build 回避)。aarch64 + Linux は packages.nix で nix install
     ]
