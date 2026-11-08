@@ -56,3 +56,13 @@
 2026-11-08 +mini 参照が無くなったことを確かめてから mini の macOS から Nix を撤去する (nix-daemon・nix-gc・activate-system・darwin-store の LaunchDaemon と /etc の生成物、store。sudo が要る) @user see:docs/adr/0014-shrink-mini-macos-shell-before-removing-nix.md by:me dep:0127 id:0128
 2026-11-08 +iterm2 iTerm2 を終了してメモリ上の設定を plist に書き出させ、Bidi・ホットキーの差分を git restore で捨ててから起動し直す。iTerm2 の中のセッションは全部止まるので、T3 Code など別のアプリから行う @user by:me id:0129
 2026-11-08 +wsl WSL の新しいシェルで home-manager の session 変数 (AGY_CLI_DISABLE_AUTO_UPDATE・SLACK_SKIP_UPDATE・LS_COLORS) が入ることを確かめる。.zshenv は gcroots の hm-session-vars.sh を読む (mini-vm では確認済み) @device by:claude id:0130
+(B) 2026-11-08 +claude agent-skills-nix (Kyure-A/agent-skills-nix) を導入するか決める。取り込み元が ryoppippi 以外にも増えるか、plugin の user scope オン/オフとの二層化を受け入れるかが分かれ目。あわせて ryoppippi が MCP をどう宣言・配布しているかを調べる (claude-code の plugins/*/.mcp.json 方式との比較) by:me id:0131
+2026-11-08 +claude カスタムサブエージェント (implementer/artisan/architect/cross-repo-implementer) を廃止し、委譲の規則を ryoppippi の agents/shared/delegate-work.md 相当に書き換えるか決める。squash-merge 限定・片付け時期・write guard など実測由来の規則の扱いも含め ADR に残す by:me id:0132
+2026-11-08 plamo-translate: Takumi Guard (pypi.flatt.tech) に 1.2.0 が出たら uv tool install --reinstall -p 3.14 --managed-python plamo-translate でパッケージ名指定に戻す (今は pypi.org の wheel をローカルパスで入れており uv tool upgrade で上がらない) by:me id:0133
+2026-11-08 uv tool を週 1 回自動更新する (home-manager の launchd.agents で uv tool upgrade --all)。失敗時は既存の通知経路で知らせる。CLAUDE.md・uv/tools.txt・uv/sync-tools.sh の「更新は手で」を合わせて直す by:me id:0134
+2026-11-08 +docs ADR を棚卸しし、今の意図と違うものを覆すか畳む (古く、意図と違うことがあるとユーザー談) by:me id:0135
+2026-11-08 T3 Code を Mac mini とスマホでも使う構成を決める (mini の macOS は Nix 凍結中。T3 Connect / linked environments / server mode のどれで届けるか) by:me id:0136
+(A) 2026-11-08 git/hooks/pre-commit が staged .nix の整形時に unstaged 変更を消す不具合を直す: git stash create は pathspec を取らず作業ツリー全体を退避し、stash apply の失敗を || true で握りつぶす。2026-11-08 に packages.nix の hunk が消え、dangling commit から復旧した by:claude id:0137
+2026-11-08 git-wtpr に zsh の cd 連携を足すか決める (ryoppippi の init.bash は zsh で declare -F の意味が変わるため移植時に外した) by:claude id:0138
+2026-11-08 zsh の zoxide / git-wt の init キャッシュが nix store の mtime=1 のため版が上がっても再生成されない。キャッシュキーを store パス基準にする by:claude id:0139
+2026-11-08 +ci mini-vm と WSL の home 構成 (homeConfigurations.gigun-x86_64-linux) の評価を CI で確認する。aarch64-darwin 上では評価できず、t3-limits・git-wt 追加 (51ebea8 / 6732a45) の Linux 側が未確認 by:claude id:0140
