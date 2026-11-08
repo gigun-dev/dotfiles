@@ -14,7 +14,6 @@
 (C) 2026-09-10 Slack 書き込み gatekeeper を、upstream PR #95 の動向を見て着手・見送り・自前実装のどれかに決める +cloudflare-os old:DF-31 see:docs/cloudflare-os.md id:0018
 (C) 2026-09-10 pve の SSD を交換するか再インストールするか決める(データは mini へ退避済み。mini のストレージ整理と連動) @device +infra id:0019
 (C) 2026-09-10 Taildrive(mini の ~/Storage を中央ストレージにする構想)を続けるか畳むか決める +infra id:0021
-2026-09-11 別 repo の実委譲で cross-repo-implementer が対象 checkout を使い、呼出元に不要な worktree を作らないことを確認する +claude @unattended see:docs/agent-execution.md id:0023
 (A) 2026-09-11 Claude から Codex への実委譲で prompt-file が選ばれ、日本語・表・引用符・バッククォートが改変されず届くことを確認する +claude @unattended see:docs/agent-execution.md id:0025
 2026-09-11 実際の並列セッションで重い検証が1枠に収まり、単独/重複時の所要時間と失敗を再測定する +claude @unattended see:docs/agent-execution.md id:0029
 2026-09-11 ESP32 ホストテストの無条件再コンパイルによる所要を測定し、対象選択や ccache の導入が必要か決める +claude @unattended see:docs/agent-execution.md id:0030
@@ -60,7 +59,6 @@
 2026-11-08 +iterm2 iTerm2 を終了してメモリ上の設定を plist に書き出させ、Bidi・ホットキーの差分を git restore で捨ててから起動し直す。iTerm2 の中のセッションは全部止まるので、T3 Code など別のアプリから行う @user by:me id:0129
 2026-11-08 +wsl WSL の新しいシェルで home-manager の session 変数 (AGY_CLI_DISABLE_AUTO_UPDATE・SLACK_SKIP_UPDATE・LS_COLORS) が入ることを確かめる。.zshenv は gcroots の hm-session-vars.sh を読む (mini-vm では確認済み) @device by:claude id:0130
 (B) 2026-11-08 +claude agent-skills-nix (Kyure-A/agent-skills-nix) を導入するか決める。取り込み元が ryoppippi 以外にも増えるか、plugin の user scope オン/オフとの二層化を受け入れるかが分かれ目。あわせて ryoppippi が MCP をどう宣言・配布しているかを調べる (claude-code の plugins/*/.mcp.json 方式との比較) by:me id:0131
-2026-11-08 +claude カスタムサブエージェント (implementer/artisan/architect/cross-repo-implementer) を廃止し、委譲の規則を ryoppippi の agents/shared/delegate-work.md 相当に書き換えるか決める。squash-merge 限定・片付け時期・write guard など実測由来の規則の扱いも含め ADR に残す by:me id:0132
 2026-11-08 plamo-translate: Takumi Guard (pypi.flatt.tech) に 1.2.0 が出たら uv tool install --reinstall -p 3.14 --managed-python plamo-translate でパッケージ名指定に戻す (今は pypi.org の wheel をローカルパスで入れており uv tool upgrade で上がらない) by:me id:0133
 2026-11-08 uv tool を週 1 回自動更新する (home-manager の launchd.agents で uv tool upgrade --all)。失敗時は既存の通知経路で知らせる。CLAUDE.md・uv/tools.txt・uv/sync-tools.sh の「更新は手で」を合わせて直す by:me id:0134
 2026-11-08 +docs ADR を棚卸しし、今の意図と違うものを覆すか畳む (古く、意図と違うことがあるとユーザー談) by:me id:0135
@@ -74,5 +72,4 @@
 2026-11-08 +security tailnet の storage→proxmox の root SSH ルールは 2026-08-01 の退避用の臨時。tofu の定義から外すか決める see:docs/tailnet.md by:claude id:0147
 2026-11-08 Finder の iPhone Wi-Fi 自動バックアップが壊れたバックアップを毎日作り直す件の恒久対策 (iCloud バックアップへ切り替えるか、ケーブルで一度完走させて Wi-Fi 自動バックアップを止める)。対象が Pro か mini かも確かめる see:docs/storage-cleanup.md by:claude id:0148
 2026-11-08 +mini-vm docs/mini-vm.md の「tailscale serve で 8787 を張っている」記述が実機 (No serve config) と食い違う。現状を確かめ、T3 Code の --tailscale-serve (443) と衝突しないか見て docs を直す see:docs/mini-vm.md by:claude id:0150
-2026-11-08 +claude 指示の正本を 1 つにする: claude/CLAUDE.md と codex/AGENTS.md を共通の断片から作る (ryoppippi は agents/AGENTS.md + shared/*.md を Claude は @import、Codex は switch 時に連結して生成)。ryoppippi と比べて寄せる see:docs/research/ryoppippi-dotfiles.md by:me id:0152
 2026-11-08 +claude claude-code の主 checkout が add-emil-skills のままで、marketplace (gigun) がそこを読むため main の更新のたびに手で merge している。emil を main に入れるか checkout を main に戻すか決める by:claude id:0153
