@@ -1,7 +1,7 @@
 # Intel mini の macOS を段階的に管理する
 
 Intel mini の macOS は Ansible への移行中で、既存 Nix generation 26 と未移管の管理を残す。
-Ansible は fzf / zoxide / ripgrep / XcodeGen の選択リンク、共通 shell のリンク、選択した user defaults を管理する。
+Ansible は fzf / zoxide / ripgrep / XcodeGen の選択リンク、mini 専用の最小 shell 設定のリンク、選択した user defaults を管理する。
 NixOS の mini-vm、Pro の nix-darwin、既存の自動更新・監視は別の所有者のままとする。
 watchdog の観測のみ設定は別途適用済みだが、稼働サービスの所有権は移していない。
 
@@ -199,7 +199,7 @@ DNS 失敗だけでは Wi-Fi を操作しない。状態が連続 2 サンプル
 
 | 対象 | 初期実装の範囲 | 残す管理・依存 |
 |---|---|---|
-| shell | 既存 repo 正本への5リンク。通常ファイル・別リンク・親リンクを拒否 | `.zprofile`、`/etc/zsh*`、login shell は未移管 |
+| shell | `ansible/mini-macos/files/zsh/` の最小 `.zshenv` / `.zshrc` への2リンク。通常ファイル・別リンク・親リンクを拒否。旧5リンクの撤去は明示フラグ | `.zprofile`、`/etc/zsh*`、login shell は未移管 |
 | packages | Lima / XcodeGen / mo の存在維持。明示更新は別入口 | package install/update は manual。Nix CLI 群・GUI casks・VPN・cloudflared は現状維持 |
 | xcodegen | 検証済み 2.46.0 Cellar binary への `/usr/local/bin/xcodegen` 1リンク | Homebrew formula の導入・更新と Nix profile は変更しない |
 | defaults | Dock autohide / KeyRepeat の2項目 | 他のOS設定、電源、認証は未移管 |
@@ -244,6 +244,9 @@ Linux controller で inventory の解析・syntax 等を検討できても、mac
 
 ## 初回shell移管の限定プレビュー
 
+(履歴: 2026-11-08 に共通 shell のリンクから最小設定へ切り替えた。現行の手順は下の「最小 shell 設定への切り替え」。
+3件がHM中間リンクだったという下記の観察と異なり、同日の再読み取りでは5件とも repo への直リンクだった。)
+
 2026-10-26のminiでは、`.zshenv`と`.zshrc`はrepoへの直リンクだが、
 `.config/sheldon`・`.config/zeno`・`.config/zsh/functions`はHMの中間リンクを経由する。
 最終参照先が同じでもHM所有リンクの置換は移管とは別なので拒否する。
@@ -270,24 +273,47 @@ miniでは`.config`と`.config/zsh`も既存の通常ディレクトリである
 shell起動設定やPATH本文を変更せず、
 アプリ再起動・package更新・cleanup・sudoは行わない。
 
-### 5リンクの管理権限
+### 最小 shell 設定への切り替え (ADR 0014)
 
 mini の shell owner は Ansible。通常の対象指定と apply acknowledgement は引き続き必要。
-`.zshenv` / `.zshrc` / `.config/sheldon` / `.config/zeno` /
-`.config/zsh/functions` を対象とし、`.zprofile` は移管しない。
-mini の新しい HM 構成では `shellLinksManagedByAnsible = true` によってこの5件の生成を除外する。
-bootstrap fallback は macOS の `LocalHostName=mini` の場合のみ5件を除外する。
-Pro・他ホストの設定は維持する。ホスト名を変更するときはこの所有権判定も見直す。
+mini の対話シェルは iPhone バックアップ・Xcode・Lima・Tailscale の操作と保守だけなので、
+共通の `zsh/` は配らず、Nix に依存しない最小の2ファイルを使う。
 
-凍結済みの HM generation は書き換わらないため、その activation を直接再実行しない。
-この変更のために mini の Nix/Darwin switch は行わない。新しい HM 構成の除外を
-旧 generation に適用済みとは扱わない。
+- `ansible/mini-macos/files/zsh/.zshenv`: `typeset -gU PATH`、XDG、`brew shellenv` 相当の静的 export
+  (`/usr/local`)、`~/.local/bin` を PATH 末尾へ。fork なし
+- `ansible/mini-macos/files/zsh/.zshrc`: history (`$XDG_STATE_HOME/zsh/history`)、補完、素朴なプロンプト、
+  `ls -G`、`fzf` / `zoxide` は `/usr/local/bin` にある場合だけ init
+- sheldon / zeno / deno / eza / mise / vivid と、`/nix` や `/etc/profiles` の参照は持ち込まない
+- 対象は `.zshenv` / `.zshrc` の2リンクで、`.zprofile` は移管しない (中身は `brew shellenv` で無害)
+- `/etc/zshenv` `/etc/zshrc` は nix-darwin の生成物で Nix の PATH を足す。この変更では触らない (Nix 撤去の段階で扱う)
 
-初回移管では、残る3件が既知の HM symlink で、解決先が同じ repo のディレクトリであることを
-全件確認する。未知のリンク・通常ファイル・ディレクトリなら停止する。元のsymlinkを
-ホスト内の日時付き backup に rename して保全し、通常の shell apply で直リンクを作る。
-通常タスクの他管理者リンク拒否は緩めない。復元が必要なら新リンクが想定どおりであることを
-確認し、そのリンクだけを外して保存済みリンクを戻す（自動復元しない）。
+旧構成の5リンク (`.zshenv` / `.zshrc` が共通 `zsh/`、`.config/sheldon` / `.config/zeno` /
+`.config/zsh/functions` が repo 直リンク) は `mini_shell_legacy_links` に宣言してある。
+2026-11-08 の読み取りでは5件とも repo への直リンクだった (HM の中間リンクではない)。
+旧リンクの撤去は通常の apply とは別の明示操作で、`mini_shell_retire_legacy=true` を渡した時だけ行う。
+宣言した repo パスを指す symlink だけを対象にし、通常ファイル・ディレクトリ・他のリンク先は
+どれか1件でもあれば何も動かさず停止する。対象は元の名前に日時 (`.before-ansible-<UTC>`) を付けて
+rename し、削除しない。フラグ無しでは `.zshenv` / `.zshrc` が旧リンクのまま競合として止まる。
+sheldon / zeno / functions の3リンクは、フラグ無しなら放置される (管理しないだけで消さない)。
+
+mini の source は確認済み main への fast-forward で同期するため、`--check` で新ファイルの存在を
+確かめるには、先に mini の checkout へ新ファイルが届いている必要がある。
+
+```sh
+# 差分の確認 (retire はフラグ有りの場合の計画を debug で表示。command は check mode では skip)
+uv run --locked --project ansible/mini-macos ansible-playbook -i ansible/mini-macos/inventory.yml ansible/mini-macos/apply.yml --check --diff -e '{"mini_targets":["shell"],"mini_shell_retire_legacy":true}'
+# 承認後の実適用
+uv run --locked --project ansible/mini-macos ansible-playbook -i ansible/mini-macos/inventory.yml ansible/mini-macos/apply.yml -e '{"mini_targets":["shell"],"mini_shell_retire_legacy":true,"mini_apply_ack":true}'
+```
+
+復元は新リンクが想定どおりであることを確認し、その2リンクを外して `.before-ansible-*` を
+元の名前へ戻す (自動復元しない)。
+
+HM とbootstrap は mini で共通の5リンクを作らない。mini の新しい HM 構成では
+`shellLinksManagedByAnsible = true` により生成を除外し、bootstrap fallback は macOS の
+`LocalHostName=mini` の場合のみ除外する。Pro・他ホストの設定は維持する。
+ホスト名を変更するときはこの所有権判定も見直す。凍結済みの HM generation は書き換わらないため、
+その activation を直接再実行しない。この変更のために mini の Nix/Darwin switch は行わない。
 
 ### user defaults の管理
 

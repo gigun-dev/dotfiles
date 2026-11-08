@@ -198,6 +198,55 @@ class Migration(MigrationFixture, unittest.TestCase):
         self.assertIn("Preserve the existing object", result.stdout)
         self.assertEqual(os.readlink(dest), str(self.base / "other-missing-source"))
 
+    def legacy_fixture(self):
+        (self.repo / "new").mkdir()
+        (self.repo / "new/.zshenv").write_text("minimal\n")
+        (self.repo / "sheldon").mkdir()
+        (self.home / ".config").mkdir()
+        (self.home / ".zshenv").symlink_to(self.repo / "zsh/.zshenv")
+        (self.home / ".config/sheldon").symlink_to(self.repo / "sheldon")
+        self.variables["mini_shell_links"] = [{"src": "new/.zshenv", "dest": ".zshenv"}]
+        self.variables["mini_shell_legacy_links"] = [
+            {"dest": ".zshenv", "target": "zsh/.zshenv"},
+            {"dest": ".config/sheldon", "target": "sheldon"}]
+
+    def test_legacy_links_are_kept_until_retirement_is_explicit(self):
+        self.legacy_fixture()
+        result = self.run_tasks("shell.yml")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Preserve the existing object", result.stdout)
+        self.assertEqual(os.readlink(self.home / ".zshenv"), str(self.repo / "zsh/.zshenv"))
+        self.assertTrue((self.home / ".config/sheldon").is_symlink())
+
+    def test_retirement_renames_known_legacy_links_and_is_idempotent(self):
+        self.legacy_fixture()
+        self.variables["mini_shell_retire_legacy"] = True
+        check = self.run_tasks("shell.yml", check=True)
+        self.assertEqual(check.returncode, 0, check.stdout + check.stderr)
+        self.assertEqual(os.readlink(self.home / ".zshenv"), str(self.repo / "zsh/.zshenv"))
+        result = self.run_tasks("shell.yml")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(os.readlink(self.home / ".zshenv"), str(self.repo / "new/.zshenv"))
+        self.assertFalse((self.home / ".config/sheldon").exists())
+        backups = sorted(p.name for p in self.home.rglob("*.before-ansible-*"))
+        self.assertEqual(len(backups), 2)
+        self.assertTrue(all(p.is_symlink() for p in self.home.rglob("*.before-ansible-*")))
+        again = self.run_tasks("shell.yml")
+        self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
+        self.assertIn("changed=0", again.stdout)
+        self.assertEqual(len(list(self.home.rglob("*.before-ansible-*"))), 2)
+
+    def test_retirement_refuses_unknown_legacy_objects_before_moving_anything(self):
+        self.legacy_fixture()
+        self.variables["mini_shell_retire_legacy"] = True
+        (self.home / ".config/sheldon").unlink()
+        (self.home / ".config/sheldon").mkdir()
+        result = self.run_tasks("shell.yml")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("not a known legacy link", result.stdout)
+        self.assertEqual(os.readlink(self.home / ".zshenv"), str(self.repo / "zsh/.zshenv"))
+        self.assertEqual(list(self.home.rglob("*.before-ansible-*")), [])
+
     def test_missing_source_prevents_partial_application(self):
         self.variables["mini_shell_links"].append({"src": "missing", "dest": ".zshrc"})
         result = self.run_tasks("shell.yml")

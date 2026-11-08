@@ -12,12 +12,19 @@ mini_owners:
   defaults: ansible
   launchd: manual
   signing_tools: manual
+# mini の対話シェルは Nix に依存しない最小構成 (docs/adr/0014)。共通の zsh/ は配らない。
 mini_shell_links:
-  - {src: zsh/.zshenv, dest: .zshenv}
-  - {src: zsh/.zshrc, dest: .zshrc}
-  - {src: sheldon, dest: .config/sheldon}
-  - {src: zeno, dest: .config/zeno}
-  - {src: zsh/functions, dest: .config/zsh/functions}
+  - {src: ansible/mini-macos/files/zsh/.zshenv, dest: .zshenv}
+  - {src: ansible/mini-macos/files/zsh/.zshrc, dest: .zshrc}
+# 旧構成で Ansible が張っていた repo 直リンク。target は repo 相対で、一致する時だけ撤去できる。
+# 撤去は mini_shell_retire_legacy=true を明示した時に限り、日時付き backup へ rename する。
+mini_shell_retire_legacy: false
+mini_shell_legacy_links:
+  - {dest: .zshenv, target: zsh/.zshenv}
+  - {dest: .zshrc, target: zsh/.zshrc}
+  - {dest: .config/sheldon, target: sheldon}
+  - {dest: .config/zeno, target: zeno}
+  - {dest: .config/zsh/functions, target: zsh/functions}
 # Existing formulae only; network/auth tools remain outside this migration.
 mini_formulae: [lima, xcodegen, mo]
 mini_casks: []
