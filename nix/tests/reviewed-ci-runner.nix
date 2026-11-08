@@ -28,6 +28,7 @@ assert !(builtins.elem "dotfiles-ci" enabled.nix.settings.trusted-users);
 assert settings.NoNewPrivileges && settings.ProtectHome && settings.ProtectSystem == "strict";
 assert settings.Restart == "no" && settings.RestartForceExitStatus == [ ];
 assert enabled.services.github-runners.dotfiles-ci.ephemeral;
+assert enabled.services.github-runners.dotfiles-ci.extraPackages == [ pkgs.python3 ];
 assert
   settings.BindReadOnlyPaths == [
     "${pkgs.coreutils}/bin/mv:/bin/mv"

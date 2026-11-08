@@ -46,6 +46,10 @@ in
       group = "dotfiles-ci";
       ephemeral = true;
       extraLabels = [ "dotfiles-reviewed" ];
+      # GitHub-hosted Ubuntu provides Python implicitly.  The fzf recipe job
+      # invokes unittest directly, so declare the reviewed runner toolchain
+      # instead of inheriting whatever happens to be installed on mini-vm.
+      extraPackages = [ pkgs.python3 ];
       serviceOverrides = {
         Restart = lib.mkForce "no";
         RestartForceExitStatus = lib.mkForce [ ];
