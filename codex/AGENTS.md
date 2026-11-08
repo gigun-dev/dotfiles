@@ -11,5 +11,5 @@ Always respond in Japanese.
 ## Git
 
 - Before committing, check `git status --short --untracked-files` (never `=no`) and `git diff --cached --stat`. The index often holds files staged only so `nix run .#switch` can see them; unstage whatever is outside the unit.
-- When one file mixes logical changes, stage hunks with `git add -p` (answers on stdin). Never bypass hooks with `--no-verify`.
+- Stage explicit paths with `git add <path>`; for part of a file, apply a patch with `git apply --cached`. Never `git add -p`, `-A`, `.`, `-u` or `git commit -a`. Never bypass hooks with `--no-verify`.
 - Commit the smallest independently revertable unit. Fix an already-pushed commit with a follow-up commit; amend only unpushed ones.
