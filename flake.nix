@@ -525,6 +525,10 @@
                         ./nix/modules/darwin/secure-enclave-key.nix
                       ];
                       nixpkgs.overlays = overlays;
+                      # useGlobalPkgs = false なので home 層の nixpkgs は system 層の
+                      # config を継がない。claude-code-overlay が unfree を宣言したため
+                      # Linux の homeConfigurations と同じく許可する。
+                      nixpkgs.config.allowUnfree = true;
                     };
                   };
                 }
