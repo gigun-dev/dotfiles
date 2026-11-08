@@ -64,8 +64,9 @@
 2026-11-08 +ci mini-vm と WSL の home 構成 (homeConfigurations.gigun-x86_64-linux) の評価を CI で確認する。aarch64-darwin 上では評価できず、t3-limits・git-wt 追加 (51ebea8 / 6732a45) の Linux 側が未確認 by:claude id:0140
 (C) 2026-11-08 uv cache(約 8G)を掃除できる状態に戻す。uv cache clean/prune は ~/.cache/uv/.lock を待って終わらない。MCP を起動した uv run/uvx が実行中ずっと lock を持つのは uv の意図した挙動(astral-sh/uv#15990)。agy-mcp と markitdown-mcp は自分の claude-code repo で起動方法を変えられるが、cman(laiso/cman)は plugin.json を持つため marketplace エントリでも MCP 名でも上書きできず(/mcp で止めるのはプロジェクトごと)、2 つを移しても lock は残る。根本対応は uv 側の astral-sh/uv#22338(実行環境をキャッシュ外へ)か #19321(細かい lock)を待つ。それまでは再起動直後、Claude Code と Codex を開く前に uv cache prune を流す。--force は動作中 MCP の環境を壊しうるので使わない +cleanup see:docs/storage-cleanup.md by:claude id:0141
 (A) 2026-11-08 +ci dotfiles の Actions が 2026-11-08 09:29 から課金上限で起動しない (private の無料枠を macos-15 の 2 ジョブが 10 倍で消費したと推定)。gh auth refresh -s user で使用量を確かめ、当面は macOS ジョブの実行条件を絞るか上限を上げ、public に戻すなら公開前監査 (0121) を進める。直ったら CI を再実行し、Linux 側の評価 (0140) も確かめる see:docs/linux-ci-fallback.md by:me id:0143
-2026-11-08 +infra pve の外部死活監視を作る: mini など外から書き込み可否を叩く (read-only に落ちると通知とログが同時に死ぬため) see:docs/pve-ssd-failure.md by:claude id:0145
-2026-11-08 +infra pve の vm-101 (supabase-01) が使用率 98%。ディスクを広げるか中身を整理する see:docs/pve-ssd-failure.md by:claude id:0146
-2026-11-08 +security tailnet の storage→proxmox の root SSH ルールは 2026-08-01 の退避用の臨時。tofu の定義から外すか決める see:docs/tailnet.md by:claude id:0147
+2026-11-08 +infra pve の外部死活監視を作る: mini など外から書き込み可否を叩く (read-only に落ちると通知とログが同時に死ぬため) see:docs/pve-ssd-failure.md by:claude dep:0019 id:0145
+2026-11-08 +infra pve の vm-101 (supabase-01) が使用率 98%。ディスクを広げるか中身を整理する see:docs/pve-ssd-failure.md by:claude dep:0019 id:0146
+2026-11-08 +security tailnet の storage→proxmox の臨時 root SSH ルールを外す変更 (e119490) を tofu で apply する: nix run .#tofu -- -chdir=tailscale plan で差分がそのルールの削除だけと確かめてから apply @user see:docs/tailnet.md by:claude id:0147
 2026-11-08 Finder の iPhone Wi-Fi 自動バックアップが壊れたバックアップを毎日作り直す件の恒久対策 (iCloud バックアップへ切り替えるか、ケーブルで一度完走させて Wi-Fi 自動バックアップを止める)。対象が Pro か mini かも確かめる see:docs/storage-cleanup.md by:claude id:0148
 2026-11-08 +nix 長く残る gc root を整理する: ~/.local/state/esp-idf/nix-profile-1-link (3.5GiB)、direnv の cc-handson / swift-mcp-app、dotfiles と worktree の result symlink。nix run .#build の result を残さない形も検討 see:docs/storage-cleanup.md by:claude id:0155
+2026-11-09 +infra pve が tailnet から 62 日 offline で、LAN の 192.168.11.100 にも届かない (2026-11-08 確認)。電源断か孤立かを物理的に確かめる。0019 の判断の前提 @device see:docs/pve-ssd-failure.md by:claude id:0156
