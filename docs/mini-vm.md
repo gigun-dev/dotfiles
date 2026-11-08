@@ -15,7 +15,11 @@ mini-vm自体が停止した場合は同居するBeszelでは検出できない�
 死活監視はCloudflare Worker Cronから5分ごとに行う。最新結果は
 `https://uptime.097969.xyz`で確認でき、2回連続失敗と復旧時はBarkへ通知する。
 Worker・KV・Cron・custom domainは`gigun-dev/hub`の`infra/uptime/`でOpenTofu管理する。
-設計は [ADR 0009](adr/0009-protect-monitoring-uis.md) を参照する。
+Beszel・Uptime Kuma・Langfuse の Web UI は Cloudflare Access で保護し、Access の認証済み利用者を
+信頼してアプリ内の二重ログインは設けない。tailnet 外の SDK から使う Langfuse の OTLP 入口だけは
+対話ログインを要求せず、限定したパスと Langfuse の project key 認証を境界とする。
+Langfuse は公式に近い Compose とローカル MinIO で動かす。容量と費用を測るまで外部ストレージは
+増やさず、S3 互換ストレージへ移せる境界を保つ。
 
 ## Claude の設定
 
