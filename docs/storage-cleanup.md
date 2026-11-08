@@ -119,8 +119,9 @@ sudo nix-collect-garbage -d    # 再試行
 
 `uv cache clean` と `uv cache prune` は `~/.cache/uv/.lock` を取る。
 Claude Code のセッションごとに `uv run --script`（agy-mcp、cman）と `uv tool uvx markitdown-mcp` が親プロセスとして常駐し、ロックを握り続けるため、300 秒でタイムアウトする（2026-11-08 に 17 プロセスを観測）。
-全 Claude Code セッションと Codex アプリを閉じてから実行する。閉じられないときは `--force` があるが、動作中の MCP サーバーが壊れうる。恒久対策は todo 0141。
-閉じられないときの代替は、`environments-v2` と `~/.local/share/uv/tools` の symlink / `.pth` から参照される `archive-v0/<id>` だけを残して他を `rm` すること（568 件中 527 件を消して 16GB から 10GB）。
+`uv run` と `uvx` が実行中ずっとロックを持つのは、実行中の環境を消させないための uv の意図した挙動（astral-sh/uv#15990）。
+再起動の直後、Claude Code と Codex を開く前に `uv cache prune`（公式が定期実行を勧める方）を流す。`--force` は動作中の MCP サーバーの環境を壊しうるので使わない。経緯と uv 側の改善待ちは todo 0141。
+過去に、`environments-v2` と `~/.local/share/uv/tools` の symlink / `.pth` から参照される `archive-v0/<id>` だけを残して他を `rm` したことがある（568 件中 527 件を消して 16GB から 10GB）。ただし公式は「キャッシュを直接変更するのは決して安全ではない」としており、実行中のプロセスが参照するエントリを消しうるので、手順としては勧めない。
 キャッシュの大半は `archive-v0`（6.9GB）と `environments-v2`（0.9GB）。
 
 ### iOS バックアップ（MobileSync）
