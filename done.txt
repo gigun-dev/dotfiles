@@ -73,3 +73,6 @@ x 2026-11-08 2026-11-08 T3 Code を Mac mini とスマホでも使う構成を�
 x 2026-11-08 2026-11-08 +mini-vm mini-vm の t3code は nixpkgs の 0.1.6 で Pro の cask (0.1.7 以降) より古い。版の差で壊れるものを確かめ、overlay か別 input で固定するか決める see:docs/mini-vm.md by:claude id:0151
 x 2026-11-08 2026-11-08 Pro で nix run .#switch を実行し (Touch ID 待ちで中断中)、Screendrop が brew cask に --adopt で取り込まれること、brew cleanup の事前確認が通ることを確かめる by:me id:0144
 x 2026-11-08 2026-11-08 +mini-vm T3 Code の linked environments (Pro→mini-vm) が 30 日で切れるのを拾う仕組みを決める (通知か todo の定期行) see:docs/mini-vm.md by:claude id:0149 @dropped Pro からも T3 Connect で mini-vm に入るので linked environments を使わない
+x 2026-11-08 2026-11-08 +claude 指示の正本を 1 つにする: claude/CLAUDE.md と codex/AGENTS.md を共通の断片から作る (ryoppippi は agents/AGENTS.md + shared/*.md を Claude は @import、Codex は switch 時に連結して生成)。ryoppippi と比べて寄せる see:docs/research/ryoppippi-dotfiles.md by:me id:0152
+x 2026-11-08 2026-11-08 +claude カスタムサブエージェント (implementer/artisan/architect/cross-repo-implementer) を廃止し、委譲の規則を ryoppippi の agents/shared/delegate-work.md 相当に書き換えるか決める。squash-merge 限定・片付け時期・write guard など実測由来の規則の扱いも含め ADR に残す by:me id:0132
+x 2026-11-08 2026-09-11 別 repo の実委譲で cross-repo-implementer が対象 checkout を使い、呼出元に不要な worktree を作らないことを確認する +claude @unattended see:docs/agent-execution.md id:0023 @dropped cross-repo-implementer を b2bdd9d で廃止した。別 repo への委譲は brief で対象 checkout と専有を渡す規則になった
