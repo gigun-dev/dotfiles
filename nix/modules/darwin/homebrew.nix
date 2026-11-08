@@ -68,6 +68,7 @@ in
       # symlink していた (v3.14.0 で固着)。self-update 抑止は home/default.nix の
       # SLACK_SKIP_UPDATE を参照。
       "slack-cli"
+      "t3-code" # coding agent 用デスクトップ GUI (pingdotgg/t3code)。設定は home/programs/t3code で merge
       "tableplus"
       "thaw"
       "zed"
