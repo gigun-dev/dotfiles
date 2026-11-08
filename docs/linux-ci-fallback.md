@@ -23,3 +23,11 @@ macOS ランナーを使う `macos-regressions.yaml` と `mini-ansible` の `nat
 同日、fixture修正後の commit `f77f292e` の workflow_dispatch (run 42496923598) では `changes`、`check`、`build`、`nix-ci-gate` がすべて成功し、各job後にrunnerが0へ戻った。ただし `workflow_dispatch` の成功はPRのrequired checkを満たさない。branch protection移行には、最新baseとのmerge commitを対象にした `pull_request` runで同じ結果を確認する。
 
 その後、最新baseとcommit `94f91e2b` のmerge commitを対象にした `pull_request` run 42498932748 (attempt 2) でも4jobすべてが成功した。各jobを別のephemeral登録で実行し、終了ごとにrunnerが0へ戻ることを確認した。この結果を受入根拠として、mainのrequired checksへ旧`check` / `build`を残したまま`nix-ci-gate`を追加した。gate単独化はmain上の受入とrollback確認後に行う。
+
+最後に、PR #137 の head `29c1a4cc13bdb279b86821bb9e000ce8afff0c86`、GitHub生成merge
+`a48bce4e0b0536a6d8da8b0c5ba22433475d4509` を対象にした `pull_request` runで再受入した。
+Nixの`changes` / `build` / `check` / `nix-ci-gate`、fzf recipe test、mini Ansible portableは
+すべて成功した。macOS native jobはこのLinux代替受入の対象外で、成功扱いにはしていない。終了後、
+repository runner登録が0、切替用2変数が不在、mini-vmのunit・専用user・token・一時directory・
+state・log・work directoryが不在であることを確認した。mini-vmのcheckoutもcleanな`main`で
+`origin/main`と一致し、一時helperを削除した。後続の文書だけのcommitはこの受入SHAに含めない。
