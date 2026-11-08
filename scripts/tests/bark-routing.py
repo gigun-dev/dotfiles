@@ -81,6 +81,50 @@ class Routing(unittest.TestCase):
                     self.assertNotIn('https://fixture.invalid', result.stdout + result.stderr)
 
 
+class HookJobMode(unittest.TestCase):
+    """--job sends without a Claude session URL and has finished sending when it returns."""
+
+    def run_hook(self, *args):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            (base / 'claude/hooks').mkdir(parents=True)
+            (base / 'secrets').mkdir()
+            (base / '.ssh').mkdir()
+            (base / 'secrets/bark-env.age').touch()
+            (base / '.ssh/id_ed25519').touch()
+            stubs = {
+                'age': '#!/bin/sh\nenv | sort | sed -n "/^BARK_/p"',
+                'openssl': '#!/bin/sh\ncat > "$FIXTURE/payload"\necho ciphertext\n',
+                # Sleep so that a backgrounded send would not have written yet on return.
+                'curl': '#!/bin/sh\nsleep 0.3\necho "$@" > "$FIXTURE/request"\n',
+            }
+            for name, text in stubs.items():
+                (base / name).write_text(text)
+                (base / name).chmod(0o755)
+            script = base / 'claude/hooks/bark-notify.sh'
+            script.write_text((ROOT / 'claude/hooks/bark-notify.sh').read_text())
+            env = dict(os.environ, HOME=str(base), FIXTURE=str(base), PATH=str(base) + os.pathsep + os.environ['PATH'],
+                       BARK_DEVICE_KEY='k', BARK_ENCRYPT_KEY='k' * 32, BARK_ENCRYPT_IV='i' * 16)
+            env.pop('BARK_PUSH_URL', None)
+            data = json.dumps({'title': 'uv tool upgrade 失敗', 'message': 'body', 'cwd': '/x/dotfiles'})
+            result = subprocess.run(['bash', str(script), *args], input=data, env=env, capture_output=True, text=True, timeout=10)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            sent = (base / 'request').exists()
+            payload = json.loads((base / 'payload').read_text()) if (base / 'payload').exists() else None
+            return sent, payload
+
+    def test_job_sends_without_url_and_waits(self):
+        sent, payload = self.run_hook('--job')
+        self.assertTrue(sent)
+        self.assertEqual(payload['title'], 'uv tool upgrade 失敗 [dotfiles]')
+        self.assertNotIn('url', payload)
+
+    def test_hook_without_session_url_stays_silent(self):
+        sent, payload = self.run_hook()
+        self.assertFalse(sent)
+        self.assertIsNone(payload)
+
+
 class UnitFailureBody(unittest.TestCase):
     """Run the real helper with stub journalctl/systemctl/curl and inspect the decrypted-before payload."""
 

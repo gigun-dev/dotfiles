@@ -24,6 +24,30 @@ let
       );
   };
 
+  # launchd は StandardOutPath の親ディレクトリを作らないので、既存の ~/Library/Logs 直下に置く。
+  uvUpgradeLog = "${config.home.homeDirectory}/Library/Logs/uv-tool-upgrade.log";
+  # launchd の PATH は /usr/bin:/bin 程度なので、bark-notify.sh が使う age / jq を store から渡す。
+  # xxd・openssl・curl・readlink は macOS 標準のものを使う。
+  uvToolUpgrade = pkgs.writeShellScript "uv-tool-upgrade" ''
+    set -u
+    export PATH=${
+      lib.makeBinPath [
+        pkgs.age
+        pkgs.jq
+      ]
+    }:/usr/bin:/bin
+    date
+    out=$(UV_BIN=${pkgs.uv}/bin/uv ${pkgs.bash}/bin/bash "${uvActivationInputs}/sync-tools.sh" --upgrade 2>&1)
+    status=$?
+    printf '%s\n' "$out"
+    [ "$status" != 0 ] || exit 0
+    body=$(printf '%s\n' "$out" | grep -E 'upgrade に失敗|Takumi Guard|error' | tail -n 3)
+    jq -n --arg message "''${body:-exit $status}"$'\n'"詳細: ${uvUpgradeLog}" --arg cwd "${dotfilesPath}" \
+      '{title: "uv tool upgrade 失敗", message: $message, cwd: $cwd}' \
+      | "${dotfilesPath}/claude/hooks/bark-notify.sh" --job || true
+    exit "$status"
+  '';
+
   # SF Symbols の CLI は自分の実行ファイルパスから親の .app を遡ってリソース
   # (Contents/Resources) を読むため、bundle の外へ symlink を張ると
   # "could not find an SF Symbols.app to load resources from" で落ちる。
@@ -123,6 +147,29 @@ in
   home.activation.syncUvTools = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
     UV_BIN=${pkgs.uv}/bin/uv $DRY_RUN_CMD ${pkgs.bash}/bin/bash "${uvActivationInputs}/sync-tools.sh" || true
   '';
+
+  # uv tool の更新は activation から外し (オフラインで軽く保つ)、週 1 回ここで回す。
+  # 失敗は Claude hook と同じ Bark 経路 (bark-notify.sh --job) で知らせ、詳細は uvUpgradeLog に残す。
+  # Darwin だけ: mini-vm の uv tool は google-colab-cli 1 つで、Bark の秘密は system の
+  # agenix (root 管理) にあり home の unit から読めない。WSL は常時起動していない。
+  launchd.agents.uv-tool-upgrade = lib.mkIf isDarwin {
+    enable = true;
+    config = {
+      ProgramArguments = [ "${uvToolUpgrade}" ];
+      # 月曜 12:00。寝ていた回は起床時に 1 回だけ走る (launchd が取りこぼしをまとめる)。
+      StartCalendarInterval = [
+        {
+          Weekday = 1;
+          Hour = 12;
+          Minute = 0;
+        }
+      ];
+      ProcessType = "Background";
+      LowPriorityIO = true;
+      StandardOutPath = uvUpgradeLog;
+      StandardErrorPath = uvUpgradeLog;
+    };
+  };
 
   # dotfiles リポの git hooks を有効化。pre-commit は nix fmt 自動適用 (CI fmt 失敗防止)、
   # post-merge/post-rewrite/post-checkout は pull した Nix 構成の自動 switch。

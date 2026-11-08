@@ -34,6 +34,8 @@ class SyncTools(unittest.TestCase):
                            'case "$1 $2" in\n'
                            '"tool list") cat "$FIXTURE/list"; echo "warning: broken" >&2;;\n'
                            '"tool install") exit "${INSTALL_STATUS:-0}";;\n'
+                           '"tool dir") echo "$FIXTURE/tools";;\n'
+                           '"tool upgrade") exit "${UPGRADE_STATUS:-0}";;\n'
                            'esac\n')
         self.uv.chmod(0o755)
         self.decl = self.base / "tools.txt"
@@ -95,6 +97,38 @@ class SyncTools(unittest.TestCase):
         calls, result = self.run_sync("linux-x86_64", env={"INSTALL_STATUS": "3"}, status=1)
         self.assertEqual(len(self.installs(calls)), 2)
         self.assertIn("install に失敗", result.stderr)
+
+    def write_receipt(self, name, requirement):
+        directory = self.base / "tools" / name
+        directory.mkdir(parents=True)
+        (directory / "uv-receipt.toml").write_text(
+            f"[tool]\nrequirements = [{requirement}]\n"
+            f'entrypoints = [\n    {{ name = "{name}", install-path = "/x/bin/{name}", from = "{name}" }},\n]\n')
+
+    def test_upgrade_skips_local_sources_and_continues_on_failure(self):
+        self.set_list("google-colab-cli v0.7.4\n- colab\nplamo-translate v1.2.0\n- plamo-translate\n"
+                      "majin-cli v0.1.0\n- majin\n")
+        self.write_receipt("google-colab-cli", '{ name = "google-colab-cli" }')
+        self.write_receipt("plamo-translate", '{ name = "plamo-translate", path = "/tmp/p.whl" }')
+        self.write_receipt("majin-cli", '{ name = "majin-cli", editable = "/src/majin" }')
+        for shell in SHELLS:
+            with self.subTest(shell=shell):
+                calls, result = self.run_sync("darwin-arm64", "--upgrade", shell=shell)
+                self.assertEqual(self.installs(calls), [])
+                self.assertEqual([c for c in calls.splitlines() if "upgrade" in c],
+                                 ["uv tool upgrade google-colab-cli"])
+                self.assertIn("plamo-translate はローカルパス等", result.stderr)
+                self.assertNotIn("宣言されていない", result.stderr)
+        calls, result = self.run_sync("darwin-arm64", "--dry-run", "--upgrade")
+        self.assertEqual(result.stdout, "uv tool upgrade google-colab-cli\n")
+        self.assertNotIn("tool upgrade", calls)
+        _, result = self.run_sync("darwin-arm64", "--upgrade", env={"UPGRADE_STATUS": "2"}, status=1)
+        self.assertIn("google-colab-cli の upgrade に失敗", result.stderr)
+
+    def test_upgrade_needs_guard_configuration(self):
+        calls, _ = self.run_sync("linux-x86_64", "--upgrade",
+                                 env={"XDG_CONFIG_HOME": str(self.base / "missing")}, status=1)
+        self.assertEqual(calls, "")
 
     def test_missing_uv_is_silent(self):
         calls, result = self.run_sync("linux-x86_64", env={"UV_BIN": str(self.base / "nope")})
