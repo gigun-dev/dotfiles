@@ -124,6 +124,20 @@ if command -v git-wt &>/dev/null; then
 fi
 unset _gitwt_cache
 
+# git-wtpr: `git wtpr <pr>` も worktree へ cd させる。上の git-wt の git 関数を
+# __git_wtpr_inner へ退避して包むので、必ず git-wt の後に読む。生成は nu の起動を
+# 伴うので git-wt と同じくキャッシュする。
+_gitwtpr_cache="${XDG_CACHE_HOME}/zsh/git-wtpr.zsh"
+if command -v git-wtpr &>/dev/null; then
+  if _init_cache_stale "$_gitwtpr_cache" "${commands[git-wtpr]}"; then
+    mkdir -p "${_gitwtpr_cache:h}"
+    { print -r "# src: ${commands[git-wtpr]:A}"; git-wtpr --init zsh; } > "$_gitwtpr_cache"
+    zcompile "$_gitwtpr_cache"
+  fi
+  source "$_gitwtpr_cache"
+fi
+unset _gitwtpr_cache
+
 # =============================================================================
 # mise (shims のみ: activate を使わず PATH に shims を入れるだけ)
 # `mise activate zsh` は precmd で `eval "$(mise hook-env)"` を fork する設計で、

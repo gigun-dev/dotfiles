@@ -2,12 +2,13 @@
 #
 # Ported from https://github.com/ryoppippi/dotfiles (MIT License,
 # Copyright (c) ryoppippi): nix/packages/git-wtpr/git-wtpr.nu
-# Local change: the shell integration (--init, init.fish / init.bash) is dropped;
-# this setup has no fish, and the bash hook is not usable from zsh as is.
+# Local change: --init supports zsh only, from init.zsh. This setup has no
+# fish, and upstream's zsh output (init.bash) breaks under zsh; see init.zsh.
 #
 # Usage:
 #   git wtpr <number|url> [git-wt flags...]
 #   git wtpr <number|url> -d | -D
+#   git-wtpr --init zsh
 #   git-wtpr --help
 
 def usage [] {
@@ -17,6 +18,7 @@ git-wtpr — open a GitHub pull request in a git-wt worktree
 Usage:
   git wtpr <number|url> [git-wt flags...]
   git wtpr <number|url> -d | -D
+  git-wtpr --init zsh
   git-wtpr -h | --help
 
 Examples:
@@ -24,7 +26,9 @@ Examples:
   git wtpr https://github.com/owner/repo/pull/3984
   git wtpr 25 -D
 
-There is no cd integration: the worktree path is printed last on stdout.
+With shell integration (git-wtpr --init zsh), the default is to cd into
+the worktree — same as git wt. Pass --nocd only when you want the path
+printed without changing directory.
 
 Resolves the PR with gh, fetches refs/pull/<n>/head, then creates or
 switches to a worktree via git-wt using the PR head branch name.
@@ -37,8 +41,16 @@ Protected head branch names (main, master) become pr-<number> so the
 default branch is never used as a worktree name.
 
 Status messages go to stderr; the worktree path is printed last on
-stdout.
+stdout (for shell integration / --nocd).
 " | str trim
+}
+
+def print-init [shell: string] {
+    if $shell != 'zsh' {
+        print --stderr 'git-wtpr: --init supports only zsh'
+        exit 2
+    }
+    print (open ($env.CURRENT_FILE | path dirname | path join init.zsh))
 }
 
 def is-pr-selector [arg: string] {
@@ -86,6 +98,11 @@ def --wrapped main [...args: string] {
 
     if $first in ['-h', '--help'] {
         print (usage)
+        return
+    }
+
+    if $first == '--init' {
+        print-init ($args | get --optional 1 | default '')
         return
     }
 
