@@ -74,4 +74,6 @@ repo内の暗号文、ignore対象、旧commit、同じ端末のbackupだけを�
 - 失効の証拠にsecret value、復旧コード、内部識別metadataを残していない
 - 未確認のprovider、別端末、backup、consumerを明記している
 
+repoの非秘密software-age fixtureは、human暗号文をprimary / backupだけが読めること、host暗号文を両者とhostが読めること、backupからreplacementへrekeyできること、退役recipientが新しい暗号文を読めないことを検査する。また、rekey前の暗号文は退役鍵で読め続けることを固定し、recipient削除だけでは過去copyを失効できないことを示す。このfixtureは実YubiKey、独立端末、実credentialのrotation、provider復旧を証明しない。
+
 実際の紛失・侵害時は、このpublic runbook、credential class、実行時点のprovider公式手順を組み合わせる。provider仕様が変わり得るため、古いprivate手順を正本にしない。
