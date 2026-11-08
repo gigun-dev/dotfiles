@@ -11,7 +11,7 @@ let
     hash = "sha256-HjXZZ4/KxwCBub89Fztb2kyy1TL51wpEO5r15/jt5aA=";
     stripRoot = false;
   };
-  environmentFile = config.age.secrets.beszel-env.path;
+  environmentFile = config.dotfiles.runtimeSecretFiles.beszelEnv;
 
   waitForHub = pkgs.writeShellScript "beszel-wait-for-hub" ''
     set -eu
@@ -83,13 +83,6 @@ in
       "docker"
       "disk"
     ];
-  };
-
-  age.secrets.beszel-env = {
-    file = ../../../../secrets/beszel-env.age;
-    owner = "beszel";
-    group = "beszel";
-    mode = "0400";
   };
 
   systemd.services.beszel = {

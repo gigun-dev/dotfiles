@@ -12,6 +12,7 @@
 }:
 let
   cfg = config.services.codex-mcp-login;
+  barkEnvironmentFile = config.dotfiles.runtimeSecretFiles.barkEnv;
   stateDir = "/var/lib/codex-mcp-login";
   origin = "https://${cfg.hostName}";
   python = pkgs.python3.withPackages (ps: [
@@ -167,7 +168,7 @@ in
         Type = "oneshot";
         # journal と bark-env (root 0400) を読むので root。
         User = "root";
-        EnvironmentFile = "-/run/agenix/bark-env";
+        EnvironmentFile = "-${barkEnvironmentFile}";
         ExecStart = lib.escapeShellArgs (
           [
             "${python}/bin/python3"
@@ -207,7 +208,7 @@ in
       serviceConfig = {
         Type = "oneshot";
         User = "root";
-        EnvironmentFile = "-/run/agenix/bark-env";
+        EnvironmentFile = "-${barkEnvironmentFile}";
         ExecStart = "${cfg.notifier} codex-mcp-login.service 'mini-vm MCP ログイン入口 起動失敗'";
       };
     };

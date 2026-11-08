@@ -111,6 +111,7 @@ let
   ];
   # 見送りの理由を通知 unit へ渡す。/run は tmpfs なので再起動で消えてよい。
   autoswitchSkipReason = "/run/dotfiles-autoswitch-skip-reason";
+  barkEnvironmentFile = config.dotfiles.runtimeSecretFiles.barkEnv;
 
   langfuseRollbackSafe = pkgs.writeShellScript "langfuse-rollback-safe" (
     builtins.readFile ../../../infra/langfuse/scripts/rollback-safe.sh
@@ -355,7 +356,7 @@ let
   '';
 
   # unit の失敗を Bark (iOS プッシュ) へ届ける。$1 = journal を読む unit、$2 = 通知タイトル。
-  # 呼び出し側は `EnvironmentFile = "-/run/agenix/bark-env"` で BARK_* を渡すこと。
+  # 呼び出し側はhost構成が選んだoptionalなEnvironmentFileでBARK_*を渡すこと。
   #
   # 括り出してあるのは、暗号化の手順を unit ごとに写すと Bark アプリ側の復号設定
   # (鍵と IV は 1 組しか持てない) と食い違ったときの直す場所が増えるため。形式
@@ -726,6 +727,7 @@ in
   # ホストは Intel なので x86_64 ゲストがネイティブで動く (vz ドライバ)。
   imports = [
     ../../../ci/linux-runner/mini-runner.nix
+    ./runtime-secret-files.nix
     ./services/host-heartbeat.nix
     ./services/dotfiles-job-heartbeat.nix
     (modulesPath + "/profiles/qemu-guest.nix")
@@ -734,6 +736,16 @@ in
     ./services/uptime-kuma.nix
     ./services/codex-mcp-login.nix
   ];
+
+  # Consumers receive only runtime paths. The host configuration owns the
+  # delivery backend so each migration from agenix to SOPS is one assignment,
+  # not a service-module rewrite.
+  dotfiles.runtimeSecretFiles = {
+    barkEnv = config.age.secrets.bark-env.path;
+    beszelEnv = config.age.secrets.beszel-env.path;
+    langfuseEnv = config.age.secrets.langfuse-env.path;
+    uptimeKumaEnv = config.age.secrets.uptime-kuma-env.path;
+  };
 
   # hub owns incident history and notifications; only host-local evidence is collected here.
   services.host-heartbeat = {
@@ -1370,6 +1382,29 @@ in
       mode = "0400";
     };
 
+    beszel-env = {
+      file = ../../../secrets/beszel-env.age;
+      owner = "beszel";
+      group = "beszel";
+      mode = "0400";
+    };
+
+    # The proposal unit validates the Compose file as the repository owner,
+    # while the startup unit runs as root and can read the same file.
+    langfuse-env = {
+      file = ../../../secrets/langfuse-env.age;
+      owner = username;
+      group = "users";
+      mode = "0400";
+    };
+
+    uptime-kuma-env = {
+      file = ../../../secrets/uptime-kuma-env.age;
+      owner = "root";
+      group = "root";
+      mode = "0400";
+    };
+
     # Keep regular-file leaves under the standard agenix directory; custom aliases
     # would conflict with the sender's O_NOFOLLOW check.
     job-heartbeat-autoswitch = {
@@ -1735,7 +1770,7 @@ in
     serviceConfig = {
       Type = "oneshot";
       User = "root";
-      EnvironmentFile = "-/run/agenix/bark-env";
+      EnvironmentFile = "-${barkEnvironmentFile}";
       ExecStart = "${barkNotifyUnitFailure} codex-openai-bridge-refresh.service 'mini-vm codex-bridge 更新確認 失敗'";
     };
   };
@@ -1752,7 +1787,7 @@ in
     serviceConfig = {
       Type = "oneshot";
       User = "root";
-      EnvironmentFile = "-/run/agenix/bark-env";
+      EnvironmentFile = "-${barkEnvironmentFile}";
       ExecStart = "${barkNotifyUnitFailure} langfuse.service 'mini-vm Langfuse 起動失敗'";
     };
   };
@@ -1762,7 +1797,7 @@ in
     serviceConfig = {
       Type = "oneshot";
       User = "root";
-      EnvironmentFile = "-/run/agenix/bark-env";
+      EnvironmentFile = "-${barkEnvironmentFile}";
       ExecStart = "${barkNotifyUnitFailure} langfuse-update-propose.service 'mini-vm Langfuse 更新確認 失敗'";
     };
   };
@@ -1990,7 +2025,7 @@ in
     serviceConfig = {
       Type = "oneshot";
       User = "root";
-      EnvironmentFile = "-/run/agenix/bark-env";
+      EnvironmentFile = "-${barkEnvironmentFile}";
       ExecStart = "${barkNotifyUnitFailure} dotfiles-autoswitch.service 'mini-vm 自動更新 失敗'";
     };
   };
@@ -2003,7 +2038,7 @@ in
     serviceConfig = {
       Type = "oneshot";
       User = "root";
-      EnvironmentFile = "-/run/agenix/bark-env";
+      EnvironmentFile = "-${barkEnvironmentFile}";
       ExecStart = "${barkNotifyUnitFailure} dotfiles-autoswitch.service 'mini-vm 自動更新 見送り' ${autoswitchSkipReason}";
     };
   };
@@ -2084,7 +2119,7 @@ in
     serviceConfig = {
       Type = "oneshot";
       User = "root";
-      EnvironmentFile = "-/run/agenix/bark-env";
+      EnvironmentFile = "-${barkEnvironmentFile}";
       ExecStart = "${barkNotifyUnitFailure} 'dotfiles-lock-propose@%i.service' 'mini-vm lock 更新 (%i) 失敗'";
     };
   };
@@ -2154,7 +2189,7 @@ in
     serviceConfig = {
       Type = "oneshot";
       User = "root";
-      EnvironmentFile = "-/run/agenix/bark-env";
+      EnvironmentFile = "-${barkEnvironmentFile}";
       ExecStart = "${barkNotifyUnitFailure} pve-write-probe.service 'pve 書き込み不可 / 応答なし'";
     };
   };
