@@ -85,6 +85,8 @@
       ffmpeg
       # 旧 uv tool から移した Python CLI (nixpkgs にあるものは uv/tools.txt に置かない)。
       yt-dlp
+      # Claude Code / Codex の markitdown MCP サーバー。uvx 経由をやめ uv の親プロセスを常駐させない。
+      markitdown-mcp
       # hf CLI。ライブラリの derivation だが bin/hf は wrap 済みで、home.packages は
       # bin を拾うだけなので依存が profile の Python に漏れない。
       python3Packages.huggingface-hub
