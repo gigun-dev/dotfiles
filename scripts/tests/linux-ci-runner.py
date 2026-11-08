@@ -68,9 +68,30 @@ esac''',
 
     def test_every_required_workflow_job_can_use_the_reviewed_runner(self):
         workflow = (ROOT / ".github/workflows/nix-build.yaml").read_text()
-        selector = "vars.DOTFILES_LINUX_CI == 'self-hosted'"
+        selector = ("vars.DOTFILES_LINUX_CI == 'self-hosted' && "
+                    "vars.DOTFILES_CI_REVIEWED_SHA != '' && "
+                    "github.sha == vars.DOTFILES_CI_REVIEWED_SHA")
         self.assertEqual(workflow.count(selector), 4)
         self.assertIn("  nix-ci-gate:\n", workflow)
+
+    def test_every_always_on_linux_workflow_can_use_the_reviewed_runner(self):
+        selector = ("vars.DOTFILES_LINUX_CI == 'self-hosted' && "
+                    "vars.DOTFILES_CI_REVIEWED_SHA != '' && "
+                    "github.sha == vars.DOTFILES_CI_REVIEWED_SHA")
+        recipe = (ROOT / ".github/workflows/fzf-recipe-checks.yml").read_text()
+        ansible = (ROOT / ".github/workflows/mini-ansible.yaml").read_text()
+        self.assertEqual(recipe.count(selector), 1)
+        self.assertEqual(ansible.count(selector), 1)
+        self.assertIn("  native:\n", ansible)
+        native = ansible.split("  native:\n", 1)[1]
+        self.assertNotIn(selector, native)
+
+    def test_portable_ansible_uses_existing_nix_on_reviewed_runner(self):
+        workflow = (ROOT / ".github/workflows/mini-ansible.yaml").read_text()
+        portable = workflow.split("  portable:\n", 1)[1].split("\n  native:\n", 1)[0]
+        self.assertIn("runner.environment == 'self-hosted'", portable)
+        self.assertIn("uses: ./.github/actions/check-linux-runner", portable)
+        self.assertIn("runner.environment != 'self-hosted'", portable)
 
 
 if __name__ == "__main__":
