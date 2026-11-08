@@ -122,7 +122,7 @@ Mac Mini (Intel) のエージェント基盤は macOS 上の Lima ゲスト (Nix
 - **OS 層と home 層を分ける**: OS は `nixosConfigurations.mini-vm`、CLI 環境は WSL と共用の `homeConfigurations.gigun-x86_64-linux`。Lima がユーザーを imperative に作る (`users.mutableUsers = true` が必須) ため、home 層を NixOS module 側へ統合しない
 - **`mini-vm.nix` の boot / fileSystems は触らない**: nixos-lima が配布するイメージのレイアウトに合わせた固定値。変えるとブートしなくなる
 - **`nix run .#switch` は `/etc/NIXOS` で分岐する**: NixOS なら `nixos-rebuild` + home-manager、WSL なら home-manager のみ。どの機械でも同じコマンドで済ませるための分岐
-- **Tailscale は `tag:server`**: `sudo tailscale up --ssh --advertise-tags=tag:server --hostname=mini-vm`。タグ無しだと untagged fallback が無いため到達不能。`tag:vm` は ssh ルールが root/ubuntu 限定で `gigun` が入れないため使わない
+- **Tailscale は `tag:dev`**: mini-vm と mini は一組の開発環境で、gigun の相互 SSH を許可する。mini は Taildrive の判断まで `tag:storage` も保持する。両ノードの鍵期限は無人運用のため無効化し、廃止・侵害時は明示失効する。タグ・鍵期限の変更前に現状を確認し、接続を保つ段階移行を行う。正本と手順は `docs/tailnet.md`。
 - **macOS の自動ログインが前提**: `limactl autostart` は LaunchAgent なので、自動ログイン無しだと再起動後に VM が上がらない。FileVault を有効にすると自動ログインが使えなくなり 24/365 運用が崩れる
 - **iOS ビルドはホスト側に投げる**: ゲストから `host.lima.internal` 経由で macOS の Xcode を叩く。Xcode / iOS SDK / Simulator / codesign に Linux 代替は無い
 

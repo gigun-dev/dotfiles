@@ -4,7 +4,7 @@
 		"tag:client":       [${owner}],
 		"tag:storage":      [${owner}],
 		"tag:proxmox":      [${owner}],
-		"tag:server":       [${owner}],
+		"tag:dev":          [${owner}],
 	},
 
 	"nodeAttrs": [
@@ -21,7 +21,7 @@
 					"tag:client",
 					"tag:storage",
 					"tag:proxmox",
-					"tag:server",
+					"tag:dev",
 				],
 			"dst":
 				[
@@ -29,7 +29,7 @@
 					"tag:client",
 					"tag:storage",
 					"tag:proxmox",
-					"tag:server",
+					"tag:dev",
 				],
 			"ip": ["*"],
 		},
@@ -46,11 +46,11 @@
 	],
 
 	"ssh": [
-		// admin → Linux サーバ群: root と ubuntu (運用必要)
+		// admin → pve: root と ubuntu (運用必要)
 		{
 			"action": "accept",
 			"src":    ["tag:admin-device"],
-			"dst":    ["tag:proxmox", "tag:server"],
+			"dst":    ["tag:proxmox"],
 			"users":  ["root", "ubuntu"],
 		},
 		// admin → 自分で使う端末: nonroot のみ (`ssh gigun@mini` 想定)
@@ -60,23 +60,35 @@
 			"dst":    ["tag:admin-device", "tag:client", "tag:storage"],
 			"users":  ["autogroup:nonroot"],
 		},
-		// admin → mini-vm (エージェント基盤): gigun で常用する
+		// admin → 開発環境: nonroot で常用する
 		{
 			"action": "accept",
 			"src":    ["tag:admin-device"],
-			"dst":    ["tag:server"],
+			"dst":    ["tag:dev"],
 			"users":  ["autogroup:nonroot"],
 		},
+		// mini-vm と mini は一組の開発環境。通常ユーザーで相互に処理を渡す。
+		{
+			"action": "accept",
+			"src":    ["tag:dev"],
+			"dst":    ["tag:dev"],
+			"users":  ["gigun"],
+		},
+	],
+	"sshTests": [
+		{"src": "tag:dev", "dst": ["tag:dev"], "accept": ["gigun"], "deny": ["root"]},
+		{"src": "tag:admin-device", "dst": ["tag:dev"], "accept": ["gigun"]},
+		{"src": "tag:client", "dst": ["tag:dev"], "deny": ["gigun", "root"]},
 	],
 	"tests": [
-		// タグ無しの本人端末から tag:server の ssh へは入れない
+		// タグ無しの本人端末から tag:dev の ssh へは入れない
 		{
 			"src":  ${owner},
-			"deny": ["tag:server:22"],
+			"deny": ["tag:dev:22"],
 		},
 		{
 			"src":    "tag:admin-device",
-			"accept": ["tag:server:22"],
+			"accept": ["tag:dev:22"],
 		},
 	],
 }
