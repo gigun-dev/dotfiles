@@ -35,6 +35,7 @@ Codex、Claude Code、T3 Codeで同じ`Auto`という表示があっても、同
 - repo外read、repo外write、networkは別々に拒否され得る。
 - local credential設定の読取成功・失敗はonline認証の成否ではない。
 - build toolは評価前にrepo外cache DBへのwriteで失敗し得る。同じcommandを承認済みcontextで比較し、HOMEやcacheをcheckoutへ移す回避を通常設定にしない。
+- macOSでは、通常contextと承認済みcontextで同じ無害な`/usr/bin/sandbox-exec` probeを比較できる。通常contextだけnested sandboxの適用を拒否する結果はApple Sandbox経路の関与を示すが、profileの生成元、個別rule、network policyまで特定したことにはならない。
 - Edit / Write hookの拒否はBash、MCP、別providerのOS sandboxを証明しない。
 - remote toolはlocal process、別process、remote serviceのどこで実行されるかを個別に確認する。
 
