@@ -133,6 +133,7 @@ in
     run "developer-tools"
       [
         "execution-context"
+        "github-auth-diagnose"
         "linux-ci-runner"
         "claude-user-settings"
         "codex-bridge-refresh"

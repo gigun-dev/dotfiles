@@ -99,8 +99,10 @@ git push origin --delete <branch>    # remote branch の削除
 
 ```bash
 gh auth login        # 1 回。以後 git の push / pull も通る
-gh auth status
+python3 scripts/github-auth-diagnose.py
 ```
+
+`gh auth status` は`--no-refresh`を付けてもnetwork denyをtoken invalidと表示し得る。診断scriptはローカル設定、Apple Seatbeltのnetwork policy、GitHub APIのHTTP応答を分け、401を観測した場合だけcredential拒否と判定する。
 
 `credential.helper = gh auth git-credential` なので SSH key は管理しない。remote は HTTPS。
 

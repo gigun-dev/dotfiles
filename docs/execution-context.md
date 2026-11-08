@@ -6,16 +6,27 @@
 
 1. 失敗した処理の実行元（Pro / mini / mini-vm）、対象、probe、sandbox有無、時刻を記録する。CLI・対象artifactの版やhash、正確な引数とreview承認の参照は秘密を除いたprivate作業記録に残す。同じ操作の比較に使い、repoへ端末識別子や生出力をcommitしない。
 2. DNS/transportの段階と、サーバーが返したHTTP statusを分ける。`scutil`のNo DNS、`dig`のpermission、SSH接続失敗、`gh auth status`のtoken invalidだけでは資格情報の失効を確定しない。HTTP 403もscope不足を単独では確定しない。
-3. sandbox限定の失敗なら、同じ対象・引数・artifactを使うread-only検証を正規のreview経路で実行する。GitHubは `gh api --silent user` の成功/終了metadataを使い、401/403の確認が必要ならreview済みの検証で返ったHTTP statusだけを記録する。tokenやresponse body、headers全体を保存しない。必要な承認が無ければpendingで止める。
-4. 一方が成功しても失敗記録を消さない。「そのcontextで成功」「別contextでは失敗」と併記する。両方失敗した場合も、権限・サービス停止・鍵破損を自動で結論にしない。HTTP 401を確認した後も、対象account・実行環境・credential選択を確認してから更新を別途判断する。
-5. **TAILNET POLICY DENIEDは停止**。mini→VMの既知の拒否をsandbox偽陰性に分類しない。別ホスト、Lima、別ユーザー、別VPN経路へ切り替えて同じ拒否操作を通さない。ポリシー変更には対象経路を明記した別承認が必要。
-6. Gatekeeper/codesignの失敗は同じartifactに対するread-only検証（`spctl --assess --type execute` / `codesign --verify --strict`）をreviewして比較する。出力をそのまま持ち出さない。成功はその検査の範囲だけを示し、配布物全体の安全性やGitHub Verifiedを保証しない。quarantine無効化は対策にしない。
+3. GitHub認証は `python3 scripts/github-auth-diagnose.py` から確認する。macOSでは最初にApple Seatbeltの`network-outbound`判定を確認し、denyならオンラインprobeを実行せず`context-limited-network-denial`で止める。ローカルのcredential選択は、`gh auth token`の出力をプロセス内で破棄して存在だけを確認する。Keychainがdenyされる場合は`gh auth status --no-refresh`からactive accountの有無だけを取り、同時に出るtoken invalid判定は捨てる。HTTP 401を実測した場合だけ`credential-rejected`とする。403、DNS失敗、timeout、HTTP応答の無い失敗をtoken失効へ読み替えない。
+4. sandbox限定の失敗なら、同じ対象・引数・artifactを使うread-only検証を正規のreview経路で実行する。GitHubは同じ診断をreview済みcontextで再実行し、`credential-accepted`またはHTTP statusだけを記録する。tokenやresponse body、headers全体を保存しない。必要な承認が無ければpendingで止める。
+5. 一方が成功しても失敗記録を消さない。「そのcontextで成功」「別contextでは失敗」と併記する。両方失敗した場合も、権限・サービス停止・鍵破損を自動で結論にしない。HTTP 401を確認した後も、対象account・実行環境・credential選択を確認してから更新を別途判断する。
+6. **TAILNET POLICY DENIEDは停止**。mini→VMの既知の拒否をsandbox偽陰性に分類しない。別ホスト、Lima、別ユーザー、別VPN経路へ切り替えて同じ拒否操作を通さない。ポリシー変更には対象経路を明記した別承認が必要。
+7. Gatekeeper/codesignの失敗は同じartifactに対するread-only検証（`spctl --assess --type execute` / `codesign --verify --strict`）をreviewして比較する。出力をそのまま持ち出さない。成功はその検査の範囲だけを示し、配布物全体の安全性やGitHub Verifiedを保証しない。quarantine無効化は対策にしない。
 
 以前拒否された観測はこの手順を理由に再試行しない。新しい関連証拠が拒否理由を解消し、実行されていないことが確かな場合だけ正規reviewで扱う。結果不明なら再実行より先に状態を確認する。
 
 ## metadataだけを記録する
 
-`execution-context.py` は観測済み結果を入力する記録器で、probeの実行・権限判定・自動再試行は行わない。`--context reviewed-read-only`は呼出側の申告であり、承認を与える機能ではない。生出力、command文字列、環境変数、任意のhost名を受け付けない。stdoutのJSONは必要な場合だけprivateな作業記録に保存する。
+`github-auth-diagnose.py` はGitHubだけのprobe、`execution-context.py` は観測済み結果を入力する記録器である。どちらも権限追加、credential更新、自動再試行を行わない。`--context reviewed-read-only`は呼出側の申告であり、承認を与える機能ではない。生出力、command文字列、環境変数、任意のhost名を受け付けない。stdoutのJSONは必要な場合だけprivateな作業記録に保存する。
+
+```sh
+# sandbox内: Seatbelt denyならonlineProbeを実行せずexit 3
+python3 scripts/github-auth-diagnose.py
+
+# ネットワークに触れず、ローカルcredential選択だけ確認する
+python3 scripts/github-auth-diagnose.py --local-only
+```
+
+exit 0はGitHub API成功、1はHTTP 401、2は401以外のHTTP失敗、3はsandbox・transport・ローカル前提を含む未確定を表す。exit 3を認証失効として扱わない。
 
 ```sh
 python3 scripts/execution-context.py --host pro --target github \
