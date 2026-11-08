@@ -47,6 +47,8 @@ jobs:
       nix: ${{ steps.filter.outputs.nix }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
         id: filter
         with:
@@ -79,6 +81,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       # Only this job's client accepts flake config; the daemon's policy is unchanged.
       - name: Configure reviewed runner Nix client
@@ -124,6 +128,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       # Only this job's client accepts flake config; the daemon's policy is unchanged.
       - name: Configure reviewed runner Nix client

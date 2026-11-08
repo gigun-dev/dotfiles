@@ -19,6 +19,8 @@ jobs:
       enabled: ${{ steps.policy.outputs.enabled }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
       - run: |
           bash -n ci/homebrew-fzf/recipe.sh
           python3 -m unittest discover -s ci/homebrew-fzf/tests -v
@@ -41,6 +43,8 @@ jobs:
       key: ${{ steps.identity.outputs.key }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
       - id: identity
         run: |
           bash ci/homebrew-fzf/recipe.sh preflight > "$RUNNER_TEMP/preflight.json"
@@ -69,6 +73,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
       - env:
           GH_TOKEN: ${{ github.token }}
           BUILD_KEY: ${{ needs.build.outputs.key }}
