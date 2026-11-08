@@ -14,7 +14,7 @@
 | mini-vm-narrow-mounts | 未適用の共有削減draft。本番宣言がhomeを保持し、純粋評価で拡張したcandidateだけがhomeを除外してtmp/rootを保持すること、Lima field案のpath allowlistと既存tmp tagを検査。実mount・VM停止・起動なし |
 | zsh-startup | Darwin のみ。四起動モード・再読込・Nix優先順位・一意性・standalone/未導入 fallback を実 zsh と一時 HOME で検査。OS層・brew・plugin は fixture |
 
-macOS 固有 check は Linux に存在させて skip するのでなく、Darwin checks と `macos-regressions` job で明示実行する。job は ARM macOS runner の対象 checks だけを build し、OS設定の全体build/switchをしない。`check` / `build` の既存 job 名は維持する。required status のサーバー側設定はこの変更で操作しない。
+macOS 固有 check は Linux に存在させて skip するのでなく、Darwin checks で明示実行する。常時 CI には載せない (macOS ランナーは Linux の 10 倍課金のため)。Pro 上で下の `nix build` を回すか、`macos-regressions.yaml` を workflow_dispatch で手動実行する。どちらも対象 checks だけを build し、OS設定の全体build/switchをしない。`check` / `build` の既存 job 名は維持する。required status のサーバー側設定はこの変更で操作しない。
 
 限定して実行する例:
 

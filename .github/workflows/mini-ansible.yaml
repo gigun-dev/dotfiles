@@ -1,39 +1,58 @@
 ---
 name: 'CI: mini Ansible'
+
+# portable (lint / syntax-check / macOS 固有ツールを使わない fixture) は Linux で足りるので
+# ubuntu で走らせる。native (plutil が要る fixture) は macOS ランナーが要り、料金が
+# Linux の 10 倍なので手動実行 (workflow_dispatch) だけにする。Pro 上では
+# `sh ansible/mini-macos/verify.sh native` が手元で回る。
+# flake.nix / flake.lock は ansible/ の入力ではない (uv.lock が controller を固定する) ので
+# 起動条件に含めない。setup-nix は uv を取る手段として使うだけ。
+# ubuntu-slim でなく ubuntu-latest なのは、install-nix-action が sudo と /nix 作成を要し、
+# 軽量コンテナでは保証されないため (未検証)。
+
 on:
   pull_request:
-    paths:
+    paths: &paths
       - 'ansible/mini-macos/**'
       - 'scripts/mini-checkout-sync.py'
-      - 'flake.nix'
-      - 'flake.lock'
-      - '.github/actions/setup-nix/**'
       - 'nix/modules/darwin/network-watchdog.sh'
       - 'nix/modules/darwin/network-watchdog.nix'
       - 'nix/modules/darwin/net-watchdog-system-install.sh'
       - 'bootstrap.sh'
+      - '.github/actions/setup-nix/**'
       - '.github/workflows/mini-ansible.yaml'
   push:
     branches: [main]
-    paths:
-      - 'ansible/mini-macos/**'
-      - 'scripts/mini-checkout-sync.py'
-      - 'flake.nix'
-      - 'flake.lock'
-      - '.github/actions/setup-nix/**'
-      - 'nix/modules/darwin/network-watchdog.sh'
-      - 'nix/modules/darwin/network-watchdog.nix'
-      - 'nix/modules/darwin/net-watchdog-system-install.sh'
-      - 'bootstrap.sh'
-      - '.github/workflows/mini-ansible.yaml'
+    paths: *paths
+  workflow_dispatch:
+
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  mini-ansible:
+  portable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+      - uses: ./.github/actions/setup-nix
+        with:
+          store-cache: 'false'
+      - name: Verify Ansible (portable)
+        run: nix shell --inputs-from . nixpkgs#uv -c sh ansible/mini-macos/verify.sh portable
+
+  native:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: macos-15
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
       - uses: ./.github/actions/setup-nix
-      - name: Verify Ansible locally with temporary fixture homes
-        run: nix shell --inputs-from . nixpkgs#uv -c sh ansible/mini-macos/verify.sh
+        with:
+          store-cache: 'false'
+      - name: Verify Ansible (native, needs plutil)
+        run: nix shell --inputs-from . nixpkgs#uv -c sh ansible/mini-macos/verify.sh native
