@@ -7,6 +7,9 @@
       "https://gigun.cachix.org"
       "https://cclens.cachix.org"
     ];
+    # numtide は署名鍵を 2 本使う。旧 cache.numtide.com-1 だけでは、現在 narinfo に付く
+    # niks3.numtide.com-1 の署名が `not signed by any of the keys` で弾かれ、全部ローカルビルドになる。
+    # 値を疑うときは numtide/system-manager の flake.nix を見る (flake.lock の narHash と取り違えた前例あり)。
     extra-trusted-public-keys = [
       "cache.numtide.com-1:bf1jVIGj3GBKisevCptOlNXMoMnPkKlkh89RqPsNJWo="
       "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
