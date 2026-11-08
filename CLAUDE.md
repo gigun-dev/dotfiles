@@ -81,6 +81,7 @@ docs/                          # 現行運用・ADR
 - `.zshrc` は `home.activation` で強制リンク（`programs.zsh` は home-manager 側では使わない）
 - **AI ツール**: claude-code は ryoppippi overlay。codex/opencode 等 llm-agents のツールは **overlay を使わず** `inputs.llm-agents.packages.${system}.*` を `extraSpecialArgs`（引数名 `llmAgents`）で home モジュールへ渡す。overlay 経由だと我々の nixpkgs に対して再ビルドされ numtide キャッシュ（llm-agents 自身の nixpkgs でビルド）にヒットせず毎回ソースビルドになる（codex の Rust フルビルドが顕著）。standalone 参照ならキャッシュ直ヒット
 - **キャッシュヒットを壊さない**: overlay で base パッケージを `overrideAttrs` すると上流キャッシュのハッシュと不一致になり、そのパッケージと依存元が全てソースビルドになる。zsh など基盤パッケージは公式 nixpkgs を使い、override を依存グラフへ波及させない
+- **flake は `.#` (git+file) で評価する**: `path:.` や `builtins.getFlake (toString ./.)` は追跡外のファイル (`tofu/.terraform`、`.venv` など) ごとリポジトリ全体を store に写し、1 回で約 816MB のゴミを作る (2026-11-08 に 8 個見つかった)
 - **個人キャッシュ**: `nix run .#switch`/`update` は Cachix へ自動送信しない。既存の substituter / trusted keys と `cachix` ツールは維持する。送信者・対象・公開範囲は明示的な送信前に別途判断し、通常適用に全 store 送信を混ぜない。
 
 ## Zsh 規約
