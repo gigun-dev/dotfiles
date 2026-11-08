@@ -33,7 +33,7 @@
 | ID | 資格情報クラス | 主な利用主体 | 判断 | 現在の根拠 | 次の操作 |
 |---|---|---|---|---|---|
 | C01 | 対話用 code-hosting 認証 | 人、同一 UID の対話 agent | 権限縮小 | 対話操作と push・管理操作の境界が未分離 | 無人用と分け、鍵追加・管理・書込権限を用途ごとに確認する |
-| C02 | 無人更新用 code-hosting 認証 | 無人更新 service | 更新 | 対象と操作を限定した専用 credential への置換が未完 | 更新提案、PR、CI確認だけで受入し、旧 credential を失効する |
+| C02 | 無人更新用 code-hosting 認証 | 無人更新 service | 更新 | hostに置く長期credentialとproviderがjobごとに発行する短命workflow tokenはlifecycleが異なる。前者の専用化が未完 | 更新提案、PR、CI確認だけで受入し、旧 credential を失効する。workflow tokenをhostへ複製しない |
 | C03 | hardware-backed Git identity | 人、同一 UID の Git process | 継続 | 持出不能な署名・push identity を使う方針 | provider 登録と実際の署名・push用途を値なしで再確認する |
 | C04 | file-based SSH identity 群 | 人、同一 UID の process | 更新 | 認証、復号、通知など複数用途の兼用が残る | 用途別に分離し、受入側から旧公開鍵を外してから local key を削除する |
 | C05 | 無人 host の復号 identity | 無人 host、root service | 権限縮小 | 無人秘密の復号には必要だが、人用秘密の受信者にもなり得る | 人用と無人用の暗号文を分け、不要な recipient を外して rekey する |
@@ -41,20 +41,40 @@
 | C07 | IaC control-plane token 群 | 人が実行する IaC process | 権限縮小 | 複数 provider・resource の長期 credential を扱う | resource、action、IP、TTL を限定し、人用 recipient だけにする |
 | C08 | state backend credential と暗号化材料 | 人が実行する IaC process | 更新 | state の読み書きと復旧に必要 | read/write、再暗号化、backup、restore を限定成果物で確認する |
 | C09 | 無人 cloud service API credential | 無人 service | 権限縮小 | service 継続に必要だが権限・期限の live確認が必要 | service 専用の resource・action・TTL へ絞り、health確認後に旧 token を失効する |
-| C10 | tunnel・接続 broker credential | root または専用 service | 継続 | 無人接続経路の起動に必要 | connector、複製先、rotate時の停止範囲を非公開台帳で確認する |
+| C10 | tunnel・接続 broker credential | root または専用 service | 継続 | tunnel connectorとoverlay networkのnode identity・再参加credentialはlifecycleが異なる | subtypeごとに複製先、期限、失効・再参加、rotate時の停止範囲を非公開台帳で確認する |
 | C11 | OAuth application runtime secret | 専用 application service | 継続 | application の認可フローで利用 | owner、callback、consumer、rotation日を非公開台帳で確認する |
-| C12 | ダウンロードされた OAuth secret の複製 | なし、または未確認 | 削除 | runtime正本とは別の local copy が残る可能性 | client metadataを照合し、不要clientは発行元削除、利用中ならduplicateだけを削除する |
-| C13 | ダウンロードされた application private key | なし、または未確認 | 削除 | repo内に利用経路を確認できない | installationとconsumerを確認し、発行元でkeyを削除してからlocal copyを削除する |
+| C12 | ダウンロードされた OAuth secret の複製 | なし、または未確認 | 更新 | repo内consumerは見つからないが、provider上のruntime clientとの同一性は未確認 | client metadataを照合し、不使用なら削除、利用中ならruntime正本を確認してduplicateだけを削除する |
+| C13 | ダウンロードされた application private key | なし、または未確認 | 更新 | repo内consumerは見つからないが、provider上のinstallation・active keyは未確認 | installationとconsumerを確認し、不使用なら発行元keyを失効してからlocal copyを削除する |
 | C14 | 通知 credential | 人の開発環境、無人 service | 更新 | 複数主体の共有と旧復号鍵依存が残る | 利用主体ごとに分離し、旧 identity への依存を外す |
 | C15 | model bridge・API credential | 専用 user service | 継続 | service起動に必要 | service専用権限、課金上限、期限、rotation受入を確認する |
 | C16 | observability・管理 service の秘密 | 専用 service、初期管理者 | 更新 | runtime秘密と初期credentialが同じ管理単位に混在する | runtime暗号化材料、初期admin、agent tokenを別credentialとして管理する |
 | C17 | CLI の可変 OAuth session | 対話 CLI、同一 UID の service | 継続 | CLI自身がrefreshするため宣言配布しない | provider revoke、service停止、再login、restartの順を確認する |
-| C18 | binary cache write credential | 明示送信 process | 削除 | 通常適用からの自動送信は停止済み | 書込用途がなければ発行元で失効し、local copyを削除する |
+| C18 | binary cache write credential | 明示送信 process | 更新 | 通常適用からの自動送信は停止済みだが、今後送信しない方針は未決定 | 送信しない案を決めた場合だけ発行元で失効し、local copyを削除する |
 | C19 | 開発 project の API key・`.env` | 人が起動する process、子 process | 権限縮小 | projectごとの権限・期限・課金上限・agent露出が未整理 | 1 projectで保護方式を検証し、project単位でprivate台帳へ登録する |
 | C20 | account passkey・security key・recovery credential | 人、予備 hardware | 継続 | 主要accountへの登録記録がある | 2本の登録、recovery経路、紛失時の失効順を値なしで定期確認する |
-| C21 | provider-managed log delivery credential | provider-managed service | 継続 | localに秘密を増やさない方針 | 保存先限定、翌日到着、失効方法を確認する |
+| C21 | provider-managed log delivery credential | provider-managed service | 更新 | localに秘密を増やさない方針だが、jobの存在・保存先・翌日到着は未受入 | 保存先限定、翌日到着、失効方法を確認してから継続へ移す |
 | C22 | build・sign・publish credential | GUI session、署名主体、publisher | 更新 | 工程と利用主体の分離が未完 | identity、artifact hash、承認点、配布先権限を工程別に分ける |
 | C23 | password manager・keychain・plugin OAuth の未分類項目 | 人、同一 UID の application | 更新 | 導入済み機能と実際の移行・連携状態が一致していない | provider・用途単位にprivate台帳へ登録し、使途不明項目を削除候補にする |
+
+## 未処理todoとの対応
+
+公開台帳のクラスは実credentialと1対1ではない。同じクラスに複数のconsumerやcredentialがある場合、
+非公開正本で実体ごとに分け、次の既存todoへ結ぶ。
+
+| クラス | 主なtodo | 残る境界 |
+|---|---|---|
+| C01, C03, C04 | 0176, 0174, 0098 | 対話認証、hardware-backed identity、旧file keyの役割分解 |
+| C02 | 0002, 0164, 0070 | 無人更新identity、Actions移行、green/red/pending判定 |
+| C05, C06, C14 | 0174, 0109, 0098 | host / human / recovery / 通知recipientとcredentialの分離 |
+| C07, C08 | 0096, 0101, 0174 | IaC権限・recipientとstateの限定backup / restore。restore受入は実credential分解時に独立した次操作へする |
+| C09, C11, C15, C16, C17, C23 | 0101, 0108, 0099, 0082, 0086, 0089, 0159 | umbrella classのまま完了扱いにせず、private台帳作成時にconsumer単位の次操作へ分ける |
+| C10 | 0171, 0101 | tunnel connectorとoverlay nodeの期限・失効・再参加を分ける |
+| C12, C13 | 0108 | provider metadata照合後にだけ継続または削除へ確定する |
+| C18 | 0100 | binary cacheへ送信するかを先に決める |
+| C19 | 0099, 0109 | 1 projectで保護方式、権限、期限、課金上限を受入する |
+| C20 | 0096, 0102 | 予備鍵、別端末、紛失・侵害時の失効順を確認する |
+| C21 | 0094 | provider-managed deliveryと翌日到着を確認する |
+| C22 | 0122 | build / sign / publishの主体とcredentialを分ける |
 
 ## 公開台帳と非公開正本の境界
 
