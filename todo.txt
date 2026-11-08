@@ -51,3 +51,8 @@
 2026-10-29 mini の checkout 同期を実機設定の適用と分離し、安全な fast-forward と失敗時の停止を検証する +mini by:me id:0116 @wip
 2026-11-01 公開前監査の未確認範囲（非公開backup、最新refs、PR review/添付、全Actions/cache、Release編集履歴）を確認し公開判断を残す +security see:docs/publication-audit-2026-11-01.md by:codex id:0121
 2026-11-01 miniのsudo一覧は認証要求で未確認のため、本人が一覧を確認して最小権限分類だけ返す手順を決める。自動認証や拒否経路への切替はしない +security @user see:docs/security-access-boundaries.md by:codex id:0122
+2026-11-08 +mini mini の macOS の役割 (iPhone バックアップ・画面共有・Xcode・Lima ホスト・常駐サービス) が使うコマンドを棚卸しし、それだけを前提にした最小のシェル設定を Ansible の shell 対象として用意する。check --diff で mini の差分を確かめ、実適用は承認を得てから行う see:docs/adr/0014-shrink-mini-macos-shell-before-removing-nix.md by:claude id:0126
+2026-11-08 +mini 凍結 generation の store を参照するものを棚卸しして置き換える: per-user profile の CLI、NotchBar と mugi-claw の LaunchAgent、システム側の zsh 設定 (/etc/zshenv は nix-darwin の生成物) see:docs/adr/0014-shrink-mini-macos-shell-before-removing-nix.md by:claude dep:0126 id:0127
+2026-11-08 +mini 参照が無くなったことを確かめてから mini の macOS から Nix を撤去する (nix-daemon・nix-gc・activate-system・darwin-store の LaunchDaemon と /etc の生成物、store。sudo が要る) @user see:docs/adr/0014-shrink-mini-macos-shell-before-removing-nix.md by:me dep:0127 id:0128
+2026-11-08 +iterm2 iTerm2 を終了してメモリ上の設定を plist に書き出させ、Bidi・ホットキーの差分を git restore で捨ててから起動し直す。iTerm2 の中のセッションは全部止まるので、T3 Code など別のアプリから行う @user by:me id:0129
+2026-11-08 +wsl WSL の新しいシェルで home-manager の session 変数 (AGY_CLI_DISABLE_AUTO_UPDATE・SLACK_SKIP_UPDATE・LS_COLORS) が入ることを確かめる。.zshenv は gcroots の hm-session-vars.sh を読む (mini-vm では確認済み) @device by:claude id:0130
