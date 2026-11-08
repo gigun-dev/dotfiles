@@ -87,12 +87,23 @@ ensure_installed() {
 #
 # zoxide も同じく chpwd で `zoxide add` を fork するが、`z`/`zi` 自体は
 # fork なしで動くため、init 出力から chpwd 登録行だけを除いて使う。
+# init キャッシュの再生成判定。nix store のファイルは mtime が 1 固定で `-nt` では版上げを
+# 検知できない (2026-11 修正)。キャッシュ 1 行目に生成元の実体パス (:A) を記録し、
+# 変わったら再生成する。`read` と `:A` は組み込みで fork しない。store 外 (brew 等で
+# 上書き更新) は mtime 比較も併用する。
+_init_cache_stale() {
+  local cache=$1 bin=${2:A} first
+  [[ -r $cache ]] || return 0
+  IFS= read -r first < "$cache"
+  [[ $first != "# src: $bin" || $bin -nt $cache ]]
+}
 _zoxide_cache="${XDG_CACHE_HOME}/zsh/zoxide.zsh"
 if command -v zoxide &>/dev/null; then
-  if [[ ! -r "$_zoxide_cache" || "${commands[zoxide]}" -nt "$_zoxide_cache" ]]; then
+  if _init_cache_stale "$_zoxide_cache" "${commands[zoxide]}"; then
     mkdir -p "${_zoxide_cache:h}"
     # `add-zsh-hook chpwd __zoxide_hook` を sed で除去 → 自動 add を無効化
-    zoxide init zsh | sed '/add-zsh-hook .* __zoxide_hook/d' > "$_zoxide_cache"
+    { print -r "# src: ${commands[zoxide]:A}"
+      zoxide init zsh | sed '/add-zsh-hook .* __zoxide_hook/d'; } > "$_zoxide_cache"
     zcompile "$_zoxide_cache"
   fi
   source "$_zoxide_cache"
@@ -101,12 +112,12 @@ unset _zoxide_cache
 
 # git-wt: `git wt` が worktree へ cd するための git ラッパー関数。
 # 未導入なら静かにスキップ (nix なしでも壊れない)。init 出力は zoxide と同じく
-# バイナリが新しくなったときだけ再生成して zcompile する。
+# バイナリの実体パスが変わったときだけ再生成して zcompile する。
 _gitwt_cache="${XDG_CACHE_HOME}/zsh/git-wt.zsh"
 if command -v git-wt &>/dev/null; then
-  if [[ ! -r "$_gitwt_cache" || "${commands[git-wt]}" -nt "$_gitwt_cache" ]]; then
+  if _init_cache_stale "$_gitwt_cache" "${commands[git-wt]}"; then
     mkdir -p "${_gitwt_cache:h}"
-    git-wt --init zsh > "$_gitwt_cache"
+    { print -r "# src: ${commands[git-wt]:A}"; git-wt --init zsh; } > "$_gitwt_cache"
     zcompile "$_gitwt_cache"
   fi
   source "$_gitwt_cache"
