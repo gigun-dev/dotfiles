@@ -31,6 +31,7 @@ assert enabled.services.github-runners.dotfiles-ci.ephemeral;
 assert
   settings.BindReadOnlyPaths == [
     "${pkgs.coreutils}/bin/mv:/bin/mv"
+    "${pkgs.coreutils}/bin/dirname:/usr/bin/dirname"
     "${pkgs.gnutar}/bin/tar:/usr/bin/tar"
   ];
 assert builtins.all (path: builtins.elem path settings.InaccessiblePaths) [

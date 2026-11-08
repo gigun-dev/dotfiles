@@ -8,6 +8,11 @@
 }:
 let
   cfg = config.dotfiles.reviewedCiRunner;
+  macosPortableCommandBinds = [
+    "${pkgs.coreutils}/bin/mv:/bin/mv"
+    "${pkgs.coreutils}/bin/dirname:/usr/bin/dirname"
+    "${pkgs.gnutar}/bin/tar:/usr/bin/tar"
+  ];
 in
 {
   options.dotfiles.reviewedCiRunner = {
@@ -47,12 +52,9 @@ in
         MemoryMax = "4G";
         CPUQuota = "200%";
         # The portable mini-macos fixtures exercise the absolute command paths
-        # used by the real macOS target.  Expose only those two tools inside the
+        # used by the real macOS target.  Expose only those commands inside the
         # runner's mount namespace instead of adding an FHS layer to mini-vm.
-        BindReadOnlyPaths = [
-          "${pkgs.coreutils}/bin/mv:/bin/mv"
-          "${pkgs.gnutar}/bin/tar:/usr/bin/tar"
-        ];
+        BindReadOnlyPaths = macosPortableCommandBinds;
         InaccessiblePaths = lib.mkAfter [
           "-/run/docker.sock"
           "-/var/run/docker.sock"
