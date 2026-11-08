@@ -20,6 +20,19 @@ for result in "${CI_CHANGES_RESULT:-}" "${CI_CHECK_RESULT:-}" "${CI_BUILD_RESULT
   esac
 done
 
+case "${CI_SECRET_SCAN_RESULT:-}" in
+  success | failure | cancelled | skipped) ;;
+  *)
+    echo "required gate: missing or invalid secret scan result" >&2
+    exit 1
+    ;;
+esac
+
+if [ "$CI_SECRET_SCAN_RESULT" != success ]; then
+  echo "required gate: current-tree secret scan did not succeed" >&2
+  exit 1
+fi
+
 if [ "$CI_CHANGES_RESULT" != success ]; then
   echo "required gate: change detection did not succeed" >&2
   exit 1

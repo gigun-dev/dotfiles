@@ -56,7 +56,7 @@ esac''',
         workflow = (ROOT / ".github/workflows/nix-build.yaml").read_text()
         commands = [line.strip() for line in workflow.splitlines()
                     if line.strip().startswith("printf 'NIX_CONFIG<<EOF")]
-        self.assertEqual(len(commands), 2)
+        self.assertEqual(len(commands), 3)
         output = Path(self.tmp.name) / "github-env"
         for command in commands:
             output.write_text("")
@@ -71,8 +71,18 @@ esac''',
         selector = ("vars.DOTFILES_LINUX_CI == 'self-hosted' && "
                     "vars.DOTFILES_CI_REVIEWED_SHA != '' && "
                     "github.sha == vars.DOTFILES_CI_REVIEWED_SHA")
-        self.assertEqual(workflow.count(selector), 4)
+        self.assertEqual(workflow.count(selector), 5)
         self.assertIn("  nix-ci-gate:\n", workflow)
+        self.assertIn("  secret-scan:\n", workflow)
+
+    def test_secret_scan_is_read_only_and_required_by_the_gate(self):
+        workflow = (ROOT / ".github/workflows/nix-build.yaml").read_text()
+        scan = workflow.split("  secret-scan:\n", 1)[1].split("\n  check:\n", 1)[0]
+        gate = workflow.split("  nix-ci-gate:\n", 1)[1]
+        self.assertIn("persist-credentials: false", scan)
+        self.assertIn("nix run .#gitleaks -- dir . --redact=100 --no-banner", scan)
+        self.assertIn("      - secret-scan\n", gate)
+        self.assertIn("CI_SECRET_SCAN_RESULT: ${{ needs.secret-scan.result }}", gate)
 
     def test_every_always_on_linux_workflow_can_use_the_reviewed_runner(self):
         selector = ("vars.DOTFILES_LINUX_CI == 'self-hosted' && "

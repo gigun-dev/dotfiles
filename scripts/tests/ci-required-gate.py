@@ -13,7 +13,7 @@ RESULTS = ("success", "failure", "cancelled", "skipped")
 
 class RequiredGateTests(unittest.TestCase):
     def run_gate(self, *, event="pull_request", changed="true", changes="success",
-                 check="success", build="success"):
+                 check="success", build="success", secret_scan="success"):
         env = {
             "PATH": os.environ.get("PATH", ""),
             "CI_EVENT_NAME": event,
@@ -21,6 +21,7 @@ class RequiredGateTests(unittest.TestCase):
             "CI_CHANGES_RESULT": changes,
             "CI_CHECK_RESULT": check,
             "CI_BUILD_RESULT": build,
+            "CI_SECRET_SCAN_RESULT": secret_scan,
         }
         return subprocess.run(
             [os.environ.get("TEST_SH", "/bin/sh"), str(SCRIPT)],
@@ -42,6 +43,15 @@ class RequiredGateTests(unittest.TestCase):
             with self.subTest(changes=changes):
                 expected = changes == "success"
                 self.assertEqual(self.run_gate(changes=changes).returncode == 0, expected)
+
+    def test_secret_scan_must_succeed(self):
+        for secret_scan in RESULTS:
+            with self.subTest(secret_scan=secret_scan):
+                expected = secret_scan == "success"
+                self.assertEqual(
+                    self.run_gate(secret_scan=secret_scan).returncode == 0,
+                    expected,
+                )
 
     def test_non_nix_change_accepts_only_deliberate_skips(self):
         for check in RESULTS:
@@ -66,6 +76,7 @@ class RequiredGateTests(unittest.TestCase):
             ("changes", ""),
             ("check", "timed_out"),
             ("build", ""),
+            ("secret_scan", ""),
         ):
             with self.subTest(key=key):
                 self.assertNotEqual(self.run_gate(**{key: value}).returncode, 0)

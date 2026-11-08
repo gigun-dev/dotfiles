@@ -1,6 +1,6 @@
 # Linux CI の一時的な切り替え案
 
-通常は GitHub-hosted を使う。本人が内容を確認した commit に限り、repository variable `DOTFILES_LINUX_CI=self-hosted` と `DOTFILES_CI_REVIEWED_SHA=<完全な commit SHA>` を設定すると、Nix CI の `changes` / `check` / `build` / `nix-ci-gate`、fzf recipe test、mini Ansible portableは専用 label `dotfiles-reviewed` の runner を選ぶ。PR は GitHub が生成する merge commit SHA、push / workflow_dispatch は実行対象 SHA を照合する。PR の head や base が進むと merge commit も変わるため再確認が必要。値が一致しなければ hosted を選ぶ。自動切り替えではない。
+通常は GitHub-hosted を使う。本人が内容を確認した commit に限り、repository variable `DOTFILES_LINUX_CI=self-hosted` と `DOTFILES_CI_REVIEWED_SHA=<完全な commit SHA>` を設定すると、Nix CI の `changes` / `secret-scan` / `check` / `build` / `nix-ci-gate`、fzf recipe test、mini Ansible portableは専用 label `dotfiles-reviewed` の runner を選ぶ。PR は GitHub が生成する merge commit SHA、push / workflow_dispatch は実行対象 SHA を照合する。PR の head や base が進むと merge commit も変わるため再確認が必要。値が一致しなければ hosted を選ぶ。自動切り替えではない。
 
 ## mini-vm の候補
 
@@ -16,7 +16,7 @@ macOS ランナーを使う `macos-regressions.yaml` と `mini-ansible` の `nat
 
 ## 切り替えと戻し方
 
-対象 SHA と他の待機 job を確認し、2 変数を設定してから新しい run を起動する。既に待機中の job は変数変更で自動的に振り直されない。短命 token を用意してrunnerを起動し、job終了後の登録解除を確認する。続くNixの`check` / `build`、fzf recipe test、mini Ansible portableはどれが先に割り当てられてもよいが、同時実行せず、一つずつ手動で再登録する。最後に`nix-ci-gate`用にも再登録する。各jobの終了と登録解除を確認し、tokenが期限切れなら再発行する。いずれかのjobが失敗した場合も後始末する。登録・ユーザー作成・systemd適用・変数変更は別途承認する。検証後はserviceを停止し、残ったrunnerの登録を解除、2変数を元に戻し、専用token・state・work・logを処理する。
+対象 SHA と他の待機 job を確認し、2 変数を設定してから新しい run を起動する。既に待機中の job は変数変更で自動的に振り直されない。短命 token を用意してrunnerを起動し、job終了後の登録解除を確認する。続くNixの`secret-scan` / `check` / `build`、fzf recipe test、mini Ansible portableはどれが先に割り当てられてもよいが、同時実行せず、一つずつ手動で再登録する。最後に`nix-ci-gate`用にも再登録する。各jobの終了と登録解除を確認し、tokenが期限切れなら再発行する。いずれかのjobが失敗した場合も後始末する。登録・ユーザー作成・systemd適用・変数変更は別途承認する。検証後はserviceを停止し、残ったrunnerの登録を解除、2変数を元に戻し、専用token・state・work・logを処理する。
 
 2026-11-09 に commit `8e9cba03` の workflow_dispatch (run 42495442825) で4回の登録と解除を実測した。`changes` と `build` は成功し、`check` の既存fixture失敗を `nix-ci-gate` がfailureへ集約した。各job後にrepository runnerが0へ戻ること、最後にvariables・token・state・work・logを削除し、mini-vmを既知のboot profileへ戻すことも確認した。これは失敗を成功扱いしない経路の受入であり、全job greenの受入はfixture修正後に別runで行う。
 

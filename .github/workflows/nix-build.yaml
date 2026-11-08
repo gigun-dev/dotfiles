@@ -74,6 +74,28 @@ jobs:
               - '.github/actions/setup-nix/**'
               - '.github/actions/check-linux-runner/**'
 
+  # pre-commit only sees staged changes. This independent read-only job also covers
+  # bot/API changes and makes the required gate reject an unscanned current tree.
+  secret-scan:
+    runs-on: ${{ fromJSON(vars.DOTFILES_LINUX_CI == 'self-hosted' && vars.DOTFILES_CI_REVIEWED_SHA != '' && github.sha == vars.DOTFILES_CI_REVIEWED_SHA && '["self-hosted", "linux", "x64", "dotfiles-reviewed"]' || '["ubuntu-latest"]') }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Configure reviewed runner Nix client
+        if: ${{ runner.environment == 'self-hosted' }}
+        run: |
+          printf 'NIX_CONFIG<<EOF\naccept-flake-config = true\nmax-jobs = 1\ncores = 2\nEOF\n' >> "$GITHUB_ENV"
+      - uses: ./.github/actions/check-linux-runner
+        if: ${{ runner.environment == 'self-hosted' }}
+      - uses: ./.github/actions/setup-nix
+        if: ${{ runner.environment != 'self-hosted' }}
+        with:
+          store-cache: 'false'
+      - name: Scan current tree for secrets
+        run: nix run .#gitleaks -- dir . --redact=100 --no-banner
+
   check:
     needs: changes
     if: needs.changes.outputs.nix == 'true' || github.event_name == 'workflow_dispatch'
@@ -159,6 +181,7 @@ jobs:
   nix-ci-gate:
     needs:
       - changes
+      - secret-scan
       - check
       - build
     if: ${{ always() }}
@@ -176,4 +199,5 @@ jobs:
           CI_CHANGES_RESULT: ${{ needs.changes.result }}
           CI_CHECK_RESULT: ${{ needs.check.result }}
           CI_BUILD_RESULT: ${{ needs.build.result }}
+          CI_SECRET_SCAN_RESULT: ${{ needs.secret-scan.result }}
         run: sh scripts/ci-required-gate.sh

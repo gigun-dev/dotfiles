@@ -765,7 +765,7 @@ in
     accessTeamDomain = "https://gigun.cloudflareaccess.com";
     # tofu の cloudflare_zero_trust_access_application.mcp_login の aud。秘密ではない (全 JWT に載る)。
     # 指定しないと同じ team の他アプリ向け JWT も通る。
-    accessAud = "854d479bbe5dcb56a34d6263667146c0be4048c5ee33fb561916df1adbff093e";
+    accessAud = "854d479bbe5dcb56a34d6263667146c0be4048c5ee33fb561916df1adbff093e"; # gitleaks:allow -- public JWT audience, not a credential
     notifier = "${barkNotifyUnitFailure}";
   };
 

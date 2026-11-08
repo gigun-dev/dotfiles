@@ -14,6 +14,12 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def fixture_secret(label, length):
+    """Create length-sensitive dummy credentials without storing token-like literals."""
+    value = f"fixture-{label}-" + "x" * length
+    return value[:length]
+
+
 class Routing(unittest.TestCase):
     def test_transports(self):
         for custom in (False, True, "insecure"):
@@ -25,7 +31,10 @@ class Routing(unittest.TestCase):
                     (base / '.ssh').mkdir()
                     (base / 'secrets/bark-env.age').touch()
                     (base / '.ssh/id_ed25519').touch()
-                    env = dict(os.environ, HOME=str(base), FIXTURE=str(base), BARK_DEVICE_KEY='fixture-key', BARK_ENCRYPT_KEY='0123456789abcdefABCDEFGHIJKLMNOP', BARK_ENCRYPT_IV='i' * 16)
+                    env = dict(os.environ, HOME=str(base), FIXTURE=str(base),
+                               BARK_DEVICE_KEY=fixture_secret('device', 24),
+                               BARK_ENCRYPT_KEY=fixture_secret('encryption', 32),
+                               BARK_ENCRYPT_IV='i' * 16)
                     if custom:
                         env['BARK_PUSH_URL'] = ('http://' if custom == 'insecure' else 'https://') + 'fixture.invalid/private/key'
                     else:
@@ -75,7 +84,8 @@ class Routing(unittest.TestCase):
                     self.assertEqual(result.returncode, 0, diagnostic)
                     self.assertTrue(request_path.is_file(), diagnostic)
                     request = json.loads(request_path.read_text())
-                    self.assertEqual(request[-1], env.get('BARK_PUSH_URL', 'https://api.day.app/fixture-key'))
+                    self.assertEqual(request[-1], env.get('BARK_PUSH_URL',
+                                                          'https://api.day.app/' + env['BARK_DEVICE_KEY']))
                     self.assertTrue(any(arg.startswith('ciphertext=') for arg in request))
                     self.assertIn('iv=' + 'i' * 16, request)
                     self.assertNotIn('https://fixture.invalid', result.stdout + result.stderr)
@@ -128,9 +138,6 @@ class HookJobMode(unittest.TestCase):
 class UnitFailureBody(unittest.TestCase):
     """Run the real helper with stub journalctl/systemctl/curl and inspect the decrypted-before payload."""
 
-    KEY = '0123456789abcdefABCDEFGHIJKLMNOP'
-    DEVICE = 'device-key-secret'
-
     def run_helper(self, unit, journal, props='Result=exit-code\nExecMainStatus=1\n', body_file=None, url=None, full=False):
         source = (ROOT / 'nix/modules/nixos/mini-vm.nix').read_text()
         body = source.split('barkNotifyUnitFailure = pkgs.writeShellScript "bark-notify-unit-failure" \'\'\n', 1)[1].split("\n  \'\';", 1)[0]
@@ -152,7 +159,10 @@ class UnitFailureBody(unittest.TestCase):
             for name, text in stubs.items():
                 (base / name).write_text(text)
                 (base / name).chmod(0o755)
-            env = dict(os.environ, FIXTURE=str(base), LC_ALL='en_US.UTF-8', BARK_DEVICE_KEY=self.DEVICE, BARK_ENCRYPT_KEY=self.KEY, BARK_ENCRYPT_IV='i' * 16)
+            env = dict(os.environ, FIXTURE=str(base), LC_ALL='en_US.UTF-8',
+                       BARK_DEVICE_KEY=fixture_secret('device', 24),
+                       BARK_ENCRYPT_KEY=fixture_secret('encryption', 32),
+                       BARK_ENCRYPT_IV='i' * 16)
             env.pop('BARK_PUSH_URL', None)
             args = ['bash', str(base / 'helper'), unit, 'title']
             if body_file is not None:
@@ -163,7 +173,7 @@ class UnitFailureBody(unittest.TestCase):
             result = subprocess.run(args, env=env, capture_output=True, text=True, timeout=10)
             self.assertEqual(result.returncode, 0, result.stderr)
             payload = json.loads((base / 'payload').read_text())
-            for secret in (self.KEY, self.DEVICE):
+            for secret in (fixture_secret('encryption', 32), fixture_secret('device', 24)):
                 self.assertNotIn(secret, payload['body'])
                 self.assertNotIn(secret, result.stdout + result.stderr)
             self.assertEqual(payload['title'], 'title')

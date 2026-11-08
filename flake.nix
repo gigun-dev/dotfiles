@@ -401,7 +401,7 @@
             gitleaks = {
               type = "app";
               program = "${pkgs.gitleaks}/bin/gitleaks";
-              meta.description = "Scan staged changes for secrets";
+              meta.description = "Scan repository content for secrets";
             };
 
             switch = mkApp "switch" ''
