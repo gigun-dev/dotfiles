@@ -1,4 +1,5 @@
 {
+  config,
   pkgs,
   lib,
   ...
@@ -12,6 +13,7 @@ in
     onActivation.cleanup = "uninstall";
 
     taps = [
+      "fayazara/tap" # screendrop の cask
       "k1LoW/tap"
       "manaflow-ai/cmux"
     ]
@@ -50,6 +52,16 @@ in
       "figma"
       "fiji" # ImageJ ディストリ (Fiji Is Just ImageJ)。ARM ネイティブ。素の imagej cask は Gatekeeper 不通過で deprecated のため不採用
       "fork"
+      # 作者の tap の cask (auto_updates true なので更新は Sparkle 任せ)。~/Applications に置く:
+      # Sparkle が bundle を差し替えるので親がユーザー所有なら管理者認証が要らず、以前の
+      # 置き場所とも同じ。~/Applications/Screendrop.app が既にある場合 (activation 版の残り)、
+      # brew bundle は install 時に既定で --adopt を付けるので、入れ直さず brew 管理へ取り込む。
+      {
+        name = "fayazara/tap/screendrop";
+        args = {
+          appdir = "/Users/${config.system.primaryUser}/Applications";
+        };
+      }
       "google-chrome"
       "iterm2"
       "karabiner-elements"
