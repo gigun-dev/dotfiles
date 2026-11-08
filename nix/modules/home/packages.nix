@@ -36,6 +36,7 @@
       # llm-agents は overlay 経由だと自 nixpkgs で再ビルドされ numtide キャッシュに
       # ヒットしないため standalone packages を直接参照 (llmAgents = extraSpecialArgs)。
       llmAgents.opencode
+      llmAgents.pi # Pi coding agent。T3 Code の providerInstances からも参照
       # cclens: Claude Code のセッション transcript を解析する診断ツール (Rust)。
       # llm-agents と同じく follows せず standalone 参照で cclens.cachix.org に当てる
       cclens
