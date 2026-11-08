@@ -140,6 +140,48 @@
             }/bin/${name}";
           };
 
+          # onActivation.cleanup = "uninstall" は、適用する Brewfile に無い cask / formula / tap を
+          # switch の最中に黙って消す。何が消えるかを事前に見えるようにするため、
+          # これから適用する Brewfile に `brew bundle cleanup` (dry-run) を当て、空でなければ
+          # 一覧を出して止める。続行するなら DOTFILES_ALLOW_BREW_CLEANUP=1。
+          # 置き場所を switch app にした理由: darwin-rebuild の activation 内は sudo 下で
+          # 対話もできず、止めても switch が部分適用されるだけ。update 系も apply_switch を
+          # 通るので 1 箇所で全経路を守れる。brew の無い経路 (Linux / mini-vm / WSL) は
+          # 別の applySwitch 分岐なので何もしない。brew 自体が無い darwin も素通り。
+          # Brewfile の `trusted: true` は install 時にしか trust store へ反映されず、
+          # cleanup 単体は未 trust の tap で落ちる。本物の trust store は触らず、
+          # 一時の XDG_CONFIG_HOME へ写して同じ trust を当てた上で判定する。
+          brewCleanupGuard =
+            let
+              brewfile =
+                pkgs.writeText "Brewfile"
+                  inputs.self.darwinConfigurations."${username}-${system}".config.homebrew.brewfile;
+            in
+            ''
+              brew_cleanup_guard() {
+                local brew_bin="" tmp out
+                for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+                  if [ -x "$b" ]; then brew_bin="$b"; break; fi
+                done
+                [ -n "$brew_bin" ] || return 0
+                tmp=$(mktemp -d)
+                mkdir -p "$tmp/homebrew"
+                cp "''${XDG_CONFIG_HOME:+$XDG_CONFIG_HOME/homebrew}''${XDG_CONFIG_HOME:-$HOME/.homebrew}/trust.json" "$tmp/homebrew/" 2>/dev/null || true
+                sed -nE 's/^brew "([^"]+\/[^"]+)".*trusted: true.*/\1/p' ${brewfile} \
+                  | while read -r n; do XDG_CONFIG_HOME="$tmp" "$brew_bin" trust --formula "$n" >/dev/null 2>&1 || true; done
+                sed -nE 's/^cask "([^"]+\/[^"]+)".*trusted: true.*/\1/p' ${brewfile} \
+                  | while read -r n; do XDG_CONFIG_HOME="$tmp" "$brew_bin" trust --cask "$n" >/dev/null 2>&1 || true; done
+                out=$(XDG_CONFIG_HOME="$tmp" HOMEBREW_NO_AUTO_UPDATE=1 "$brew_bin" bundle cleanup --file=${brewfile} 2>&1) || true
+                rm -rf "$tmp"
+                if [ -n "$out" ] && [ "''${DOTFILES_ALLOW_BREW_CLEANUP:-}" != 1 ]; then
+                  echo "error: この switch は Brewfile に無い brew 項目を uninstall / untap する:" >&2
+                  echo "$out" >&2
+                  echo "消してよければ DOTFILES_ALLOW_BREW_CLEANUP=1 を付けて再実行。残すなら nix/modules/darwin/homebrew.nix に宣言する。" >&2
+                  return 1
+                fi
+              }
+            '';
+
           # switch と update 系が共有する適用本体。
           # darwin: darwin-rebuild で system + home 両方適用
           # linux:  Linux は 2 種類ある: WSL (home-manager standalone のみ) と
@@ -152,7 +194,9 @@
           applySwitch =
             if pkgs.stdenv.hostPlatform.isDarwin then
               ''
+                ${brewCleanupGuard}
                 apply_switch() {
+                  brew_cleanup_guard || return
                   sudo ${inputs.nix-darwin.packages.${system}.darwin-rebuild}/bin/darwin-rebuild \
                     switch --flake ".#${username}-${system}" "$@" || return
                 }
