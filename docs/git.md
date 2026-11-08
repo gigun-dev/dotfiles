@@ -151,7 +151,7 @@ gh run view <run-id> --log-failed
 
 - commit 前に `git status --short --untracked-files` (`=no` にしない) と `git diff --cached --stat` で全体を確認する。
 - switch / build のためだけに stage されたファイルが残っていることが多い。単位の外は unstage する。
-- 1 ファイルに別々の変更が混ざっていたら `git add -p` で分ける (エージェントは答えを stdin で渡す)。
+- ステージは path を明示する (`git add <path>`)。1 ファイルの一部だけなら patch を作って `git apply --cached` で入れる。`git add -p` は対話の答え違いで意図しない hunk が入るので使わない。`git add -A` / `.` / `-u`、`git commit -a` も使わない (ryoppippi/dotfiles の commit skill と同じ)。
 - `--no-verify` で hook を飛ばさない。
 - 単独で revert できる最小の単位に分けて commit する。push 済みの commit の修正は追加 commit にし、amend は未 push のものだけ。
 
