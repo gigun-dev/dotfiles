@@ -137,6 +137,7 @@ in
         "github-auth-diagnose"
         "linux-ci-runner"
         "private-restore"
+        "sops-exec-env"
         "agent-instructions"
         "claude-user-settings"
         "codex-bridge-refresh"
@@ -146,6 +147,8 @@ in
         "activation-inputs"
       ]
       {
+        TEST_SOPS = lib.getExe pkgs.sops;
+        TEST_AGE_KEYGEN = "${pkgs.age}/bin/age-keygen";
         # 同じsystemのfixtureからactivation textを取る。mini-vmのx86_64-linux
         # generationを参照すると、Darwin checkがLinux derivationをbuildしようとする。
         CLAUDE_ACTIVATION = pkgs.writeText "claude-link-dotfiles" activationFixture.config.home.activation.linkDotfiles.data;
