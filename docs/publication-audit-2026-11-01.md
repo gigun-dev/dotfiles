@@ -75,7 +75,7 @@ repo内のgitleaks候補は、全履歴10件とcurrent tree 4件を値を表示�
 
 ## 未push変更の追跡 2026-11-09
 
-remote branchの `29c1a4c` から内容変更 `1b15485` まで10 commitsを検査した。この監査記録自身はその後のcommitに含まれるため、最終SHAの証拠には使わない。追加差分についてprivate-key header、GitHub token、AWS access key ID、Google API key、age recipientの高確度形式を値非表示で検査し、差分・現行tree・commit message・pathnameはいずれも一致0だった。current treeのfull-tree gitleaksも既知fixtureを狭く整理した後に一致0である。これは形式外の秘密や運用metadataの公開可否を証明しない。
+remote branchの `29c1a4c` から内容変更 `f855635` まで13 commitsを検査した。この監査記録自身はその後のcommitに含まれるため、最終SHAの証拠には使わない。追加差分についてprivate-key header、GitHub token、AWS access key ID、Google API key、age recipientの高確度形式を値非表示で検査し、差分・現行tree・commit message・pathnameはいずれも一致0だった。`1b15485..f855635` の3 commitsはpatch 61,263 bytesをfull gitleaks rulesで追加検査して一致0である。current treeのfull-tree gitleaksも既知fixtureを狭く整理した後に一致0である。これは形式外の秘密や運用metadataの公開可否を証明しない。
 
 追加された分類対象は次の5群である。
 
@@ -86,3 +86,16 @@ remote branchの `29c1a4c` から内容変更 `1b15485` まで10 commitsを検�
 - PR、対象SHA、self-hosted runnerの受入・撤去状態
 
 これらは実credential値ではないが、従来より具体的な防御・運用metadataである。`docs/agent-harness-boundaries.md`、`docs/execution-context.md`、`docs/security-access-boundaries.md`、`docs/linux-ci-fallback.md`、`docs/credential-inventory.md`を公開境界の判断対象へ追加する。push後はPR #137のpatch、本文、comments、reviews、inline thread、添付、追加Actions run / attempt / log / artifact / cache、required checks、生成merge SHA、Release増分、最終mainとの差分を最終SHAで再走査する。未pushの検査結果をremote公開面の確認に代用しない。
+
+## GitHub公開面の増分確認 2026-11-09
+
+GitHub APIとread-only downloadで、監査後に変化したrefs、PR、Release、Actionsの現在値を再確認した。repositoryはprivateのままで、visibility、refs、PR、Actions、artifact、cacheには変更を加えていない。
+
+- remote branchは11本で、main以外の10本にbranch protectionはない。local監査branchはremote headより13 commits先であり、remoteのgreen checksはlocal最終候補SHAの証拠ではない。
+- tagとReleaseは各2件、Release assetは4件である。Release本文、archive member path、展開後の一般的な内部path・host語、全assetのgitleaksを値非表示で検査した。gitleaks候補1件はRelease tagにも使われる公開build keyで、credentialではないと分類した。全remote branch固有のtreeと到達可能履歴は未走査である。
+- PR #137はopenで、remote headのchecksは成功、reviewとinline review commentは0、user attachmentは0である。本文・会話comment・current patch・current成功run logのgitleaksは一致0だった。bot comment、force-push timeline、PR patchにはrunner、CI fallback、credential/recovery文書などの運用metadataが残るため、current treeだけを一般化しても公開判断は閉じない。
+- GitHub上のactive workflowは8件だが、local最終候補には6件しかない。remote mainに残る旧workflow 2件は、最終SHAを反映してGitHub側のworkflow一覧が収束するまで公開面に残る。
+- Actions runは868件で、基準監査から23件増えた。以前の取得不能170件と増分23件を少なくとも未確認として扱う。最新100 runsにもfailure、cancelled、action-requiredがあり、成功runだけの検査では足りない。
+- active artifactは10件、約26.7 MBである。既存監査で未分類だった候補2件を含め、非実行展開と再分類が必要である。cacheはmain由来14件、約10.9 GBでbytes未監査である。workflow宣言はNix store以外を保存しない設計だが、現存cacheの内容証明にはならない。
+
+公開直前には、最終SHAの全refs・履歴・PR面・全増分run / attempt / log / artifactを再走査する。取得不能logは未確認のまま明示する。cache bytesを監査できない場合は削除後に最終workflowから再生成する案が最も確実だが、cache削除は破壊的な外部変更なので別承認なしに行わない。
