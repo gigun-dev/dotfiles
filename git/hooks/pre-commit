@@ -1,23 +1,66 @@
 #!/usr/bin/env bash
-# Auto-format staged .nix files with `nix fmt` so CI's `nix fmt -- --ci` never fails.
-# Skip silently if nix is unavailable (e.g. partial bootstrap).
-set -euo pipefail
+# commit 直前に staged の内容だけを整形し (treefmt)、秘密の混入を検査する (gitleaks)。
+# ryoppippi/dotfiles の git-hooks.nu pre-commit と同じ流れ。
+# nix が無ければ静かにスキップ (部分 bootstrap)。
+set -uo pipefail
 
-mapfile -t staged < <(git diff --cached --name-only --diff-filter=ACM -z \
-  | tr '\0' '\n' | grep -E '\.nix$' || true)
-
-[ "${#staged[@]}" -eq 0 ] && exit 0
 command -v nix >/dev/null 2>&1 || exit 0
 
-# Stash unstaged changes so we only format the staged snapshot.
-if ! git diff --quiet; then
-  stash_ref=$(git stash create -- "${staged[@]}" 2>/dev/null || true)
-  [ -n "${stash_ref:-}" ] && git checkout -- "${staged[@]}" 2>/dev/null || true
+mapfile -d '' -t staged < <(git diff --cached --name-only --diff-filter=ACMR -z)
+mapfile -d '' -t deleted < <(git diff --cached --name-only --diff-filter=D -z)
+# 削除だけの commit でも検査対象になりうるので、空判定は両方を見る。
+[ "${#staged[@]}" -eq 0 ] && [ "${#deleted[@]}" -eq 0 ] && exit 0
+
+# 未 stage / untracked を退避し、整形が staged 以外の編集を commit に巻き込まないようにする。
+# --keep-index でないと index まで巻き戻る。旧実装は `git stash create -- <paths>` の
+# pathspec が効かず全体を退避し、`stash apply || true` で失敗を握りつぶして
+# unstaged hunk を失った (2026-11-08)。
+stashed=0
+if ! git diff --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
+  git stash push --quiet --keep-index --include-untracked || exit 1
+  stashed=1
 fi
 
-nix fmt -- "${staged[@]}" >/dev/null
-git add -- "${staged[@]}"
+fmt_rc=0
+leak_rc=0
+nix fmt >&2 || fmt_rc=$?
 
-if [ -n "${stash_ref:-}" ]; then
-  git stash apply --index "$stash_ref" >/dev/null 2>&1 || true
+# 整形で書き換わりうる元 staged パスだけを stage し直す (配列なので空白入りパスも安全)。
+present=()
+for path in "${staged[@]}"; do
+  [ -e "$path" ] && present+=("$path")
+done
+[ "${#present[@]}" -gt 0 ] && { git add -- "${present[@]}" || fmt_rc=1; }
+
+nix run .#gitleaks -- git --pre-commit --staged --redact=100 --verbose --no-color --no-banner >&2 \
+  || leak_rc=$?
+
+# `git stash pop` は使わない (ryoppippi との意図的な差)。stash の worktree 側は staged 分も
+# 含むため、整形が staged の行を書き換えると、その行が pop で必ず衝突する。stash の
+# index→worktree 差分 (= 純粋な unstaged 分) だけを今の作業ツリーへ当て直す。
+# 失敗しても stash は消さず、握りつぶさない。
+if [ "$stashed" -eq 1 ]; then
+  restored=1
+  # untracked だけを退避したときは差分が空なので --allow-empty が要る。
+  git diff --binary stash@{0}^2 stash@{0} | git apply --allow-empty || restored=0
+  if [ "$restored" -eq 1 ] && git rev-parse --verify --quiet 'stash@{0}^3' >/dev/null; then
+    # pathspec に "." を渡すと source に無い tracked ファイルが消えるので、untracked の一覧を渡す。
+    mapfile -d '' -t untracked < <(git ls-tree -r -z --name-only 'stash@{0}^3')
+    if [ "${#untracked[@]}" -gt 0 ]; then
+      git restore --source='stash@{0}^3' --worktree -- "${untracked[@]}" || restored=0
+    fi
+  fi
+  if [ "$restored" -eq 1 ]; then
+    git stash drop --quiet
+  else
+    {
+      echo "pre-commit: 退避した unstaged 変更を戻せなかった。変更は stash@{0} に残してある。"
+      echo "復旧: 整形が触った行と衝突している。git stash show -p stash@{0} で内容を見て手で戻し、git stash drop する。"
+    } >&2
+    exit 1
+  fi
 fi
+
+[ "$fmt_rc" -ne 0 ] && { echo "pre-commit: treefmt が失敗した" >&2; exit 1; }
+[ "$leak_rc" -ne 0 ] && { echo "pre-commit: gitleaks が失敗した" >&2; exit 1; }
+exit 0

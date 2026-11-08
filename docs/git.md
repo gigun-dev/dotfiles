@@ -8,7 +8,7 @@
 $EDITOR ...
 git add .                    # nix は git index から評価する。switch / build の前に必須
 nix run .#build              # 適用せず確認 (適用するなら nix run .#switch)
-git commit                   # pre-commit が stage 済みの .nix を nix fmt する
+git commit                   # pre-commit が stage 内容を treefmt で整形し、gitleaks で秘密を検査する
 git pull                     # 先に取り込む。nix の変更が入るとフックが switch まで走る
 git push                     # 待たずに push。検証は push 後の CI
 gh run list -b main -L 3     # CI (CI: Nix check) の結果
@@ -30,7 +30,7 @@ gh run watch                 # 走っている run を待つ
 
 | フック | 動作 |
 |--------|------|
-| `pre-commit` | stage 済みの `.nix` を `nix fmt` して stage し直す。CI の `nix fmt -- --ci` を落とさないため。nix が無ければ何もしない |
+| `pre-commit` | unstaged / untracked を `git stash --keep-index --include-untracked` で退避し、`nix fmt` で整形して元々 stage 済みのパスだけ stage し直し、`nix run .#gitleaks` で staged を検査して、退避を戻す。整形か gitleaks が失敗したら commit を止める。戻せなければ stash を残して失敗終了する (復旧手順は stderr)。nix が無ければ何もしない。ryoppippi/dotfiles の pre-commit に倣う |
 | `post-merge` / `post-rewrite` / `post-checkout` | `switch-on-nix-change` を呼ぶ。`flake.nix` / `flake.lock` / `nix/` が変わっていたら `nix run .#switch` を実行する |
 | pre-push | 無い |
 
