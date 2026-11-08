@@ -89,7 +89,7 @@ class HeartbeatTests(unittest.TestCase):
         self.token_file.write_text(TOKEN + "\n")
         self.token_file.chmod(0o600)
         self.receipt = heartbeat.begin("mini-vm-autoswitch",
-                                       now_ms=milliseconds("2026-10-04T04:00:01"),
+                                       now_ms=milliseconds("2026-10-04T19:00:01"),
                                        run_id="fixture-run-1")
         self.sleeps = []
         for target in ["socket.create_connection", "subprocess.run", "subprocess.Popen"]:
@@ -200,6 +200,14 @@ class HeartbeatTests(unittest.TestCase):
                 with self.subTest(source=source, instant=instant):
                     receipt = heartbeat.begin(source, now_ms=instant, run_id="jst-run")
                     self.assertEqual(receipt["scheduledFor"], anchor)
+
+    def test_autoswitch_0400_jst_selects_previous_day_1900_utc_slot(self):
+        slot = milliseconds("2026-10-21T19:00:00")
+        for delta in (0, 4 * 60_000, 30 * 60_000, 105 * 60_000):
+            with self.subTest(delta=delta):
+                receipt = heartbeat.begin("mini-vm-autoswitch", now_ms=slot + delta,
+                                          run_id="autoswitch-jst")
+                self.assertEqual(receipt["scheduledFor"], slot)
 
     def test_lock_jst_receipts_deliver_with_accepted_and_duplicate_responses(self):
         for source, instant in [
