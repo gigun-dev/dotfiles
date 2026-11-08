@@ -70,3 +70,5 @@ x 2026-11-08 2026-11-08 zsh の zoxide / git-wt の init キャッシュが nix 
 x 2026-11-08 2026-11-08 git/hooks/pre-commit が staged .nix の整形時に unstaged 変更を消す不具合を直す: git stash create は pathspec を取らず作業ツリー全体を退避し、stash apply の失敗を || true で握りつぶす。2026-11-08 に packages.nix の hunk が消え、dangling commit から復旧した by:claude id:0137
 x 2026-11-08 2026-11-08 T3 Code を Mac mini とスマホでも使う構成を決める (mini の macOS は Nix 凍結中。T3 Connect / linked environments / server mode のどれで届けるか) by:me id:0136
 x 2026-11-08 2026-11-08 +mini-vm mini-vm の t3code は nixpkgs の 0.1.6 で Pro の cask (0.1.7 以降) より古い。版の差で壊れるものを確かめ、overlay か別 input で固定するか決める see:docs/mini-vm.md by:claude id:0151
+x 2026-11-08 2026-11-08 Pro で nix run .#switch を実行し (Touch ID 待ちで中断中)、Screendrop が brew cask に --adopt で取り込まれること、brew cleanup の事前確認が通ることを確かめる by:me id:0144
+x 2026-11-08 2026-11-08 +mini-vm T3 Code の linked environments (Pro→mini-vm) が 30 日で切れるのを拾う仕組みを決める (通知か todo の定期行) see:docs/mini-vm.md by:claude id:0149 @dropped Pro からも T3 Connect で mini-vm に入るので linked environments を使わない
