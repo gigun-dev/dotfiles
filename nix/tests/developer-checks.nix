@@ -136,6 +136,7 @@ in
         "execution-context"
         "github-auth-diagnose"
         "linux-ci-runner"
+        "private-restore"
         "claude-user-settings"
         "codex-bridge-refresh"
         "bark-routing"
