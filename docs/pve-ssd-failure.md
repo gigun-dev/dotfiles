@@ -38,8 +38,52 @@ openclaw のスナップショット 2 本（`snap_vm-500-disk-0_*`）は不要�
 
 - SSD を交換するか、全消去して再インストールするか。買わなくても直る（不良セクタは書き直しで予備ブロックへ再割り当てされる）が、原因が保持特性なら数か月で再発する。
 - 再起動には物理コンソールが前提。fsck が通らないと emergency shell に落ちて SSH できない。
-- vm-101（supabase-01）が 98.19% 使用（20GB のうち残り 400MB）。別途対処が要る。
+- vm-101（supabase-01）が 98.19% 使用（20GB のうち残り 400MB）。別途対処が要る（todo 0146）。正体は VM ではなく LXC の CT 101（`rootfs: local-lvm:vm-101-disk-0,size=20G`、退避した設定から）。全 CT が root SSD 上の LVM thin pool（local-lvm）にあり、割り当ては 20G × 7 と nextcloud のデータ 128G で計 268G。広げる（`pct resize`）には壊れた SSD の上で書く必要があるので、0019 を決めてからになる。2026-11-09 時点の pve は tailnet で 62 日前から offline で、`192.168.11.100` も mini の LAN から届かず、中身は調べられていない。
 
 ## 教訓
 
 壊れたことより、2 か月半気づかなかったことが問題。read-only になると通知・監視・ログが同時に死ぬので、ホスト自身に検知させても意味がない。mini か外部から `touch` して書き込み可否を叩く外部監視が要る。
+
+## 外部監視（todo 0145）
+
+mini-vm の `pve-write-probe` が 10 分ごとに `http://pve:9180/` を叩く。pve 側の受け口は接続のたびに root の ext4 へ実際に書いて fsync し、成功なら 200、失敗なら 503 を返す。503 と接続失敗が 2 回続くと Bark へ 1 回だけ通知し、回復するまで繰り返さない。定義は `nix/modules/nixos/mini-vm.nix`。SSH ではなく HTTP にしたのは、tag:server → tag:proxmox の SSH ルールを増やさないため（タグ間の IP は全許可済み）。
+
+受け口が無い間は timer を止めてある（`pveWriteProbeReady = false`）。pve を直したら（todo 0019）、pve で次を root で入れ、mini-vm から `curl -fsS http://pve:9180/` が `ok` を返すのを確かめてから `pveWriteProbeReady = true` にする。
+
+`/usr/local/sbin/pve-write-probe`（`chmod 755`）:
+
+```sh
+#!/bin/sh
+# HTTP リクエストを読み切ってから返す。読まずに閉じると RST になり curl が応答を受け取れない。
+timeout 2 sed '/^\r*$/q' >/dev/null 2>&1
+dir=/var/lib/pve-write-probe
+if mkdir -p "$dir" && date +%s > "$dir/probe.tmp" && sync "$dir/probe.tmp" && mv "$dir/probe.tmp" "$dir/probe"; then
+  printf 'HTTP/1.0 200 OK\r\nContent-Type: text/plain\r\n\r\nok\n'
+else
+  printf 'HTTP/1.0 503 Service Unavailable\r\nContent-Type: text/plain\r\n\r\nread-only\n'
+fi
+```
+
+`/etc/systemd/system/pve-write-probe.socket`:
+
+```ini
+[Socket]
+ListenStream=9180
+Accept=yes
+
+[Install]
+WantedBy=sockets.target
+```
+
+`/etc/systemd/system/pve-write-probe@.service`:
+
+```ini
+[Service]
+ExecStart=/usr/local/sbin/pve-write-probe
+StandardInput=socket
+StandardOutput=socket
+StandardError=journal
+RuntimeMaxSec=15
+```
+
+`systemctl daemon-reload && systemctl enable --now pve-write-probe.socket`。Proxmox のファイアウォールを有効にしている場合は 9180/tcp を tailnet から通す。socket は systemd が常駐で握るので、root が read-only に落ちた後も接続は受けられ、503 が返る。

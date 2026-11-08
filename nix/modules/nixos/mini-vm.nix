@@ -678,6 +678,44 @@ let
     fi
     exit 0
   '';
+
+  # pve の受け口 (docs/pve-ssd-failure.md の「外部監視」) が入るまで timer を止めておく。
+  # 受け口が無いまま回すと、pve の状態と無関係に「応答なし」を 1 回鳴らして黙る。
+  pveWriteProbeReady = false;
+
+  # pve の root が書き込めるかを外から確かめる。2026-05 に root SSD が ext4 の
+  # emergency_ro に落ち、通知もログも pve 自身から出せないまま 2 か月半気づかなかった。
+  # pve 側の受け口が接続ごとに実際に書いて fsync し、成否を HTTP で返す。
+  # Why not SSH で touch: tag:server -> tag:proxmox の SSH ルールが要り、
+  # 「VM から能動的に SSH しない」(docs/tailnet.md) を崩す。IP はタグ間で全許可済み。
+  pveWriteProbe = pkgs.writeShellScript "pve-write-probe" ''
+    set -u
+    state=/var/lib/pve-write-probe
+
+    # 503 (書き込み不可) と接続失敗 (電源断・tailnet 離脱) は同じく異常として扱う。
+    # 2026-11-09 時点で pve は tailnet から 62 日消えていた。これも誰も気づいていなかった。
+    if ${pkgs.curl}/bin/curl -fsS -m 20 -o /dev/null http://pve:9180/ 2>"$state/last-error"; then
+      if [ -e "$state/notified" ]; then
+        echo "pve-write-probe: 回復した" >&2
+      fi
+      rm -f "$state/fail-count" "$state/notified" "$state/last-error"
+      exit 0
+    fi
+
+    count=0
+    [ -r "$state/fail-count" ] && count=$(${pkgs.coreutils}/bin/cat "$state/fail-count")
+    count=$((count + 1))
+    printf '%s\n' "$count" > "$state/fail-count"
+    echo "pve-write-probe: pve が書き込み不可、または応答なし ($count 回連続): $(${pkgs.coreutils}/bin/head -c 200 "$state/last-error")" >&2
+
+    # 1 回の取りこぼし (tailnet の経路切替など) では鳴らさない。鳴らすのは異常が
+    # 続いた最初の 1 回だけで、回復するまで 10 分ごとに鳴らし続けない。
+    if [ "$count" -ge 2 ] && [ ! -e "$state/notified" ]; then
+      touch "$state/notified"
+      exit 1
+    fi
+    exit 0
+  '';
 in
 {
   # Mac Mini (Intel) 上の Lima VM。
@@ -2061,6 +2099,43 @@ in
       OnCalendar = "Sun *-*-* 02:00:00 Asia/Tokyo";
       RandomizedDelaySec = 1800;
       Persistent = true;
+    };
+  };
+
+  systemd.services.pve-write-probe = {
+    description = "pve の root に書き込めるかを外から確かめる";
+    wants = [ "network-online.target" ];
+    after = [
+      "network-online.target"
+      "tailscaled.service"
+    ];
+    unitConfig.OnFailure = [ "pve-write-probe-notify-failure.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      DynamicUser = true;
+      # 連続失敗と通知済みを再起動後も覚えておく (VM の再起動で再度鳴らさない)。
+      StateDirectory = "pve-write-probe";
+      ExecStart = "${pveWriteProbe}";
+    };
+  };
+
+  systemd.timers.pve-write-probe = {
+    enable = pveWriteProbeReady;
+    description = "pve-write-probe を 10 分ごとに回す";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "5min";
+      OnUnitActiveSec = "10min";
+    };
+  };
+
+  systemd.services.pve-write-probe-notify-failure = {
+    description = "pve の書き込み不可・応答なしを Bark へ通知する";
+    serviceConfig = {
+      Type = "oneshot";
+      User = "root";
+      EnvironmentFile = "-/run/agenix/bark-env";
+      ExecStart = "${barkNotifyUnitFailure} pve-write-probe.service 'pve 書き込み不可 / 応答なし'";
     };
   };
 
