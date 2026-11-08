@@ -467,6 +467,24 @@ let
     echo "Bark 失敗通知受付済み (code=200)"
   '';
 
+  barkSmokeBody = pkgs.writeText "bark-notify-smoke-body" ''
+    mini-vm の Bark runtime secret と送信経路を手動確認
+  '';
+  barkNotifySmoke = pkgs.writeShellScript "bark-notify-smoke" ''
+    set -eu
+    [ -n "''${BARK_DEVICE_KEY:-}" ] || exit 1
+    [ "$(${pkgs.coreutils}/bin/printf %s "''${BARK_ENCRYPT_KEY:-}" | ${pkgs.coreutils}/bin/wc -c | ${pkgs.coreutils}/bin/tr -d ' ')" = 32 ] || exit 1
+    [ "$(${pkgs.coreutils}/bin/printf %s "''${BARK_ENCRYPT_IV:-}" | ${pkgs.coreutils}/bin/wc -c | ${pkgs.coreutils}/bin/tr -d ' ')" = 16 ] || exit 1
+    case "''${BARK_PUSH_URL:-https://api.day.app/$BARK_DEVICE_KEY}" in
+      https://*) ;;
+      *) exit 1 ;;
+    esac
+    exec ${barkNotifyUnitFailure} \
+      bark-notify-smoke.service \
+      'mini-vm Bark rotation smoke' \
+      ${barkSmokeBody}
+  '';
+
   # flake.lock の更新を「提案」する本体。$1 がレーン名で、更新する input が変わる。
   # 呼ぶのは dotfiles-lock-propose@<lane>.service (下の unit にレーンの設計を書いてある)。
   dotfilesLockPropose = pkgs.writeShellScript "dotfiles-lock-propose" ''
@@ -1772,6 +1790,18 @@ in
       User = "root";
       EnvironmentFile = "-${barkEnvironmentFile}";
       ExecStart = "${barkNotifyUnitFailure} codex-openai-bridge-refresh.service 'mini-vm codex-bridge 更新確認 失敗'";
+    };
+  };
+
+  # Rotation時だけoperatorが起動する受入用unit。wantedBy/timerを持たず、通常運用では
+  # 発火しない。通知用unitと異なりEnvironmentFileを必須にし、欠落や長さ不正を成功扱いしない。
+  systemd.services.bark-notify-smoke = {
+    description = "Bark runtime secret と送信経路の手動smoke test";
+    serviceConfig = {
+      Type = "oneshot";
+      User = "root";
+      EnvironmentFile = barkEnvironmentFile;
+      ExecStart = "${barkNotifySmoke}";
     };
   };
 

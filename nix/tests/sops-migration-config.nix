@@ -47,6 +47,11 @@ assert
 assert
   config.systemd.services.codex-mcp-login-remind.serviceConfig.EnvironmentFile
   == "-${runtimeSecretFiles.barkEnv}";
+assert config.systemd.services.bark-notify-smoke.wantedBy == [ ];
+assert config.systemd.services.bark-notify-smoke.serviceConfig.Type == "oneshot";
+assert
+  config.systemd.services.bark-notify-smoke.serviceConfig.EnvironmentFile
+  == runtimeSecretFiles.barkEnv;
 assert tokenFile == config.age.secrets.host-heartbeat-vm.path;
 assert lib.hasPrefix "/run/agenix/" tokenFile;
 assert !(lib.hasPrefix "/nix/store/" tokenFile);

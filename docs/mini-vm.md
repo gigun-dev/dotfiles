@@ -236,6 +236,12 @@ last-seen等をrepoへ保存しない。unlink / logout / provider側revokeを�
 AES-256-CBC `ciphertext` / `iv` を受け付けるので、端末の鍵・IV と揃える。
 HTTP 成功と JSON `code=200` は受付の確認で、端末表示の確認とは区別する。
 
+key / IVのrotation時は、runtime secretを配送して受信端末の設定を揃えた後に
+`sudo systemctl start bark-notify-smoke`を手動実行する。このunitはwantedByもtimerも持たず、
+通常運用では起動しない。runtime fileを必須にし、key / IVのbyte長とHTTPS routeを値非表示で
+検査してから既存helperでcontrolled通知を送る。unit成功はHTTP / JSON受付までであり、端末での
+新鍵復号表示と旧鍵での復号拒否は本人が別々に確認する。
+
 ## スマホからのCodex接続とペアリング
 
 既存codex-remote-controlはOpenAIリレーへのアウトバウンド接続であり、iPhoneのTailscaleタグを必要としない。端末のペアリング登録を保持し、短命のコードは必要時に発行する。
