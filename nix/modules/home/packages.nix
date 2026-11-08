@@ -4,6 +4,7 @@
   lib,
   llmAgents, # inputs.llm-agents.packages.${system} (flake.nix の extraSpecialArgs)
   cclens, # inputs.cclens.packages.${system}.default (同上)
+  t3Limits, # inputs.t3-limits.packages.${system}.default (同上)
   ...
 }:
 {
@@ -52,6 +53,9 @@
       # sops: agenix から移す候補 (値ごとの暗号化で差分が読め、開発の .env にも使える)。
       # 移行はまだで、先に CLI だけ入れて試す。docs/security.md §5 の 4。
       sops
+
+      # T3 Code の利用上限を読む CLI (nixpkgs follows の standalone package)
+      t3Limits
 
       # Git
       gh
