@@ -50,7 +50,7 @@
 2026-10-27 mini の CLI 管理方針を所有・版・取得元・checksum種別・対話選択・更新方針の共通宣言へ揃え、fzf/zoxide/ripgrep/XcodeGen と検証済み候補の保留状態をテストする +mini by:me id:0114 @wip
 2026-10-29 Linux CI の Nix store cache 復元と短時間ジョブの消費を削減し、実行結果を確認する +dotfiles @ci by:me id:0115 @wip
 2026-10-29 mini の checkout 同期を実機設定の適用と分離し、安全な fast-forward と失敗時の停止を検証する +mini by:me id:0116 @wip
-2026-11-01 非公開正本・独立backup・限定restoreのgate完了後、最新refs、PR review/添付、全Actions/cache、Release編集履歴を確認し公開判断を残す +security see:docs/publication-audit-2026-11-01.md by:codex id:0121 dep:0161
+2026-11-01 非公開正本・独立backup・限定restoreのgate完了後、最新refs、PR review/添付、全Actions/cache、Release編集履歴を確認し公開判断を残す +security see:docs/publication-audit-2026-11-01.md by:codex id:0121 dep:0166
 2026-11-01 miniのsudo一覧は認証要求で未確認のため、本人が一覧を確認して最小権限分類だけ返す手順を決める。自動認証や拒否経路への切替はしない +security @user see:docs/security-access-boundaries.md by:codex id:0122
 2026-11-08 Claude Code のブラウザ系ツール(Claude in Chrome、chrome-devtools-mcp、Playwright、Desktop のブラウザペイン)の使い分けを整理し、不要なら chrome-devtools-mcp を claude/settings.json から外す +claude @user by:me id:0125
 2026-11-08 +mini mini の macOS の役割 (iPhone バックアップ・画面共有・Xcode・Lima ホスト・常駐サービス) が使うコマンドを棚卸しし、それだけを前提にした最小のシェル設定を Ansible の shell 対象として用意する。check --diff で mini の差分を確かめ、実適用は承認を得てから行う see:docs/adr/0014-shrink-mini-macos-shell-before-removing-nix.md by:claude id:0126
