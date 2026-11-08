@@ -39,6 +39,10 @@ let
             displayName = "OpenCode";
             config.binaryPath = lib.getExe llmAgents.opencode;
           };
+          pi = {
+            displayName = "Pi";
+            config.binaryPath = lib.getExe llmAgents.pi;
+          };
         };
 
     # agent は nix で固定しているので、上流の更新通知はノイズ。
