@@ -1,6 +1,6 @@
 # 通知の現行運用
 
-所有境界は [ADR 0004](adr/0004-send-notifications-through-hub-instead-of-a-dotfiles-worker.md)。
+通知基盤を二重にせず、hub の独立したインフラ state と dotfiles の state を混ぜないため、所有を分ける。
 配信・監視履歴・再試行はhub、通知元と資格情報はdotfilesが持つ。
 
 mini-vmの失敗通知とClaude hookは `secrets/bark-env.age` の `BARK_PUSH_URL` にある
