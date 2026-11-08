@@ -74,6 +74,36 @@ in
     ''
   );
 
+  # Screendrop: brew cask が無く、公式配布は GitHub Releases の universal dmg のみ。
+  # https://github.com/fayazara/screendrop
+  # launchd-ui と同じく未導入のときだけ最新版を取得し、更新は Sparkle (アプリ内) に任せる。
+  # 置き場所を /Applications にしない理由: Sparkle が自分の bundle を差し替えるので、
+  # 親ディレクトリがユーザー所有の ~/Applications なら管理者認証なしで更新できる。
+  # 以前の置き場所でもあり、ログイン項目が指すパスも変わらない。
+  # 取得に失敗しても switch は止めない (次回 switch で再試行される)。
+  home.activation.installScreendrop = lib.mkIf isDarwin (
+    lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+      app="${config.home.homeDirectory}/Applications/Screendrop.app"
+      if [ ! -d "$app" ]; then
+        echo "Installing Screendrop ..."
+        tmp="$(/usr/bin/mktemp -d)"
+        mnt="$tmp/mnt"
+        /bin/mkdir -p "$mnt"
+        if /usr/bin/curl -fsSL -o "$tmp/Screendrop.dmg" \
+          "https://github.com/fayazara/screendrop/releases/latest/download/Screendrop.dmg" \
+          && /usr/bin/hdiutil attach -nobrowse -readonly -quiet -mountpoint "$mnt" "$tmp/Screendrop.dmg"; then
+          $DRY_RUN_CMD /bin/mkdir -p "${config.home.homeDirectory}/Applications"
+          $DRY_RUN_CMD /usr/bin/ditto "$mnt/Screendrop.app" "$app" \
+            || echo "warning: Screendrop のコピーに失敗" >&2
+          /usr/bin/hdiutil detach -quiet "$mnt" || true
+        else
+          echo "warning: Screendrop の取得に失敗 (次回 switch で再試行)" >&2
+        fi
+        /bin/rm -rf "$tmp"
+      fi
+    ''
+  );
+
   # SF Symbols.app 同梱の CLI (search/export) をエージェントから叩けるようにする。
   # cask 化しない: brew cask の公開版は 8.0 系で、手元に手で入れた 27.x を上書き
   # すると CLI ごと downgrade する恐れがある (2026-09-15 時点で cask 版に CLI が
