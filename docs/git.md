@@ -158,7 +158,7 @@ gh run view <run-id> --log-failed
 
 ## 4. エージェントの規則
 
-`claude/CLAUDE.md` と `codex/AGENTS.md` (どちらも全リポジトリに配布される) に書いてある。エージェント向けで、人が `git add .` を使うのは自由。
+`agents/shared/git.md` (Claude と Codex の両方へ全リポジトリ向けに配布される) に書いてある。エージェント向けで、人が `git add .` を使うのは自由。
 
 - commit 前に `git status --short --untracked-files` (`=no` にしない) と `git diff --cached --stat` で全体を確認する。
 - switch / build のためだけに stage されたファイルが残っていることが多い。単位の外は unstage する。

@@ -90,9 +90,22 @@ link "${DOTFILES_DIR}/git/ignore" "${HOME}/.config/git/ignore"
 link "${DOTFILES_DIR}/claude/langfuse-endpoints.env" "${HOME}/.config/claude-code/langfuse-endpoints.env"
 
 # Keep user-global agent instructions consistent with home-manager setup.
+# Codex 用は断片を連結した生成物 (dotfiles.nix と同じスクリプト)。古い clone には無い。
 mkdir -p "${HOME}/.claude" "${HOME}/.codex"
-link "${DOTFILES_DIR}/claude/CLAUDE.md" "${HOME}/.claude/CLAUDE.md"
-link "${DOTFILES_DIR}/codex/AGENTS.md" "${HOME}/.codex/AGENTS.md"
+link "${DOTFILES_DIR}/agents/AGENTS.md" "${HOME}/.claude/CLAUDE.md"
+link "${DOTFILES_DIR}/agents/shared" "${HOME}/.claude/shared"
+if [[ -f "${DOTFILES_DIR}/agents/codex-agents-md.sh" ]]; then
+  codex_agents_tmp="$(mktemp "${HOME}/.codex/.AGENTS.md.XXXXXX")"
+  if sh "${DOTFILES_DIR}/agents/codex-agents-md.sh" "${DOTFILES_DIR}/agents" >"$codex_agents_tmp"; then
+    # mv は旧運用の symlink 自体を置き換え、リンク先 (repo のファイル) には書かない
+    chmod 644 "$codex_agents_tmp"
+    mv "$codex_agents_tmp" "${HOME}/.codex/AGENTS.md"
+    echo "  ${HOME}/.codex/AGENTS.md (generated)"
+  else
+    rm -f "$codex_agents_tmp"
+    echo "  skip: could not generate ${HOME}/.codex/AGENTS.md" >&2
+  fi
+fi
 
 # zsh/functions の permission を 755 に固定 (compinit insecure 対策)
 # 777 だと compinit が全補完スキップする

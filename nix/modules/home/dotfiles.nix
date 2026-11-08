@@ -29,6 +29,11 @@ let
   # "could not find an SF Symbols.app to load resources from" で落ちる。
   # exec で実体パスを叩けば argv[0] が bundle 内に戻るので、中身のある wrapper
   # を挟む (リンク先そのものは store で構わない)。
+  # ~/.codex/AGENTS.md の中身。bootstrap.sh と同じスクリプトで作る (nix は呼ぶだけ)。
+  codexAgentsMd = pkgs.runCommand "codex-agents-md" { } ''
+    sh ${../../../agents/codex-agents-md.sh} ${../../../agents} > $out
+  '';
+
   sfsymbolsWrapper = pkgs.writeShellScript "sfsymbols" ''
     exec "/Applications/SF Symbols.app/Contents/Executables/sfsymbols" "$@"
   '';
@@ -200,16 +205,27 @@ in
     ''}
 
     # Claude Code (~/.claude/ は memory/log 等があるので個別リンク)
+    # 指示の正本は agents/。Claude は AGENTS.md の `@~/.claude/shared/*.md` で断片を読むので、
+    # 両方を out-of-store で張り、編集が switch なしで届くようにする。
     $DRY_RUN_CMD mkdir -p "${config.home.homeDirectory}/.claude"
-    link_force "${dotfilesPath}/claude/CLAUDE.md" "${config.home.homeDirectory}/.claude/CLAUDE.md"
-    # Global instructions must survive setup on a new host, not only manual edits.
+    link_force "${dotfilesPath}/agents/AGENTS.md" "${config.home.homeDirectory}/.claude/CLAUDE.md"
+    link_force "${dotfilesPath}/agents/shared" "${config.home.homeDirectory}/.claude/shared"
+    # Codex には import が無いので断片を連結した生成物を置く (agents/codex-agents-md.sh)。
+    # 生成物なので symlink でなく実ファイル。断片の編集は次の switch で届く。
     $DRY_RUN_CMD mkdir -p "${config.home.homeDirectory}/.codex"
-    link_force "${dotfilesPath}/codex/AGENTS.md" "${config.home.homeDirectory}/.codex/AGENTS.md"
+    if [ -L "${config.home.homeDirectory}/.codex/AGENTS.md" ]; then
+      $DRY_RUN_CMD rm "${config.home.homeDirectory}/.codex/AGENTS.md"
+    fi
+    $DRY_RUN_CMD install -m 644 "${codexAgentsMd}" "${config.home.homeDirectory}/.codex/AGENTS.md"
     # settings.json は下の configureClaudeSettings が merge する (symlink にはしない)。
     link_force "${dotfilesPath}/claude/hooks" "${config.home.homeDirectory}/.claude/hooks"
     link_force "${dotfilesPath}/claude/commands" "${config.home.homeDirectory}/.claude/commands"
-    # 2026-07-12 から手で張られていて、新マシンでは再現しなかった
-    link_force "${dotfilesPath}/claude/agents" "${config.home.homeDirectory}/.claude/agents"
+    # カスタム subagent は 2026-11-08 に廃止した (agents/shared/delegate-work.md)。
+    # 以前 claude/agents へ張っていた symlink はリンク先が消えて宙吊りになるので外す。
+    # 別の中身を指すもの (手で置いた定義) には触らない。
+    if [ "$(readlink "${config.home.homeDirectory}/.claude/agents" 2>/dev/null)" = "${dotfilesPath}/claude/agents" ]; then
+      $DRY_RUN_CMD rm "${config.home.homeDirectory}/.claude/agents"
+    fi
   '');
 
   # iTerm2 plist の同期は system.defaults.CustomUserPreferences."com.googlecode.iterm2"

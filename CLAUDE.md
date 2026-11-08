@@ -52,7 +52,8 @@ flake.nix / bootstrap.sh        # Nix と Nix なしの入口
 nix/modules/{darwin,nixos,home} # OS 層・共通 home-manager
 zsh/ / sheldon/ / zeno/         # shell・補完・snippets
 git/ / zed/                    # Git・editor 設定
-claude/ / codex/               # 配布するエージェント設定
+agents/                        # Claude・Codex 共通のグローバル指示 (正本)
+claude/                        # 配布する Claude Code 設定
 windows/                       # Windows 宣言・bootstrap (windows/README.md)
 infra/ / tofu/ / secrets/       # サービス・IaC・暗号化秘密
 docs/                          # 現行運用・ADR
@@ -142,7 +143,6 @@ Mac Mini (Intel) のエージェント基盤は macOS 上の Lima ゲスト (Nix
 ## Git ワークフロー
 
 - メインブランチ: `main`
-- サブエージェントを活用すること
 - 作業完了時は検証済みの変更を意味のある単位でコミットし、`git status` で残る差分を確認する。未コミットのまま完了扱いにしない。保留を指示された変更は除き、コミットしたら同じ作業の中で `git pull --rebase` してから push する。push 前の手元検証フックは無く、検証は push 後の CI が行う（壊れた main は mini-vm には適用されないが、CI が red になったら直すまでが作業）。mini-vm が flake.lock の PR を origin/main へ自動 merge し続けるため、手元に溜めると ahead/behind に分岐する。pull が nix の変更を取り込むと hook が `nix run .#switch`（sudo）を走らせるので、その pull は長くなる。
   nix の変更は commit 前に `nix run .#build` で通ることを確かめる。pull の前に `git fetch` して `git diff --name-only HEAD...origin/main` で `flake.nix` / `flake.lock` / `nix/` が入るかを見て、入るなら Touch ID が出ると先に伝える（pull 自体は避けない）。
 
