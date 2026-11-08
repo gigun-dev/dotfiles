@@ -1,7 +1,11 @@
-# T3 Code (GUI) の settings.json / client-settings.json / keybindings.json を宣言する。
-# アプリ本体は homebrew cask (darwin/homebrew.nix)。
+# T3 Code の settings.json / client-settings.json / keybindings.json を宣言する。
+# Darwin: アプリ本体は homebrew cask (darwin/homebrew.nix)。3 ファイルとも merge する。
+# NixOS (mini-vm): server は nixos/mini-vm.nix の systemd.services.t3code。デスクトップ専用の
+#   client-settings.json / keybindings.json は要らないので settings.json だけ merge する。
 # 構成は ryoppippi/dotfiles (MIT) の nix/modules/home/programs/t3code/default.nix に寄せている。
-# home 層は WSL / mini-vm と共有なので、Darwin 以外では丸ごと no-op にする。
+# ryoppippi は Mac のデスクトップ側だけで、Linux server の分岐は gigun 固有。
+# home 層は WSL と共有 (T3 は Windows native 側にある) なので、Linux では /etc/NIXOS が
+# あるときだけ書く。それ以外は no-op。
 {
   pkgs,
   lib,
@@ -10,6 +14,7 @@
   ...
 }:
 let
+  inherit (pkgs.stdenv.hostPlatform) isDarwin isLinux;
   t3codeStateDir = "$HOME/.t3/userdata";
   jq = lib.getExe pkgs.jq;
 
@@ -176,16 +181,21 @@ let
   # そのコマンドの既定を shadow する挙動に合わせる)。
   mergeKeybindings = mergeJson "(.[1] | map(.command)) as $declared | [.[0][] | select(.command as $c | $declared | index($c) | not)] + .[1]";
 in
-lib.mkIf pkgs.stdenv.hostPlatform.isDarwin {
+lib.mkIf (isDarwin || isLinux) {
   # T3 Code が `t3` CLI を置く場所。.zshenv が hm-session-vars.sh を読むので PATH に届く。
-  home.sessionPath = [ "$HOME/.t3/bin" ];
+  # Linux の t3 は nixpkgs の t3code (systemd service が参照) なので ~/.t3/bin は使わない。
+  home.sessionPath = lib.mkIf isDarwin [ "$HOME/.t3/bin" ];
 
   home.activation.configureT3codeSettings = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+    ${lib.optionalString isLinux "if [ -e /etc/NIXOS ]; then"}
     SETTINGS_DIR="${t3codeStateDir}"
     mkdir -p "$SETTINGS_DIR"
 
     ${mergeSettings "settings.json" settings}
-    ${mergeSettings "client-settings.json" clientSettings}
-    ${mergeKeybindings "keybindings.json" keybindings}
+    ${lib.optionalString isDarwin ''
+      ${mergeSettings "client-settings.json" clientSettings}
+      ${mergeKeybindings "keybindings.json" keybindings}
+    ''}
+    ${lib.optionalString isLinux "fi"}
   '';
 }

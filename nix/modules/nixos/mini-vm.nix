@@ -749,6 +749,8 @@ in
   # tailnet の独立ノードとして参加させ、host の macOS を経由せず直接 ssh する
   services.tailscale.enable = true;
   services.tailscale.package = (import ../../runtime-security/pinned-linux.nix).tailscale;
+  # t3code service (gigun) が `tailscale serve` を張るのに要る。
+  services.tailscale.extraSetFlags = [ "--operator=${username}" ];
 
   # 上流 DNS を明示する。MagicDNS への依存を断ち切るための固定値。
   #
@@ -883,7 +885,79 @@ in
     # /run/current-system/sw/bin/chromium という安定パスを指すこと。
     # systemPackages に置くのはこの安定パスを得るためでもある。
     chromium
+
+    # `t3 pair --tailscale` / `t3 status` を対話 shell から叩くための stable な入口。
+    # nixpkgs の t3code は mainProgram が t3code-desktop で、全体を入れると desktop の
+    # 実行ファイルも PATH に出るため t3 だけを出す (サービスと同じ derivation)。
+    (writeShellScriptBin "t3" ''
+      exec ${pkgs.t3code}/bin/t3 "$@"
+    '')
   ];
+
+  # T3 Code (pingdotgg/t3code) の server を 24/365 常駐させ、iPhone と Pro のデスクトップ
+  # アプリから tailnet 越しに使う。ryoppippi/dotfiles は Mac のデスクトップ側だけで、
+  # この Linux server の宣言は gigun 固有。
+  #
+  # 公開面は tailnet だけ。server は 127.0.0.1 で待ち受け、--tailscale-serve が起動時に
+  # `tailscale serve --bg --https=443 http://127.0.0.1:3773` を張り、停止時に `off` で外す
+  # (packages/tailscale/src/tailscale.ts と apps/server/src/server.ts、v0.1.6 で確認)。
+  # --lan / --host 0.0.0.0 / T3 Connect (--connect) は使わない。認証は tailnet の到達性に加え
+  # T3 自身の pairing code と session (docs/mini-vm.md の手順)。
+  #
+  # package: nixpkgs の t3code。mainProgram は t3code-desktop なので bin/t3 を明示する。
+  # 版は flake.lock の nixpkgs 任せ (評価時点で 0.1.6、Pro の cask は 0.1.7 以降へ自動更新)。
+  # Nix 管理の server は `t3 update` / アプリ内更新の対象外。
+  #
+  # user service ではなく system service + User=: cloudflare-os と同じ理由 (linger が
+  # 宣言から漏れる)。agent の実体と settings は home 層 (nix/modules/home/programs/t3code)
+  # が ~/.t3/userdata/settings.json に merge する。
+  #
+  # tailscale serve を gigun から叩けるように operator を gigun にする (下の extraSetFlags)。
+  # gigun は wheel で、そもそも sudo で同じことができるので権限の実質的な拡大ではない。
+  systemd.services.t3code = {
+    description = "T3 Code server (tailnet only)";
+    wantedBy = [ "multi-user.target" ];
+    wants = [ "network-online.target" ];
+    after = [
+      "network-online.target"
+      "tailscaled.service"
+    ];
+
+    # tailscale: serve の設定に要る。残りは agent が子プロセスで使う道具で、systemd 既定の
+    # 最小 PATH だと対話 shell と食い違う (cloudflare-os の procps と同じ類型)。
+    # 末尾 2 つは文字列で、"<dir>/bin" として PATH に入る。
+    path = [
+      config.services.tailscale.package
+      pkgs.git
+      pkgs.openssh
+      pkgs.bash
+      pkgs.coreutils
+      "/home/${username}/.nix-profile"
+      "/run/current-system/sw"
+    ];
+
+    environment = {
+      HOME = "/home/${username}";
+      SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+      NIX_SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+    };
+
+    serviceConfig = {
+      Type = "simple";
+      User = username;
+      WorkingDirectory = "/home/${username}";
+      ExecStart = lib.concatStringsSep " " [
+        "${pkgs.t3code}/bin/t3"
+        "serve"
+        "--host 127.0.0.1"
+        "--port 3773"
+        "--no-browser"
+        "--tailscale-serve"
+      ];
+      Restart = "always";
+      RestartSec = 10;
+    };
+  };
 
   # Cloudflare OS を 24/365 常駐させる。
   #

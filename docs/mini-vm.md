@@ -211,6 +211,8 @@ mini-vm には性質の違う 2 つの信頼経路があり、1 本に両方を�
 - **cloudflare-os のチェックアウト**: `~/ghq/github.com/cloudflare/cloudflare-os` に clone してあるだけで
   宣言外。systemd 側は `ConditionPathExists` で不在を許容する作りなので、VM を作り直したら
   clone し直すまでサービスは静かにスキップされる (壊れはしない)
+- **T3 Code の pairing と linked environments**: iPhone / Pro との pairing は `~/.t3/userdata` の
+  セッション状態で、宣言できない。VM を作り直したら pairing し直し (下の「T3 Code」節)
 - **`tailscale serve` の設定**: `sudo tailscale serve --bg 8787` は tailscaled の状態として永続し
   再起動も越えるが、宣言には無い。VM を作り直したら張り直しが要る
 - **mini の chrome-devtools MCP 登録**: `claude mcp add --scope user` で `~/.claude.json` に入る。
@@ -218,6 +220,39 @@ mini-vm には性質の違う 2 つの信頼経路があり、1 本に両方を�
 - **apple/container**: 公式署名 pkg のみで brew にも nixpkgs にも無いが、pkg を `fetchurl` で hash 固定し
   activation から冪等に `installer` を叩く形で宣言管理下に置いた
   (`nix/modules/darwin/apple-container.nix`)。同種のツールが出たらこの形を踏襲する
+
+## T3 Code (tailnet 専用 server)
+
+`nixosConfigurations.mini-vm` の `systemd.services.t3code` (`User=gigun`) が `t3 serve --host 127.0.0.1
+--port 3773 --tailscale-serve` を常駐させる。公開面は tailnet の HTTPS (`https://mini-vm.<tailnet>.ts.net/`、
+443) だけ。T3 Connect (Clerk と Cloudflare tunnel)・`--lan`・loopback 以外の bind は使わない。serve の
+mapping は server が起動時に張り、停止時に外す。`services.tailscale.extraSetFlags = [ "--operator=gigun" ]`
+は gigun が `tailscale serve` を叩くため。agent は home-manager の nix の claude / codex
+(`nix/modules/home/programs/t3code` が `~/.t3/userdata/settings.json` の `providerInstances` に store パスを
+merge。Pro と同じ値で、NixOS のときだけ書く)。
+
+版は nixpkgs の `t3code` (flake.lock 追従。2026-11-08 評価で 0.1.6)。Pro の cask は 0.1.7 以降へ自動更新される。
+Nix 管理の server は `t3 update` もアプリ内更新も使わない。ずれで壊れたら flake.lock の更新を待つか、
+overlay で版を固定する (キャッシュを外れるので mini-vm でソースビルドになる)。
+
+### 端末ごとの手順 (宣言できない状態)
+
+1. mini-vm で `t3 pair --tailscale`。QR と `https://mini-vm.<tailnet>.ts.net/...` の pairing link が出る。
+   権限を絞るなら `--scope orchestration:read` などを付ける (付けないと全権)。
+2. iPhone: Tailscale が接続済みの状態でリンクを開く (T3 Code アプリで読み取ってもよい)。pairing code は
+   端末ごとに 1 回限り。
+3. Pro: デスクトップの Settings → Labs で linked environments を有効にし (宣言済みの
+   `linkedEnvironmentsEnabled`)、Settings → Environments → Linked environments → Link に mini-vm の
+   アドレスと、`t3 pair --tailscale` で出した新しい code を入れる。CLI なら
+   `t3 environment link https://mini-vm.<tailnet>.ts.net --pairing-code <code> --access <mode>`。
+4. **リンクの寿命は 30 日**。切れたら 3 を新しい code でやり直す。自動では更新されない。
+5. 失効は mini-vm 側 Sharing & access か `t3 auth session list` / `revoke`。
+
+状態確認: `systemctl status t3code`、`journalctl -u t3code` で "Tailscale Serve configured" を見る。
+`tailscale serve status` に 443 → 127.0.0.1:3773 が出る。serve が張れないときは server は loopback だけで
+起動を続ける (警告ログのみ)。`tailscale serve` の既存 mapping が 443 にあると置き換わる点に注意。
+iPhone / Pro は `tag:admin-device` で、`tag:server` 宛の全許可 grant に入っている
+(`tofu/tailscale/policy.hujson.tftpl`)。タグ無しの端末は届かない。
 
 ## 未解決の調査メモ
 
