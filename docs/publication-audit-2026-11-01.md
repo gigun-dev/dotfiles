@@ -72,3 +72,17 @@ PR #137のtree `e55f972` と、その時点のmain `73c86e8` を基準に範囲�
 repo内のgitleaks候補は、全履歴10件とcurrent tree 4件を値を表示せず個別分類した。10件は削除済みvendored公式文書のplaceholder 6件、公開JWT audience 1件、temporary test fixture 3件で、current 4件も後二者に含まれる。いずれもactual credentialではなく、provider失効、rotation、履歴rewriteは不要と判断した。repository-wide allowlistは使わず、current候補は必要ならdummy生成または理由付きの狭いinline許可へ直す。Actions artifact 2件、取得済みlogのunique 2種類、Release 1件の候補は、削除済み一時資料を再取得していないため未分類のままである。
 
 判定は引き続き**NO-GO**。非公開正本・独立backup・限定restoreの実証、外部成果物の候補分類、実inventory・SSH・運用metadataの公開版への分離、未確認Actions範囲と最終SHAの再監査が済むまでvisibilityを変更しない。repo内候補だけを理由に履歴を書き換えない。
+
+## 未push変更の追跡 2026-11-09
+
+remote branchの `29c1a4c` から内容変更 `1b15485` まで10 commitsを検査した。この監査記録自身はその後のcommitに含まれるため、最終SHAの証拠には使わない。追加差分についてprivate-key header、GitHub token、AWS access key ID、Google API key、age recipientの高確度形式を値非表示で検査し、差分・現行tree・commit message・pathnameはいずれも一致0だった。current treeのfull-tree gitleaksも既知fixtureを狭く整理した後に一致0である。これは形式外の秘密や運用metadataの公開可否を証明しない。
+
+追加された分類対象は次の5群である。
+
+- agent harness、Apple Seatbelt、network sandbox、standalone agent権限
+- realbindを含むtrust domain、Nix trusted user、sudo、root相当性
+- SOPS recipient grouping、YubiKey、ciphertext数を含む秘密管理topology
+- Cachix writer不在とcredential経路
+- PR、対象SHA、self-hosted runnerの受入・撤去状態
+
+これらは実credential値ではないが、従来より具体的な防御・運用metadataである。`docs/agent-harness-boundaries.md`、`docs/execution-context.md`、`docs/security-access-boundaries.md`、`docs/linux-ci-fallback.md`、`docs/credential-inventory.md`を公開境界の判断対象へ追加する。push後はPR #137のpatch、本文、comments、reviews、inline thread、添付、追加Actions run / attempt / log / artifact / cache、required checks、生成merge SHA、Release増分、最終mainとの差分を最終SHAで再走査する。未pushの検査結果をremote公開面の確認に代用しない。

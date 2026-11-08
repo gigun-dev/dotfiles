@@ -10,6 +10,9 @@
 | ansible/mini-macos/inventory.yml | 実ホストの接続先・ユーザー | [例示 inventory](../ansible/mini-macos/inventory.example.yml) を追加し、非公開 `inventory.private.yml` を明示選択する導線を検証する。実運用 inventory の変更は後段 |
 | nix/modules/home/programs/ssh/default.nix | ホスト固有の宛先・ユーザー・鍵参照 | 非公開入力設計と生成結果の互換性テストを先行する。Host/Include 順序、IdentityFile の累積、Darwin/Linux 差を維持 |
 | docs/mini-vm.md、関連運用 docs、todo.txt | 内部構成・手順・運用メタデータ | 一文ずつ機密性と再現性を分類する。すべての内部名を機械的に削除しない |
+| docs/agent-harness-boundaries.md、docs/execution-context.md | harness、sandbox、network、repo 外アクセスの境界 | 防御の実装詳細と再現に必要な一般説明を分け、現在の host / tool 固有状態を公開してよいか判断する |
+| docs/security-access-boundaries.md、docs/linux-ci-fallback.md | trusted user、sudo、self-hosted runner の信頼境界 | 実秘密ではないが攻撃面を説明する運用 metadata として、公開可否を明示的に判断する |
+| docs/credential-inventory.md | credential class、consumer、複製先、失効順 | 値なしでも service 対応と運用 topology を示すため、公開版と非公開詳細台帳の境界を確認する |
 | tofu/ と secrets/ の宣言 | リソース情報・暗号化秘密の受信者 | 実秘密を出力せず、公開してよいメタデータと不要な権限を分ける |
 
 ## 検証と保持
@@ -21,6 +24,7 @@
 - inventory や SSH の挙動変更を文書改善に混ぜない。既存入力を使う場合の生成結果と fixture tests を確認する。
 - ignore 設定は既存 tracked ファイルや履歴を消さない。`git check-ignore` の正例・負例を確認する。
 - 公開対象の履歴、branch/tag、PR/issue、Actions 出力・artifact、Release 資産の確認は別の公開前 gate。現行 tree だけの検査で閉じず、旧監査後の追加 commit・artifact・Release も含める。
+- agent harness の権限制御、trust domain、SOPS recipient grouping、CI fallback の撤去状態は秘密値ではない。しかし防御構成と復旧経路を組み合わせて示すため、値の scanner が一致0でも自動的に公開可とは扱わない。
 
 ## 今ここでは行わない
 

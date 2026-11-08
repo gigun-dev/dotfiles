@@ -176,6 +176,18 @@ mini-vm には性質の違う 2 つの信頼経路があり、1 本に両方を�
 専用トークンなら最悪でも「変な PR が立つ」で止まる(required CI と squash merge が受け皿)。
 もう一つは**ライフサイクル分離** — 広いトークンを revoke してもパイプラインが死なない。
 
+**ryoppippiとの現行比較 (2026-11-09、main `a8ce24e`)**: 定期flake更新は常設hostではなく
+GitHub Actionsで動き、専用GitHub Appの秘密鍵からjobごとに短命installation tokenを発行する。
+同じAppをflake、overlay、skill、Neovim更新とbot PRのrebaseに使い、checkout / push / PR作成へ
+渡している。これはryoppippi個人のworkflow構成であり、その権限設定がこのrepoにも適切だとは
+自動的に言えないが、「人用credentialを無人hostと共有しない」点は揃えられる。
+
+このrepoをpublicへ戻した後はlock提案をActionsへ移す予定なので、dotfiles updater Appを作る場合は
+mini-vm専用品にしない。移行中だけmini-vmがApp鍵を受け取り、public化後は同じAppをActionsへ移して
+host側の鍵コピーと`dotfiles-lock-propose@`を撤去する。これならApp自体は再利用できるが、hostに鍵を
+複製する期間と削除確認が増える。Appを作らない場合はselected-repo fine-grained PATを移行用に発行し、
+Actions移管時に失効する。どちらも人用OAuth tokenの継続共有はしない。
+
 **2026-11-09 の判断**: realbind は他の個人開発と同じ trust domain として扱い、realbind だけを
 別 Lima ゲストや別 Unix ユーザーへ隔離しない。同じ `gigun` UID で動くエージェント、対話作業、
 checkout は credential と home の読み書き範囲を共有し、Nix trusted user と passwordless sudo は
@@ -374,6 +386,18 @@ refresh では延びない。張り直しはスマホから行う(設計は ADR 
 
 ### mini本体でのiOSビルド・署名
 
+**現在地 (2026-11-09)**: 以下のGUI runner経路は2026-10-04に成功した旧経路の記録であり、
+現在の分離済み本番構成ではない。現行本番はGUIログインユーザーと同じsecurity session / UIDで
+build、sign / export、publishを同じjobが担う。asc-mcp側には固定archiveの入力digest、未署名IPA拒否、
+一時Keychainでのmanual export、publish子processだけへのcredential注入を行う新adapterがあるが、
+本番Actions、別OS主体、成果物受渡しには未接続である。
+
+署名専用ユーザーの所有者contextで実行する値非表示inventoryは用意済みだが、そのcontextでは未実行。
+通常ユーザーから保護領域を読めなかったことを、資材不存在とは扱わない。inventoryで証明書と秘密鍵、
+profileの対象・期限・端末適合を確認してから、同一mini内のbuild / sign / publish専用UID、固定hash manifest、
+承認点、旧GUI runnerへのrollbackを設計・受入する。別VMはXcode / Keychainの代替にならないため、最初の
+分離案にはしない。
+
 Xcodeはmini-vmではなくmacOS本体で実行する。`ssh gigun@mini`から既存の`ghq`を使え、MCPHostは`~/ghq/github.com/gigun-dev/swift-mcp-app`に取得済み。Intel macOSのNix構成は凍結しているため、XcodeGen 2.46.0は`brew install xcodegen`で導入した。プロジェクトはGit管理される`project.yml`から生成する。
 
 ```sh
@@ -387,9 +411,9 @@ xcodebuild -project MCPHost.xcodeproj -scheme MCPHost -configuration Release \
 
 通常の準備はminiのXcodeでAppleアカウントを登録し、Team `KK42DL23GH`と自動署名を選ぶ。SSHからのビルドも同じ設定を使うが、実行コンテキストが署名用の秘密鍵をキーチェーンから利用できる必要がある。パスワードをSSHの引数・ログへ渡さない。
 
-署名はGUIログインセッション（`gui/501`）のキーチェーンを使う。SSHからは同じユーザーでも署名identityが見えない場合があり、鍵の不存在とは判断しない。GitHub公式runnerのLaunchAgentは独立security sessionを作る既定設定で署名に失敗したため、asc-mcpの `scripts/configure-runner-keychain.py` で `SessionCreate=false` にしている。GUIセッションを使うrunnerからRelease archive・Ad Hoc exportが成功した。再起動後はGUIログインとキーチェーン解除が必要。証明書の失効、自動ロック無効化、パスワード保存は行っていない。
+2026-10-04の旧経路では、署名にGUIログインセッション（`gui/501`）のキーチェーンを使った。SSHからは同じユーザーでも署名identityが見えない場合があり、鍵の不存在とは判断しない。GitHub公式runnerのLaunchAgentは独立security sessionを作る既定設定で署名に失敗したため、asc-mcpの `scripts/configure-runner-keychain.py` で `SessionCreate=false` にしていた。GUIセッションを使うrunnerからRelease archive・Ad Hoc exportが成功した。これは現在の署名資材、新adapter、再起動後の動作を証明しない。証明書の失効、自動ロック無効化、パスワード保存は行っていない。
 
-クラウドからは [asc-mcp](https://github.com/gigun-dev/asc-mcp) が非公開 `asc-mcp-control` repoの固定workflowを起動する。miniのrunnerは `~/.local/share/asc-mcp-runner`、labelは `asc-mcp`。MCP受付からarchive・Ad Hoc export・ASC検証・R2配布・Bark受付まで実ビルドで成功した。現在のMCPHost profileの期限は2027-02-13 13:06:57 UTC、iPhone 17・iPad mini 7を収録し、`get-task-allow=false`。
+2026-10-04の旧経路では、[asc-mcp](https://github.com/gigun-dev/asc-mcp) が非公開 `asc-mcp-control` repoの固定workflowを起動し、miniのrunnerは `~/.local/share/asc-mcp-runner`、labelは `asc-mcp` だった。MCP受付からarchive・Ad Hoc export・ASC検証・R2配布・Bark受付まで実ビルドで成功した。この履歴を現在のprofile、端末適合、新しい分離経路の受入に使わない。
 
 ASC CLIはMacBookではHomebrew coreの`asc`を使い、`nix/modules/darwin/homebrew.nix`に宣言する。Intel miniはNix管理が凍結中なので、公式releaseの`macOS_amd64`バイナリをreleaseのSHA256と照合して`~/.local/bin/asc`へ置く。2026-10-04は両ホストで5.9.2、`asc xcode doctor`成功を確認した（MacBookはXcode 27.0、miniは26.3）。miniバイナリのSHA256は`635b9156014defd11e9662adcf83ea2596c8030095977decb90b0e6adc8fdf37`。
 
