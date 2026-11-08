@@ -61,7 +61,6 @@
 2026-11-08 plamo-translate: Takumi Guard (pypi.flatt.tech) に 1.2.0 が出たら uv tool install --reinstall -p 3.14 --managed-python plamo-translate でパッケージ名指定に戻す (今は pypi.org の wheel をローカルパスで入れており uv tool upgrade で上がらない) by:me id:0133
 2026-11-08 uv tool を週 1 回自動更新する (home-manager の launchd.agents で uv tool upgrade --all)。失敗時は既存の通知経路で知らせる。CLAUDE.md・uv/tools.txt・uv/sync-tools.sh の「更新は手で」を合わせて直す by:me id:0134
 2026-11-08 +docs ADR を棚卸しし、今の意図と違うものを覆すか畳む (古く、意図と違うことがあるとユーザー談) by:me id:0135
-2026-11-08 T3 Code を Mac mini とスマホでも使う構成を決める (mini の macOS は Nix 凍結中。T3 Connect / linked environments / server mode のどれで届けるか) by:me id:0136
 2026-11-08 git-wtpr に zsh の cd 連携を足すか決める (ryoppippi の init.bash は zsh で declare -F の意味が変わるため移植時に外した) by:claude id:0138
 2026-11-08 +ci mini-vm と WSL の home 構成 (homeConfigurations.gigun-x86_64-linux) の評価を CI で確認する。aarch64-darwin 上では評価できず、t3-limits・git-wt 追加 (51ebea8 / 6732a45) の Linux 側が未確認 by:claude id:0140
 (B) 2026-11-08 常駐 MCP サーバーを uv 配下で動かさないようにして uv cache を掃除できるようにする。uv cache clean/prune は ~/.cache/uv/.lock を待って終わらない(Claude Code の全セッションが uv run --script で agy-mcp と cman、uv tool uvx で markitdown-mcp を起動し、親の uv が lock を握り続ける。17 プロセス/5 セッション+Codex アプリを観測)。案: markitdown-mcp は uv tool install して実体を直接起動、agy-mcp(自作)は起動方法を変える、cman は第三者プラグインなので可否を調べる。それまでは全セッションを閉じてから掃除するか、--force で動作中 MCP の破損を許容する +cleanup see:docs/storage-cleanup.md by:claude id:0141
@@ -74,4 +73,3 @@
 2026-11-08 Finder の iPhone Wi-Fi 自動バックアップが壊れたバックアップを毎日作り直す件の恒久対策 (iCloud バックアップへ切り替えるか、ケーブルで一度完走させて Wi-Fi 自動バックアップを止める)。対象が Pro か mini かも確かめる see:docs/storage-cleanup.md by:claude id:0148
 2026-11-08 +mini-vm T3 Code の linked environments (Pro→mini-vm) が 30 日で切れるのを拾う仕組みを決める (通知か todo の定期行) see:docs/mini-vm.md by:claude id:0149
 2026-11-08 +mini-vm docs/mini-vm.md の「tailscale serve で 8787 を張っている」記述が実機 (No serve config) と食い違う。現状を確かめ、T3 Code の --tailscale-serve (443) と衝突しないか見て docs を直す see:docs/mini-vm.md by:claude id:0150
-2026-11-08 +mini-vm mini-vm の t3code は nixpkgs の 0.1.6 で Pro の cask (0.1.7 以降) より古い。版の差で壊れるものを確かめ、overlay か別 input で固定するか決める see:docs/mini-vm.md by:claude id:0151
