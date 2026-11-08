@@ -45,7 +45,9 @@
       # agent-browser は chrome-devtools-mcp に一本化したため撤去
 
       # Nix
-      cachix # 個人キャッシュ (gigun.cachix.org) への push に必須。初回 `cachix authtoken <token>`
+      # read-only substituterにCLIは不要。no-write方針とprovider/local writer整理を決めるまで
+      # Cachixの状態確認用に残し、採用後に利用がなければ削除する。
+      cachix
       # age: secrets/*.age を実行時に復号する側で要る (claude/hooks/bark-notify.sh)。
       # NixOS は activation で自動復号するが、macOS には agenix モジュールを入れて
       # いないため、tofu ラッパと同じ「その場で復号して環境変数へ」方式を採っている。

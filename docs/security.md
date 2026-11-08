@@ -88,7 +88,7 @@
 11. **エージェント規則**。秘密をコマンドの文字列に書かず、実行時に `$(gh auth token)` などで読む。漏れたら rotate する (ryoppippi の `agents/shared/command-privacy.md`)。
 12. **紛失・侵害時の手順書**。YubiKey の紛失、Mac の紛失、侵害の疑いそれぞれで、GitHub のトークンと鍵の失効、Apple ID・Google の鍵の削除、Cloudflare Access のセッション取り消し (Zero Trust > Users > Revoke)、クラウドのキーの rotate をどの順で行うか。
 13. **sudo は Touch ID のまま** の確認。挿しっぱなしの Nano をタッチするだけの pam-u2f は、生体認証の Touch ID より弱い。
-14. **cachix に push できるのは誰か**。通常 switch/update からの自動送信は廃止した。明示的に送信する場合の対象と送信者は未決定。Mac が侵害されると、偽のビルド結果が mini-vm などに取り込まれる経路になる。ryoppippi は自分のキャッシュから取得するだけで、push は CI (GitHub Actions の secret) からだけ行う (`ryoppippi/nix-claude-code` の workflow)。CI か mini-vm だけに push を限るか。キャッシュ取得設定は維持し、送信の効果 (他マシンでの再利用) と公開・汚染のリスクを比べて決める。 現状の事実 (2026-10-17): CI (`nix-build.yaml`) は ubuntu で mini-vm と x86_64-linux の home を build するだけで、darwin の build も cachix への push も無い。mini-vm も push していない。Mac が上げる darwin の build 結果を使うのは実質この Mac だけなので、汚染されて困るのは「侵害後に作り直した Mac が偽物を取り込む」場面 (再インストールしても残る)。ソースの tarball など内容の hash で検証されるものは偽装できない。CI だけに寄せるなら、GitHub Actions の macOS runner で darwin の構成を build して push する job が要る。
+14. **cachix に push できるのは誰か**。通常 switch/update からの自動送信は廃止した。 **監査更新 (2026-11-09)**: repo、CI、switch/update、常駐serviceにCachix送信経路はなく、GitHub ActionsにもCachix writer secretは無い。Proにはmode 0600の標準設定ファイルが存在するが、内容・tokenの有無・有効性は読んでいない。mini-vm等のrepo外設定とprovider側writer・最終利用も未確認である。ryoppippiの現行もread-only Cachix + GitHub Actions cacheで、Cachix writer/actionは撤去済み。現行推奨は当面送信せず、provider側writerを確認・失効してから各hostのlocal writer設定を削除し、substituter / trusted keyだけを残すこと。正式採用までは削除済みと扱わない。書込を廃止しても既存cacheのreadは継続でき、失うのは新しいlocal buildを他hostへCachix経由で再配布する機能である。将来必要になった場合だけ、送信主体・対象・承認点を限定したCI writerを別設計する。
 
 ## 6. YubiKey が届いたらやること
 
