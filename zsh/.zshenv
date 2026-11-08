@@ -13,3 +13,21 @@ export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
+
+# =============================================================================
+# home-manager の session 変数
+# =============================================================================
+# このリポジトリは .zshrc を強制リンクして programs.zsh を使わないため、home-manager が
+# 生成する hm-session-vars.sh は誰も source しない。home.sessionVariables
+# (AGY_CLI_DISABLE_AUTO_UPDATE / SLACK_SKIP_UPDATE / LS_COLORS 等) を効かせるにはここで手動 source する。
+# ファイル側が __HM_SESS_VARS_SOURCED で二重 source を防ぐ。source と [[ -r ]] だけで fork しない。
+# 1 つ目は nix-darwin / NixOS の module 経由、2 つ目は standalone (WSL)。
+for _hm_vars in \
+  "/etc/profiles/per-user/${USER:-$LOGNAME}/etc/profile.d/hm-session-vars.sh" \
+  "$HOME/.nix-profile/etc/profile.d/hm-session-vars.sh"; do
+  if [[ -r $_hm_vars ]]; then
+    source "$_hm_vars"
+    break
+  fi
+done
+unset _hm_vars
