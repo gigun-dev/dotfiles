@@ -85,3 +85,4 @@ x 2026-11-09 2026-11-08 +claude claude-code の主 checkout が add-emil-skills 
 x 2026-11-09 2026-11-09 miniとmini-vmをtag:devの開発環境として相互SSHを許可し実ノードのタグとポリシーを移行・検証する +tailscale see:docs/adr/0015-mini-development-trust-boundary.md by:me id:0157
 x 2026-11-09 2026-11-08 +security tailnet の storage→proxmox の臨時 root SSH ルールを外す変更 (e119490) を tofu で apply する: nix run .#tofu -- -chdir=tailscale plan で差分がそのルールの削除だけと確かめてから apply @user see:docs/tailnet.md by:claude id:0147
 x 2026-11-09 2026-11-09 +git index に scripts/job-heartbeat.py と scripts/tests/job-heartbeat.py の変更がステージされたまま持ち主不明で残っている(2026-11-08 夜から)。どのセッションの作業か確かめ、コミットするか捨てる by:claude id:0162
+x 2026-11-09 2026-11-09 更新したios-skillsをClaudeの宣言設定でも有効化しProの公式Xcode連携と旧MCP無効化を確認する +ios by:me id:0165

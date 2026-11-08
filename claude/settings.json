@@ -241,7 +241,7 @@
     "frontend-design@claude-plugins-official": true,
     "github@claude-plugins-official": false,
     "gopls-lsp@claude-plugins-official": true,
-    "ios-skills@gigun": false,
+    "ios-skills@gigun": true,
     "lua-lsp@claude-plugins-official": false,
     "markitdown-mcp@gigun": true,
     "next-devtools-mcp@gigun": true,
