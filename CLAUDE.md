@@ -58,7 +58,7 @@ docs/                          # 現行運用・ADR
 
 ## 設計原則
 
-- **nix はオプション強化レイヤー**: 設定ファイル自体は nix に依存しない
+- **nix はオプション強化レイヤー**: 設定ファイル自体は nix に依存しない。理由は、Nix を外す途中の mini の macOS と、Nix 導入前の初期 bootstrap が同じ zsh 設定を読むため。mini が最小のシェル設定へ移れば、Pro・mini-vm・WSL ではこの制約を外せる（`docs/adr/0014-shrink-mini-macos-shell-before-removing-nix.md`）
 - **bootstrap は初期準備の入口**: Nix 導入済みの Pro は共通 switch へ委譲。Nix なし・凍結ホストの fallback は同じ Guard 正本を使う。手順は `docs/setup.md`
 - **brew は GUI アプリのみ**: CLI ツールは nixpkgs、tap 限定の例外のみ brews
 - **cleanup = "uninstall"**: 宣言外のアプリをアンインストールする。zap stanza による追加削除は行わない。使う GUI アプリは必ず casks に宣言する
