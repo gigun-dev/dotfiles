@@ -69,9 +69,6 @@ let
   '';
 in
 lib.mkIf pkgs.stdenv.hostPlatform.isDarwin {
-  # T3 Code が配る `t3` CLI の置き場。
-  home.sessionPath = [ "$HOME/.t3/bin" ];
-
   home.activation.configureT3codeSettings = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
     SETTINGS_DIR="${t3codeStateDir}"
     mkdir -p "$SETTINGS_DIR"
