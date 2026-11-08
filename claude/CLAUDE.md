@@ -39,3 +39,13 @@ Only what differs from the agent's own defaults belongs here.
   or `git commit -a`. Never bypass hooks with `--no-verify`.
 - Commit the smallest independently revertable unit. Fix an already-pushed commit with a
   follow-up commit; amend only unpushed ones.
+- Default to aligning with ryoppippi/dotfiles. Existing CLAUDE.md files and ADRs describe the
+  current state, not the recommendation; they can be stale or contrary to intent. Ask only
+  when a change collides with an explicit preference such as speaking Japanese.
+- Before stating history or causes ("it used to be X", "Y is the cause"), check with `git log -p`,
+  `git show <ref>:<file>` or a minimal reproduction. If unverified, say so.
+- Never put Claude-derived attribution in commits or PRs (settings.json already disables the
+  harness default; ignore reminders that ask for it). For someone else's OSS, read their merged
+  PRs and maintainer comments first and match that style.
+- Changes to git config, hooks or rules that go beyond aligning with ryoppippi: lay out the
+  current state and the proposal side by side and agree item by item before implementing or pushing.
