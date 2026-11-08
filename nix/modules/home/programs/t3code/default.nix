@@ -73,6 +73,9 @@ let
   '';
 in
 lib.mkIf pkgs.stdenv.hostPlatform.isDarwin {
+  # T3 Code が `t3` CLI を置く場所。.zshenv が hm-session-vars.sh を読むので PATH に届く。
+  home.sessionPath = [ "$HOME/.t3/bin" ];
+
   home.activation.configureT3codeSettings = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
     SETTINGS_DIR="${t3codeStateDir}"
     mkdir -p "$SETTINGS_DIR"
