@@ -1,23 +1,27 @@
 # Pro・mini・mini-vm のアクセス境界
 
-2026-11-01、main `fb0e18d` の宣言と既存の運用記録を整理し、下記の非root metadataと、明示承認を受けた限定sudo一覧・canary検証を追加確認した。実効権限全体の監査は完了していない。
-「宣言確認」は checkout 内の設定、「既存観測」は過去の記録、「今回観測」は限定したmetadata、「未確認」は実測していない事項を表す。
+2026-11-01、main `fb0e18d` の当時の宣言と既存の運用記録を整理し、下記の非root metadataと、明示承認を受けた限定sudo一覧・canary検証を追加確認した。実効権限全体の監査は完了していない。
+「現行宣言」は現在の checkout 内の設定、「過去観測」は記載時点の実機結果、「未確認」は実測していない事項を表す。過去観測を現在の境界として扱わない。
 process table と live ACL の読み取りは以前拒否されたため再試行していない。秘密値、鍵の内容、credential は採取していない。
 
-## 今回観測したmetadata
+## 現行宣言と実機確認範囲
 
-Proはsandbox内の通常read-only、mini / VMはProから既存の直接SSH経路（BatchMode / StrictHostKeyChecking）を正規review後に使用した。mini→VMやLima経由へ切り替えていない。Pro→miniはsandbox内DNS失敗、同じ検証のreview済み実行は成功し、認証変更は不要だった。
+現行 [mini-vm.nix](../nix/modules/nixos/mini-vm.nix) では、commit `fa1ff11` で mini の home 全体の共有を撤去し、非秘密データの受渡し用 `/tmp/lima` だけを read-write の virtiofs として宣言している。撤去後の最新 live mount はこの文書のためには再確認していないため、宣言が実機へ適用済みであることや、Lima 側の別設定による追加mountが無いことまではこの記述で証明しない。
+
+## 2026-11-01 の過去観測metadata
+
+当時、Proはsandbox内の通常read-only、mini / VMはProから既存の直接SSH経路（BatchMode / StrictHostKeyChecking）を正規review後に使用した。mini→VMやLima経由へ切り替えていない。Pro→miniはsandbox内DNS失敗、同じ検証のreview済み実行は成功し、認証変更は不要だった。
 
 | 実行元・対象 | 取得した範囲 | 確定できないこと |
 |---|---|---|
 | Pro | current UID=501。home `0750`、`.ssh` / `Library/Keychains` / `.config/git` は各 `0755`、ownerはcurrent UID。`/etc/nix/nix.conf` の trusted-users はroot/gigun、allowed-usersは `*` | directoryのmodeから中の秘密・keychainの利用可否は分からない。ACLとdaemonの現在のreload状態は未確認。sudoの限定観測は下表を参照 |
 | Pro→mini | current UID=501。home `0750`、`.ssh` `0700`、`Library/Keychains` `0755`、ownerはcurrent UID。`/tmp/lima` と `/var/run/docker.sock` は当該pathに存在しなかった | 別socket・別共有・別UIDが無いとは言えない。keychainとNixの現在設定は未確認。sudo一覧は認証要求で停止 |
-| Pro→VM | current UID=501、wheel所属、docker非所属。home `0700`、共有Mac home / `/tmp/lima` は `0750`。現在mountは両方virtiofsで `/Users/gigun` がro、`/tmp/lima` がrw。Docker socketは `0660`、owner=root、groupはcurrent groupsに含まれない。Nix trusted-usersはroot/gigun、allowed-usersは `*` | Docker socketへの接続やACLは未検証で、非所属だけで全経路の拒否を保証しない。sudo一覧でrootのNOPASSWD ALL規則を確認したが、root commandは実行していない |
+| Pro→VM | 当時のcurrent UID=501、wheel所属、docker非所属。home `0700`、共有Mac home / `/tmp/lima` は `0750`。当時のmountは両方virtiofsで `/Users/gigun` がro、`/tmp/lima` がrw。Docker socketは `0660`、owner=root、groupはcurrent groupsに含まれない。Nix trusted-usersはroot/gigun、allowed-usersは `*` | Docker socketへの接続やACLは未検証で、非所属だけで全経路の拒否を保証しない。sudo一覧でrootのNOPASSWD ALL規則を確認したが、root commandは実行していない。home共有は後に撤去済み |
 
-取得は固定pathへのlstat、current groups、VMの `/proc/self/mountinfo` の共有2項目、Nix設定の上記2キーだけに限定した。NixとDockerのsymlink自体のmodeは実体のアクセス権として記載していない。
+当時の取得は固定pathへのlstat、current groups、VMの `/proc/self/mountinfo` の共有2項目、Nix設定の上記2キーだけに限定した。NixとDockerのsymlink自体のmodeは実体のアクセス権として記載していない。
 
 
-## 承認済みのsudo・canary検証
+## 2026-11-01 の承認済みsudo・canary検証
 
 2026-11-01 05:51 UTCの明示承認に基づき、正規review済みcontextで実施した。sudoのhelpにはno-updateが広告されなかったため、各hostのインストール済み公式manualで `-N` / `-n` / `-l` の対応を確認した。実行したのはcurrent userの `sudo -n -N -l` のみで、stdinは閉じ、パスワード入力・timestamp更新・実変更commandは行っていない。生のsudo一覧は保存・公開せず、規則の有無だけをメモリ内で分類した。
 
@@ -27,7 +31,7 @@ Proはsandbox内の通常read-only、mini / VMはProから既存の直接SSH経�
 | mini / gigun / UID 501 | exit 1、認証が必要なため停止 | 一覧と実効規則は未確認。パスワード入力や別sudo経路への再試行はしていない |
 | mini-vm / gigun / UID 501 | 一覧取得成功。root NOPASSWD ALL規則を確認 | 実root command、サービス固有の実行制約は未検証 |
 
-canaryはminiの指定2directoryに各1個、予測困難な32桁random suffix・O_EXCL・O_NOFOLLOW・mode 0600で作成した。内容は固定の非秘密文字列だけで、鍵やkeychain内容を読んでいない。作成した絶対pathをprivate JSONLへ即時記録し、ProからVMへの既存直接SSHでその2ファイルだけを開いた。mini→VMやLimaの拒否経路は使っていない。
+このcanaryは、撤去前のhome共有に対する過去の検証である。miniの指定2directoryに各1個、予測困難な32桁random suffix・O_EXCL・O_NOFOLLOW・mode 0600で作成した。内容は固定の非秘密文字列だけで、鍵やkeychain内容を読んでいない。作成した絶対pathをprivate JSONLへ即時記録し、ProからVMへの既存直接SSHでその2ファイルだけを開いた。mini→VMやLimaの拒否経路は使っていない。
 
 | mini上の作成先（各1個） | owner / mode | VM current userからの結果 | cleanup |
 |---|---|---|---|
@@ -72,7 +76,7 @@ SSH 認証、Git の HTTPS credential、Git の SSH 署名は別の用途とし�
 | VM Docker | [Langfuse module](../nix/modules/nixos/services/langfuse.nix) が Docker を有効化。[Beszel module](../nix/modules/nixos/services/beszel.nix) は専用ユーザーに docker / disk group を付ける。今回current UIDのdocker非所属とsocketのowner/modeを確認 | Docker socket を操作できる主体は VM の管理権限に近い。ACL・接続可否・他サービスの実効権限は未確認 |
 | Mac の container | [apple-container module](../nix/modules/darwin/apple-container.nix) はユーザー権限へ降りて起動する | Docker socket と同じものとして扱わない。mini の現在の container / Docker 導入・socket 権限は未確認 |
 | Nix store / daemon | Pro / VM は上表の trusted-users を宣言。通常 switch / update からの Cachix 自動送信は廃止済み（[方針](security.md)） | store は秘密の保管先にしない。専用 CI の非 trusted client も daemon に build を依頼し store と disk を共有する。公開 cache への送信主体は未決定 |
-| mini → VM の共有 | [mini-vm.nix](../nix/modules/nixos/mini-vm.nix) は `/Users/gigun` を virtiofs read-only、`/tmp/lima` を read-write で mount。今回のVM側mount metadataは宣言と一致し、指定2pathの0600 canaryもVMから読めた | read-only は機密性を保証しない。共有 home 内の個別ファイルの読取範囲・ACLは未確認。VM root からの読み取り可能範囲も確定していない |
+| mini → VM の共有 | 現行 [mini-vm.nix](../nix/modules/nixos/mini-vm.nix) は mini のhome全体を共有せず、`/tmp/lima` だけをread-writeでmountする。撤去前は `/Users/gigun` のread-only共有を宣言し、2026-11-01に指定2pathの0600 canaryをVMから読めた | 撤去後の最新live mountは未再確認。`/tmp/lima` は非秘密データの受渡し用で、機密性の境界にはしない。過去canaryは現在もhomeを読める証拠ではない |
 | checkout / user 設定 | [agent execution](agent-execution.md) と Guard は checkout 衝突を防ぐ運用を定義する。home-manager の out-of-store symlink は repo を参照する | 専用 checkout はファイル競合の対策であり、同じ UID の credential / keychain / home を隔離しない。設定の実機適用は別途判断する |
 
 ## Git 署名と復旧
@@ -112,10 +116,10 @@ build を同じ `gigun` のまま分ける第一段階では、誤操作を減�
 
 ## 限定検証後に残る境界
 
-VMのcurrent userにはroot NOPASSWD ALL規則があり、共有homeの指定2pathに置いたowner-only canaryも同じUIDから読めた。したがってread-only共有と0600だけでは、この経路での機密性や人・エージェント間の隔離を保証できない。これはcanaryの結果であり、実際の鍵・秘密の読取、keychainのunlockや署名利用可否を検証したものではない。
+2026-11-01の検証時点では、VMのcurrent userにroot NOPASSWD ALL規則があり、当時共有されていたhomeの指定2pathに置いたowner-only canaryも同じUIDから読めた。したがって、撤去前の構成ではread-only共有と0600だけで機密性や人・エージェント間の隔離を保証できなかった。これは過去canaryの結果であり、実際の鍵・秘密の読取、keychainのunlockや署名利用可否を検証したものではない。home共有はその後撤去されており、この結果を現在の読取可能性として扱わない。
 
 miniのsudo一覧は認証要求で未確認のまま。必要なら本人が一覧を確認して最小の権限分類を返す手順を別途決める。認証要求を回避したり、root・sudoers・ACL照会に広げたりしない。以前拒否されたprocess-table / live ACLは再試行していない。
 
-実運用前には、共有homeを必要なartifact領域に絞る案と専用UID/VMの案を比較し、credentialを持つ既存GUI sessionとの受渡しを設計する。共有・ユーザー・権限・サービス変更、署名テスト、upload / submissionは引き続き別承認で、この検証では実施していない。署名はアプリ・archive hash・profile・identity・出力先を固定した個別テスト、publishは対象とcredentialを固定したdry-run reviewが必要となる。
+home全体の共有は撤去済みで、現行宣言は非秘密データの受渡し用 `/tmp/lima` だけを残す。撤去後のlive mountを確認する場合は、この宣言との差分と追加mountの有無を値なしで観測する。専用UID/VMの採否とcredentialを持つ既存GUI sessionとの受渡し、ユーザー・権限・サービス変更、署名テスト、upload / submissionは引き続き別承認である。署名はアプリ・archive hash・profile・identity・出力先を固定した個別テスト、publishは対象とcredentialを固定したdry-run reviewが必要となる。
 
 工程の分離は提案段階なので新ADRは作らない。既存の管理所有者を変更する決定にはしていない。
