@@ -30,7 +30,7 @@ gh run watch                 # 走っている run を待つ
 
 | フック | 動作 |
 |--------|------|
-| `pre-commit` | unstaged / untracked を `git stash --keep-index --include-untracked` で退避し、`nix fmt` で整形して元々 stage 済みのパスだけ stage し直し、`nix run .#gitleaks` で staged を検査して、`git stash pop` で戻す。整形か gitleaks が失敗したら commit を止める。整形が staged を書き換えたファイルに unstaged が残っていると pop が衝突するので、そのときは stash を残して失敗終了する (git は stash を消さない。先に `nix fmt` してから stage すれば起きない)。stash は worktree 間で共有されるので、2 つの checkout が同時に commit すると取り違えうる。nix が無ければ何もしない。ryoppippi/dotfiles の pre-commit と同じ |
+| `pre-commit` | unstaged / untracked を `git stash --keep-index --include-untracked` で退避し、`nix fmt` で整形して元々 stage 済みのパスだけ stage し直し、`nix run .#gitleaks` で staged を検査して、`git stash pop` で戻す。整形か gitleaks が失敗したら commit を止める。整形が staged を書き換えたファイルに unstaged が残っていると pop が衝突するので、そのときは stash を残して失敗終了する (git は stash を消さない。先に `nix fmt` してから stage すれば起きない)。stash は worktree 間で共有されるので、一意の印を付けて退避し、その entry を探して pop する (同時に commit した別 checkout の stash と取り違えない。ryoppippi には無い)。nix が無ければ何もしない。ryoppippi/dotfiles の pre-commit と同じ |
 | `post-merge` / `post-rewrite` / `post-checkout` | `switch-on-nix-change` を呼ぶ。`flake.nix` / `flake.lock` / `nix/` が変わっていたら `nix run .#switch` を実行する |
 | pre-push | 無い |
 

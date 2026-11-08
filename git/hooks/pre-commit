@@ -15,9 +15,13 @@ mapfile -d '' -t deleted < <(git diff --cached --name-only --diff-filter=D -z)
 # --keep-index でないと index まで巻き戻る。旧実装は `git stash create -- <paths>` の
 # pathspec が効かず全体を退避し、`stash apply || true` で失敗を握りつぶして
 # unstaged hunk を失った (2026-11-08)。
+# stash の積み重ねは worktree 間で共有される。stash@{0} を pop すると、同時に commit した
+# 別 checkout の退避と取り違える (2026-11-08、main と agent の worktree で変更が入れ替わった)。
+# 一意の印を付けて退避し、戻すときはその印の entry を探して pop する。ryoppippi には無い。
 stashed=0
+marker="pre-commit $$ $(date +%s) $RANDOM"
 if ! git diff --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
-  git stash push --quiet --keep-index --include-untracked || exit 1
+  git stash push --quiet --keep-index --include-untracked --message "$marker" || exit 1
   stashed=1
 fi
 
@@ -39,12 +43,19 @@ nix run .#gitleaks -- git --pre-commit --staged --redact=100 --verbose --no-colo
 # unstaged の変更が 1 つでもあると pop で衝突する (stash の worktree 側は整形前の staged 分も
 # 含むため)。衝突しても git は stash を消さないので変更は失われない。黙って commit を
 # 通さず止める (ryoppippi は pop の失敗を見ていない)。先に `nix fmt` してから stage すれば起きない。
-if [ "$stashed" -eq 1 ] && ! git stash pop --quiet; then
-  {
-    echo "pre-commit: 退避した unstaged 変更を pop で戻せなかった (整形との衝突)。変更は stash@{0} に残っている。"
-    echo "復旧: 衝突したファイルを直してから git stash drop する。次からは nix fmt してから stage する。"
-  } >&2
-  exit 1
+if [ "$stashed" -eq 1 ]; then
+  ref=$(git stash list --format='%gd %gs' | awk -v m="$marker" 'index($0, m) { print $1; exit }')
+  if [ -z "$ref" ]; then
+    echo "pre-commit: 退避した stash ($marker) が見つからない。git stash list で確かめて手で戻す。" >&2
+    exit 1
+  fi
+  if ! git stash pop --quiet "$ref"; then
+    {
+      echo "pre-commit: 退避した unstaged 変更を pop で戻せなかった (整形との衝突)。変更は stash ($marker) に残っている。"
+      echo "復旧: 衝突したファイルを直してから、git stash list でその entry を探して drop する。次からは nix fmt してから stage する。"
+    } >&2
+    exit 1
+  fi
 fi
 
 [ "$fmt_rc" -ne 0 ] && { echo "pre-commit: treefmt が失敗した" >&2; exit 1; }
