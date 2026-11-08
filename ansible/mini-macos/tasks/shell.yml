@@ -10,6 +10,52 @@
   loop: "{{ mini_link_sources.results }}"
   loop_control:
     label: "{{ item.item.src }}"
+- name: Inspect legacy shell links without following them
+  ansible.builtin.stat:
+    path: "{{ mini_home }}/{{ item.dest }}"
+    follow: false
+  loop: "{{ mini_shell_legacy_links }}"
+  register: mini_legacy_links
+  loop_control:
+    label: "{{ item.dest }}"
+# 旧リンクか新リンクのどちらかだけを既知として扱う。他の管理者のリンクや通常ファイルは保全して止める。
+- name: Refuse legacy destinations that are neither the old nor the new link
+  ansible.builtin.assert:
+    that:
+      - >-
+        not item.stat.exists or (item.stat.islnk | default(false) and item.stat.lnk_target in
+        [mini_repo ~ '/' ~ item.item.target] +
+        (mini_shell_links | selectattr('dest', 'equalto', item.item.dest) | map(attribute='src') | map('regex_replace', '^', mini_repo ~ '/') | list))
+    fail_msg: Preserve the existing object; it is not a known legacy link.
+  loop: "{{ mini_legacy_links.results }}"
+  loop_control:
+    label: "{{ item.item.dest }}"
+- name: Choose one backup timestamp for this run
+  ansible.builtin.set_fact:
+    mini_shell_backup_stamp: "{{ now(utc=true, fmt='%Y%m%dT%H%M%SZ') }}"
+- name: Report legacy links that would be retired
+  ansible.builtin.debug:
+    msg: "{{ item.item.dest }} -> {{ item.stat.lnk_target }} は旧構成のリンク。mini_shell_retire_legacy=true で backup へ rename する"
+  loop: "{{ mini_legacy_links.results }}"
+  loop_control:
+    label: "{{ item.item.dest }}"
+  when: item.stat.exists and item.stat.lnk_target == mini_repo ~ '/' ~ item.item.target
+# unlink ではなく rename: 復元が必要なら backup を元の名前へ戻すだけで済む。-n で既存 backup を上書きしない。
+- name: Retire known legacy links into dated backups
+  ansible.builtin.command:
+    argv:
+      - /bin/mv
+      - -n
+      - "{{ mini_home }}/{{ item.item.dest }}"
+      - "{{ mini_home }}/{{ item.item.dest }}.before-ansible-{{ mini_shell_backup_stamp }}"
+  loop: "{{ mini_legacy_links.results }}"
+  loop_control:
+    label: "{{ item.item.dest }}"
+  when:
+    - mini_shell_retire_legacy | bool
+    - item.stat.exists
+    - item.stat.lnk_target == mini_repo ~ '/' ~ item.item.target
+  changed_when: true
 - name: Inspect existing link destinations
   ansible.builtin.stat:
     path: "{{ mini_home }}/{{ item.dest }}"
@@ -19,7 +65,11 @@
 - name: Refuse regular files directories and links owned by another source
   ansible.builtin.assert:
     that:
-      - not item.stat.exists or (item.stat.islnk | default(false) and item.stat.lnk_target == mini_repo ~ '/' ~ item.item.src)
+      - >-
+        not item.stat.exists or (item.stat.islnk | default(false) and item.stat.lnk_target == mini_repo ~ '/' ~ item.item.src)
+        or (mini_shell_retire_legacy | bool and ansible_check_mode and item.stat.islnk | default(false)
+        and item.stat.lnk_target in (mini_shell_legacy_links | selectattr('dest', 'equalto', item.item.dest)
+        | map(attribute='target') | map('regex_replace', '^', mini_repo ~ '/') | list))
     fail_msg: Preserve the existing object; resolve this ownership conflict before applying.
   loop: "{{ mini_link_destinations.results }}"
   loop_control:
