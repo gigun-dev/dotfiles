@@ -20,12 +20,17 @@ export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 # このリポジトリは .zshrc を強制リンクして programs.zsh を使わないため、home-manager が
 # 生成する hm-session-vars.sh は誰も source しない。home.sessionVariables
 # (AGY_CLI_DISABLE_AUTO_UPDATE / SLACK_SKIP_UPDATE / LS_COLORS 等) を効かせるにはここで手動 source する。
-# ファイル側が __HM_SESS_VARS_SOURCED で二重 source を防ぐ。source と [[ -r ]] だけで fork しない。
-# 1 つ目は nix-darwin / NixOS の module 経由、2 つ目は standalone (WSL)。
+# 二重 source 防止の __HM_SESS_VARS_SOURCED は source 直前に解除する: 残すと、switch 後に既存シェルから
+# 起動した子シェル (agent・新しい tmux pane) が再ログインなしでは新しい値を拾えない。
+# 中身は単なる export で、PATH は先頭の typeset -gU で一意に保たれるので再 source しても安全。
+# source と [[ -r ]] だけで fork しない。
+# 1 つ目は nix-darwin / NixOS module 経由、2 つ目は standalone home-manager (WSL / mini-vm) で、
+# nix profile 越しではなく現行 generation を直接指す gcroots (ryoppippi/dotfiles と同じ)。
 for _hm_vars in \
   "/etc/profiles/per-user/${USER:-$LOGNAME}/etc/profile.d/hm-session-vars.sh" \
-  "$HOME/.nix-profile/etc/profile.d/hm-session-vars.sh"; do
+  "$HOME/.local/state/home-manager/gcroots/current-home/home-path/etc/profile.d/hm-session-vars.sh"; do
   if [[ -r $_hm_vars ]]; then
+    unset __HM_SESS_VARS_SOURCED
     source "$_hm_vars"
     break
   fi
