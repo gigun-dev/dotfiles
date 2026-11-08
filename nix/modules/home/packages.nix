@@ -111,6 +111,8 @@
       # cask と同じく darwin 限定 (Linux 側で使う予定が無い)。
       (google-cloud-sdk.withExtraComponents [ google-cloud-sdk.components.cloud-sql-proxy ])
       idb-companion # iOS Simulator 自動操作の gRPC companion。CLI 側 fb-idb は nixpkgs に無く uv/tools.txt で宣言
+      # 実機 iOS の画面操作 (idb は実機で tap・AX を持たない)。端末上の XCTest ランナーで動く
+      (callPackage ../../packages/agent-device { })
       # YubiKey は Mac に挿して使うので darwin 限定 (mini-vm は無人、WSL には挿さない)。
       yubikey-manager # ykman: Yubico 公式 CLI。型番確認・OTP 無効化・OATH (TOTP)・PIV の設定
       age-plugin-yubikey # age / sops の受信者に YubiKey (PIV) を使う。docs/security.md
