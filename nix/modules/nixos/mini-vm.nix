@@ -32,6 +32,55 @@ let
     };
   });
 
+  # T3 Code 公式ビルド (pingdotgg/t3code の GitHub release、linux-x64)。
+  #
+  # nixpkgs の t3code 0.1.6 を使わない理由: T3 Connect の public configuration (Clerk の
+  # publishable key 等) はビルド時に埋め込まれる値で、nixpkgs のビルドには入っておらず
+  # `t3 connect ...` が "this build is missing T3 Connect public configuration" で使えない
+  # (2026-11-08 に mini-vm で確認、docs/mini-vm.md)。公式の配布物は埋め込み済み。
+  #
+  # 取得元は npm `t3` の launcher (bin/t3.mjs) が実行時に取るものと同じ:
+  #   https://github.com/pingdotgg/t3code/releases/download/v<ver>/t3-<ver>-linux-x64.tar.gz
+  # launcher は同じ release の SHA256SUMS で検証する。ここでは hash を固定して Nix が取得する。
+  # 本体は bun 製の単一 ELF (t3) + client/ + node_modules/ + lib/libatomic.so.1 (RUNPATH=$ORIGIN/lib)。
+  #
+  # patchelf はしない (dontFixup): 同じ種類の署名済み/単一 ELF は autoPatchelf で起動時に
+  # SIGSEGV した前例がある (nix/runtime-security/README.md)。代わりに programs.nix-ld
+  # (下で有効) の loader に任せる。nix-ld の NIX_LD / NIX_LD_LIBRARY_PATH は
+  # environment.sessionVariables で systemd service には届かないので、ラッパーで渡す。
+  #
+  # 更新手順: version を上げ、`curl -sL https://github.com/pingdotgg/t3code/releases/download/v<ver>/SHA256SUMS`
+  # の linux-x64 行 (hex) を `nix hash convert --hash-algo sha256 --to sri <hex>` で SRI にして hash に入れる。
+  # Pro の版と揃える。`t3 update` / アプリ内更新は store が読み取り専用なので使えない。
+  t3codeVersion = "0.1.7";
+  t3codeOfficial = pkgs.stdenvNoCC.mkDerivation {
+    pname = "t3code-official";
+    version = t3codeVersion;
+    src = pkgs.fetchurl {
+      url = "https://github.com/pingdotgg/t3code/releases/download/v${t3codeVersion}/t3-${t3codeVersion}-linux-x64.tar.gz";
+      hash = "sha256-wImJK/eSLi5zxvRKXR6hJcmfcON4wYNhy77S+6GSDmw=";
+    };
+    dontBuild = true;
+    dontFixup = true;
+    installPhase = ''
+      runHook preInstall
+      mkdir -p $out/libexec $out/bin
+      cp -R . $out/libexec/t3
+      cat > $out/bin/t3 <<'WRAP'
+      #!/bin/sh
+      : "''${NIX_LD:=/run/current-system/sw/share/nix-ld/lib/ld.so}"
+      : "''${NIX_LD_LIBRARY_PATH:=/run/current-system/sw/share/nix-ld/lib}"
+      export NIX_LD NIX_LD_LIBRARY_PATH
+      exec "@out@/libexec/t3/t3" "$@"
+      WRAP
+      substituteInPlace $out/bin/t3 --subst-var out
+      chmod +x $out/bin/t3
+      runHook postInstall
+    '';
+    meta.mainProgram = "t3";
+    meta.platforms = [ "x86_64-linux" ];
+  };
+
   # Cloudflare OS のチェックアウト。4 箇所 (ConditionPathExists / WorkingDirectory /
   # ExecStartPre 2 本) から参照するので 1 箇所に括り出す。
   #
@@ -887,11 +936,8 @@ in
     chromium
 
     # `t3 pair --tailscale` / `t3 status` を対話 shell から叩くための stable な入口。
-    # nixpkgs の t3code は mainProgram が t3code-desktop で、全体を入れると desktop の
-    # 実行ファイルも PATH に出るため t3 だけを出す (サービスと同じ derivation)。
-    (writeShellScriptBin "t3" ''
-      exec ${pkgs.t3code}/bin/t3 "$@"
-    '')
+    # サービスと同じ公式ビルド (t3codeOfficial) を PATH に出す。
+    t3codeOfficial
   ];
 
   # T3 Code (pingdotgg/t3code) の server を 24/365 常駐させ、iPhone と Pro のデスクトップ
@@ -906,8 +952,8 @@ in
   # (packages/tailscale/src/tailscale.ts と apps/server/src/server.ts、v0.1.6 で確認)。
   # --lan / --host 0.0.0.0 は使わない。
   #
-  # package: nixpkgs の t3code。mainProgram は t3code-desktop なので bin/t3 を明示する。
-  # 版は flake.lock の nixpkgs 任せ (評価時点で 0.1.6、Pro の cask は 0.1.7 以降へ自動更新)。
+  # package: 公式 release を hash 固定した t3codeOfficial (上の let、Pro と同じ 0.1.7)。
+  # nixpkgs の t3code は T3 Connect の public configuration を含まず使えない。
   # Nix 管理の server は `t3 update` / アプリ内更新の対象外。
   #
   # user service ではなく system service + User=: cloudflare-os と同じ理由 (linger が
@@ -958,7 +1004,7 @@ in
       User = username;
       WorkingDirectory = "/home/${username}";
       ExecStart = lib.concatStringsSep " " [
-        "${pkgs.t3code}/bin/t3"
+        "${t3codeOfficial}/bin/t3"
         "serve"
         "--host 127.0.0.1"
         "--port 3773"
