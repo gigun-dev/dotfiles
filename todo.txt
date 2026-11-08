@@ -68,3 +68,7 @@
 (C) 2026-11-08 Pro の Nix GC が効いていない理由を調べ、世代が溜まらないようにする。darwin/system.nix に nix.gc(毎日 12:00、--delete-older-than 7d)は既にあるが、2026-11-08 に手動 sudo nix-collect-garbage -d で 14.2GiB 回収できた(旧システム世代は root 所有)。launchd の実行履歴、7 日保持が長すぎないか、gigun の user profile / home-manager 世代が対象外でないかを確かめる +nix see:docs/storage-cleanup.md by:claude id:0142
 (A) 2026-11-08 +ci dotfiles の Actions が 2026-11-08 09:29 から課金上限で起動しない (private の無料枠を macos-15 の 2 ジョブが 10 倍で消費したと推定)。gh auth refresh -s user で使用量を確かめ、当面は macOS ジョブの実行条件を絞るか上限を上げ、public に戻すなら公開前監査 (0121) を進める。直ったら CI を再実行し、Linux 側の評価 (0140) も確かめる see:docs/linux-ci-fallback.md by:me id:0143
 (A) 2026-11-08 Pro で nix run .#switch を実行し (Touch ID 待ちで中断中)、Screendrop が brew cask に --adopt で取り込まれること、brew cleanup の事前確認が通ることを確かめる by:me id:0144
+2026-11-08 +infra pve の外部死活監視を作る: mini など外から書き込み可否を叩く (read-only に落ちると通知とログが同時に死ぬため) see:docs/pve-ssd-failure.md by:claude id:0145
+2026-11-08 +infra pve の vm-101 (supabase-01) が使用率 98%。ディスクを広げるか中身を整理する see:docs/pve-ssd-failure.md by:claude id:0146
+2026-11-08 +security tailnet の storage→proxmox の root SSH ルールは 2026-08-01 の退避用の臨時。tofu の定義から外すか決める see:docs/tailnet.md by:claude id:0147
+2026-11-08 Finder の iPhone Wi-Fi 自動バックアップが壊れたバックアップを毎日作り直す件の恒久対策 (iCloud バックアップへ切り替えるか、ケーブルで一度完走させて Wi-Fi 自動バックアップを止める)。対象が Pro か mini かも確かめる see:docs/storage-cleanup.md by:claude id:0148
