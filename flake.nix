@@ -54,6 +54,13 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # ADR 0016 に従って暗号化fileの配送をSOPSへ統一する。agenixはconsumerを
+    # 一件ずつ移行して旧credentialを失効するまでの一時的なrollback経路だけに残す。
+    sops-nix = {
+      url = "github:Mic92/sops-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # Secure Enclave の中に SSH 鍵を作り、それを Git のコミット署名鍵として使う。
     # 秘密鍵はチップから一切出ない (~/.ssh/id_enclave_key はスタブで、実体は
     # Secure Enclave 内)。upstream の `systems` が aarch64-darwin のみなので
@@ -676,6 +683,7 @@
             modules = [
               inputs.nixos-lima.nixosModules.lima
               inputs.agenix.nixosModules.default
+              inputs.sops-nix.nixosModules.sops
               ./nix/modules/nixos/mini-vm.nix
             ];
           };
