@@ -111,7 +111,8 @@ DB を伴う手動復旧前は Compose を停止し、Postgres / ClickHouse / Mi
 - **uvx で取るものはこの経路に乗らない**。`codex-openai-bridge` が動かす
   `openai-api-server-via-codex` は nixpkgs に無く実行時に PyPI から取るため、lock にも
   required CI にも現れない。`codex-openai-bridge-refresh`(日次)が別レーンとして追従する。
-  autoswitch と意図的に分離してあり、理由は `docs/adr/0006-track-uvx-versions-outside-nix.md`。
+  autoswitch と意図的に分離してある。uvx の不具合で Nix の健全な generation を rollback しても
+  uvx の版は戻らず失敗を繰り返し得るため、refresh の成否を健全性ゲートに含めない。
 
 **実績** (2026-09-08 時点): PR #1〜#5 が全て merged、CI も直近 8 run 全て success。
 設計は当初「手元でレビューしてから merge」だったが、lock 差分は人に判定できないと結論し、
@@ -286,7 +287,7 @@ refresh では延びない。張り直しはスマホから行う(設計は ADR 
 
 ## agy の remote control(常駐と、手で当てる状態)
 
-2026-10-09 に mini-vm へ入れ、2026-10-16 に常駐の所有を dotfiles へ移した(ADR 0012)。
+2026-10-09 に mini-vm へ入れ、2026-10-16 に常駐の所有を dotfiles へ移した(理由は `nix/modules/nixos/mini-vm.nix` の antigravity-remote-control のコメント)。
 宣言できるものと、できない状態を分けて持つ。
 
 - **宣言している**: パッケージ(`llmAgents.antigravity-cli`)と、常駐の system service

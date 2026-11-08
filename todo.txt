@@ -14,12 +14,12 @@
 (C) 2026-09-10 Slack 書き込み gatekeeper を、upstream PR #95 の動向を見て着手・見送り・自前実装のどれかに決める +cloudflare-os old:DF-31 see:docs/cloudflare-os.md id:0018
 (C) 2026-09-10 pve の SSD を交換するか再インストールするか決める(データは mini へ退避済み。mini のストレージ整理と連動) @device +infra id:0019
 (C) 2026-09-10 Taildrive(mini の ~/Storage を中央ストレージにする構想)を続けるか畳むか決める +infra id:0021
-2026-09-11 別 repo の実委譲で cross-repo-implementer が対象 checkout を使い、呼出元に不要な worktree を作らないことを確認する +claude @unattended see:docs/adr/0005-scope-worktrees-to-target-repositories.md id:0023
+2026-09-11 別 repo の実委譲で cross-repo-implementer が対象 checkout を使い、呼出元に不要な worktree を作らないことを確認する +claude @unattended see:docs/agent-execution.md id:0023
 (A) 2026-09-11 Claude から Codex への実委譲で prompt-file が選ばれ、日本語・表・引用符・バッククォートが改変されず届くことを確認する +claude @unattended see:docs/agent-execution.md id:0025
 2026-09-11 実際の並列セッションで重い検証が1枠に収まり、単独/重複時の所要時間と失敗を再測定する +claude @unattended see:docs/agent-execution.md id:0029
 2026-09-11 ESP32 ホストテストの無条件再コンパイルによる所要を測定し、対象選択や ccache の導入が必要か決める +claude @unattended see:docs/agent-execution.md id:0030
 2026-09-11 codex に worktree を使わせる。2026-09-11 に codex とみられる別セッションが esp32 の本線ツリーで作業しており、本線からは誰が何を触っているか見えなかった。同じツリーを複数の主体が触ると、本線がビルドして実機で測る対象が汚染される +claude @unattended id:0036
-2026-09-11 Claude の実 subagent で worktree-write-guard が発火し、本体と兄弟 checkout への Edit/Write を拒否することを確認する +claude @unattended see:docs/adr/0005-scope-worktrees-to-target-repositories.md id:0040
+2026-09-11 Claude の実 subagent で worktree-write-guard が発火し、本体と兄弟 checkout への Edit/Write を拒否することを確認する +claude @unattended see:docs/agent-execution.md id:0040
 (C) 2026-09-15 brew cask の sf-symbols に sfsymbols CLI が入っているか確かめ、入っていれば cask 宣言へ寄せる(入っていなければ新規ホストは developer.apple.com から手で入れる必要がある旨を残す) +infra @device id:0043
 (B) 2026-09-19 mini-vm を nix.buildMachines に宣言し、M4 Pro から x86_64-linux の変更を remote build で検証できるようにする(nix daemon は root なので root の SSH 鍵・known_hosts も要る。nixosConfigurations.mini-vm のビルドが手元で通ること) +mini-vm @device see:docs/mini-vm.md id:0044
 (A) 2026-10-09 codex ブリッジの prompt_cache_breakpoint 修正 (hotchpotch/openai-api-server-via-codex#25) が merge・リリースされたら mini-vm で `systemctl restart codex-openai-bridge` し、Cloudflare OS の GPT-5.6+ チャットが通ることを確認する。長引くなら fork の rev を buildGoModule で当てる暫定を検討 +cloudflare-os +mini-vm see:docs/cloudflare-os.md id:0082
@@ -29,7 +29,7 @@
 (C) 2026-10-15 switch 後に Fork から .ipynb を commit して nbstripout filter が PATH 無しで通り、WSL の ~/.config/git/config にも filter と textconv が入っていることを確認する(mini-vm は 10/15 に filter.nbstripout.clean と diff.ipynb.textconv が nbstripout の store path を指すことを確認済み) +infra @device by:claude id:0081
 (C) 2026-10-16 Windows DSC の script-symlinks (Get/Test/SetScript) に git/ignore → ~/.config/git/ignore の symlink を足す。Mac/Linux は 2026-10-16 に git/ignore へ移した by:claude id:0084
 (C) 2026-10-16 nix なしの Mac/Linux で bootstrap.sh が git/gitconfig を張らず、git 設定が効かない。張るか、Windows 専用と明記するか決める (docs/git.md 設定の置き場所) by:claude id:0085
-2026-10-16 +mini-vm codex 本体 (ChatGPT) と agy (Google) の認可切れを、それと分かる通知で知らせ、健全性ゲートで rollback させない (どちらも稀。MCP は ADR 0013 で対応済み) see:docs/adr/0012-own-agy-remote-control-daemon-as-system-service.md by:me id:0086
+2026-10-16 +mini-vm codex 本体 (ChatGPT) と agy (Google) の認可切れを、それと分かる通知で知らせ、健全性ゲートで rollback させない (どちらも稀。MCP は ADR 0013 で対応済み) see:nix/modules/nixos/mini-vm.nix by:me id:0086
 2026-10-16 +mini-vm agy remote-control status が system service 化後も旧ユーザー unit を見て inactive と出る。表示の扱いを docs に書くか回避策を決める by:claude id:0088
 2026-10-16 +mini-vm MCP 再ログイン後に codex-remote-control の再起動が要るか実測し、ADR 0013 と docs/mini-vm.md の未確認を消す see:docs/adr/0013-relogin-codex-mcp-oauth-through-cloudflare-access.md by:claude id:0089
 2026-10-16 +mini-vm tailnet の端末から mini-vm:18791 に届かないこと (raw 表の DROP) を、ログイン待ちの間に nc で実測する see:docs/adr/0013-relogin-codex-mcp-oauth-through-cloudflare-access.md by:claude id:0090
