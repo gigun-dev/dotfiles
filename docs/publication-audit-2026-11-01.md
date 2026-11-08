@@ -7,6 +7,7 @@
 現在は**NO-GO**。visibilityを変更してはならない。理由は次の未完項目である。
 
 - SOPS移行、recipient分離、旧credential失効、agenix撤去が未完
+- 到達可能履歴に現在も有効な可能性があるBark対称鍵が平文で残る
 - 非再構成可能なrecovery assetの独立復旧が未確認
 - SSHのhost固有入力がpublic moduleに残る
 - current tree以外のGitHub公開面に未確認範囲がある
@@ -30,6 +31,7 @@ private文書や専用private repoの不存在はblockerにしない。public化
 ## これまでに確認した範囲
 
 - current tree、追加commit、commit message、pathnameを値非表示のfull-tree gitleaksで検査し、actual credentialとして分類すべき一致は見つかっていない。
+- 全refsの履歴scanでは10件を検出した。7件はpublic identifierまたは明示的dummy例だが、3件は同一のBark対称鍵と判断すべき値で、全remote追跡refとtagから到達する。repo内に後続rotationや旧鍵拒否の証拠はない。
 - Ansible inventoryは公開alias、user、標準path、fail-closed SSH optionだけに限定し、field allowlist testを追加した。
 - Actionsは外部ActionのSHA固定、read-only既定permission、full-tree secret scan、actionlint、zizmor、fail-closed aggregate gateを実装した。
 - review済みSHAに対するephemeral self-hosted Linux fallbackで、成功経路、失敗集約、jobごとの登録解除、使用後cleanupを確認した。
@@ -53,11 +55,12 @@ private文書や専用private repoの不存在はblockerにしない。public化
 
 ## current treeの公開blocker
 
-1. [ADR 0016](adr/0016-unify-secret-delivery-with-sops.md)に従い、human、host、通知等のrecipient群を分けてSOPSへ移行する。
-2. 共通SSH設定にはprivate includeの受渡し口を追加済み。SOPS生成の0600 includeを配送・受入してから、public moduleのhost固有alias、endpoint、user、key配置を削除する。
-3. `docs/mini-vm.md`等からcurrent token scope、account関係、実UID/session、private runner path、完全な内部endpoint、日時付きlive観測を除く。
-4. 非再構成可能なrecovery assetをprimary / backup経路から実際に再読取する。
-5. 履歴に残る運用metadataを分類し、current treeの一般化だけで足りない場合に限ってhistory rewriteまたは監査済みexportをADRで選ぶ。
+1. Barkの新しいkey / IVをrepo外で生成し、受信端末、mini-vm、Proの全consumerを切り替える。新鍵の受信と旧鍵の復号拒否を確認するまで、過去鍵を失効済みと扱わない。
+2. [ADR 0016](adr/0016-unify-secret-delivery-with-sops.md)に従い、human、host、通知等のrecipient群を分けてSOPSへ移行する。
+3. 共通SSH設定にはprivate includeの受渡し口を追加済み。SOPS生成の0600 includeを配送・受入してから、public moduleのhost固有alias、endpoint、user、key配置を削除する。
+4. `docs/mini-vm.md`等からcurrent token scope、account関係、実UID/session、private runner path、完全な内部endpoint、日時付きlive観測を除く。
+5. 非再構成可能なrecovery assetをprimary / backup経路から実際に再読取する。
+6. Bark鍵のrotation後、全remote refとtagを含むhistory rewriteまたは監査済み新履歴を本人が選ぶ。commit messageに残るagent session metadataと旧attributionも同じ判断に含める。
 
 ## GitHub公開面の最終監査
 
