@@ -70,5 +70,4 @@
 2026-11-08 +security tailnet の storage→proxmox の root SSH ルールは 2026-08-01 の退避用の臨時。tofu の定義から外すか決める see:docs/tailnet.md by:claude id:0147
 2026-11-08 Finder の iPhone Wi-Fi 自動バックアップが壊れたバックアップを毎日作り直す件の恒久対策 (iCloud バックアップへ切り替えるか、ケーブルで一度完走させて Wi-Fi 自動バックアップを止める)。対象が Pro か mini かも確かめる see:docs/storage-cleanup.md by:claude id:0148
 2026-11-08 +claude claude-code の主 checkout が add-emil-skills のままで、marketplace (gigun) がそこを読むため main の更新のたびに手で merge している。emil を main に入れるか checkout を main に戻すか決める by:claude id:0153
-(A) 2026-11-08 git/hooks/pre-commit が worktree 間で共有される stash の stash@{0} を読むので、2 つの checkout が同時に commit すると unstaged の変更が入れ替わる (2026-11-08 23:42 に main と agent の worktree で発生、手で復旧)。stash を使わない形 (stash create の hash を持つ、一時 index で整形する等) に直す see:docs/git.md by:claude id:0154
 2026-11-08 +nix 長く残る gc root を整理する: ~/.local/state/esp-idf/nix-profile-1-link (3.5GiB)、direnv の cc-handson / swift-mcp-app、dotfiles と worktree の result symlink。nix run .#build の result を残さない形も検討 see:docs/storage-cleanup.md by:claude id:0155
