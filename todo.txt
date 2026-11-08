@@ -60,7 +60,6 @@
 (B) 2026-11-08 +claude agent-skills-nix (Kyure-A/agent-skills-nix) を導入するか決める。取り込み元が ryoppippi 以外にも増えるか、plugin の user scope オン/オフとの二層化を受け入れるかが分かれ目。あわせて ryoppippi が MCP をどう宣言・配布しているかを調べる (claude-code の plugins/*/.mcp.json 方式との比較) by:me id:0131
 2026-11-08 plamo-translate: Takumi Guard (pypi.flatt.tech) に 1.2.0 が出たら uv tool install --reinstall -p 3.14 --managed-python plamo-translate でパッケージ名指定に戻す (今は pypi.org の wheel をローカルパスで入れており uv tool upgrade で上がらない) by:me id:0133
 2026-11-08 +docs ADR を棚卸しし、今の意図と違うものを覆すか畳む (古く、意図と違うことがあるとユーザー談) by:me id:0135
-2026-11-08 git-wtpr に zsh の cd 連携を足すか決める (ryoppippi の init.bash は zsh で declare -F の意味が変わるため移植時に外した) by:claude id:0138
 (C) 2026-11-08 uv cache(約 8G)を掃除できる状態に戻す。uv cache clean/prune は ~/.cache/uv/.lock を待って終わらない。MCP を起動した uv run/uvx が実行中ずっと lock を持つのは uv の意図した挙動(astral-sh/uv#15990)。agy-mcp と markitdown-mcp は自分の claude-code repo で起動方法を変えられるが、cman(laiso/cman)は plugin.json を持つため marketplace エントリでも MCP 名でも上書きできず(/mcp で止めるのはプロジェクトごと)、2 つを移しても lock は残る。根本対応は uv 側の astral-sh/uv#22338(実行環境をキャッシュ外へ)か #19321(細かい lock)を待つ。それまでは再起動直後、Claude Code と Codex を開く前に uv cache prune を流す。--force は動作中 MCP の環境を壊しうるので使わない +cleanup see:docs/storage-cleanup.md by:claude id:0141
 2026-11-08 +infra pve の外部死活監視を作る: mini など外から書き込み可否を叩く (read-only に落ちると通知とログが同時に死ぬため) see:docs/pve-ssd-failure.md by:claude dep:0019 id:0145
 2026-11-08 +infra pve の vm-101 (supabase-01) が使用率 98%。ディスクを広げるか中身を整理する see:docs/pve-ssd-failure.md by:claude dep:0019 id:0146
