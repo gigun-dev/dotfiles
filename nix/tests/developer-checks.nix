@@ -136,7 +136,6 @@ in
         "execution-context"
         "github-auth-diagnose"
         "linux-ci-runner"
-        "private-restore"
         "sops-exec-env"
         "agent-instructions"
         "claude-user-settings"

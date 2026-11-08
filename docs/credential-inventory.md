@@ -2,12 +2,11 @@
 
 この文書は、資格情報を値なしのクラス単位で分類し、継続・権限縮小・更新・削除の判断と未処理作業を追跡する公開用台帳である。秘密値、復旧コード、PIN、秘密鍵、公開鍵、fingerprint、client ID、key ID、account・organization・repository・project・resource・host の実名、IP、exact path、期限日、複製ファイル名は記録しない。
 
-資格情報ごとの正確な対象、保管場所、権限、期限、複製先、失効順、復旧先は、repo 外の暗号化された非公開台帳を正本とする。この文書、ignore 対象のディレクトリ、暗号文、旧 commit は、非公開台帳の正本または独立 backup として扱わない。
+実credentialの現在値は、provider管理面、Keychain、password manager、consumer宣言を権威ある情報源として確認する。exact scope、期限、active key、登録factor、最終利用を別の散文台帳へ複写しない。公開できない機械入力はSOPS等の暗号化structured dataとして管理し、再構成不能な秘密・復旧材料だけ独立backupを確認する。
 
 関連文書:
 
 - [セキュリティの方針](security.md)
-- [非公開運用台帳の索引例](private-inventory-index.example.md)
 - [公開準備](publication-preparation.md)
 - [実行環境と認証診断](execution-context.md)
 
@@ -28,7 +27,7 @@
 
 ## 分類
 
-確認基準日は 2026-11-09。この表は資格情報の実体ではなくクラスを表す。live metadata と失効操作は非公開台帳と todo に記録する。
+確認基準日は 2026-11-09。この表は資格情報の実体ではなくクラスを表す。live metadataはproviderとconsumer宣言から確認し、値なしの判断、確認日、次操作だけをtodoへ記録する。
 
 | ID | 資格情報クラス | 主な利用主体 | 判断 | 現在の根拠 | 次の操作 |
 |---|---|---|---|---|---|
@@ -41,8 +40,8 @@
 | C07 | IaC control-plane token 群 | 人が実行する IaC process | 権限縮小 | 複数 provider・resource の長期 credential を扱う | resource、action、IP、TTL を限定し、人用 recipient だけにする |
 | C08 | state backend credential と暗号化材料 | 人が実行する IaC process | 更新 | state の読み書きと復旧に必要 | read/write、再暗号化、backup、restore を限定成果物で確認する |
 | C09 | 無人 cloud service API credential | 無人 service | 権限縮小 | service 継続に必要だが権限・期限の live確認が必要 | service 専用の resource・action・TTL へ絞り、health確認後に旧 token を失効する |
-| C10 | tunnel・接続 broker credential | root または専用 service | 継続 | tunnel connectorとoverlay networkのnode identity・再参加credentialはlifecycleが異なる | subtypeごとに複製先、期限、失効・再参加、rotate時の停止範囲を非公開台帳で確認する |
-| C11 | OAuth application runtime secret | 専用 application service | 継続 | application の認可フローで利用 | owner、callback、consumer、rotation日を非公開台帳で確認する |
+| C10 | tunnel・接続 broker credential | root または専用 service | 継続 | tunnel connectorとoverlay networkのnode identity・再参加credentialはlifecycleが異なる | subtypeごとにprovider control planeとconsumer宣言を突合し、失効・再参加、rotate時の停止範囲を確認する |
+| C11 | OAuth application runtime secret | 専用 application service | 継続 | application の認可フローで利用 | provider metadataとconsumer宣言からowner、callback、active key、rotation状態を確認する |
 | C12 | ダウンロードされた OAuth secret の複製 | なし、または未確認 | 更新 | repo内consumerは見つからないが、provider上のruntime clientとの同一性は未確認 | client metadataを照合し、不使用なら削除、利用中ならruntime正本を確認してduplicateだけを削除する |
 | C13 | ダウンロードされた application private key | なし、または未確認 | 更新 | repo内consumerは見つからないが、provider上のinstallation・active keyは未確認 | installationとconsumerを確認し、不使用なら発行元keyを失効してからlocal copyを削除する |
 | C14 | 通知 credential | 人の開発環境、無人 service | 更新 | 複数主体の共有と旧復号鍵依存が残る | 利用主体ごとに分離し、旧 identity への依存を外す |
@@ -50,16 +49,16 @@
 | C16 | observability・管理 service の秘密 | 専用 service、初期管理者 | 更新 | runtime秘密と初期credentialが同じ管理単位に混在する | runtime暗号化材料、初期admin、agent tokenを別credentialとして管理する |
 | C17 | CLI の可変 OAuth session | 対話 CLI、同一 UID の service | 継続 | CLI自身がrefreshするため宣言配布しない | provider revoke、service停止、再login、restartの順を確認する |
 | C18 | binary cache write credential | 明示送信 process | 更新 | 通常適用からの自動送信は停止済みだが、今後送信しない方針は未決定 | 送信しない案を決めた場合だけ発行元で失効し、local copyを削除する |
-| C19 | 開発 project の API key・`.env` | 人が起動する process、子 process | 権限縮小 | projectごとの権限・期限・課金上限・agent露出が未整理 | 1 projectで保護方式を検証し、project単位でprivate台帳へ登録する |
+| C19 | 開発 project の API key・`.env` | 人が起動する process、子 process | 権限縮小 | projectごとの権限・期限・課金上限・agent露出が未整理 | 1 projectでprovider metadataとconsumerを突合し、必要なstructured secretだけ既存secret managerへ置く |
 | C20 | account passkey・security key・recovery credential | 人、予備 hardware | 継続 | 主要accountへの登録記録がある | 2本の登録、recovery経路、紛失時の失効順を値なしで定期確認する |
 | C21 | provider-managed log delivery credential | provider-managed service | 更新 | localに秘密を増やさない方針だが、jobの存在・保存先・翌日到着は未受入 | 保存先限定、翌日到着、失効方法を確認してから継続へ移す |
 | C22 | build・sign・publish credential | GUI session、署名主体、publisher | 更新 | 工程と利用主体の分離が未完 | identity、artifact hash、承認点、配布先権限を工程別に分ける |
-| C23 | password manager・keychain・plugin OAuth の未分類項目 | 人、同一 UID の application | 更新 | 導入済み機能と実際の移行・連携状態が一致していない | provider・用途単位にprivate台帳へ登録し、使途不明項目を削除候補にする |
+| C23 | password manager・keychain・plugin OAuth の未分類項目 | 人、同一 UID の application | 更新 | 導入済み機能と実際の移行・連携状態が一致していない | provider metadata、item metadata、consumerを突合し、使途不明項目を削除候補にする |
 
 ## 未処理todoとの対応
 
 公開台帳のクラスは実credentialと1対1ではない。同じクラスに複数のconsumerやcredentialがある場合、
-非公開正本で実体ごとに分け、次の既存todoへ結ぶ。
+providerとconsumer宣言上の実体をconsumerごとに確認し、次の既存todoへ結ぶ。
 
 | クラス | 主なtodo | 残る境界 |
 |---|---|---|
@@ -67,7 +66,7 @@
 | C02 | 0002, 0164, 0070 | 無人更新identity、Actions移行、green/red/pending判定 |
 | C05, C06, C14 | 0174, 0109, 0098 | host / human / recovery / 通知recipientとcredentialの分離 |
 | C07, C08 | 0096, 0101, 0174 | IaC権限・recipientとstateの限定backup / restore。restore受入は実credential分解時に独立した次操作へする |
-| C09, C11, C15, C16, C17, C23 | 0101, 0108, 0099, 0082, 0086, 0089, 0159 | umbrella classのまま完了扱いにせず、private台帳作成時にconsumer単位の次操作へ分ける |
+| C09, C11, C15, C16, C17, C23 | 0101, 0108, 0099, 0082, 0086, 0089, 0159 | umbrella classのまま完了扱いにせず、provider / config突合時にconsumer単位の次操作へ分ける |
 | C10 | 0171, 0101 | tunnel connectorとoverlay nodeの期限・失効・再参加を分ける |
 | C12, C13 | 0108 | provider metadata照合後にだけ継続または削除へ確定する |
 | C18 | 0100 | binary cacheへ送信するかを先に決める |
@@ -76,18 +75,18 @@
 | C21 | 0094 | provider-managed deliveryと翌日到着を確認する |
 | C22 | 0122 | build / sign / publishの主体とcredentialを分ける |
 
-## 公開台帳と非公開正本の境界
+## 情報源と永続化の境界
 
-公開台帳には、安定したクラス ID、一般化した用途、利用主体の種類、判断、確認状態、確認基準日、repo内の方針文書と todo ID だけを記録する。
+public repoには、安定したクラスID、一般化した用途、利用主体の種類、判断、確認状態、確認基準日、consumer宣言、方針文書、todo IDだけを記録する。
 
-非公開正本にだけ、provider・account・application・organization・repository・project・resource・host の実名とID、exact scope・role・resource selector・IP制限、exact path、key ID、fingerprint、client ID、公開鍵、作成日・期限日・最終利用日、runtime copy・download copy・backupの場所、consumer・owner・更新担当者、失効順・復旧先・予備鍵の所在、provider管理画面・metadata APIの確認結果を記録する。
+provider管理面とconsumer宣言を、exact ID、scope、role、resource selector、期限、active key、最終利用、複製先の現在値として都度突合する。変化するmetadataをprivateな散文へ複写しない。監査時に必要なreceiptは値なし・期限付きで生成し、恒久的に必要な判断と未処理項目だけをtodoへ反映する。
 
-どちらにも secret value、private key本文、recovery code、PIN、session token、復号済み環境変数、password は記録しない。
+実行に必要な非公開structured inputとsecret valueはSOPS、1Password、Keychainまたはprovider secret storeへ置く。runtime生成file、ignore対象、旧commitは正本やbackupにしない。不要になった観測やreceiptは別repoへ退避せず削除する。
 
 ## 更新規則
 
 1. 新しい credential を発行する前にクラスと利用主体を決める。
-2. 非公開正本へ登録し、公開台帳には該当クラスだけを反映する。
+2. provider metadataとconsumer宣言を突合し、公開台帳には値なしのクラス判断だけを反映する。
 3. 実機確認には日付と `宣言済 / live確認済 / 過去観測 / 計画のみ` を付ける。
 4. 古い観測を現在値で上書きせず、supersededとして残す。
 5. 失効は、consumer確認、代替発行、限定受入、切替、provider revoke、local copy削除、旧credential拒否確認の順で行う。
@@ -99,10 +98,11 @@
 
 資格情報棚卸しは、次をすべて満たした時だけ完了とする。
 
-- 非公開正本で対象credentialが用途・保管・利用主体・権限・期限・複製先と結び付いている
-- 全項目が継続・権限縮小・更新・削除のいずれかに分類されている
+- provider / config上の実credentialが用途、consumer、scope、期限、複製先と突合されている
+- 全実体が継続・権限縮小・更新・削除のいずれかに分類されている
 - live未確認と過去観測が現在値から分離されている
 - 削除項目にconsumer確認と発行元失効の順序がある
-- 非公開正本のread権限、独立backup、再読取、復元方法が確認されている
+- 再構成不能な秘密・復旧材料だけがTask 0166の独立backup対象になっている
+- exact IDや秘密値を恒久的な監査文書へ複写していない
 - 公開台帳に実名、識別子、exact path、秘密値が含まれていない
 - 未処理項目がtodoへ対応している

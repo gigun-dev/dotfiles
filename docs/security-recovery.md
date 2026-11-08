@@ -1,6 +1,6 @@
 # 認証要求と侵害時の復旧
 
-この手順は、sudo の要求元を見分け、Mac・鍵・資格情報の紛失または侵害時に、別端末と予備鍵から復旧するための公開用runbookである。秘密値、復旧コード、鍵ID、account・resourceの実名は書かない。正確な対象、provider画面、失効順、復旧先、確認日はrepo外の非公開台帳を正本とする。
+この手順は、sudo の要求元を見分け、Mac・鍵・資格情報の紛失または侵害時に、別端末と予備鍵から復旧するための公開用runbookである。秘密値、復旧コード、鍵ID、account・resourceの実名は書かない。正確な対象と現在の登録状態はprovider管理面、consumer宣言、secret managerから復旧時に確認する。変化する現在値をprivateな散文へ複写せず、再構成不能なrecovery code、復号鍵、Emergency Kit相当だけを独立したbreak-glass材料として保全する。
 
 ## sudo要求の現在地
 
@@ -17,22 +17,22 @@ Proの主checkout・mainで `git pull --rebase`、merge、rebase、branch checko
 
 ## 事前に揃えるもの
 
-- 日常端末と独立した復旧端末から、非公開台帳とprovider管理画面を再読取できる
+- 日常端末と独立した復旧端末から、provider管理面、secret manager、break-glass材料へ到達できる
 - primaryとbackupのhardware keyを別のfailure domainに置き、各accountへの登録状態を値なしで確認している
 - password managerの復旧、端末紛失機能、recovery codeの所在を本人が読める
 - 人用、無人service用、build/sign/publish用のcredentialが利用主体とconsumerへ対応付いている
-- credentialごとに「代替を先に配備できるか」「即時失効が先か」を非公開台帳へ記録している
+- credential classとprovider公式手順から「代替を先に配備できるか」「即時失効が先か」を判断できる
 
 repo内の暗号文、ignore対象、旧commit、同じ端末のbackupだけを復旧経路にしない。
 
 ## 共通の初動
 
 1. 侵害が疑われる端末で新しいcredentialを作らない。可能ならnetworkから隔離し、時刻と観測だけを残す。
-2. 独立した復旧端末とbackup keyから非公開台帳を開く。sandboxのnetwork denyや単発の認証失敗だけでcredential侵害と断定しない。
+2. 独立した復旧端末とbackup keyからprovider管理面とsecret managerへ入り、対象をlive列挙する。sandboxのnetwork denyや単発の認証失敗だけでcredential侵害と断定しない。
 3. 影響する主体、provider、resource、consumer、複製先を値なしで列挙する。
 4. 攻撃継続を止める必要があるsession・token・鍵を失効する。可用性を先に確保できるruntime credentialは、代替を限定配備してhealth確認後に旧credentialを失効する。
 5. 旧credentialが拒否されること、代替経路で必要操作だけが通ること、不要な管理操作が拒否されることを確認する。
-6. 信頼できるsourceから端末またはserviceを再構築し、非公開台帳の確認日と残存リスクを更新する。
+6. 信頼できるsourceから端末またはserviceを再構築し、恒久的な設計変更と未解決事項だけをpublic runbookとtodoへ反映する。一時識別情報は保存しない。
 
 ## 事象別の順序
 
@@ -68,10 +68,10 @@ repo内の暗号文、ignore対象、旧commit、同じ端末のbackupだけを�
 
 ## 復旧試験の完了条件
 
-- 別端末とbackup keyから非公開台帳を再読取できる
+- 別端末とbackup keyからprovider管理面、secret manager、break-glass材料へ到達できる
 - 主要accountへprimary keyなしで入り、登録factorを確認できる
 - 限定した非本番credentialまたはfixtureで、代替配備、必要操作、旧credential拒否、rollbackを確認できる
 - 失効の証拠にsecret value、復旧コード、内部識別metadataを残していない
 - 未確認のprovider、別端末、backup、consumerを明記している
 
-実際の紛失・侵害時は、この一般順序より非公開台帳の対象別手順を優先する。provider仕様が変わり得るため、実行直前に公式手順を確認する。
+実際の紛失・侵害時は、このpublic runbook、credential class、実行時点のprovider公式手順を組み合わせる。provider仕様が変わり得るため、古いprivate手順を正本にしない。

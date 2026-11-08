@@ -6,9 +6,9 @@
 
 | 対象 | 分類 | 非破壊で進める方法 |
 |---|---|---|
-| docs/security.md | 個人アカウント・鍵の役割・保管と復旧の運用情報 | 非公開正本の保持確認後、公開側は一般原則にする |
-| ansible/mini-macos/inventory.yml | 実ホストの接続先・ユーザー | [例示 inventory](../ansible/mini-macos/inventory.example.yml) を追加し、非公開 `inventory.private.yml` を明示選択する導線を検証する。実運用 inventory の変更は後段 |
-| nix/modules/home/programs/ssh/default.nix | ホスト固有の宛先・ユーザー・鍵参照 | 非公開入力設計と生成結果の互換性テストを先行する。Host/Include 順序、IdentityFile の累積、Darwin/Linux 差を維持 |
+| docs/security.md | 個人アカウント・鍵の役割・保管と復旧の運用情報 | 公開可能な原則と再現手順だけ残し、不要な個人観測は別repoへ退避せず削除する |
+| ansible/mini-macos/inventory.yml | 実ホストの接続先・ユーザー | [例示 inventory](../ansible/mini-macos/inventory.example.yml) と、SOPS等のstructured inputから生成するruntime fileへ分ける。untracked file単独は正本にしない |
+| nix/modules/home/programs/ssh/default.nix | ホスト固有の宛先・ユーザー・鍵参照 | 公開共通設定と暗号化structured inputから生成するprivate includeへ分け、Host/Include 順序、IdentityFile の累積、Darwin/Linux 差を維持する |
 | docs/mini-vm.md、関連運用 docs、todo.txt | 内部構成・手順・運用メタデータ | 一文ずつ機密性と再現性を分類する。すべての内部名を機械的に削除しない |
 | docs/agent-harness-boundaries.md、docs/execution-context.md | harness、sandbox、network、repo 外アクセスの境界 | 防御の実装詳細と再現に必要な一般説明を分け、現在の host / tool 固有状態を公開してよいか判断する |
 | docs/security-access-boundaries.md、docs/linux-ci-fallback.md | trusted user、sudo、self-hosted runner の信頼境界 | 実秘密ではないが攻撃面を説明する運用 metadata として、公開可否を明示的に判断する |
@@ -17,9 +17,9 @@
 
 ## 検証と保持
 
-- 現行 `docs/security.md` は変更前に本人の非公開正本へ保全し、ハッシュ、再読取、権限とバックアップ先を確認する。旧 commit だけを唯一の退避先にせず、ignore を暗号化やバックアップと見なさない。
-- [非公開運用台帳の索引例](private-inventory-index.example.md)には秘密値を書かない。参照先自体が機密なら索引も非公開にする。`docs/private/` と `ansible/mini-macos/inventory.private.yml` は ignore 対象であり、権限制御やバックアップではない。
-- 限定restoreは[値なしmanifest](private-recovery-manifest.example.json)とread-only verifierでbyte一致を確認する。verifierは保管先の独立性、provider認証、別端末復旧を証明しない。
+- 各情報を `public宣言 / 暗号化structured input / provider current state / 一時receipt / 削除` のいずれかへ分類する。privateな散文を包括的な正本として新設しない。
+- 再構成不能な秘密とbreak-glass材料だけ、日常端末・provider accountと独立したfailure domainから限定復旧できることを確認する。runtime平文やignore対象は正本・backupとして扱わない。
+- provider metadataはproviderを正本としてlive確認し、exact IDを恒久的な監査文書へ複写しない。必要なreceiptは値なし・期限付きとし、恒久的な判断と未処理項目だけをtodoへ残す。
 - 例示 inventory は到達不能な宛先で、既定 inventory として設定しない。Ansible はディレクトリ指定で複数ファイルを読み得るため、`-i` にはディレクトリではなく使用する inventory ファイルを明示する。既存の実運用 inventory は変更しない。
 - inventory や SSH の挙動変更を文書改善に混ぜない。既存入力を使う場合の生成結果と fixture tests を確認する。
 - ignore 設定は既存 tracked ファイルや履歴を消さない。`git check-ignore` の正例・負例を確認する。

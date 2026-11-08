@@ -31,6 +31,5 @@ tofu/**/.terraform.tfstate.lock.info
 # 生成物そのものは残さない。
 tofu/generated.tf
 
-# Personal operating notes and inventories. Not encryption or backup.
-/docs/private/
+# Runtime inventory is generated or selected explicitly. It is not a source of truth or backup.
 /ansible/mini-macos/inventory.private.yml

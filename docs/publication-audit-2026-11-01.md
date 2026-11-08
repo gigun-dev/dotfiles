@@ -99,3 +99,11 @@ GitHub APIとread-only downloadで、監査後に変化したrefs、PR、Release
 - active artifactは10件、約26.7 MBである。既存監査で未分類だった候補2件を含め、非実行展開と再分類が必要である。cacheはmain由来14件、約10.9 GBでbytes未監査である。workflow宣言はNix store以外を保存しない設計だが、現存cacheの内容証明にはならない。
 
 公開直前には、最終SHAの全refs・履歴・PR面・全増分run / attempt / log / artifactを再走査する。取得不能logは未確認のまま明示する。cache bytesを監査できない場合は削除後に最終workflowから再生成する案が最も確実だが、cache削除は破壊的な外部変更なので別承認なしに行わない。
+
+## 非公開正本案の訂正 2026-11-09
+
+専用private repo、privateな散文台帳、包括的restore manifestを正本にする案は採用しない。これらは公開準備中に追加された案で、productionのswitch、service、bootstrapから参照されていなかった。別の散文へcurrent stateを複写すると、情報の増殖、drift、同一UID agentからの可読範囲を増やすため撤去した。
+
+過去節の「非公開正本」「原文保全」「private restore」は当時の提案と監査結果であり、現在の公開gateではない。現在は各情報を `public宣言 / 暗号化structured input / provider current state / 一時receipt / 削除` へ分類する。非再構成可能な秘密とbreak-glass材料だけ独立したfailure domainからの限定復旧を確認する。
+
+判定は引き続き**NO-GO**。実inventoryとSSHのstructured input分離、運用metadataの公開可否、非再構成可能な復旧材料の独立復旧、最終SHAのrefs・PR・Actions・artifact・cache再監査が未完である。ただしprivate文書の不存在そのものはblockerにしない。
