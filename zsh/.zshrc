@@ -42,9 +42,6 @@ export PATH="${XDG_CACHE_HOME}/.bun/bin:$PATH"
 # ~/.local/bin — nix/brew で管理できない例外ツール用（末尾=低優先度）
 export PATH="$PATH:$HOME/.local/bin"
 
-# T3 Code が `t3` CLI を置く場所。アプリ管理なので ~/.local/bin と同じく末尾=低優先度
-export PATH="$PATH:$HOME/.t3/bin"
-
 # zeno: 起動時の `deno cache cli.ts` を毎回実行しない (mise shim 経由 deno で固まる)
 # 初回のみ手動で `deno cache <ZENO_ROOT>/src/cli.ts` を打てばよい。
 # sheldon が zeno.zsh を source する前に効かせる必要があるためこの位置で export する
