@@ -25,6 +25,7 @@ Codex、Claude Code、T3 Codeのpermission mode、provider approval、OS sandbox
 2. DNS/transportの段階と、サーバーが返したHTTP statusを分ける。`scutil`のNo DNS、`dig`のpermission、SSH接続失敗、`gh auth status`のtoken invalidだけでは資格情報の失効を確定しない。HTTP 403もscope不足を単独では確定しない。
 3. GitHub認証は `python3 scripts/github-auth-diagnose.py` から確認する。macOSでは最初にApple Seatbeltの`network-outbound`判定を確認し、denyならオンラインprobeを実行せず`context-limited-network-denial`で止める。ローカルのcredential選択は、`gh auth token`の出力をプロセス内で破棄して存在だけを確認する。Keychainがdenyされる場合は`gh auth status --no-refresh`からactive accountの有無だけを取り、同時に出るtoken invalid判定は捨てる。HTTP 401を実測した場合だけ`credential-rejected`とする。403、DNS失敗、timeout、HTTP応答の無い失敗をtoken失効へ読み替えない。
 4. sandbox限定の失敗なら、同じ対象・引数・artifactを使うread-only検証を正規のreview経路で実行する。GitHubは同じ診断をreview済みcontextで再実行し、`credential-accepted`またはHTTP statusだけを記録する。tokenやresponse body、headers全体を保存しない。必要な承認が無ければpendingで止める。
+   buildや評価toolがrepo外のuser cache・state DBへ書く場合も、sandboxのread-only errorなら対象コードの失敗へ読み替えない。同じcommandをreview済みcontextで比較し、診断のためにcache pathやHOMEをcheckout内へ移す設定変更はしない。
 5. 一方が成功しても失敗記録を消さない。「そのcontextで成功」「別contextでは失敗」と併記する。両方失敗した場合も、権限・サービス停止・鍵破損を自動で結論にしない。HTTP 401を確認した後も、対象account・実行環境・credential選択を確認してから更新を別途判断する。
 6. **TAILNET POLICY DENIEDは停止**。mini→VMの既知の拒否をsandbox偽陰性に分類しない。別ホスト、Lima、別ユーザー、別VPN経路へ切り替えて同じ拒否操作を通さない。ポリシー変更には対象経路を明記した別承認が必要。
 7. Gatekeeper/codesignの失敗は同じartifactに対するread-only検証（`spctl --assess --type execute` / `codesign --verify --strict`）をreviewして比較する。出力をそのまま持ち出さない。成功はその検査の範囲だけを示し、配布物全体の安全性やGitHub Verifiedを保証しない。quarantine無効化は対策にしない。
