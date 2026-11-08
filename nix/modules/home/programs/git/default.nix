@@ -30,6 +30,10 @@ in
         email = "117321963+gigun-dev@users.noreply.github.com";
       };
       ghq.user = "gigun-dev";
+      # git-wt が worktree を消すときに rm ではなく trash-cli (packages.nix) へ送る。
+      # nix 側だけに置く: trash は nix 管理の CLI なので、nix の無い環境 (git/gitconfig 共有先)
+      # に書くと `git wt -d` が存在しないコマンドを呼んで壊れる。
+      wt.remover = "trash";
       init.defaultBranch = "main";
       pull.rebase = true;
       push = {

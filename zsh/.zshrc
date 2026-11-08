@@ -99,6 +99,20 @@ if command -v zoxide &>/dev/null; then
 fi
 unset _zoxide_cache
 
+# git-wt: `git wt` が worktree へ cd するための git ラッパー関数。
+# 未導入なら静かにスキップ (nix なしでも壊れない)。init 出力は zoxide と同じく
+# バイナリが新しくなったときだけ再生成して zcompile する。
+_gitwt_cache="${XDG_CACHE_HOME}/zsh/git-wt.zsh"
+if command -v git-wt &>/dev/null; then
+  if [[ ! -r "$_gitwt_cache" || "${commands[git-wt]}" -nt "$_gitwt_cache" ]]; then
+    mkdir -p "${_gitwt_cache:h}"
+    git-wt --init zsh > "$_gitwt_cache"
+    zcompile "$_gitwt_cache"
+  fi
+  source "$_gitwt_cache"
+fi
+unset _gitwt_cache
+
 # =============================================================================
 # mise (shims のみ: activate を使わず PATH に shims を入れるだけ)
 # `mise activate zsh` は precmd で `eval "$(mise hook-env)"` を fork する設計で、
