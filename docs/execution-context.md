@@ -2,6 +2,23 @@
 
 この手順は診断だけを扱う。資格情報の更新、scope追加、鍵再生成、quarantine解除、権限・VPN変更は診断の代わりに実行しない。実機のprocess table・live ACLは採取しない。
 
+Codex、Claude Code、T3 Codeのpermission mode、provider approval、OS sandbox、tool hookの違いは[エージェントharnessの権限境界](agent-harness-boundaries.md)を参照する。`Auto`や`sandbox`という表示だけで実効境界を判断しない。
+
+## 失敗の分類
+
+| 分類 | 例 | credentialの判定 |
+|---|---|---|
+| harness / tool preflight deny | hook、permission rule、managed mode上限 | 未判定 |
+| OS sandbox deny | Seatbeltのpolicy deny、sandboxに由来する`EPERM` | 未判定 |
+| transport failure | DNS、timeout、connect失敗、HTTP応答なし | 未判定 |
+| external policy deny | tailnet ACL、Access policy、organization policy | policy拒否として別扱い |
+| HTTP authentication rejection | 対象serverから実測したHTTP 401 | credential不正の候補。対象と選択credentialを確認する |
+| HTTP authorization rejection | HTTP 403 | scope、resource、organization policy等。即失効扱いしない |
+| TCC / Keychain / GUI deny | Security framework、Automation、Accessibility | OS privacy境界として別扱い |
+| harness / provider mismatch | 表示modeとresolved provider policyが異なる | adapterまたは設定伝播の問題候補 |
+
+一つの失敗を複数分類へ重複計上しない。まず最も手前で拒否した層を記録し、その層を通過した証拠が得られた場合だけ次の層を評価する。
+
 ## 小さい診断手順
 
 1. 失敗した処理の実行元（Pro / mini / mini-vm）、対象、probe、sandbox有無、時刻を記録する。CLI・対象artifactの版やhash、正確な引数とreview承認の参照は秘密を除いたprivate作業記録に残す。同じ操作の比較に使い、repoへ端末識別子や生出力をcommitしない。

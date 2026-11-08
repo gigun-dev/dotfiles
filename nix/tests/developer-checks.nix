@@ -137,6 +137,7 @@ in
         "github-auth-diagnose"
         "linux-ci-runner"
         "private-restore"
+        "agent-instructions"
         "claude-user-settings"
         "codex-bridge-refresh"
         "bark-routing"
