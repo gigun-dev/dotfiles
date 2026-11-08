@@ -28,6 +28,11 @@ assert !(builtins.elem "dotfiles-ci" enabled.nix.settings.trusted-users);
 assert settings.NoNewPrivileges && settings.ProtectHome && settings.ProtectSystem == "strict";
 assert settings.Restart == "no" && settings.RestartForceExitStatus == [ ];
 assert enabled.services.github-runners.dotfiles-ci.ephemeral;
+assert
+  settings.BindReadOnlyPaths == [
+    "${pkgs.coreutils}/bin/mv:/bin/mv"
+    "${pkgs.gnutar}/bin/tar:/usr/bin/tar"
+  ];
 assert builtins.all (path: builtins.elem path settings.InaccessiblePaths) [
   "-/run/docker.sock"
   "-/run/agenix"

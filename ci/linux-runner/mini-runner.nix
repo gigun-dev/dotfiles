@@ -1,6 +1,11 @@
 # Opt-in module. mini-vm imports it disabled; enabling still requires an explicit
 # short-lived token path under /run and a separately reviewed system activation.
-{ config, lib, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
   cfg = config.dotfiles.reviewedCiRunner;
 in
@@ -41,6 +46,13 @@ in
         RestartForceExitStatus = lib.mkForce [ ];
         MemoryMax = "4G";
         CPUQuota = "200%";
+        # The portable mini-macos fixtures exercise the absolute command paths
+        # used by the real macOS target.  Expose only those two tools inside the
+        # runner's mount namespace instead of adding an FHS layer to mini-vm.
+        BindReadOnlyPaths = [
+          "${pkgs.coreutils}/bin/mv:/bin/mv"
+          "${pkgs.gnutar}/bin/tar:/usr/bin/tar"
+        ];
         InaccessiblePaths = lib.mkAfter [
           "-/run/docker.sock"
           "-/var/run/docker.sock"
