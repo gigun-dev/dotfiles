@@ -1,6 +1,6 @@
 # エージェントの書き込みと検証
 
-2026-09-12 の変更。worktree の境界は [ADR 0005](adr/0005-scope-worktrees-to-target-repositories.md) に置く。
+2026-09-12 の変更。同一 repo の並行作業は worktree で分離し、別 repo の仕事は対象 checkout を専有する。cwd だけでは別 checkout への誤書き込みを防げないため、Claude Code の Edit/Write を `claude/hooks/worktree-write-guard.py` でガードする。これは Bash、MCP、Codex や cwd 自体の変更を隔離する sandbox ではない。
 
 ## 調査の訂正
 
