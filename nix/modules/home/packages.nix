@@ -98,6 +98,7 @@
       # 要るときは `gcloud components install` ではなく google-cloud-sdk.withExtraComponents。
       # cask と同じく darwin 限定 (Linux 側で使う予定が無い)。
       google-cloud-sdk
+      google-cloud-sql-proxy # cloud-sql-proxy。スクリプトは PATH を先に探すので component 不要
       idb-companion # iOS Simulator 自動操作の gRPC companion。CLI 側 fb-idb は nixpkgs に無く uv/tools.txt で宣言
       # YubiKey は Mac に挿して使うので darwin 限定 (mini-vm は無人、WSL には挿さない)。
       yubikey-manager # ykman: Yubico 公式 CLI。型番確認・OTP 無効化・OATH (TOTP)・PIV の設定
