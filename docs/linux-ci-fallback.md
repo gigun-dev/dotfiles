@@ -19,3 +19,7 @@ macOS ランナーを使う `macos-regressions.yaml` と `mini-ansible` の `nat
 対象 SHA と他の待機 job を確認し、2 変数を設定してから新しい run を起動する。既に待機中の job は変数変更で自動的に振り直されない。短命 token を用意して runner を起動し、`changes` が終わったら登録解除を確認する。続く `check` と `build` はどちらが先に割り当てられてもよいが、一つずつ手動で再登録し、最後に `nix-ci-gate` 用にも再登録する。各jobの終了と登録解除を確認し、token が期限切れなら再発行する。いずれかの job が失敗した場合も後始末する。登録・ユーザー作成・systemd 適用・変数変更は別途承認する。検証後は service を停止し、残った runner の登録を解除、2 変数を元に戻し、専用 token・state・work・log を処理する。
 
 2026-11-09 に commit `8e9cba03` の workflow_dispatch (run 42495442825) で4回の登録と解除を実測した。`changes` と `build` は成功し、`check` の既存fixture失敗を `nix-ci-gate` がfailureへ集約した。各job後にrepository runnerが0へ戻ること、最後にvariables・token・state・work・logを削除し、mini-vmを既知のboot profileへ戻すことも確認した。これは失敗を成功扱いしない経路の受入であり、全job greenの受入はfixture修正後に別runで行う。
+
+同日、fixture修正後の commit `f77f292e` の workflow_dispatch (run 42496923598) では `changes`、`check`、`build`、`nix-ci-gate` がすべて成功し、各job後にrunnerが0へ戻った。ただし `workflow_dispatch` の成功はPRのrequired checkを満たさない。branch protection移行には、最新baseとのmerge commitを対象にした `pull_request` runで同じ結果を確認する。
+
+その後、最新baseとcommit `94f91e2b` のmerge commitを対象にした `pull_request` run 42498932748 (attempt 2) でも4jobすべてが成功した。各jobを別のephemeral登録で実行し、終了ごとにrunnerが0へ戻ることを確認した。この結果を受入根拠として、mainのrequired checksへ旧`check` / `build`を残したまま`nix-ci-gate`を追加した。gate単独化はmain上の受入とrollback確認後に行う。

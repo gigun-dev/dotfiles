@@ -16,6 +16,7 @@
 
 - 現行 `docs/security.md` は変更前に本人の非公開正本へ保全し、ハッシュ、再読取、権限とバックアップ先を確認する。旧 commit だけを唯一の退避先にせず、ignore を暗号化やバックアップと見なさない。
 - [非公開運用台帳の索引例](private-inventory-index.example.md)には秘密値を書かない。参照先自体が機密なら索引も非公開にする。`docs/private/` と `ansible/mini-macos/inventory.private.yml` は ignore 対象であり、権限制御やバックアップではない。
+- 限定restoreは[値なしmanifest](private-recovery-manifest.example.json)とread-only verifierでbyte一致を確認する。verifierは保管先の独立性、provider認証、別端末復旧を証明しない。
 - 例示 inventory は到達不能な宛先で、既定 inventory として設定しない。Ansible はディレクトリ指定で複数ファイルを読み得るため、`-i` にはディレクトリではなく使用する inventory ファイルを明示する。既存の実運用 inventory は変更しない。
 - inventory や SSH の挙動変更を文書改善に混ぜない。既存入力を使う場合の生成結果と fixture tests を確認する。
 - ignore 設定は既存 tracked ファイルや履歴を消さない。`git check-ignore` の正例・負例を確認する。
