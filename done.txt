@@ -67,3 +67,4 @@ x 2026-11-01 2026-11-01 承認済みの非対話sudo一覧とminiの指定2path�
 x 2026-11-01 2026-11-01 mini home共有を外す依存表・未適用のLima/NixOS設定案・停止影響と復旧を合成検証しDraft PRにする +security +mini-vm see:docs/mini-vm-mount-dependencies.md by:me id:0123
 x 2026-11-01 2026-11-01 PR123の保守対象を更新5timerへ揃え、bridge起動時latestの一時pin・復帰・受入条件を未適用draftと回帰で確認する +security +mini-vm see:docs/mini-vm-mount-dependencies.md by:me id:0124
 x 2026-11-08 2026-11-08 zsh の zoxide / git-wt の init キャッシュが nix store の mtime=1 のため版が上がっても再生成されない。キャッシュキーを store パス基準にする by:claude id:0139
+x 2026-11-08 2026-11-08 git/hooks/pre-commit が staged .nix の整形時に unstaged 変更を消す不具合を直す: git stash create は pathspec を取らず作業ツリー全体を退避し、stash apply の失敗を || true で握りつぶす。2026-11-08 に packages.nix の hunk が消え、dangling commit から復旧した by:claude id:0137
