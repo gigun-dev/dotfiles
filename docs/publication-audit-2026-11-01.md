@@ -38,6 +38,19 @@ private文書や専用private repoの不存在はblockerにしない。public化
 
 この確認は実施時点の対象だけを示す。後続commit、GitHub上の増分、最終公開SHAを証明しない。
 
+## GitHub current stateの確認
+
+2026-11-09にprovider APIから値を表示せず再取得した時点では、repositoryはprivateのままで、次を確認した。
+
+- Actionsの既定権限はread、pull request承認は不可、ActionのSHA固定は必須である。
+- repository Actions secret、variable、environment、self-hosted runnerの登録は0件である。
+- `main`はstrictなstatus checkとして`check`、`build`、`nix-ci-gate`を要求する。
+- 管理者への保護適用、pull request review、署名commit、rulesetは未設定である。
+- 利用可能なActionはallowlistではなく全Actionである。
+- default branchから削除済みのworkflow 2件が、GitHubのworkflow registryではactiveのまま残る。
+
+最後の4項目は直ちに脆弱性を意味しないが、public化時の書込経路と監査面を変える。保護を変更する場合は項目ごとに合意し、削除済みworkflowは無効化するか残す理由を決める。現在のPRに表示されるgreen checkは以前のremote SHAに対する結果であり、未pushの最終候補SHAの証明には使わない。
+
 ## current treeの公開blocker
 
 1. [ADR 0016](adr/0016-unify-secret-delivery-with-sops.md)に従い、human、host、通知等のrecipient群を分けてSOPSへ移行する。
@@ -54,6 +67,7 @@ private文書や専用private repoの不存在はblockerにしない。public化
 - PR #137の本文、comment、review、inline thread、patch、添付、timeline
 - 全増分run / attempt / log / artifactとrequired check
 - active workflow、environment、repository variable、secret名、runner登録
+- default branchから削除済みだがregistryに残るworkflowの状態
 - cache metadataと監査可能範囲
 - 最終mainとの差分と公開直前SHA
 
