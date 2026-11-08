@@ -34,7 +34,6 @@
     ],
     "defaultMode": "auto"
   },
-  "model": "opus[1m]",
   "hooks": {
     "Notification": [
       {
@@ -243,7 +242,6 @@
     "frontend-design@claude-plugins-official": true,
     "github@claude-plugins-official": false,
     "gopls-lsp@claude-plugins-official": true,
-    "hono-skill@hono-skill": true,
     "ios-skills@gigun": false,
     "lua-lsp@claude-plugins-official": false,
     "markitdown-mcp@gigun": true,
@@ -264,7 +262,16 @@
     "asc@rorkai": true,
     "asc-mcp@gigun": true,
     "html-plan@claude-community": true,
-    "modern-web-guidance@gigun": true
+    "modern-web-guidance@gigun": true,
+    "mattpocock-skills@claude-plugins-official": true,
+    "hono@hono": true,
+    "emil@gigun": true,
+    "harness@gigun": true,
+    "workers-fetch@gigun": true,
+    "worktree@gigun": true,
+    "t3@gigun": true,
+    "cross-agent@gigun": true,
+    "edit-skills@gigun": true
   },
   "extraKnownMarketplaces": {
     "agent-browser": {
@@ -350,6 +357,12 @@
         "source": "github",
         "repo": "anthropics/claude-plugins-community"
       }
+    },
+    "hono": {
+      "source": {
+        "source": "github",
+        "repo": "honojs/skills"
+      }
     }
   },
   "language": "Japanese",
@@ -401,5 +414,8 @@
       "routine under gigun-dev/ prefix qualifiers: none configured beyond the trusted repo itself"
     ]
   },
-  "voiceEnabled": true
+  "voiceEnabled": true,
+  "model": "fable",
+  "subagentPromptCacheTtl": "1h",
+  "autoMemoryEnabled": false
 }
