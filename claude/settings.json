@@ -236,7 +236,6 @@
     "deploy-on-aws@agent-plugins-for-aws": false,
     "deslop@kuu-marketplace": true,
     "dig@kuu-marketplace": true,
-    "figmate-mcp@gigun": false,
     "firecrawl@claude-plugins-official": false,
     "fix-ci@kuu-marketplace": true,
     "frontend-design@claude-plugins-official": true,
