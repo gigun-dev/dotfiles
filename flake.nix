@@ -377,6 +377,10 @@
               touch "$out"
             '';
 
+            ssh-private-include = import ./nix/tests/ssh-private-include.nix {
+              inherit pkgs system inputs;
+            };
+
             mini-vm-narrow-mounts = import ./nix/tests/mini-vm-narrow-mounts.nix { inherit pkgs inputs; };
           }
           // import ./nix/tests/developer-checks.nix {

@@ -41,7 +41,7 @@ private文書や専用private repoの不存在はblockerにしない。public化
 ## current treeの公開blocker
 
 1. [ADR 0016](adr/0016-unify-secret-delivery-with-sops.md)に従い、human、host、通知等のrecipient群を分けてSOPSへ移行する。
-2. public SSH moduleからhost固有alias、endpoint、user、key配置を外し、先にSOPS生成の0600 includeを配送・受入する。
+2. 共通SSH設定にはprivate includeの受渡し口を追加済み。SOPS生成の0600 includeを配送・受入してから、public moduleのhost固有alias、endpoint、user、key配置を削除する。
 3. `docs/mini-vm.md`等からcurrent token scope、account関係、実UID/session、private runner path、完全な内部endpoint、日時付きlive観測を除く。
 4. 非再構成可能なrecovery assetをprimary / backup経路から実際に再読取する。
 5. 履歴に残る運用metadataを分類し、current treeの一般化だけで足りない場合に限ってhistory rewriteまたは監査済みexportをADRで選ぶ。

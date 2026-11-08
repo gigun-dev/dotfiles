@@ -55,10 +55,17 @@
     # Include 先 (~/.orbstack/ssh/config, ~/.colima/ssh_config) は macOS でしか存在しない。
     # Linux (mini-vm / WSL) でこの Include を出すと、参照先が無いディレクトリのため
     # ssh 起動時に警告 (または Include できずエラー) になる。darwin 限定にする。
-    includes = lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
+    includes = [
+      "~/.ssh/config.d/*"
+    ]
+    ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
       "~/.orbstack/ssh/config"
       "/Users/gigun/.colima/ssh_config"
     ];
+
+    # host固有alias、endpoint、user、IdentityFileはSOPSから0600のincludeへ配送する。
+    # 現在のsettingsは、includeの実配送とssh -G / 実接続を受入してから削除する。
+    # 先に消すと既存aliasを壊すため、このcommitでは受渡し口だけを共通化する。
 
     # upstream (secure-enclave-key.nix 経由) は settings."*" に既に
     # IdentityFile (enclave 鍵) と SecurityKeyProvider を入れている。
