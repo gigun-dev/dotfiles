@@ -20,7 +20,16 @@ mkdir "$scratch/bin"
 cat >"$scratch/bin/nix" <<EOF
 #!/usr/bin/env bash
 case "\$1" in
-  fmt) shift; exec "$treefmt" "\$@" ;;
+  fmt)
+    shift
+    # FOREIGN_WT があれば、整形中に別 worktree が stash を積む (同時 commit の再現)。
+    if [ -n "\${FOREIGN_WT:-}" ]; then
+      printf 'foreign\\n' >>"\$FOREIGN_WT/notes.txt"
+      # hook の中は git commit の GIT_INDEX_FILE などを継ぐので、別プロセスの commit に見えるよう外す。
+      env -u GIT_INDEX_FILE -u GIT_DIR -u GIT_WORK_TREE -u GIT_PREFIX \\
+        git -C "\$FOREIGN_WT" stash push --quiet --message foreign
+    fi
+    exec "$treefmt" "\$@" ;;
   run) shift 3; exec "$gitleaks" "\$@" ;;
 esac
 exit 1
@@ -72,7 +81,7 @@ git checkout -q -- .
 sed -i.bak 's/^  a = 2;$/  a=5;/' "a b.nix"; rm "a b.nix.bak"; git add "a b.nix"
 sed -i.bak 's/^  a=5;$/  a=6;/' "a b.nix"; rm "a b.nix.bak"
 if git commit -qm conflict 2>"$scratch/err"; then echo 'FAIL: conflict ignored' >&2; exit 1; fi
-grep -q 'stash@{0}' "$scratch/err"
+grep -q 'stash (pre-commit' "$scratch/err"
 [ -n "$(git stash list)" ]
 git reset -q --hard; git stash drop -q
 
@@ -107,6 +116,17 @@ git commit -qm untracked-only
 [ "$(cat untracked.txt)" = u ]
 [ -z "$(git stash list)" ]
 rm untracked.txt
+
+# 整形中に別 worktree が stash を積んでも、自分の退避だけを pop し、相手の stash は残す。
+git worktree add -q "$scratch/other" -b other
+printf 'mine\n' >>other.txt
+printf 'race\n' >>notes.txt; git add notes.txt
+FOREIGN_WT="$scratch/other" git commit -qm race
+grep -q '^mine$' other.txt
+[ "$(git stash list --format=%gs)" = "On other: foreign" ]
+! grep -q foreign notes.txt
+git stash drop -q; git checkout -q -- other.txt
+git worktree remove --force "$scratch/other"
 
 # 何も staged でなければ hook は何もしない (nix が無くても通る)。
 PATH=/usr/bin:/bin "$BASH" "$hook"
