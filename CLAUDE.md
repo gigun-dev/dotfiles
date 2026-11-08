@@ -98,6 +98,14 @@ docs/                          # 現行運用・ADR
 - **fpath に zsh の Completion サブディレクトリを動的追加**: Nix の zsh は `share/zsh/$VER/functions/Completion/{Base,Unix,Linux,...}` を自動 fpath 追加しない (Mac は nix-darwin の `programs.zsh` が処理)。`.zshrc` で `readlink -f $(command -v zsh)` から検出して追加
 - **`dotfiles/zsh/functions` の permission は 755**: 777 だと compinit が insecure 判定で全補完スキップ。git は permission を完全管理できないので、`bootstrap.sh` や home.activation で `chmod -R go-w` する余地あり (TODO)
 
+### zsh の SIGCHLD race（再発時の切り分け）
+
+macOS 26.4 (Tahoe) と zsh 5.9 の組み合わせで、`$(...)` や widget が永久に wait することがあった（`signal_suspend` が `sigprocmask + pause()` の race 実装。upstream master は `sigsuspend` に直し済み）。master を pin する overlay で根治したが、nixpkgs の zsh に戻した（9bbf1a6）ので、今は stock の 5.9 を使う。再発した場合の目印と罠:
+
+- 目印: `exec zsh` した子シェルで ASCII 入力が echo されない、`ghq_fzf` 等の widget で選択後に固まる、pane 分割で溜まった入力が一気に流れる。固まった zsh は `sample <PID> 3` で `getoutput → waitforpid → signal_suspend → pause`（または `bin_read → settyinfo → tcsetattr`）のスタックになる。`zsh --version` が `5.9` なら race 持ち。
+- 罠: prompt (Pure / starship) や fast-syntax-highlighting は原因ではない（症状の出方が変わるだけ）。export の sentinel は `exec` で env を継承して誤検知する。
+- 戻す条件: 再発したら zsh master を pin する overlay を入れ直す。nixpkgs の zsh が 5.10 以上なら不要。`prev.zsh.version` で自動切替するのは by-name-overlay と無限再帰で衝突するので手動で運用する。ただしこの overlay はキャッシュヒットを壊す点（上の Nix 規約）に注意。
+
 ## Mac Mini / Lima VM 規約
 
 Mac Mini (Intel) のエージェント基盤は macOS 上の Lima ゲスト (NixOS) に置く。ホストが Intel なので x86_64 ゲストが vz ドライバでネイティブに動く（変換なし）。
@@ -136,6 +144,7 @@ Mac Mini (Intel) のエージェント基盤は macOS 上の Lima ゲスト (Nix
 - メインブランチ: `main`
 - サブエージェントを活用すること
 - 作業完了時は検証済みの変更を意味のある単位でコミットし、`git status` で残る差分を確認する。未コミットのまま完了扱いにしない。保留を指示された変更は除き、コミットしたら同じ作業の中で `git pull --rebase` してから push する。push 前の手元検証フックは無く、検証は push 後の CI が行う（壊れた main は mini-vm には適用されないが、CI が red になったら直すまでが作業）。mini-vm が flake.lock の PR を origin/main へ自動 merge し続けるため、手元に溜めると ahead/behind に分岐する。pull が nix の変更を取り込むと hook が `nix run .#switch`（sudo）を走らせるので、その pull は長くなる。
+  nix の変更は commit 前に `nix run .#build` で通ることを確かめる。pull の前に `git fetch` して `git diff --name-only HEAD...origin/main` で `flake.nix` / `flake.lock` / `nix/` が入るかを見て、入るなら Touch ID が出ると先に伝える（pull 自体は避けない）。
 
 - git 設定・フック・ignore の全体像とエージェント向け規則は `docs/git.md`
 
