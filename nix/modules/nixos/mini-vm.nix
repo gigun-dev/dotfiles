@@ -1304,6 +1304,17 @@ in
     };
   };
 
+  # SOPSへ移行する秘密はSSH host keyと分離した専用identityで復号する。まだ
+  # sops.secretsは宣言せず、pilotのrecipientを確定する前にidentityだけ生成する。
+  # primary / backup YubiKeyも各暗号文のrecipientに入るため、このfileを失っても
+  # 新しいhost identityへrekeyできる。SSH host keyを暗黙の復号経路へ戻さない。
+  sops.age = {
+    keyFile = "/var/lib/sops-nix/key.txt";
+    generateKey = true;
+    sshKeyPaths = [ ];
+  };
+  sops.gnupg.sshKeyPaths = [ ];
+
   # 秘密の宣言管理 (agenix)。暗号文は secrets/*.age として git に入っており、
   # このホストの SSH ホスト鍵で activation 時に復号される。受信者は secrets/secrets.nix。
   #
