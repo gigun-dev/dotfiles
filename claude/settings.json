@@ -271,7 +271,8 @@
     "worktree@gigun": true,
     "t3@gigun": true,
     "cross-agent@gigun": true,
-    "edit-skills@gigun": true
+    "edit-skills@gigun": true,
+    "git-workflow@gigun": true
   },
   "extraKnownMarketplaces": {
     "agent-browser": {
