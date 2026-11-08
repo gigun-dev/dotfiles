@@ -898,11 +898,13 @@ in
   # アプリから tailnet 越しに使う。ryoppippi/dotfiles は Mac のデスクトップ側だけで、
   # この Linux server の宣言は gigun 固有。
   #
-  # 公開面は tailnet だけ。server は 127.0.0.1 で待ち受け、--tailscale-serve が起動時に
+  # iPhone は T3 Connect (Clerk 認証、Cloudflare の managed tunnel) で届く。iPhone に Tailscale を
+  # 入れずに済ませるため (2026-11-08、ユーザー判断)。Connect の有効化とログインは宣言できない
+  # 端末側の状態 (`t3 connect link --headless`、docs/mini-vm.md)。Pro の linked environments は
+  # tailnet 経由のまま。server は 127.0.0.1 で待ち受け、--tailscale-serve が起動時に
   # `tailscale serve --bg --https=443 http://127.0.0.1:3773` を張り、停止時に `off` で外す
   # (packages/tailscale/src/tailscale.ts と apps/server/src/server.ts、v0.1.6 で確認)。
-  # --lan / --host 0.0.0.0 / T3 Connect (--connect) は使わない。認証は tailnet の到達性に加え
-  # T3 自身の pairing code と session (docs/mini-vm.md の手順)。
+  # --lan / --host 0.0.0.0 は使わない。
   #
   # package: nixpkgs の t3code。mainProgram は t3code-desktop なので bin/t3 を明示する。
   # 版は flake.lock の nixpkgs 任せ (評価時点で 0.1.6、Pro の cask は 0.1.7 以降へ自動更新)。
@@ -915,7 +917,7 @@ in
   # tailscale serve を gigun から叩けるように operator を gigun にする (下の extraSetFlags)。
   # gigun は wheel で、そもそも sudo で同じことができるので権限の実質的な拡大ではない。
   systemd.services.t3code = {
-    description = "T3 Code server (tailnet only)";
+    description = "T3 Code server (T3 Connect + tailnet)";
     wantedBy = [ "multi-user.target" ];
     wants = [ "network-online.target" ];
     after = [
@@ -940,6 +942,9 @@ in
       HOME = "/home/${username}";
       SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
       NIX_SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+      # T3 Connect の tunnel。未指定だと server が汎用 Linux 向けの cloudflared を ~/.t3 に
+      # ダウンロードして起動し、NixOS では nix-ld 頼みになる。nix の実体を渡す。
+      T3CODE_CLOUDFLARED_PATH = lib.getExe pkgs.cloudflared;
     };
 
     serviceConfig = {
