@@ -21,3 +21,7 @@ snippets:
 
   - keyword: ngc
     snippet: nix-collect-garbage -d
+
+  # T3 Code で今のディレクトリを開く (ryoppippi の abbr t3o)
+  - keyword: t3o
+    snippet: t3 app .
