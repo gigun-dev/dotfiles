@@ -269,8 +269,8 @@
           };
 
           # Why not git-hooks.nix (cachix/git-hooks.nix, 旧 pre-commit-hooks.nix):
-          #   このリポジトリの pre-commit は git/hooks/pre-commit (staged な .nix の
-          #   nix fmt 自動整形) で、core.hooksPath = git/hooks を home-manager の
+          #   このリポジトリの pre-commit は git/hooks/pre-commit (staged 内容の
+          #   treefmt 整形 + gitleaks 検査) で、core.hooksPath = git/hooks を home-manager の
           #   installDotfilesHooks が毎 switch で宣言し直している。git-hooks.nix の
           #   devShell に入ると shellHook が core.hooksPath を .git/hooks へ書き換え、
           #   その宣言を無言で奪う。しかも生成される hook は nix store の絶対パスを
@@ -393,6 +393,14 @@
 
           # Apps — perSystem の system で正しい構成を選択 (分岐は applySwitch)
           apps = {
+            # pre-commit hook の秘密検査用。overlay を通さない素の nixpkgs 版なので
+            # 上流キャッシュにヒットする。
+            gitleaks = {
+              type = "app";
+              program = "${pkgs.gitleaks}/bin/gitleaks";
+              meta.description = "Scan staged changes for secrets";
+            };
+
             switch = mkApp "switch" ''
               ${applySwitch}
               apply_switch "$@"
