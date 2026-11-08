@@ -919,10 +919,16 @@ in
   systemd.services.t3code = {
     description = "T3 Code server (T3 Connect + tailnet)";
     wantedBy = [ "multi-user.target" ];
-    wants = [ "network-online.target" ];
+    # tailscaled-set が operator=gigun を当てる前に起動すると `tailscale serve` が
+    # permission-denied で失敗し、serve 無しで動き続ける (2026-11-08 の初回適用で発生)。
+    wants = [
+      "network-online.target"
+      "tailscaled-set.service"
+    ];
     after = [
       "network-online.target"
       "tailscaled.service"
+      "tailscaled-set.service"
     ];
 
     # tailscale: serve の設定に要る。残りは agent が子プロセスで使う道具で、systemd 既定の
