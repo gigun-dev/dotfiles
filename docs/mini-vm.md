@@ -176,9 +176,11 @@ mini-vm には性質の違う 2 つの信頼経路があり、1 本に両方を�
 専用トークンなら最悪でも「変な PR が立つ」で止まる(required CI と squash merge が受け皿)。
 もう一つは**ライフサイクル分離** — 広いトークンを revoke してもパイプラインが死なない。
 
-**別の課題**: realbind の業務コードと agenix のホスト鍵が同じ機械に同居している。トークンを
-絞っても clone 自体はディスクに在るので緩和できない。分離するなら別 Lima ゲストか別 Unix
-ユーザー。優先度は上記より下(可逆性とコストの差)。
+**2026-11-09 の判断**: realbind は他の個人開発と同じ trust domain として扱い、realbind だけを
+別 Lima ゲストや別 Unix ユーザーへ隔離しない。同じ `gigun` UID で動くエージェント、対話作業、
+checkout は credential と home の読み書き範囲を共有し、Nix trusted user と passwordless sudo は
+root 相当である。この一般リスクを隔離済みとは扱わず、GitHub の対話用認証と無人更新認証の分離、
+秘密の recipient 分割、CI runner の専用 UID など、用途ごとの権限縮小は別タスクとして続ける。
 
 ## 宣言管理から外れているもの
 

@@ -50,6 +50,10 @@ canaryはminiの指定2directoryに各1個、予測困難な32桁random suffix�
 | VM の管理サービス | 同モジュールで autoswitch 等は root、Codex / agy 等は `gigun`。サービス単位で実行主体が異なる | system service というだけでは隔離を保証しない。各 unit の writable path、実効 capability、到達可能なサービスは今回未観測 |
 | 未導入 Linux CI 案 | [opt-in module](../ci/linux-runner/mini-runner.nix) は専用 `dotfiles-ci`、追加 group なし、ephemeral runner、boot 起動なし。Docker / agenix / Tailscale socket 等を隠す | 未 import・既定無効。ユーザー作成・runner 登録済みとは扱わない。[既存評価](linux-ci-fallback.md) のとおり共有 kernel / network / store の制約は残る |
 
+2026-11-09、realbind は他の個人開発と同じ trust domain として扱い、専用 VM / UID へ分離しないと
+決めた。この判断は上表の同一 UID・trusted user・passwordless sudo のリスクを解消するものではなく、
+個人開発環境として受容する範囲を定めたものである。checkout を分けることもアクセス境界とは扱わない。
+
 ## SSH とネットワーク
 
 [Tailscale テンプレート](../tofu/tailscale/policy.hujson.tftpl) はタグ間の IP grants を広く許す一方、SSH のユーザー許可は別に定義する。
