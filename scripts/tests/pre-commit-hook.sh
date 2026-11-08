@@ -40,10 +40,15 @@ printf 'x\n' >other.txt
 git add .
 git -c core.hooksPath=/dev/null commit -qm initial
 
-# (a)+(b) staged の整形が commit に入り、unstaged / untracked は commit 後も残る。
+# (a) unstaged が無ければ退避は起きず、staged の整形がそのまま commit に入る。
 sed -i.bak 's/^  a = 1;$/  a=2;/' "a b.nix"; rm "a b.nix.bak"
 git add "a b.nix"
-# 整形済みの staged 行 + 同じファイルの離れた unstaged hunk (整形が触らなければ pop は衝突しない)。
+git commit -qm format
+git show HEAD:'a b.nix' | grep -qx '  a = 2;'
+[ -z "$(git stash list)" ]
+
+# (b) 整形済みの staged と、同じファイルの離れた unstaged hunk・別ファイルの unstaged・
+# untracked は、pop で commit 後も残る。
 sed -i.bak 's/^  a = 1;$/  a = 2;/' c.nix; rm c.nix.bak; git add c.nix
 sed -i.bak 's/^  z = 1;$/  z = 9;/' c.nix; rm c.nix.bak
 sed -i.bak 's/^one$/ONE/' notes.txt; rm notes.txt.bak; git add notes.txt
@@ -51,7 +56,6 @@ sed -i.bak 's/^ten$/TEN/' notes.txt; rm notes.txt.bak
 printf 'y\n' >>other.txt                # 別ファイルの unstaged
 printf 'u\n' >untracked.txt
 git commit -qm change
-git show HEAD:'a b.nix' | grep -qx '  a = 2;'
 git show HEAD:c.nix | grep -qx '  a = 2;'
 ! git show HEAD:c.nix | grep -q 'z = 9'
 [ "$(git show HEAD:notes.txt | head -n1)" = ONE ]
@@ -62,7 +66,8 @@ git diff --quiet HEAD -- other.txt && { echo 'FAIL: unstaged lost' >&2; exit 1; 
 [ -z "$(git stash list)" ]
 git checkout -q -- . && rm untracked.txt
 
-# 同じ行を整形と unstaged 編集が両方触ると pop が衝突する。握りつぶさず失敗し、stash を残す。
+# 整形が staged を書き換え、退避中に unstaged があると pop が衝突する (ryoppippi 方式の既知の制約)。
+# 黙って通さず失敗し、stash を残す。
 git checkout -q -- .
 sed -i.bak 's/^  a = 2;$/  a=5;/' "a b.nix"; rm "a b.nix.bak"; git add "a b.nix"
 sed -i.bak 's/^  a=5;$/  a=6;/' "a b.nix"; rm "a b.nix.bak"
@@ -79,7 +84,7 @@ printf 'aws_access_key_id = "%s"\naws_secret_access_key = "wJalrXUtnFEMI/K7MDENG
 git add creds.txt
 if git commit -qm leak 2>"$scratch/err"; then echo 'FAIL: leak committed' >&2; exit 1; fi
 grep -q 'gitleaks' "$scratch/err"
-[ "$(git log --oneline | wc -l | tr -d ' ')" = 2 ]
+[ "$(git log --oneline | wc -l | tr -d ' ')" = 3 ]
 git diff --cached --name-only | grep -qx creds.txt
 grep -q '^keep$' other.txt
 [ "$(cat untracked.txt)" = u ]
@@ -94,9 +99,9 @@ grep -q 'treefmt' "$scratch/err"
 grep -q '^keep$' other.txt
 [ -z "$(git stash list)" ]
 git reset -q; git checkout -q -- .
-
+# untracked だけを退避したときも pop で戻る。
 # untracked だけが残っている (tracked の unstaged が無い) と戻す差分が空になる。それでも通る。
-printf '  # only\n' >>"a b.nix"; git add "a b.nix"
+printf 'only\n' >>notes.txt; git add notes.txt
 printf 'u\n' >untracked.txt
 git commit -qm untracked-only
 [ "$(cat untracked.txt)" = u ]
