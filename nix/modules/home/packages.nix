@@ -56,6 +56,11 @@
       # Git
       gh
       ghq
+      # git worktree。`git wt` の cd 連携は zsh/.zshrc、削除は trash 経由 (programs/git)
+      git-wt
+      trash-cli
+      # PR を git-wt の worktree で開く (ryoppippi/dotfiles より移植)
+      (callPackage ../../packages/git-wtpr { })
 
       # Search / files
       ripgrep
