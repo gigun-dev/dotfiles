@@ -72,3 +72,6 @@
 2026-11-08 +infra pve の vm-101 (supabase-01) が使用率 98%。ディスクを広げるか中身を整理する see:docs/pve-ssd-failure.md by:claude id:0146
 2026-11-08 +security tailnet の storage→proxmox の root SSH ルールは 2026-08-01 の退避用の臨時。tofu の定義から外すか決める see:docs/tailnet.md by:claude id:0147
 2026-11-08 Finder の iPhone Wi-Fi 自動バックアップが壊れたバックアップを毎日作り直す件の恒久対策 (iCloud バックアップへ切り替えるか、ケーブルで一度完走させて Wi-Fi 自動バックアップを止める)。対象が Pro か mini かも確かめる see:docs/storage-cleanup.md by:claude id:0148
+2026-11-08 +mini-vm T3 Code の linked environments (Pro→mini-vm) が 30 日で切れるのを拾う仕組みを決める (通知か todo の定期行) see:docs/mini-vm.md by:claude id:0149
+2026-11-08 +mini-vm docs/mini-vm.md の「tailscale serve で 8787 を張っている」記述が実機 (No serve config) と食い違う。現状を確かめ、T3 Code の --tailscale-serve (443) と衝突しないか見て docs を直す see:docs/mini-vm.md by:claude id:0150
+2026-11-08 +mini-vm mini-vm の t3code は nixpkgs の 0.1.6 で Pro の cask (0.1.7 以降) より古い。版の差で壊れるものを確かめ、overlay か別 input で固定するか決める see:docs/mini-vm.md by:claude id:0151
