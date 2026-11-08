@@ -23,7 +23,18 @@ in
     };
     options = "--delete-older-than 7d";
   };
+  # nix-darwin の既定ではログの出先が無く、日次の GC が走ったかも終了コードも残らない
+  # (2026-11-08 の調査で、手動 GC で 14.2GiB 回収できた理由を確かめられなかった)。
+  launchd.daemons.nix-gc.serviceConfig = {
+    StandardOutPath = "/var/log/nix-gc.log";
+    StandardErrorPath = "/var/log/nix-gc.log";
+  };
   nix.settings = {
+    # 日次の GC だけでは、評価のたびに増えるゴミ (path: で store に写ったリポジトリ全体など、
+    # 1 個 816MB) に追いつかない日がある。空きが 20GiB を切ったら daemon がビルド中に
+    # 50GiB まで GC する。値は 460GB ディスクの Pro に合わせた。
+    min-free = 20 * 1024 * 1024 * 1024;
+    max-free = 50 * 1024 * 1024 * 1024;
     max-jobs = "auto";
     trusted-users = [
       "root"
