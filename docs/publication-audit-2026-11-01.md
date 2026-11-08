@@ -13,7 +13,7 @@
 | Actions | latest10 run metadata。既知 PCRE2 run `40437718383` の取得ログ67,928 bytesは4形式の一致0 | 全runログ、全attempt、cache bytesは未検査。先行調査の694 runという総数は今回再計測していない |
 | PCRE2 artifacts | 同runの `pcre2-build` / `pcre2-verified` をローカル取得。補助ファイルとbottleの通常ファイル241件を各々読み取り検査し4形式の一致0 | archive内コードは実行していない。形式外の秘密、内部情報の意味判定は未完 |
 | Releases | release一覧2件。PCRE2の `validated.json` 1,359 bytesとbottle 2,510,246 bytesを取得。JSON top-level fieldsはasset/formula/platform/provenance/reproducibility/verification/version。4形式の一致0 | 追加検査でfzfの2 assetsと両Release本文も検査（下記）。Release編集履歴は未検査 |
-| 非公開正本 | 索引例は未記入。指定の `docs/private/` は今回cloneにも既存主checkoutにも見つからない | 他の保管先がないとは言えない。実在backup・hash・再読取・権限・復旧可能性は未確認 |
+| 非公開情報 | 専用private repoやprivate散文正本は採用しない。秘密値は既存のsecret store、現在値はprovider、設計と手順はpublic宣言で扱う | 非再構成可能な復号鍵・recovery code等の独立保管と限定復旧は未確認 |
 
 4形式は private-key PEM/OpenSSH header、GitHub token (`gh[pousr]_` / `github_pat_`)、AWS `AKIA` access ID、Google `AIza` API key。Python標準ライブラリの正規表現で値を出さず件数だけ出力した。新scannerの導入はしていない。形式限定であり、汎用password、OAuth client secret、他provider、分割・符号化済み値の不在は示さない。age ciphertextは復号していない。
 
@@ -71,7 +71,7 @@ PR #137のtree `e55f972` と、その時点のmain `73c86e8` を基準に範囲�
 
 repo内のgitleaks候補は、全履歴10件とcurrent tree 4件を値を表示せず個別分類した。10件は削除済みvendored公式文書のplaceholder 6件、公開JWT audience 1件、temporary test fixture 3件で、current 4件も後二者に含まれる。いずれもactual credentialではなく、provider失効、rotation、履歴rewriteは不要と判断した。repository-wide allowlistは使わず、current候補は必要ならdummy生成または理由付きの狭いinline許可へ直す。Actions artifact 2件、取得済みlogのunique 2種類、Release 1件の候補は、削除済み一時資料を再取得していないため未分類のままである。
 
-判定は引き続き**NO-GO**。非公開正本・独立backup・限定restoreの実証、外部成果物の候補分類、実inventory・SSH・運用metadataの公開版への分離、未確認Actions範囲と最終SHAの再監査が済むまでvisibilityを変更しない。repo内候補だけを理由に履歴を書き換えない。
+判定は引き続き**NO-GO**。非再構成可能なrecovery assetの独立保管と限定復旧、外部成果物の候補分類、SSH・運用metadataのpublic宣言／暗号化structured input／provider current stateへの分類、未確認Actions範囲と最終SHAの再監査が済むまでvisibilityを変更しない。repo内候補だけを理由に履歴を書き換えない。
 
 ## 未push変更の追跡 2026-11-09
 
