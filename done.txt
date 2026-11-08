@@ -82,3 +82,5 @@ x 2026-11-08 2026-11-08 Pro の Nix GC が効いていない理由を調べ、�
 x 2026-11-09 2026-11-08 git/hooks/pre-commit が worktree 間で共有される stash の stash@{0} を読むので、2 つの checkout が同時に commit すると unstaged の変更が入れ替わる (2026-11-08 23:42 に main と agent の worktree で発生、手で復旧)。stash を使わない形 (stash create の hash を持つ、一時 index で整形する等) に直す see:docs/git.md by:claude id:0154
 x 2026-11-09 2026-11-08 git-wtpr に zsh の cd 連携を足すか決める (ryoppippi の init.bash は zsh で declare -F の意味が変わるため移植時に外した) by:claude id:0138
 x 2026-11-09 2026-11-08 +claude claude-code の主 checkout が add-emil-skills のままで、marketplace (gigun) がそこを読むため main の更新のたびに手で merge している。emil を main に入れるか checkout を main に戻すか決める by:claude id:0153
+x 2026-11-09 2026-11-09 miniとmini-vmをtag:devの開発環境として相互SSHを許可し実ノードのタグとポリシーを移行・検証する +tailscale see:docs/adr/0015-mini-development-trust-boundary.md by:me id:0157
+x 2026-11-09 2026-11-08 +security tailnet の storage→proxmox の臨時 root SSH ルールを外す変更 (e119490) を tofu で apply する: nix run .#tofu -- -chdir=tailscale plan で差分がそのルールの削除だけと確かめてから apply @user see:docs/tailnet.md by:claude id:0147
