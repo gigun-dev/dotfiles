@@ -16,6 +16,7 @@
     ./programs/zsh
     ./programs/git
     ./programs/ssh
+    ./programs/t3code
   ];
 
   programs.home-manager.enable = true;
