@@ -106,4 +106,6 @@ GitHub APIとread-only downloadで、監査後に変化したrefs、PR、Release
 
 過去節の「非公開正本」「原文保全」「private restore」は当時の提案と監査結果であり、現在の公開gateではない。現在は各情報を `public宣言 / 暗号化structured input / provider current state / 一時receipt / 削除` へ分類する。非再構成可能な秘密とbreak-glass材料だけ独立したfailure domainからの限定復旧を確認する。
 
-判定は引き続き**NO-GO**。実inventoryとSSHのstructured input分離、運用metadataの公開可否、非再構成可能な復旧材料の独立復旧、最終SHAのrefs・PR・Actions・artifact・cache再監査が未完である。ただしprivate文書の不存在そのものはblockerにしない。
+Ansible inventoryは実network addressやcredentialを含まず、公開alias、ユーザー、標準path、fail-closed SSH optionだけと再分類した。公開宣言として維持し、field allowlist testで新しい秘密・address・鍵参照の流入を拒否する。
+
+判定は引き続き**NO-GO**。SSHのhost固有入力分離、運用metadataの公開可否、非再構成可能な復旧材料の独立復旧、最終SHAのrefs・PR・Actions・artifact・cache再監査が未完である。ただしprivate文書の不存在と現行Ansible inventoryはblockerにしない。
