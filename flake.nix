@@ -388,6 +388,8 @@
               ;
           }
           // inputs.nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
+            sops-migration-config = import ./nix/tests/sops-migration-config.nix { inherit pkgs inputs; };
+
             antigravity-service = import ./nix/tests/antigravity-service.nix {
               inherit pkgs;
               nixos = inputs.self.nixosConfigurations.mini-vm;

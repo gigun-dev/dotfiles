@@ -1391,6 +1391,15 @@ in
       mode = "0400";
     };
 
+    # Pilot移行まではrollback sourceとしてagenix側を維持する。consumer moduleは
+    # delivery backendを宣言せず、このhost構成がtokenFileを選ぶ。
+    host-heartbeat-vm = {
+      file = ../../../secrets/host-heartbeat-vm.age;
+      owner = "root";
+      group = "root";
+      mode = "0400";
+    };
+
     # Bark (iOS プッシュ通知) の宛先と暗号鍵。自動更新の失敗通知が読む。
     # 読むのが root で走る unit なので既定の root 0400 のまま。
     bark-env = {

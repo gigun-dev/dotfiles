@@ -22,7 +22,7 @@
     };
     tokenFile = lib.mkOption {
       type = lib.types.str;
-      description = "Private runtime token file (agenix path on NixOS); never a store path.";
+      description = "Private runtime token file; never a store path.";
     };
   };
 }
