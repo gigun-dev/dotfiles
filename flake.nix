@@ -71,6 +71,14 @@
     # フルビルドし、cclens.cachix.org のキャッシュにヒットしなくなる。
     cclens.url = "github:lambdalisue/cclens";
 
+    # t3-limits (T3 Code サーバーから AI プロバイダの利用上限を読む CLI + agent skill)。
+    # 中身は Nushell スクリプトでビルドが軽く、専用キャッシュも無いので nixpkgs を
+    # follows する (nix-secure-enclave-key と同じ理由)。
+    t3-limits = {
+      url = "github:ryoppippi/t3-limits";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     claude-code-overlay = {
       url = "github:ryoppippi/claude-code-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -431,6 +439,10 @@
           # (専用キャッシュ cclens.cachix.org は nixConfig で substituter に追加済み)。
           cclensFor = system: inputs.cclens.packages.${system}.default;
 
+          # t3-limits も overlay にせず standalone package を extraSpecialArgs で渡す
+          # (overlay に混ぜると nixpkgs 全体の評価に input が絡むため)。
+          t3LimitsFor = system: inputs.t3-limits.packages.${system}.default;
+
           overlays = [
             inputs.claude-code-overlay.overlays.default
             # direnv の doCheck=false override は撤去した: override はハッシュを変えて
@@ -508,6 +520,7 @@
                       inherit shellLinksManagedByAnsible;
                       llmAgents = llmAgentsFor system;
                       cclens = cclensFor system;
+                      t3Limits = t3LimitsFor system;
                     };
                     users.${username} = {
                       # nix-secure-enclave-key の upstream `systems` は aarch64-darwin
@@ -625,6 +638,7 @@
                 shellLinksManagedByAnsible = false;
                 llmAgents = llmAgentsFor "x86_64-linux";
                 cclens = cclensFor "x86_64-linux";
+                t3Limits = t3LimitsFor "x86_64-linux";
               };
               modules = [ ./nix/modules/home ];
             };

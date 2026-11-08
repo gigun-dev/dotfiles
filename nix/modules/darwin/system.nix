@@ -166,6 +166,13 @@ in
     restartAfterFreeze = true;
   };
 
+  # AC 給電中はスリープしない。T3 Code の T3 Connect でスマホからこの Mac に
+  # 繋ぐには本体が起きている必要があり、寝ると届かない。-c は AC 給電時のみ
+  # なのでバッテリー駆動のスリープ設定は変えない (ryoppippi/dotfiles と同じ)。
+  system.activationScripts.postActivation.text = ''
+    /usr/bin/pmset -c sleep 0
+  '';
+
   # Required for darwin-rebuild
   system.stateVersion = 6;
 }
