@@ -81,8 +81,18 @@ esac''',
         gate = workflow.split("  nix-ci-gate:\n", 1)[1]
         self.assertIn("persist-credentials: false", scan)
         self.assertIn("nix run .#gitleaks -- dir . --redact=100 --no-banner", scan)
+        self.assertIn("nixpkgs#actionlint -c actionlint -no-color", scan)
+        self.assertIn("nixpkgs#zizmor -c zizmor", scan)
+        self.assertIn("--offline --persona regular --min-severity medium", scan)
+        self.assertIn("--strict-collection --format github", scan)
+        self.assertIn("--no-progress --no-config --no-ignores .", scan)
         self.assertIn("      - secret-scan\n", gate)
         self.assertIn("CI_SECRET_SCAN_RESULT: ${{ needs.secret-scan.result }}", gate)
+
+    def test_write_checkout_explicitly_keeps_push_credentials(self):
+        workflow = (ROOT / ".github/workflows/fzf-update.yml").read_text()
+        self.assertIn("permissions:\n      contents: write", workflow)
+        self.assertIn("persist-credentials: true", workflow)
 
     def test_every_always_on_linux_workflow_can_use_the_reviewed_runner(self):
         selector = ("vars.DOTFILES_LINUX_CI == 'self-hosted' && "

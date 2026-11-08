@@ -19,6 +19,8 @@ jobs:
     steps:
       # This proposal job pushes its fixed branch; read-only jobs disable persistence.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: true
       - env:
           GH_TOKEN: ${{ github.token }}
         run: |
