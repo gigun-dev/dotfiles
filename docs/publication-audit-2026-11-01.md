@@ -64,3 +64,11 @@ PCRE2 bottleのSHA256は build / verified / Release で全て `16b7d45ac5e460460
 ### backupが未特定の間の保全案
 
 本人が管理する既存の非公開・暗号化保管庫を指定し、原文security、実接続設定、復旧手順の保持範囲を決める。指定後に保管物のhash、本人だけのアクセス権、再読取、独立したbackupと復元方法を確認する。参照索引には値を書かず、保管場所自体が機密なら索引も非公開にする。既存保管庫がない場合は本人が方式と保管先を選び、新規保存の承認後に保全する。repo内ignoreディレクトリや旧commitだけでこの条件を満たしたことにはしない。
+
+## 再監査 2026-11-09
+
+PR #137のtree `e55f972` と、その時点のmain `73c86e8` を基準に範囲を更新した。GitHub上はprivateのまま、全10 branch headと全2 tagがlocal remote refsに一致した。全138 PRの本文・137会話comment・47 review・全patchを取得し、pagination欠落、inline thread、添付URL候補、値非表示のgitleaks一致はいずれも0だった。Releaseは2件・4 assets、Actions artifactは10件を非実行で展開して走査した。845 runsのうち575 nonempty logsを走査し、100 empty archives、170取得不能を記録した。一時取得物は削除済みで、監査後に増えた6 runs、14 caches約10.9GB、取得不能logs、Release編集履歴は未確認である。
+
+repo内のgitleaks候補は、全履歴10件とcurrent tree 4件を値を表示せず個別分類した。10件は削除済みvendored公式文書のplaceholder 6件、公開JWT audience 1件、temporary test fixture 3件で、current 4件も後二者に含まれる。いずれもactual credentialではなく、provider失効、rotation、履歴rewriteは不要と判断した。repository-wide allowlistは使わず、current候補は必要ならdummy生成または理由付きの狭いinline許可へ直す。Actions artifact 2件、取得済みlogのunique 2種類、Release 1件の候補は、削除済み一時資料を再取得していないため未分類のままである。
+
+判定は引き続き**NO-GO**。非公開正本・独立backup・限定restoreの実証、外部成果物の候補分類、実inventory・SSH・運用metadataの公開版への分離、未確認Actions範囲と最終SHAの再監査が済むまでvisibilityを変更しない。repo内候補だけを理由に履歴を書き換えない。
