@@ -63,3 +63,12 @@ HotkeyClashは設定・メニューの競合候補の一覧に使える。ただ
 - [HotkeyClashの実キー観測](https://github.com/Wunderlandmedia/HotkeyClash/blob/2ce1a5a42db386e67fae8631831de6be28c72a5b/HotkeyClash/Services/ShortcutTester.swift)
 - [Apple: ログイン項目の切り分け](https://support.apple.com/ja-jp/guide/mac-help/mh21210/mac)
 - Carbonの登録仕様: macOS SDKの`HIToolbox.framework/Headers/CarbonEvents.h`、`RegisterEventHotKey`と`kEventHotKeyExclusive`の説明。
+
+## JIS キーボードで iTerm2 の ⌘+（文字拡大）が効かない
+
+内蔵の JIS キーボードでは、iTerm2 (3.6) の ⌘+ だけが効かない。⌘- と ⌘0 は効く。`+` が JIS では `Shift+;` の位置にあり、View メニュー「Make Text Bigger」の既定キー（⌘+）と menu key-equivalent の照合が合わないため。Terminal.app は吸収するが iTerm2 は吸収できない。⌘ のチョードは iTerm2 が先に取るので、TUI（Claude Code など）の挙動とは関係ない。
+
+- Prefs > Keys の「Emulate US Keyboard」（`UseVirtualKeyCodesForDetectingDigits`）は ⌘1〜9 の数字ショートカット専用で、⌘± には効かない。混同しない。
+- 文字サイズ専用の KEY_ACTION は無く、メニュー選択（Action `25`）で張るしかない。[iterm2/com.googlecode.iterm2.plist](../iterm2/com.googlecode.iterm2.plist) の最上位 `GlobalKeyMap` に、⌘+ を `Make Text Bigger\nMake Text Bigger` へ結びつけてある。キーは `0x2b-0x120000` と、取りこぼし防止の `0x2b-0x100000`・`0x3b-0x120000`。
+- iTerm2 は `LoadPrefsFromCustomFolder` でこの plist を直接読む。**編集は iTerm2 を止めている間に行い、次回の起動で反映する。** 起動中に編集すると、終了時にメモリ上の設定で上書きされて消える。
+- 関連: [karabiner](../karabiner/karabiner.json) の `virtual_hid_keyboard.keyboard_type_v2` は `jis`。`ansi` だと内蔵 JIS キーボードで Shift+8/9 が `*` `(` になる。
