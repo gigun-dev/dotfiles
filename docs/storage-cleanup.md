@@ -39,6 +39,9 @@ du -sh /nix /Applications
 | mise の tarball | `rm -rf ~/.local/share/mise/http-tarballs` | `mise cache clear` では消えない。2026-03 に 21GB |
 | Xcode の未使用シミュレータ | `xcrun simctl delete unavailable` | |
 | Xcode iOS DeviceSupport | 下記 | 1 世代 5〜7GB |
+| Xcode の古いシミュレータランタイム | `xcrun simctl runtime delete <id>` | 1 本約 8GB。最新は残す |
+| npx の蓄積 | `rm -rf ~/.npm/_npx` | `npm cache clean --force` は `_cacache` しか消さない。両方消して初めて空く（3.6GB 級） |
+| Chrome のオンデバイスモデル | 設定で無効化してから消す | `OptGuideOnDeviceModel`（Gemini Nano）約 4GB。無効化しないと再取得される |
 | Adobe Camera Raw | `rm -rf ~/Library/Caches/"Adobe Camera Raw 2"` | 再生成される。2026-03 に 7.8GB |
 | ESP32 ツールチェーン | `rm -rf ~/.cache/esp32drop` | arduino の toolchain。次のビルドで再取得。5.4GB |
 | Hugging Face | 使っていないモデルのみ手で消す | 使用中の whisper / PLaMo は残す |
@@ -60,6 +63,7 @@ find ~/ghq -name .build -type d -maxdepth 4 -prune                         # Swi
 | 対象 | 例 | 注意 |
 | --- | --- | --- |
 | `node_modules` | `rm -rf <repo>/node_modules` | 必要になったら `bun install`。MCP サーバーやツールの実体（figmate、asc-mcp、caldav、tdr-concierge、hub など）と、動作中プロセスの cwd は残す |
+| 古い `node_modules` | `find ~/ghq -type d -name node_modules -prune -mtime +90` | 90 日超だけに絞ると作業中を巻き込まない。build 成果物は `-maxdepth 5` で `.next` / `dist` / `build` / `target` / `.venv` を探すと、`node_modules` の内側を拾わない |
 | SwiftPM `.build` | `rm -rf <repo>/.build` | swift-mcp-app で 4.8GB。次のビルドで戻る |
 | C/C++ の `build/` | `rm -rf <repo>/build` | esp32-airdrop-poc で 2.4GB |
 | wrangler のローカルログ | `rm -rf <repo>/.wrangler/state/v3/observability` | 5.3GB。同じ階層の d1 / do / kv / r2 はローカル状態なので残す |
@@ -116,7 +120,28 @@ sudo nix-collect-garbage -d    # 再試行
 `uv cache clean` と `uv cache prune` は `~/.cache/uv/.lock` を取る。
 Claude Code のセッションごとに `uv run --script`（agy-mcp、cman）と `uv tool uvx markitdown-mcp` が親プロセスとして常駐し、ロックを握り続けるため、300 秒でタイムアウトする（2026-11-08 に 17 プロセスを観測）。
 全 Claude Code セッションと Codex アプリを閉じてから実行する。閉じられないときは `--force` があるが、動作中の MCP サーバーが壊れうる。恒久対策は todo 0141。
+閉じられないときの代替は、`environments-v2` と `~/.local/share/uv/tools` の symlink / `.pth` から参照される `archive-v0/<id>` だけを残して他を `rm` すること（568 件中 527 件を消して 16GB から 10GB）。
 キャッシュの大半は `archive-v0`（6.9GB）と `environments-v2`（0.9GB）。
+
+### iOS バックアップ（MobileSync）
+
+`~/Library/Application Support/MobileSync/Backup/*` は大きくなりやすい。`Status.plist` を `plutil -p` で読む（バイナリ plist なので `cat` は不可）。
+`SnapshotState=uploading` や `BackupState=empty` で、直下に `Manifest.db` が無く hex 名のサブディレクトリ（`00`〜`ff`）だけが残っていれば、中断した壊れたバックアップなので消してよい（約 50GB の例）。
+Finder の iPhone の Wi-Fi 自動バックアップが中断を繰り返すと同じものが毎日再生成される。容量不足でフルバックアップを書けないことが一因と推定している。恒久対策は未実施で、Finder で iCloud バックアップへ切り替えるか、一度ケーブルで完走させてから Wi-Fi 自動バックアップを止める。
+
+### Android
+
+AVD 実体 `~/.android/avd`、SDK の system-images と emulator、`~/.gradle` で合計 12GB 級。Android Studio が入れ直す。
+`~/.android` は `avd` だけ消す。直下の `debug.keystore`（デバッグ署名鍵）と `adbkey`（ADB 認証鍵）を巻き込むと、既存デバッグアプリの再インストールと実機の再認証が要る。
+
+### 手で消さないもの
+
+- **OneDrive**: `Group Containers/...` の 4GB と `CloudStorage/OneDrive-...` の 4GB は FileProvider の同一実体で、二重ではない。`rm` は同期を壊す。Finder の「空き容量を増やす」を使う。`FileProviderLogs` だけは消してよい。
+- **MacWhisper**: 4GB のうちモデルが 1.5GB、`Database/ExternalMedia` が 2.6GB（文字起こし元の動画・音声を丸ごと保持）。消すと文字起こしテキストは残るがアプリ内で再生できない。
+
+### 削除量と `df` の差
+
+削除量の合計より `df` の増加が小さいのは、APFS ローカルスナップショットの解放待ちによる（44GB 削除して 33GB 反映の例）。`tmutil listlocalsnapshots /` で確かめる。通常は自動で解放される。
 
 ### 消した後
 
