@@ -8,7 +8,7 @@ name: 'CI: macOS regressions (manual)'
 # を回せばネイティブに同じものを確かめられるので、常時 CI で払う価値が低い。
 # 一覧と実行例は docs/testing.md。
 #
-# required checks (check / build) と mini-vm autoswitch の required は nix-build.yaml の
+# required check (nix-ci-gate) と mini-vm autoswitch の required は nix-build.yaml の
 # Linux job だけを指す。ただし autoswitch は対象 commit の check run のうち失敗したものを
 # 全て red とみなすので、この workflow を手動実行して失敗させた commit は適用が見送られる。
 # 外部 action は commit SHA で固定する (nix-build.yaml と同じ)。

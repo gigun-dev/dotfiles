@@ -1,4 +1,5 @@
-# Opt-in example, not imported by mini-vm.nix. Review and test before importing.
+# Opt-in module. mini-vm imports it disabled; enabling still requires an explicit
+# short-lived token path under /run and a separately reviewed system activation.
 { config, lib, ... }:
 let
   cfg = config.dotfiles.reviewedCiRunner;

@@ -132,6 +132,7 @@ in
   developer-tools =
     run "developer-tools"
       [
+        "ci-required-gate"
         "execution-context"
         "github-auth-diagnose"
         "linux-ci-runner"

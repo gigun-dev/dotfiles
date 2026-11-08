@@ -107,8 +107,7 @@ let
   # Why not protection API から毎回読む: 読むのに admin 権限が要り、無人経路のトークンを
   # 絞る old:DF-37 と両立しない。
   requiredChecksJson = builtins.toJSON [
-    "check"
-    "build"
+    "nix-ci-gate"
   ];
   # 見送りの理由を通知 unit へ渡す。/run は tmpfs なので再起動で消えてよい。
   autoswitchSkipReason = "/run/dotfiles-autoswitch-skip-reason";
@@ -726,6 +725,7 @@ in
   # Finder 経由の iPhone バックアップ・画面共有・Tailscale だけを担う。
   # ホストは Intel なので x86_64 ゲストがネイティブで動く (vz ドライバ)。
   imports = [
+    ../../../ci/linux-runner/mini-runner.nix
     ./services/host-heartbeat.nix
     ./services/dotfiles-job-heartbeat.nix
     (modulesPath + "/profiles/qemu-guest.nix")
@@ -1871,14 +1871,14 @@ in
           # 見送り続けると、トークン失効で自動更新が止まったことに気づけない。
           check_runs=$(as_user ${pkgs.gh}/bin/gh api "repos/${dotfilesRepo}/commits/$target/check-runs?per_page=100")
           # 判定: Actions の check run が 1 つでも success/skipped/neutral 以外で終わっていれば red、
-          # 未完了か required が未出現なら pending、どちらでもなければ green。
-          # skipped を green に数えるのは、nix を触らない commit で check/build が paths-filter に
-          # 飛ばされるため。その代わり changes job 自体の失敗 (→ check/build も skipped) は
-          # red として拾う (required の名前だけ見ると skipped が素通りする)。
+          # 未完了か required が未出現なら pending、どちらでもなければ green。ただしrequiredの
+          # gateはsuccessだけを許す。条件付きcheck/buildのskippedを集約するのはgate自身の責務で、
+          # gateのskippedをgreenにするとbranch protectionと同じ抜け道が再発する。
           verdict=$(printf '%s' "$check_runs" | ${pkgs.jq}/bin/jq -r --argjson required '${requiredChecksJson}' '
             [.check_runs[] | select(.app.slug == "github-actions")] as $runs
-            | ($runs | map(select(.status == "completed"
-                and (.conclusion | IN("success", "skipped", "neutral") | not))
+            | ($runs | map(select(. as $run | $run.status == "completed"
+                and (($run.conclusion | IN("success", "skipped", "neutral") | not)
+                  or (($required | index($run.name)) != null and $run.conclusion != "success")))
                 | "\(.name)=\(.conclusion)")) as $bad
             | (($runs | map(select(.status != "completed") | .name))
                 + ($required - ($runs | map(.name)))) as $pending

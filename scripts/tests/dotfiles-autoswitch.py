@@ -25,9 +25,9 @@ def check_runs(*runs, app="github-actions"):
 
 
 RUNNING = check_runs(("changes", "completed", "success"), ("check", "in_progress", None),
-                     ("build", "completed", "success"))
+                     ("build", "completed", "success"), ("nix-ci-gate", "in_progress", None))
 GREEN = check_runs(("changes", "completed", "success"), ("check", "completed", "success"),
-                   ("build", "completed", "success"))
+                   ("build", "completed", "success"), ("nix-ci-gate", "completed", "success"))
 
 
 def body(name):
@@ -127,7 +127,7 @@ exit "$GATE_STATUS"
             "${pkgs.gh}/bin/gh": shlex.quote(str(self.bin / "gh")),
             "${pkgs.jq}/bin/jq": shlex.quote(shutil.which("jq") or "jq"),
             "${dotfilesRepo}": "fixture/dotfiles",
-            "${requiredChecksJson}": '["check","build"]',
+            "${requiredChecksJson}": '["nix-ci-gate"]',
             "${autoswitchSkipReason}": shlex.quote(str(self.base / "skip-reason")),
             "${generationHealthGate}": shlex.quote(str(self.bin / "gate")),
             "${rollbackTarget}": shlex.quote(str(self.bin / "rollback-target")),
@@ -275,14 +275,16 @@ esac
     def test_failed_required_check_skips_without_failure(self):
         self.set_check_runs(check_runs(("changes", "completed", "success"),
                                        ("check", "completed", "success"),
-                                       ("build", "completed", "failure")))
-        self.assert_skipped("red build=failure")
+                                       ("build", "completed", "failure"),
+                                       ("nix-ci-gate", "completed", "failure")))
+        self.assert_skipped("red build=failure,nix-ci-gate=failure")
 
     def test_running_check_skips(self):
         self.set_check_runs(check_runs(("changes", "completed", "success"),
                                        ("check", "in_progress", None),
-                                       ("build", "completed", "success")))
-        self.assert_skipped("pending check")
+                                       ("build", "completed", "success"),
+                                       ("nix-ci-gate", "in_progress", None)))
+        self.assert_skipped("pending check,nix-ci-gate")
 
     def test_pending_then_green_within_wait_applies(self):
         self.set_check_runs(RUNNING, query=1)
@@ -306,22 +308,24 @@ esac
 
     def test_pending_throughout_wait_skips(self):
         self.set_check_runs(RUNNING)
-        self.assert_skipped("pending check")
+        self.assert_skipped("pending check,nix-ci-gate")
         self.assertEqual(self.calls().count("gh api"), 3)
 
     def test_pending_then_red_skips_without_waiting_out(self):
         self.set_check_runs(RUNNING, query=1)
         self.set_check_runs(check_runs(("changes", "completed", "success"),
                                        ("check", "completed", "failure"),
-                                       ("build", "completed", "success")), query=2)
-        self.assert_skipped("red check=failure")
+                                       ("build", "completed", "success"),
+                                       ("nix-ci-gate", "completed", "failure")), query=2)
+        self.assert_skipped("red check=failure,nix-ci-gate=failure")
         self.assertEqual(self.calls().count("gh api"), 2)
 
     def test_red_skips_without_polling(self):
         self.set_check_runs(check_runs(("changes", "completed", "success"),
                                        ("check", "completed", "failure"),
-                                       ("build", "completed", "success")))
-        self.assert_skipped("red check=failure")
+                                       ("build", "completed", "success"),
+                                       ("nix-ci-gate", "completed", "failure")))
+        self.assert_skipped("red check=failure,nix-ci-gate=failure")
         self.assertEqual(self.calls().count("gh api"), 1)
 
     def test_api_failure_while_waiting_fails(self):
@@ -338,7 +342,7 @@ cat "$FIXTURE/check-runs.1.json"
 
     def test_check_runs_not_created_yet_skip(self):
         self.set_check_runs(check_runs(("changes", "completed", "success")))
-        self.assert_skipped("pending check,build")
+        self.assert_skipped("pending nix-ci-gate")
 
     def test_cancelled_run_is_not_green(self):
         self.set_check_runs(check_runs(("changes", "completed", "success"),
@@ -355,10 +359,18 @@ cat "$FIXTURE/check-runs.1.json"
     def test_paths_filter_skip_counts_as_green(self):
         self.set_check_runs(check_runs(("changes", "completed", "success"),
                                        ("check", "completed", "skipped"),
-                                       ("build", "completed", "skipped")))
+                                       ("build", "completed", "skipped"),
+                                       ("nix-ci-gate", "completed", "success")))
         self.run_update()
         self.assertIn("git merge --ff-only", self.calls())
         self.assertNotIn("notify-skip", self.calls())
+
+    def test_required_gate_skipped_is_red(self):
+        self.set_check_runs(check_runs(("changes", "completed", "success"),
+                                       ("check", "completed", "skipped"),
+                                       ("build", "completed", "skipped"),
+                                       ("nix-ci-gate", "completed", "skipped")))
+        self.assert_skipped("red nix-ci-gate=skipped")
 
     def test_checks_from_other_apps_do_not_gate(self):
         payload = check_runs(("lint", "completed", "failure"), app="other-app")

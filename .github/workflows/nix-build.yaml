@@ -6,8 +6,8 @@ name: 'CI: Nix check'
 # merge 条件であり、mini-vm の dotfiles-autoswitch も main の HEAD のこの check run が
 # green のときだけ適用する (手元の pre-push 関門は撤去済み。docs/adr/0011-*)。
 # eval だけ通る lock を通すと、初回ビルドの失敗が 04:00 の VM 上で起きることになる。
-# job 名 (check / build) は branch protection の required checks と mini-vm.nix の
-# requiredChecksJson が名指ししているので、改名するときは 3 か所を揃える。
+# job 名 nix-ci-gate は branch protection の required check と mini-vm.nix の
+# requiredChecksJson が名指しする。check / build は条件付きの実処理で、直接requiredにしない。
 #
 # macOS ランナー (料金が Linux の 10 倍) はこの workflow に置かない。Darwin の回帰 check は
 # macos-regressions.yaml に分け、手動実行だけにしてある。Pro 上では
@@ -50,8 +50,8 @@ jobs:
       - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
         id: filter
         with:
-          # ここに無いパスだけの commit では check/build が skipped になり、mini-vm の
-          # autoswitch はそれを green として適用する。nix の評価が読むファイル
+          # ここに無いパスだけの commit では check/build が skipped になる。最後のgateは
+          # changes=successかつ両方skippedの場合だけgreenにする。nix の評価が読むファイル
           # (mini-vm.nix の ../../../ 参照) は漏らさず挙げる。
           filters: |
             nix:
@@ -147,3 +147,27 @@ jobs:
           nix build --no-link --print-out-paths
           '.#homeConfigurations.gigun-x86_64-linux.activationPackage'
           '.#homeConfigurations.gigun-mini-vm.activationPackage'
+
+  # 条件付きのcheck/buildを直接requiredにすると、changesが失敗して両方skippedになったときに
+  # branch protectionを通過できる。必ず実行する1つのgateで依存job全体をfail-closedに畳む。
+  nix-ci-gate:
+    needs:
+      - changes
+      - check
+      - build
+    if: ${{ always() }}
+    runs-on: ${{ fromJSON(vars.DOTFILES_LINUX_CI == 'self-hosted' && vars.DOTFILES_CI_REVIEWED_SHA != '' && github.sha == vars.DOTFILES_CI_REVIEWED_SHA && '["self-hosted", "linux", "x64", "dotfiles-reviewed"]' || '["ubuntu-slim"]') }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Require a consistent CI result
+        env:
+          CI_EVENT_NAME: ${{ github.event_name }}
+          CI_NIX_CHANGED: ${{ needs.changes.outputs.nix }}
+          CI_CHANGES_RESULT: ${{ needs.changes.result }}
+          CI_CHECK_RESULT: ${{ needs.check.result }}
+          CI_BUILD_RESULT: ${{ needs.build.result }}
+        run: sh scripts/ci-required-gate.sh

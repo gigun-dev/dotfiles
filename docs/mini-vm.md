@@ -73,9 +73,10 @@ timer の時刻(autoswitch 04:00 など)はすべて JST。mini-vm のシステ�
   手元の pre-push 関門を外したので、main には CI 前の commit が直接入る。autoswitch は fetch した
   `@{upstream}` の commit について `gh api repos/gigun-dev/dotfiles/commits/<sha>/check-runs` を
   gigun の gh 認証で読み、GitHub Actions の check run が全て success / skipped / neutral で終わり、
-  required の `check` と `build` が出揃っていれば green としてその commit へ `merge --ff-only` する。
-  skipped を green に数えるのは paths-filter で nix 以外の commit の check/build が飛ばされるため
-  (代わりに `changes` job 自体の失敗は red)。red(失敗・cancelled 等)は即座に、pending(未完了・未出現)は
+  required の `nix-ci-gate` が success なら green としてその commit へ `merge --ff-only` する。
+  paths-filter で nix 以外の commit の check/build が skipped でも、常時実行する gate が整合性を検証する。
+  gate 自体は success 以外を green にせず、未出現・実行中は pending、skipped / neutral / failure 等は red にする。
+  他jobの red(失敗・cancelled 等)も即座に、pending(未完了)は
   60 秒ごとに fetch し直して最大 30 分待ち、それでも終わらなければ**見送り**: unit は成功で終わり、理由を `dotfiles-autoswitch-notify-skip` が Bark へ送り、
   成功 heartbeat も送る。翌日の timer が判定し直す。API が引けない(認証切れ等)は見送りではなく
   失敗として既存の失敗通知へ流す。作業コピーが upstream より先行していても止める。

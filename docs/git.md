@@ -135,7 +135,7 @@ fork が要る repo は `gh repo fork` を使う。本文は `--body-file` に�
 
 ### dotfiles の CI
 
-workflow は `CI: Nix check` (`.github/workflows/nix-build.yaml`)。`check` / `build` が required で、nix 関連パスの変更時だけ ubuntu で走る (PR と main への push の両方)。
+workflow は `CI: Nix check` (`.github/workflows/nix-build.yaml`)。常時実行する `nix-ci-gate` が required で、nix 関連パスの変更時だけ `check` / `build` を ubuntu で走らせ、その結果を集約する (PR と main への push の両方)。
 
 macOS ランナーは課金が Linux の 10 倍なので常時 CI では使わない。
 

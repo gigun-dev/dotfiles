@@ -1,10 +1,10 @@
 # Linux CI の一時的な切り替え案
 
-通常は GitHub-hosted を使う。本人が内容を確認した commit に限り、repository variable `DOTFILES_LINUX_CI=self-hosted` と `DOTFILES_CI_REVIEWED_SHA=<完全な commit SHA>` を設定すると、Nix CI の `changes` / `check` / `build` は専用 label `dotfiles-reviewed` の runner を選ぶ。PR は GitHub が生成する merge commit SHA、push / workflow_dispatch は実行対象 SHA を照合する。PR の head や base が進むと merge commit も変わるため再確認が必要。値が一致しなければ hosted を選ぶ。自動切り替えではない。
+通常は GitHub-hosted を使う。本人が内容を確認した commit に限り、repository variable `DOTFILES_LINUX_CI=self-hosted` と `DOTFILES_CI_REVIEWED_SHA=<完全な commit SHA>` を設定すると、Nix CI の `changes` / `check` / `build` / `nix-ci-gate` は専用 label `dotfiles-reviewed` の runner を選ぶ。PR は GitHub が生成する merge commit SHA、push / workflow_dispatch は実行対象 SHA を照合する。PR の head や base が進むと merge commit も変わるため再確認が必要。値が一致しなければ hosted を選ぶ。自動切り替えではない。
 
 ## mini-vm の候補
 
-[未 import の NixOS module 案](../ci/linux-runner/mini-runner.nix) は、専用 system user、NixOS の GitHub runner と systemd sandbox を定義する。既定は無効で、明示的に import・有効化しない限りユーザーやサービスを作らない。短命の registration token は Nix store 外から渡す。1 job で登録解除する ephemeral runner とし、自動再登録・boot 起動はしない。ユーザーに sudo、docker group や `trusted-users` を与えない。NixOS 標準 runner module は登録前処理の一部を root で実行するため、導入・起動時はその権限と短命 token の受け渡しを別途確認する。
+[既定無効の NixOS module](../ci/linux-runner/mini-runner.nix) は mini-vm から import し、専用 system user、NixOS の GitHub runner と systemd sandbox を定義する。明示的に有効化しない限りユーザーやサービスを作らない。短命の registration token は Nix store 外から渡す。1 job で登録解除する ephemeral runner とし、自動再登録・boot 起動はしない。ユーザーに sudo、docker group や `trusted-users` を与えない。NixOS標準 runner moduleは登録前処理の一部をrootで実行するため、有効化・起動時はその権限と短命tokenの受け渡しを別途確認する。
 
 systemd は `ProtectHome` / `ProtectSystem` / `NoNewPrivileges` 等の NixOS module の既定に加え、Docker socket、agenix のリンクと実ディレクトリ、秘密ディレクトリと Tailscale socket を隠す。ただし、これは VM や強いネットワーク隔離ではない。ジョブは同じ kernel とネットワークを使い、公開された store や到達可能なサービス、ジョブ自身の token と runner の認証情報にはアクセスし得る。既存の秘密・socket・home の実際の権限とサービス到達先を登録前に確認する。信頼できないコードには使用しない。
 
@@ -12,8 +12,8 @@ mini-vm の Nix daemon を非 trusted client として使用し、job ごとの 
 
 SHA 変数と label は認可境界ではない。同じ repository の別 workflow も label を指定でき、workflow 自体を編集できる人は SHA 条件も変更できる。private repository の本人確認済みコードだけを対象にし、runner を起動する前に実行対象と他の queued job を確認し、使用後は停止・登録解除と作業領域の消去を確認する。runner が利用可能な間の想定外 job 割当を完全には防げないため、repository と workflow の権限を確認する。再利用前に状態を消しても、信頼できないコードを安全に実行できる保証にはならない。
 
-macOS ランナーを使う `macos-regressions.yaml` と `mini-ansible` の `native` は手動実行 (workflow_dispatch) だけで、push / PR では走らない (macOS は分の消費が Linux の 10 倍)。常時走る `mini-ansible` の `portable` は hosted の ubuntu。Linux 側の結果は macOS 検証を代替しないので、Darwin の回帰は Pro 上の `nix build .#checks.aarch64-darwin.*`、Ansible の native fixture は `sh ansible/mini-macos/verify.sh native` で手元確認する。branch protection の必須 check は `check` / `build` だけで、この変更の影響を受けない。mini-vm autoswitch は対象 commit の GitHub Actions の失敗 check 全体も判定するため、`mini-ansible` の `portable` が失敗した commit や、手動実行した macOS job が失敗した commit は自動適用されない。手動実行しない限り macOS job の check run は存在せず、判定に現れない。
+macOS ランナーを使う `macos-regressions.yaml` と `mini-ansible` の `native` は手動実行 (workflow_dispatch) だけで、push / PR では走らない (macOS は分の消費が Linux の 10 倍)。常時走る `mini-ansible` の `portable` は hosted の ubuntu。Linux 側の結果は macOS 検証を代替しないので、Darwin の回帰は Pro 上の `nix build .#checks.aarch64-darwin.*`、Ansible の native fixture は `sh ansible/mini-macos/verify.sh native` で手元確認する。移行後の branch protection は一意な `nix-ci-gate` だけを必須にし、条件付きの `check` / `build` は gate 内で検証する。mini-vm autoswitch は対象 commit の GitHub Actions の失敗 check 全体も判定するため、`mini-ansible` の `portable` が失敗した commit や、手動実行した macOS job が失敗した commit は自動適用されない。手動実行しない限り macOS job の check run は存在せず、判定に現れない。
 
 ## 切り替えと戻し方
 
-対象 SHA と他の待機 job を確認し、2 変数を設定してから新しい run を起動する。既に待機中の job は変数変更で自動的に振り直されない。短命 token を用意して runner を起動し、`changes` が終わったら登録解除を確認する。続く `check` と `build` はどちらが先に割り当てられてもよいが、一つずつ手動で再登録し、各 job の終了と登録解除を確認する。token が期限切れなら再発行する。いずれかの job が失敗した場合も後始末する。登録・ユーザー作成・systemd 適用・変数変更は別途承認する。検証後は service を停止し、残った runner の登録を解除、2 変数を元に戻し、専用 token・state・work・log を処理する。実際の 3 job、再登録、cleanup は未検証。
+対象 SHA と他の待機 job を確認し、2 変数を設定してから新しい run を起動する。既に待機中の job は変数変更で自動的に振り直されない。短命 token を用意して runner を起動し、`changes` が終わったら登録解除を確認する。続く `check` と `build` はどちらが先に割り当てられてもよいが、一つずつ手動で再登録し、最後に `nix-ci-gate` 用にも再登録する。各jobの終了と登録解除を確認し、token が期限切れなら再発行する。いずれかの job が失敗した場合も後始末する。登録・ユーザー作成・systemd 適用・変数変更は別途承認する。検証後は service を停止し、残った runner の登録を解除、2 変数を元に戻し、専用 token・state・work・log を処理する。実際の 4 job、再登録、cleanup は未検証。

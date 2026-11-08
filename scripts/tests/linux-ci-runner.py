@@ -66,6 +66,12 @@ esac''',
                              "NIX_CONFIG<<EOF\naccept-flake-config = true\n"
                              "max-jobs = 1\ncores = 2\nEOF\n")
 
+    def test_every_required_workflow_job_can_use_the_reviewed_runner(self):
+        workflow = (ROOT / ".github/workflows/nix-build.yaml").read_text()
+        selector = "vars.DOTFILES_LINUX_CI == 'self-hosted'"
+        self.assertEqual(workflow.count(selector), 4)
+        self.assertIn("  nix-ci-gate:\n", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()
