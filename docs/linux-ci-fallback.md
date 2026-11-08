@@ -12,7 +12,7 @@ mini-vm の Nix daemon を非 trusted client として使用し、job ごとの 
 
 SHA 変数と label は認可境界ではない。同じ repository の別 workflow も label を指定でき、workflow 自体を編集できる人は SHA 条件も変更できる。private repository の本人確認済みコードだけを対象にし、runner を起動する前に実行対象と他の queued job を確認し、使用後は停止・登録解除と作業領域の消去を確認する。runner が利用可能な間の想定外 job 割当を完全には防げないため、repository と workflow の権限を確認する。再利用前に状態を消しても、信頼できないコードを安全に実行できる保証にはならない。
 
-macOS の `macos-regressions` と `mini-ansible` は hosted のまま。Linux 側の結果は macOS 検証を代替しない。branch protection の必須 check は `check` / `build` だが、mini-vm autoswitch は GitHub Actions の失敗 check 全体も判定する。macOS job が失敗すれば Linux の成功だけでは自動適用されない。
+macOS ランナーを使う `macos-regressions.yaml` と `mini-ansible` の `native` は手動実行 (workflow_dispatch) だけで、push / PR では走らない (macOS は分の消費が Linux の 10 倍)。常時走る `mini-ansible` の `portable` は hosted の ubuntu。Linux 側の結果は macOS 検証を代替しないので、Darwin の回帰は Pro 上の `nix build .#checks.aarch64-darwin.*`、Ansible の native fixture は `sh ansible/mini-macos/verify.sh native` で手元確認する。branch protection の必須 check は `check` / `build` だけで、この変更の影響を受けない。mini-vm autoswitch は対象 commit の GitHub Actions の失敗 check 全体も判定するため、`mini-ansible` の `portable` が失敗した commit や、手動実行した macOS job が失敗した commit は自動適用されない。手動実行しない限り macOS job の check run は存在せず、判定に現れない。
 
 ## 切り替えと戻し方
 

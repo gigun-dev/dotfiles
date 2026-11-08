@@ -133,7 +133,18 @@ fork が要る repo は `gh repo fork` を使う。本文は `--body-file` に�
 
 ### dotfiles の CI
 
-workflow は `CI: Nix check` (`.github/workflows/nix-build.yaml`)。
+workflow は `CI: Nix check` (`.github/workflows/nix-build.yaml`)。`check` / `build` が required で、nix 関連パスの変更時だけ ubuntu で走る (PR と main への push の両方)。
+
+macOS ランナーは課金が Linux の 10 倍なので常時 CI では使わない。
+
+| workflow | 起動 | runner |
+|---|---|---|
+| `CI: Nix check` | nix 関連パスの push / PR、手動 | ubuntu |
+| `CI: mini Ansible` の `portable` | `ansible/mini-macos/**` 等の push / PR、手動 | ubuntu |
+| `CI: mini Ansible` の `native` | 手動のみ | macos-15 |
+| `CI: macOS regressions (manual)` | 手動のみ | macos-15 |
+
+Pro の Darwin 回帰は `nix build .#checks.aarch64-darwin.<name>` (docs/testing.md)、Ansible の native は `sh ansible/mini-macos/verify.sh native` を手元で回す。
 
 ```bash
 gh run list -b main -L 5

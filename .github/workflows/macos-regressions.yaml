@@ -1,0 +1,36 @@
+name: 'CI: macOS regressions (manual)'
+
+# 手動実行専用。push / pull_request では走らせない。
+#
+# Why not 自動: macOS ランナーは分の消費が Linux の 10 倍で、private 期間に無料枠を
+# 使い切った。Darwin の回帰 check は Pro (aarch64-darwin) 上で
+#   nix build --no-link .#checks.aarch64-darwin.zsh-startup  (他の check も同様)
+# を回せばネイティブに同じものを確かめられるので、常時 CI で払う価値が低い。
+# 一覧と実行例は docs/testing.md。
+#
+# required checks (check / build) と mini-vm autoswitch の required は nix-build.yaml の
+# Linux job だけを指す。ただし autoswitch は対象 commit の check run のうち失敗したものを
+# 全て red とみなすので、この workflow を手動実行して失敗させた commit は適用が見送られる。
+# 外部 action は commit SHA で固定する (nix-build.yaml と同じ)。
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos-regressions:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: ./.github/actions/setup-nix
+      - name: Build isolated Darwin regression checks
+        run: >-
+          nix build --no-link --print-build-logs
+          .#checks.aarch64-darwin.guard-settings
+          .#checks.aarch64-darwin.guard-handoff
+          .#checks.aarch64-darwin.setup-routing
+          .#checks.aarch64-darwin.switch-routing
+          .#checks.aarch64-darwin.zsh-startup

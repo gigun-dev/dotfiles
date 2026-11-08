@@ -9,6 +9,12 @@ name: 'CI: Nix check'
 # job 名 (check / build) は branch protection の required checks と mini-vm.nix の
 # requiredChecksJson が名指ししているので、改名するときは 3 か所を揃える。
 #
+# macOS ランナー (料金が Linux の 10 倍) はこの workflow に置かない。Darwin の回帰 check は
+# macos-regressions.yaml に分け、手動実行だけにしてある。Pro 上では
+# `nix build .#checks.aarch64-darwin.<name>` でネイティブに確かめられる (docs/testing.md)。
+# push と pull_request の両方で走るのは意図どおり: PR は lock 更新の merge 条件、
+# main への push は autoswitch が見る HEAD の check run になる。
+#
 # **外部 action は commit SHA で固定する**。タグは書き換えられるので、上流が乗っ取られると
 # 任意のコードが CI で走る。いまこの workflow は secrets を 1 つも使わず token も read-only
 # なので実害は小さいが、盗るものが無いことに依存した安全は脆い。
@@ -141,20 +147,3 @@ jobs:
           nix build --no-link --print-out-paths
           '.#homeConfigurations.gigun-x86_64-linux.activationPackage'
           '.#homeConfigurations.gigun-mini-vm.activationPackage'
-
-  macos-regressions:
-    needs: changes
-    if: needs.changes.outputs.nix == 'true' || github.event_name == 'workflow_dispatch'
-    runs-on: macos-15
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: ./.github/actions/setup-nix
-      - name: Build isolated Darwin regression checks
-        run: >-
-          nix build --no-link --print-build-logs
-          .#checks.aarch64-darwin.guard-settings
-          .#checks.aarch64-darwin.guard-handoff
-          .#checks.aarch64-darwin.setup-routing
-          .#checks.aarch64-darwin.switch-routing
-          .#checks.aarch64-darwin.zsh-startup
