@@ -18,8 +18,8 @@ dotfiles 内の同名パスは存在しない。
 がこのファイルを指すことを確認した。Codex は `codex/AGENTS.md` を配布し、現在のMacの `~/.codex/AGENTS.md` は
 そのsymlinkである。ClaudeとCodexのツール固有の指示はそれぞれのファイルに置く。
 
-今回 `~/.claude/settings.json` は symlink ではなく実ファイルだったため、既存の設定を保ち
-PreToolUse の当該エントリだけを追加した。リポジトリ側にも同じエントリを置いている。
+`~/.claude/settings.json` は symlink ではなく実ファイルで、Mac では `claude/settings.json` を正本として
+switch 時に deep merge される (`nix/modules/home/dotfiles.nix`)。PreToolUse の当該エントリも正本に置いている。
 hook の実体は既存の `~/.claude/hooks` symlink 経由で参照する。
 
 - Codex への文章はファイル作成ツールで保存し、companion の `task --prompt-file` にパスを渡す。

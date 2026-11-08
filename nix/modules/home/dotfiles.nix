@@ -147,6 +147,44 @@ in
       -mtime +1 -delete 2>/dev/null || true
   '';
 
+  # claude/settings.json を正本として ~/.claude/settings.json へ deep merge する
+  # (ryoppippi/dotfiles の claude-code module / t3code module と同じ方式)。
+  # symlink にしない理由: Claude Code は /plugin や /model などの操作のたびに atomic rename で
+  # settings.json を書き直すので、repo への symlink は通常ファイルに置換されて次回 switch で壊れる。
+  # コピーだけでも UI/CLI が足したキーを switch が消してしまう。
+  # merge なら宣言したキーが勝ち、宣言していないキーと書き込みは残る。object (enabledPlugins 等) は
+  # キー単位で merge、配列 (permissions.allow, hooks 等) は正本のもので丸ごと置き換わる。
+  # 宣言から消したキーは live から自動では消えない。消すときは live も手で直す。
+  # schema 検証 (check-jsonschema) は $schema の取得にネットワークが要り、同梱するとスキーマが
+  # 古びて誤検知するため入れず、JSON として壊れていないことだけ確認する。
+  # home 層は WSL / mini-vm と共有で、正本には Mac 固有のパスが含まれるため Darwin 限定。
+  home.activation.configureClaudeSettings = lib.mkIf isDarwin (
+    lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+      CLAUDE_DIR="${config.home.homeDirectory}/.claude"
+      SETTINGS_FILE="$CLAUDE_DIR/settings.json"
+      SOURCE_FILE="${../../../claude/settings.json}"
+      $DRY_RUN_CMD mkdir -p "$CLAUDE_DIR"
+      if [ -L "$SETTINGS_FILE" ]; then
+        # 旧運用の symlink は実体の内容を引き継いで通常ファイルにする
+        LINK_COPY="$(mktemp "$CLAUDE_DIR/.settings.json.XXXXXX")"
+        cp "$SETTINGS_FILE" "$LINK_COPY" && $DRY_RUN_CMD mv "$LINK_COPY" "$SETTINGS_FILE" || rm -f "$LINK_COPY"
+      fi
+      if [ -f "$SETTINGS_FILE" ]; then
+        TEMP_FILE="$(mktemp "$CLAUDE_DIR/.settings.json.XXXXXX")"
+        if ! ${lib.getExe pkgs.jq} -s '.[0] * .[1]' "$SETTINGS_FILE" "$SOURCE_FILE" > "$TEMP_FILE"; then
+          rm -f "$TEMP_FILE"
+          echo "claude settings: merge failed; $SETTINGS_FILE is unchanged" >&2
+          exit 1
+        fi
+        $DRY_RUN_CMD chmod 644 "$TEMP_FILE"
+        $DRY_RUN_CMD mv "$TEMP_FILE" "$SETTINGS_FILE"
+      else
+        ${lib.getExe pkgs.jq} . "$SOURCE_FILE" > "$SETTINGS_FILE"
+        chmod 644 "$SETTINGS_FILE"
+      fi
+    ''
+  );
+
   # .zshrc は programs.zsh が管理するため home.file ではなく
   # home.activation で強制シンボリックリンク (ryoppippi パターン)
   home.activation.linkDotfiles = lib.hm.dag.entryAfter [ "linkGeneration" ] (''
@@ -167,7 +205,7 @@ in
     # Global instructions must survive setup on a new host, not only manual edits.
     $DRY_RUN_CMD mkdir -p "${config.home.homeDirectory}/.codex"
     link_force "${dotfilesPath}/codex/AGENTS.md" "${config.home.homeDirectory}/.codex/AGENTS.md"
-    # settings.json は Claude とユーザーが所有し、activation では触れない。
+    # settings.json は下の configureClaudeSettings が merge する (symlink にはしない)。
     link_force "${dotfilesPath}/claude/hooks" "${config.home.homeDirectory}/.claude/hooks"
     link_force "${dotfilesPath}/claude/commands" "${config.home.homeDirectory}/.claude/commands"
     # 2026-07-12 から手で張られていて、新マシンでは再現しなかった

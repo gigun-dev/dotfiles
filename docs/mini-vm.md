@@ -23,10 +23,10 @@ Langfuse は公式に近い Compose とローカル MinIO で動かす。容量�
 
 ## Claude の設定
 
-`~/.claude/settings.json` は Claude とユーザーが所有する。Home Manager は設定をコピー・リンク・
-マージしない。hooks のスクリプトや commands、agents は従来どおり配布するが、hook の登録・削除や
-permissions、model、plugins、marketplace の変更は各端末の設定で明示的に行う。リポジトリの
-`claude/settings.json` は設定例として参照できるが、端末固有のパスなどを確認せずコピーしない。
+`~/.claude/settings.json` は Mac (Darwin) では `claude/settings.json` を正本として home-manager が
+deep merge する (`nix/modules/home/dotfiles.nix` の `configureClaudeSettings`)。mini-vm など Linux の
+home 層では merge せず、`claude/settings.json` は設定例として参照できるが、端末固有のパスなどを
+確認せずコピーしない。hooks のスクリプトや commands、agents は従来どおり配布する。
 新規環境は Claude の既定設定から始めることもできる。
 
 既存の symlink はこの変更だけでは通常ファイルにならない。移行は別途、Claude や他の書き手が
