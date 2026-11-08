@@ -234,9 +234,17 @@ tunnel の cloudflared は `T3CODE_CLOUDFLARED_PATH` で nix の実体を渡す�
 
 T3 Connect は無料で 3 台まで (スマホとブラウザは数えない)。Pro と mini-vm で 2 台。
 
-版は nixpkgs の `t3code` (flake.lock 追従。2026-11-08 評価で 0.1.6)。Pro の cask は 0.1.7 以降へ自動更新される。
-Nix 管理の server は `t3 update` もアプリ内更新も使わない。ずれで壊れたら flake.lock の更新を待つか、
-overlay で版を固定する (キャッシュを外れるので mini-vm でソースビルドになる)。
+版は公式 release の linux-x64 を hash 固定した `t3codeOfficial` (`mini-vm.nix` の let。Pro と同じ 0.1.7)。
+取得元は `https://github.com/pingdotgg/t3code/releases/download/v<ver>/t3-<ver>-linux-x64.tar.gz` で、
+npm `t3` の launcher が `~/.t3/runtime/versions/<ver>` へ取るものと同じ (SHA256SUMS で検証)。bun 製の単一 ELF
+なので patchelf はせず `programs.nix-ld` に任せ、`NIX_LD*` はラッパー (`bin/t3`) が渡す。
+`t3 update` もアプリ内更新も使わない。**更新手順**: `version` を上げ、release の `SHA256SUMS` の linux-x64 行を
+`nix hash convert --hash-algo sha256 --to sri <hex>` で SRI にして `hash` に入れる。Pro の版と揃える。
+
+**障害の記録 (2026-11-08)**: 当初 nixpkgs の `t3code` 0.1.6 を使ったが、`t3 connect ...` が
+"T3 Connect commands are unavailable: this build is missing T3 Connect public configuration." で使えなかった。
+Connect の public configuration (Clerk の publishable key 等) はビルド時に埋め込まれる値で、nixpkgs のビルドには
+入らない。公式 release のバイナリは埋め込み済み (`strings` で Clerk の publishable key を確認)。
 
 ### 端末ごとの手順 (宣言できない状態)
 
