@@ -53,8 +53,8 @@ canaryはminiの指定2directoryに各1個、予測困難な32桁random suffix�
 ## SSH とネットワーク
 
 [Tailscale テンプレート](../tofu/tailscale/policy.hujson.tftpl) はタグ間の IP grants を広く許す一方、SSH のユーザー許可は別に定義する。
-admin-device → server は root / ubuntu と nonroot、admin-device → client / storage 等は nonroot、storage → proxmox は root が対象である。
-storage → server の SSH 許可は記述されていない。今回提供された mini → VM の `TAILNET POLICY DENIED` は実際の拒否の記録として保持し、別経路で迂回しない。
+admin-device → server は root / ubuntu と nonroot、admin-device → client / storage 等は nonroot が対象である。
+storage を起点にした SSH 許可は記述されていない（退避用だった storage → proxmox の root は 2026-11-09 に外した）。今回提供された mini → VM の `TAILNET POLICY DENIED` は実際の拒否の記録として保持し、別経路で迂回しない。
 テンプレートから現在の端末タグ・最終 policy・到達性までは確定できない。これらは [ADR 0010](adr/0010-tailscale-policy-as-code.md) の非公開値を含む管理範囲である。
 
 VM の OpenSSH は password / keyboard-interactive 認証を無効にする宣言がある。

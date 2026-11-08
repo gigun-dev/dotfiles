@@ -26,7 +26,7 @@
 
 pve では Tailscale SSH が有効なので、`ssh root@pve` はパスワードなしで通る。LAN の IP（`192.168.11.100`）を直接指すと Tailscale SSH を迂回して本物の sshd に当たり、パスワードを聞かれる。
 
-`storage -> proxmox` の root ルールは、2026-08-01 に pve の SSD 障害で mini へディスクイメージを退避するために足した（[pve-ssd-failure.md](pve-ssd-failure.md)）。`action` は `accept`。`check` だとブラウザの再認証で長い転送が途切れる。退避は終わっているので、不要になったら削除してよい。
+`storage -> proxmox` の root ルールは、2026-08-01 に pve の SSD 障害で mini へディスクイメージを退避するために足し（[pve-ssd-failure.md](pve-ssd-failure.md)）、退避が終わったので 2026-11-09 にテンプレートから外した（todo 0147）。同じ退避を再びやるなら一時的に戻す。そのときの `action` は `accept` にする。`check` だとブラウザの再認証で長い転送が途切れる。
 
 ## Taildrive（iCloud 風の共有）
 

@@ -60,13 +60,6 @@
 			"dst":    ["tag:admin-device", "tag:client", "tag:storage"],
 			"users":  ["autogroup:nonroot"],
 		},
-		// storage → proxmox: mini から pve のディスク退避を行うため (root)
-		{
-			"action": "accept",
-			"src":    ["tag:storage"],
-			"dst":    ["tag:proxmox"],
-			"users":  ["root"],
-		},
 		// admin → mini-vm (エージェント基盤): gigun で常用する
 		{
 			"action": "accept",
@@ -78,11 +71,11 @@
 	"tests": [
 		// タグ無しの本人端末から tag:server の ssh へは入れない
 		{
-			"src": ${owner},
+			"src":  ${owner},
 			"deny": ["tag:server:22"],
 		},
 		{
-			"src": "tag:admin-device",
+			"src":    "tag:admin-device",
 			"accept": ["tag:server:22"],
 		},
 	],
