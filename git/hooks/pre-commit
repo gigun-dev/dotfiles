@@ -35,30 +35,16 @@ done
 nix run .#gitleaks -- git --pre-commit --staged --redact=100 --verbose --no-color --no-banner >&2 \
   || leak_rc=$?
 
-# `git stash pop` は使わない (ryoppippi との意図的な差)。stash の worktree 側は staged 分も
-# 含むため、整形が staged の行を書き換えると、その行が pop で必ず衝突する。stash の
-# index→worktree 差分 (= 純粋な unstaged 分) だけを今の作業ツリーへ当て直す。
-# 失敗しても stash は消さず、握りつぶさない。
-if [ "$stashed" -eq 1 ]; then
-  restored=1
-  # untracked だけを退避したときは差分が空なので --allow-empty が要る。
-  git diff --binary stash@{0}^2 stash@{0} | git apply --allow-empty || restored=0
-  if [ "$restored" -eq 1 ] && git rev-parse --verify --quiet 'stash@{0}^3' >/dev/null; then
-    # pathspec に "." を渡すと source に無い tracked ファイルが消えるので、untracked の一覧を渡す。
-    mapfile -d '' -t untracked < <(git ls-tree -r -z --name-only 'stash@{0}^3')
-    if [ "${#untracked[@]}" -gt 0 ]; then
-      git restore --source='stash@{0}^3' --worktree -- "${untracked[@]}" || restored=0
-    fi
-  fi
-  if [ "$restored" -eq 1 ]; then
-    git stash drop --quiet
-  else
-    {
-      echo "pre-commit: 退避した unstaged 変更を戻せなかった。変更は stash@{0} に残してある。"
-      echo "復旧: 整形が触った行と衝突している。git stash show -p stash@{0} で内容を見て手で戻し、git stash drop する。"
-    } >&2
-    exit 1
-  fi
+# ryoppippi と同じく pop で戻す。整形が staged の内容を書き換えたファイルは、退避中に
+# unstaged の変更が 1 つでもあると pop で衝突する (stash の worktree 側は整形前の staged 分も
+# 含むため)。衝突しても git は stash を消さないので変更は失われない。黙って commit を
+# 通さず止める (ryoppippi は pop の失敗を見ていない)。先に `nix fmt` してから stage すれば起きない。
+if [ "$stashed" -eq 1 ] && ! git stash pop --quiet; then
+  {
+    echo "pre-commit: 退避した unstaged 変更を pop で戻せなかった (整形との衝突)。変更は stash@{0} に残っている。"
+    echo "復旧: 衝突したファイルを直してから git stash drop する。次からは nix fmt してから stage する。"
+  } >&2
+  exit 1
 fi
 
 [ "$fmt_rc" -ne 0 ] && { echo "pre-commit: treefmt が失敗した" >&2; exit 1; }
