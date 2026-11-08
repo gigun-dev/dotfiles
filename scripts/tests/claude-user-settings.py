@@ -27,9 +27,11 @@ class ClaudeUserSettingsTest(unittest.TestCase):
                     before = settings.stat()
                 elif kind == "symlink":
                     settings.symlink_to(tracked)
+                old_agents = claude / "agents"
+                old_agents.symlink_to(repo / "claude/agents")
                 script = activation.replace(original_home, str(home))
                 env = dict(os.environ, DRY_RUN_CMD="", PATH=os.environ.get("TEST_PATH", os.environ["PATH"]))
-                for _ in range(2):
+                for iteration in range(2):
                     subprocess.run([os.environ.get("TEST_BASH", "bash"), "-eu", "-c", script], env=env, check=True)
                     self.assertEqual(tracked.read_bytes(), b'{"host":"tracked"}\n')
                     if kind == "file":
@@ -43,8 +45,17 @@ class ClaudeUserSettingsTest(unittest.TestCase):
                     else:
                         self.assertFalse(settings.exists())
                         self.assertFalse(settings.is_symlink())
-                    for asset in ("hooks", "commands", "agents"):
+                    for asset in ("hooks", "commands"):
                         self.assertEqual((claude / asset).readlink(), repo / "claude" / asset)
+                    self.assertEqual((claude / "CLAUDE.md").readlink(), repo / "agents/AGENTS.md")
+                    self.assertEqual((claude / "shared").readlink(), repo / "agents/shared")
+                    if iteration == 0:
+                        self.assertFalse(old_agents.exists())
+                        self.assertFalse(old_agents.is_symlink())
+                        old_agents.symlink_to(repo / "host-local-agents")
+                    else:
+                        self.assertTrue(old_agents.is_symlink())
+                        self.assertEqual(old_agents.readlink(), repo / "host-local-agents")
 
 
 if __name__ == "__main__":

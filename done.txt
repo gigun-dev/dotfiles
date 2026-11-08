@@ -87,3 +87,6 @@ x 2026-11-09 2026-11-08 +security tailnet の storage→proxmox の臨時 root S
 x 2026-11-09 2026-11-09 +git index に scripts/job-heartbeat.py と scripts/tests/job-heartbeat.py の変更がステージされたまま持ち主不明で残っている(2026-11-08 夜から)。どのセッションの作業か確かめ、コミットするか捨てる by:claude id:0162
 x 2026-11-09 2026-11-09 更新したios-skillsをClaudeの宣言設定でも有効化しProの公式Xcode連携と旧MCP無効化を確認する +ios by:me id:0165
 x 2026-11-09 2026-11-08 sandbox 内の GitHub 到達失敗を token invalid と誤判定しない共通診断を作り、gh のローカル設定・DNS/transport・HTTP 401/403 を分離して再発防止する +security +claude see:docs/execution-context.md by:me id:0163
+x 2026-11-09 2026-11-08 +ci mini-vm と WSL の home 構成 (homeConfigurations.gigun-x86_64-linux) の評価を CI で確認する。self-hosted run 42495442825 の build で mini-vm と両home activation packageを確認した by:claude id:0140
+x 2026-11-09 2026-11-09 aarch64-darwin の developer-tools check がx86_64-linuxのmini-vm activationを参照するplatform mismatchを、同system fixture参照へ直す +nix +ci see:nix/tests/developer-checks.nix by:codex id:0160
+x 2026-11-09 2026-11-09 カスタムsubagent廃止後も ~/.claude/agents を期待したfixtureを、旧symlink削除・host-local定義保持・新しい共有指示リンクの検証へ直す +ci +claude see:scripts/tests/claude-user-settings.py by:codex id:0165

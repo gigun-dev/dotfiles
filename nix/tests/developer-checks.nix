@@ -144,8 +144,10 @@ in
         "activation-inputs"
       ]
       {
-        CLAUDE_ACTIVATION = pkgs.writeText "claude-link-dotfiles" inputs.self.homeConfigurations.gigun-mini-vm.config.home.activation.linkDotfiles.data;
-        CLAUDE_HOME = inputs.self.homeConfigurations.gigun-mini-vm.config.home.homeDirectory;
+        # 同じsystemのfixtureからactivation textを取る。mini-vmのx86_64-linux
+        # generationを参照すると、Darwin checkがLinux derivationをbuildしようとする。
+        CLAUDE_ACTIVATION = pkgs.writeText "claude-link-dotfiles" activationFixture.config.home.activation.linkDotfiles.data;
+        CLAUDE_HOME = activationFixture.config.home.homeDirectory;
         UV_ACTIVATION = pkgs.writeText "uv-activation" activationFixture.config.home.activation.syncUvTools.data;
         UV_GUARD = pkgs.writeText "uv-guard" activationFixture.config.xdg.configFile."uv/uv.toml".text;
         LANGFUSE_ENDPOINTS =

@@ -16,4 +16,6 @@ macOS ランナーを使う `macos-regressions.yaml` と `mini-ansible` の `nat
 
 ## 切り替えと戻し方
 
-対象 SHA と他の待機 job を確認し、2 変数を設定してから新しい run を起動する。既に待機中の job は変数変更で自動的に振り直されない。短命 token を用意して runner を起動し、`changes` が終わったら登録解除を確認する。続く `check` と `build` はどちらが先に割り当てられてもよいが、一つずつ手動で再登録し、最後に `nix-ci-gate` 用にも再登録する。各jobの終了と登録解除を確認し、token が期限切れなら再発行する。いずれかの job が失敗した場合も後始末する。登録・ユーザー作成・systemd 適用・変数変更は別途承認する。検証後は service を停止し、残った runner の登録を解除、2 変数を元に戻し、専用 token・state・work・log を処理する。実際の 4 job、再登録、cleanup は未検証。
+対象 SHA と他の待機 job を確認し、2 変数を設定してから新しい run を起動する。既に待機中の job は変数変更で自動的に振り直されない。短命 token を用意して runner を起動し、`changes` が終わったら登録解除を確認する。続く `check` と `build` はどちらが先に割り当てられてもよいが、一つずつ手動で再登録し、最後に `nix-ci-gate` 用にも再登録する。各jobの終了と登録解除を確認し、token が期限切れなら再発行する。いずれかの job が失敗した場合も後始末する。登録・ユーザー作成・systemd 適用・変数変更は別途承認する。検証後は service を停止し、残った runner の登録を解除、2 変数を元に戻し、専用 token・state・work・log を処理する。
+
+2026-11-09 に commit `8e9cba03` の workflow_dispatch (run 42495442825) で4回の登録と解除を実測した。`changes` と `build` は成功し、`check` の既存fixture失敗を `nix-ci-gate` がfailureへ集約した。各job後にrepository runnerが0へ戻ること、最後にvariables・token・state・work・logを削除し、mini-vmを既知のboot profileへ戻すことも確認した。これは失敗を成功扱いしない経路の受入であり、全job greenの受入はfixture修正後に別runで行う。
