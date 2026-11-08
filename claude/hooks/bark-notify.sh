@@ -10,7 +10,14 @@
 #
 # 前提が欠けていたら黙って exit 0 する。通知は補助機能なので、鍵が無い環境や
 # 復号できない状況で Claude Code の動作を妨げない。
+#
+# --job: Claude の hook ではなく macOS の定期ジョブ (uv tool の週次更新など) の失敗通知。
+# 戻る先のセッションが無いので URL 無しでも送り、launchd がジョブ終了時に process group を
+# 片付けて背景の curl を殺さないよう送信を待つ。入力の形 (title/message/cwd) は hook と同じ。
 set -u
+
+JOB=0
+[ "${1:-}" = --job ] && JOB=1
 
 SELF=$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")
 REPO=$(cd "$(dirname "$SELF")/../.." 2>/dev/null && pwd) || exit 0
@@ -59,10 +66,12 @@ PROJECT=$(basename "$CWD")
 
 # セッション URL が取れないものは通知しない (タップしても戻る先が無いため)
 BARK_URL=""
-if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
-  BARK_URL=$(jq -r 'select(.url) | .url | select(test("claude\\.ai/code/session_"))' "$TRANSCRIPT" 2>/dev/null | tail -1)
+if [ "$JOB" = 0 ]; then
+  if [ -n "$TRANSCRIPT" ] && [ -f "$TRANSCRIPT" ]; then
+    BARK_URL=$(jq -r 'select(.url) | .url | select(test("claude\\.ai/code/session_"))' "$TRANSCRIPT" 2>/dev/null | tail -1)
+  fi
+  [ -z "$BARK_URL" ] && exit 0
 fi
-[ -z "$BARK_URL" ] && exit 0
 
 PAYLOAD=$(jq -n \
   --arg title "${TITLE} [${PROJECT}]" \
@@ -70,7 +79,7 @@ PAYLOAD=$(jq -n \
   --arg url "$BARK_URL" \
   --arg group "$PROJECT" \
   --arg level "timeSensitive" \
-  '{title: $title, body: $body, url: $url, group: $group, level: $level}')
+  '{title: $title, body: $body, group: $group, level: $level} + (if $url == "" then {} else {url: $url} end)')
 
 KEY_HEX=$(printf '%s' "$ENCRYPT_KEY" | xxd -ps -c 200)
 IV_HEX=$(printf '%s' "$ENCRYPT_IV" | xxd -ps -c 200)
@@ -81,3 +90,4 @@ curl -s \
   --data-urlencode "ciphertext=${CIPHERTEXT}" \
   --data-urlencode "iv=${ENCRYPT_IV}" \
   "$PUSH_URL" >/dev/null 2>&1 &
+[ "$JOB" = 0 ] || wait

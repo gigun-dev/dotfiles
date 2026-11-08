@@ -1436,7 +1436,7 @@ in
   #
   # 127.0.0.1 に閉じているので --api-key は付けない。ブリッジ自身の README も
   # 「公開ネットワークに晒すなら --api-key 必須」としており、裏を返せばローカル限定なら不要。
-  # tailscale serve が外に出しているのは 8787 だけで、このポートは出していない。
+  # tailscale serve が外に出しているのは T3 Code の 3773 だけで、このポートは出していない。
   #
   # ConditionPathExists は cloudflare-os と同じ理由 (`codex login` 前は auth.json が無い)。
   # ログイン後に systemctl start すれば上がる。

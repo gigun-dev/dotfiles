@@ -213,8 +213,12 @@ mini-vm には性質の違う 2 つの信頼経路があり、1 本に両方を�
   clone し直すまでサービスは静かにスキップされる (壊れはしない)
 - **T3 Code の pairing と linked environments**: iPhone / Pro との pairing は `~/.t3/userdata` の
   セッション状態で、宣言できない。VM を作り直したら pairing し直し (下の「T3 Code」節)
-- **`tailscale serve` の設定**: `sudo tailscale serve --bg 8787` は tailscaled の状態として永続し
-  再起動も越えるが、宣言には無い。VM を作り直したら張り直しが要る
+- **`tailscale serve` の設定**: 手で張るものは無い。443 → 127.0.0.1:3773 は `t3code` が起動時に
+  `--tailscale-serve` で張り、停止時に外す (journal の "Tailscale Serve configured / disabled")。
+  そのため t3code が止まっている間は `tailscale serve status` が空になる。
+  以前は cloudflare-os (`127.0.0.1:8787`) を `sudo tailscale serve --bg 8787` で tailnet に出していたが、
+  2026-08-09 (6d7decd) に公開経路を Cloudflare tunnel + Access (`os.097969.xyz`) へ移しており、
+  T3 Code の serve が 443 を置き換えた今は張り直さない
 - **mini の chrome-devtools MCP 登録**: `claude mcp add --scope user` で `~/.claude.json` に入る。
   dotfiles が配布する `hooks` / `commands` とは別に保存される。
 - **apple/container**: 公式署名 pkg のみで brew にも nixpkgs にも無いが、pkg を `fetchurl` で hash 固定し

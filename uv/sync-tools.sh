@@ -2,26 +2,36 @@
 # =============================================================================
 # uv/tools.txt に宣言した uv tool のうち、未導入のものだけを入れる。
 # home.activation (nix/modules/home/dotfiles.nix) と bootstrap.sh の両方から呼ぶ。
+# --upgrade では入っている tool を更新する (Darwin の週次 launchd agent が呼ぶ)。
 # 何を止めるか: ~/.local/bin の uv tool 群が手で入れた記憶にしか無く、新しい機械で
 # 再現できないこと。
 #
 # 不変条件:
 #   - uv が無ければ黙って終わる (ensure_installed パターン)。
 #   - 全部入っていればネットワークに触らない (uv tool list はローカルの receipt を読むだけ)。
-#   - 入っているものは更新しない。版は浮動で、更新は手で `uv tool upgrade --all`。
+#   - install の経路では入っているものを更新しない。版は浮動で、更新は --upgrade の経路
+#     (週次の launchd agent) に分ける。activation をオフラインで軽く保つため。
+#   - --upgrade はローカルパス・URL・git・editable で入った tool を飛ばす。uv tool upgrade は
+#     receipt の場所から入れ直すので版が上がらず、元のファイルが消えると毎週失敗する
+#     (plamo-translate を一時ディレクトリの wheel から入れている間がそれ。todo 0133)。
 #   - 宣言外は消さず警告だけ (手元の editable install を意図的に宣言しないため)。
 #   - 1 つの install 失敗で switch を止めない。失敗は stderr に出して続け、終了コードで返す。
 #
-# 引数: [--dry-run] [宣言ファイル (既定: このスクリプトの隣の tools.txt)]
+# 引数: [--dry-run] [--upgrade] [宣言ファイル (既定: このスクリプトの隣の tools.txt)]
 # 環境: UV_BIN (activation から uv の store パスを渡す)、DOTFILES_PLATFORM (テスト用の上書き)
 # =============================================================================
 set -u
 
 dry_run=0
-if [ "${1:-}" = --dry-run ]; then
-	dry_run=1
+upgrade=0
+while :; do
+	case "${1:-}" in
+		--dry-run) dry_run=1 ;;
+		--upgrade) upgrade=1 ;;
+		*) break ;;
+	esac
 	shift
-fi
+done
 decl=${1:-"$(cd "$(dirname "$0")" && pwd)/tools.txt"}
 
 uv=${UV_BIN:-$(command -v uv || true)}
@@ -80,6 +90,28 @@ installed=$("$uv" tool list 2>/dev/null | sed -n -E 's/^([^ -][^ ]*) v[0-9].*/\1
 is_installed() {
 	printf '%s\n' "$installed" | grep -qxF "$1"
 }
+
+if [ "$upgrade" = 1 ]; then
+	tool_dir=$("$uv" tool dir 2>/dev/null) || tool_dir=
+	status=0
+	while read -r name; do
+		[ -n "$name" ] || continue
+		# requirements の要素の直下のキーだけを見る (entrypoints の install-path に当てない)。
+		if [ -n "$tool_dir" ] && grep -Eq '^requirements = .*[{,] *(path|url|git|editable) = ' "$tool_dir/$name/uv-receipt.toml" 2>/dev/null; then
+			echo "uv tools: $name はローカルパス等から入っているので更新しない" >&2
+			continue
+		fi
+		if [ "$dry_run" = 1 ]; then
+			echo "uv tool upgrade $name"
+			continue
+		fi
+		"$uv" tool upgrade "$name" || {
+			echo "uv tools: $name の upgrade に失敗" >&2
+			status=1
+		}
+	done <<<"$installed"
+	exit "$status"
+fi
 
 status=0
 for i in "${!declared_names[@]}"; do

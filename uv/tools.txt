@@ -4,7 +4,8 @@
 # 書式: <spec> [@<platform>]... [uv tool install の追加引数]...
 #   spec は PyPI のパッケージ名で始める (例: foo, foo==1.2, foo[extra])。
 #   @darwin / @linux / @darwin-aarch64 のように書くと、そのプラットフォームでだけ入れる。
-#   版は固定しない。入っていないものを入れるだけで、更新は手で `uv tool upgrade --all`。
+#   版は固定しない。activation は入っていないものを入れるだけで、更新は Darwin の週次
+#   launchd agent (uv-tool-upgrade、nix/modules/home/dotfiles.nix) が sync-tools.sh --upgrade で行う。
 # 宣言外の uv tool は消さずに警告だけ出す (手元の checkout からの editable install など、
 # 再現の対象にしないものはここに書かない)。
 
