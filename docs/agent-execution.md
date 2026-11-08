@@ -14,9 +14,21 @@ dotfiles 内の同名パスは存在しない。
 
 ## 配布するルール
 
-`claude/CLAUDE.md` は通常の symlink 配布で Claude Code に届く。今回 `~/.claude/CLAUDE.md`
-がこのファイルを指すことを確認した。Codex は `codex/AGENTS.md` を配布し、現在のMacの `~/.codex/AGENTS.md` は
-そのsymlinkである。ClaudeとCodexのツール固有の指示はそれぞれのファイルに置く。
+2026-11-08 から指示の正本は `agents/` の1か所にある（ryoppippi/dotfiles の `agents/` と同じ形）。
+以前は `claude/CLAUDE.md` と `codex/AGENTS.md` を別々に symlink で配っており、Git の節が二重になって
+表現もずれていた。
+
+- `agents/AGENTS.md` が入口、`agents/shared/*.md` が節。書くのはエージェントの既定と違うことだけ。
+- Claude Code: `~/.claude/CLAUDE.md` → `agents/AGENTS.md`、`~/.claude/shared` → `agents/shared` の
+  symlink。入口の `@~/.claude/shared/<name>.md` で節を読む。どちらも out-of-store なので編集は即時に届く。
+- Codex: import が無いので `agents/codex-agents-md.sh` が `@~/.claude/shared/` の行を節の中身で置き換えた
+  `~/.codex/AGENTS.md`（実ファイル）を作る。節の一覧は import 行から決まるので、節を足すときは入口に
+  import を1行書くだけでよい。生成物なので編集は次の switch（nix なしなら `bootstrap.sh`）で届く。
+- 生成を nix の式でなくシェルスクリプトにしたのは、「nix はオプション層」の原則どおり nix なしの
+  `bootstrap.sh` でも同じ結果を作るため。home-manager はこのスクリプトを build 時に呼ぶだけ。
+- ハーネス固有の節: 共通の文で書ける限り分けない（日本語で話す・作業継続は両方に効く）。
+  Claude だけに読ませたい節は `shared/` 以外を指す `@` 行で入口から読む（生成時に落ちる）。
+  ハーネスの設定で済むもの（Claude の `language`、attribution の無効化）は設定側に置く。
 
 `~/.claude/settings.json` は symlink ではなく実ファイルで、Mac では `claude/settings.json` を正本として
 switch 時に deep merge される (`nix/modules/home/dotfiles.nix`)。PreToolUse の当該エントリも正本に置いている。
@@ -31,6 +43,15 @@ hook の実体は既存の `~/.claude/hooks` symlink 経由で参照する。
 
 1枠は運用上の上限で、独立した別セッションを強制的に止めるホスト全体ロックではない。
 ccache や build ディレクトリ共有も今回導入しない。実環境での所要時間改善は未測定。
+
+## カスタム subagent の廃止（2026-11-08）
+
+`claude/agents/`（implementer・artisan・architect・cross-repo-implementer）と、dotfiles 用に
+isolation を外した写しの `.claude/agents/` を消した。委譲は ryoppippi/dotfiles の
+`delegate-work.md` と同じく判断基準で書き（`agents/shared/delegate-work.md`）、モデル・再委譲の禁止・
+報告の項目は定義に固定せず、毎回の brief で渡す。定義側の `disallowedTools: Agent` は
+2026-07-13 に `tools` の列挙だけでは子の spawn を塞げなかったため足したもので、廃止後は brief の
+文だけになる。上の書き込みガードと検証の1枠は agent 定義に依らないので残す。
 
 ## 検証の境界
 
@@ -50,7 +71,7 @@ ccache や build ディレクトリ共有も今回導入しない。実環境で
 
 CoreS3開発で、親が未完の子を残して終了し、次の利用者入力後に子の成果を受け取った例を確認した。対象ログで子の完了71件はすべて親の受信記録と一致し、通知欠落を主因とする根拠は無い。分析記録は `gigun-dev/esp32-airdrop-poc/docs/reviews/session-stops-2026-10-03.md` にある。これはPJ固有のルールではなく、親の終了判断と成果統合の共通課題として扱う。
 
-継続ルールは `codex/AGENTS.md` に置く。現在のMacでは `~/.codex/AGENTS.md` がこのファイルへのsymlinkで、ファイル更新が読み込み先へ届く。質問・進捗回答だけで元の作業を終了しない。親は未完の子と依頼範囲内の実行可能な仕事を確認し、成果の統合・検証・台帳更新・次の依存解除を引き受ける。人の入力で塞がる項目があっても、独立した仕事を先に進める。
+継続ルールは当初 `codex/AGENTS.md` に置き、2026-11-08 から Claude と共通の `agents/shared/work-management.md` に置く。質問・進捗回答だけで元の作業を終了しない。親は未完の子と依頼範囲内の実行可能な仕事を確認し、成果の統合・検証・台帳更新・次の依存解除を引き受ける。人の入力で塞がる項目があっても、独立した仕事を先に進める。
 
 これは文章による進行管理ルールである。終了した親を子完了で再開するhook、アプリの修正、finalの強制拒否は実装しない。既存の停止ログでは子完了だけによる親の新ターン開始が確認できず、一般的な自動再開仕様は未確認。適用確認は指示ファイルのsymlink・内容・PJ重複の除去までであり、将来すべての停止を防げることや他ホストへの配布完了を保証しない。
 
