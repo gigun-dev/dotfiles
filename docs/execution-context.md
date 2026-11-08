@@ -21,7 +21,7 @@ Codex、Claude Code、T3 Codeのpermission mode、provider approval、OS sandbox
 
 ## 小さい診断手順
 
-1. 失敗した処理の実行元（Pro / mini / mini-vm）、対象、probe、sandbox有無、時刻を記録する。CLI・対象artifactの版やhash、正確な引数とreview承認の参照は秘密を除いたprivate作業記録に残す。同じ操作の比較に使い、repoへ端末識別子や生出力をcommitしない。
+1. 失敗した処理の実行元（Pro / mini / mini-vm）、harness、実際に解決されたprovider、対象、probe、sandbox有無、時刻を記録する。T3等からの委譲はtarget指定が欠けると親providerへ解決され得るため、表示した依頼先だけを証拠にしない。CLI・対象artifactの版やhash、正確な引数とreview承認の参照は秘密を除いたprivate作業記録に残す。同じ操作の比較に使い、repoへ端末識別子や生出力をcommitしない。
 2. DNS/transportの段階と、サーバーが返したHTTP statusを分ける。`scutil`のNo DNS、`dig`のpermission、SSH接続失敗、`gh auth status`のtoken invalidだけでは資格情報の失効を確定しない。HTTP 403もscope不足を単独では確定しない。
 3. GitHub認証は `python3 scripts/github-auth-diagnose.py` から確認する。macOSでは最初にApple Seatbeltの`network-outbound`判定を確認し、denyならオンラインprobeを実行せず`context-limited-network-denial`で止める。ローカルのcredential選択は、`gh auth token`の出力をプロセス内で破棄して存在だけを確認する。Keychainがdenyされる場合は`gh auth status --no-refresh`からactive accountの有無だけを取り、同時に出るtoken invalid判定は捨てる。HTTP 401を実測した場合だけ`credential-rejected`とする。403、DNS失敗、timeout、HTTP応答の無い失敗をtoken失効へ読み替えない。
 4. sandbox限定の失敗なら、同じ対象・引数・artifactを使うread-only検証を正規のreview経路で実行する。GitHubは同じ診断をreview済みcontextで再実行し、`credential-accepted`またはHTTP statusだけを記録する。tokenやresponse body、headers全体を保存しない。必要な承認が無ければpendingで止める。

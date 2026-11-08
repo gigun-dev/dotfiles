@@ -22,9 +22,9 @@ Codex、Claude Code、T3 Codeで同じ`Auto`という表示があっても、同
 | 実行面 | policyの主体 | OS強制 | filesystem | network | subprocess / MCP | Keychain / GUI | 追加承認経路 |
 |---|---|---|---|---|---|---|---|
 | standalone Codex / Pro | Codex user設定 | 現設定ではsandboxなし | `danger-full-access` | 制限なし相当 | 同一UID | 通常のOS / TCC境界。live未確認 | 現設定は`approval_policy=never`のためなし |
-| T3 → Codex Auto / Pro | T3 thread modeとCodex app-server | Apple Seatbeltを今回実測 | readは広く、writeはcheckoutと明示root。追加保護はCodex policy | Seatbeltの`network-outbound` denyを今回実測 | Codex tool policyの対象。remote toolはshell通信と別 | GitHub credentialの読取不能を観測。Keychain全体とGUIは未確認 | `require_escalated`をreviewerまたは人が承認した別実行 |
+| T3 → Codex Auto / Pro | T3 thread modeとCodex app-server | Apple Seatbeltを今回実測 | repo外readは可。writeはcheckoutと明示rootに限定され、repo外canaryはdeny | Seatbeltの`network-outbound` denyを今回実測 | Codex tool policyの対象。remote toolはshell通信と別 | GitHub credentialの読取不能を観測。Keychain全体とGUIは未確認 | `require_escalated`をT3 `auto_review`または人が承認した別実行 |
 | standalone Claude Code / Pro | Claude settingsとpermission mode | 現行repo / user設定ではBash sandbox未設定 | Edit / Writeはworktree hook対象。Bashは同一UID | BashのOS sandboxは未確認 | MCP、hook、file toolはBash sandboxと別 | 通常のOS / TCC境界。live未確認 | Claudeのpermission prompt。sandbox有効時は別途unsandbox承認 |
-| T3 → Claude Auto / Pro | T3 thread modeとClaude adapter | 未確認 | 自動承認とworktree hookはあるが、OS write制限は未確認 | Bash sandboxを有効にする証拠なし | MCPとhookはClaude Bash sandboxと別 | 未確認 | T3 / Claudeのpermission callback。live確認が必要 |
+| T3 → Claude Auto / Pro | T3 orchestratorがClaude provider / `auto`を指定。Claude user設定も`auto` | Claude Bash sandboxは無効。Seatbelt `network-outbound` allowを実測 | Bashはrepo外を含む同一UID範囲へwrite可。Write/EditはAuto classifierとworktree hookの別境界 | Bash processにSeatbeltのnetwork denyなし。外部transport自体は未実行 | Write/Edit hookはBashを覆わない。MCPはlocal subprocess / remote serviceごとに別 | Keychain / GUI / TCCは未確認 | Auto classifier、hook、permission callback。T3が渡した最終callback metadataは未確認 |
 | T3 / mini-vm | T3 thread mode、provider設定、Linux host設定 | backend未確認 | 同一UIDならT3、provider、業務code間の隔離にはならない | live policy未確認 | providerとMCPごとに確認が必要 | Linux側のcredential保管境界は未確認 | providerごとのapproval経路を実測する |
 
 standalone Codexの現設定は推奨ではなく現況である。`danger-full-access`の廃止、Claude sandboxのfail-closed化、T3の上限mode固定は、利便性と既存運用への影響を比較して別途決める。
@@ -34,7 +34,10 @@ standalone Codexの現設定は推奨ではなく現況である。`danger-full-
 確認済み:
 
 - T3から起動したCodexの今回のProセッションでは、harnessが`workspace-write`とnetwork制限を選び、macOS側でApple Seatbeltの`network-outbound` denyを実測した。
+- 同セッションではcheckoutと`/private/tmp`へのwrite、repo外文書のread、repo外への非秘密canary作成denyを実測した。resolved `workspace-write`と一致するが、private APIのpath-filter付き`sandbox_check`は正例もdenyになったため証拠として使わない。
 - `scripts/github-auth-diagnose.py --local-only`はSeatbelt denyとlocal credentialの読取不能を分離した。これはcredential失効の証拠ではない。
+- 同じ診断をT3 `auto_review`の`require_escalated` contextで実行するとSeatbeltのnetwork denyは無く、GitHubからHTTP 200を得た。token値、response body、headerは記録していない。
+- T3からClaude 2.1.319を`auto`で起動したProセッションでは、ClaudeのBash sandbox設定が無く、`network-outbound`はSeatbelt上allowだった。Bashはcheckout外の非秘密canaryも作成できた一方、Write toolはAuto classifierまたはworktree hookで拒否された。したがってWrite/EditのdenyをBashやClaude全体のOS sandboxへ一般化しない。
 - Claudeのworktree guardはEdit / Write経路のhookであり、Bash、MCP、Codexの強制境界ではない。
 
 仕様上の候補で、live未確認:
@@ -62,11 +65,12 @@ private作業記録へ残すmetadataは、harness、providerとversion、host OS
 
 ## 未確認と次の判断
 
-- T3からClaudeを起動した場合のresolved permission callbackとBash sandbox
+- T3からClaudeを起動した場合にadapterが渡す最終permission callback metadata。今回orchestratorは`auto`を指定し、実挙動もAuto classifierを観測したが、session内から最終値を直接読めていない
 - standalone Codexを`danger-full-access`にしている現在の運用意図
 - T3 → CodexでのKeychain全体、GUI、TCCの実効範囲
 - mini-vmとWSLでのCodex / Claude backend、provider設定、MCP実行主体
 - remote toolがlocal process、別process、remote serviceのどこで動くか
 - repo外のmanaged settingsや上位policyの有無
+- Claudeのuser-wide Auto classifier contextに別repository固有の前提が残る現況のscope修正
 
 matrixの保守だけならADRは不要。standalone Codexのsandbox既定、T3のmachine-wide上限、Claude sandboxのfail-closed、人用secret rootのread deny、providerの別UID / 別VM化を決める場合はADR候補とする。
