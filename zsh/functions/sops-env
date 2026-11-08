@@ -1,0 +1,111 @@
+sops-env() {
+  emulate -L zsh
+  setopt localoptions no_aliases pipe_fail
+
+  local selected="" root="" dir="" file="" parent="" command_string="" part="" name="" value=""
+  local -a candidates exec_argv
+
+  while (( $# > 0 )); do
+    case "$1" in
+      --file)
+        if (( $# < 2 )); then
+          print -u2 -r -- "sops-env: --file requires a path"
+          return 2
+        fi
+        selected=$2
+        shift 2
+        ;;
+      --)
+        shift
+        break
+        ;;
+      *)
+        print -u2 -r -- "usage: sops-env [--file FILE] -- COMMAND [ARG...]"
+        return 2
+        ;;
+    esac
+  done
+
+  if (( $# == 0 )); then
+    print -u2 -r -- "sops-env: command is required after --"
+    return 2
+  fi
+  if (( ! $+commands[sops] )); then
+    print -u2 -r -- "sops-env: sops is not installed"
+    return 127
+  fi
+
+  if [[ -n $selected ]]; then
+    selected=${selected:A}
+    if [[ ! -f $selected || ! -r $selected ]]; then
+      print -u2 -r -- "sops-env: encrypted dotenv must be a readable regular file: ${(q)selected}"
+      return 2
+    fi
+  else
+    if (( ! $+commands[git] )); then
+      print -u2 -r -- "sops-env: git is required for automatic discovery; use --file"
+      return 127
+    fi
+    root=$(command git -C "$PWD" rev-parse --show-toplevel 2>/dev/null) || {
+      print -u2 -r -- "sops-env: not inside a Git worktree; use --file"
+      return 2
+    }
+    root=${root:A}
+    dir=${PWD:A}
+    if [[ $dir != $root && $dir != $root/* ]]; then
+      print -u2 -r -- "sops-env: current directory is outside the discovered Git root"
+      return 2
+    fi
+
+    while true; do
+      for file in "$dir"/*.sops.env(.N); do
+        [[ -r $file ]] && candidates+=("${file:A}")
+      done
+      [[ $dir == $root ]] && break
+      parent=${dir:h}
+      [[ $parent == $dir ]] && break
+      dir=$parent
+    done
+
+    case ${#candidates} in
+      0)
+        print -u2 -r -- "sops-env: no readable *.sops.env found between the current directory and Git root"
+        return 2
+        ;;
+      1)
+        selected=$candidates[1]
+        ;;
+      *)
+        if [[ -t 0 && -t 1 ]] && (( $+commands[fzf] )); then
+          selected=$(printf '%s\0' "${candidates[@]}" | command fzf --read0 --print0 --no-multi) || {
+            print -u2 -r -- "sops-env: selection cancelled"
+            return 2
+          }
+          [[ -n $selected ]] || {
+            print -u2 -r -- "sops-env: selection cancelled"
+            return 2
+          }
+        else
+          print -u2 -r -- "sops-env: multiple encrypted dotenv files found; choose one with --file:"
+          for file in "${candidates[@]}"; do
+            print -u2 -r -- "  ${(q)file}"
+          done
+          return 2
+        fi
+        ;;
+    esac
+  fi
+
+  exec_argv=(/usr/bin/env "PATH=$PATH" "HOME=$HOME")
+  for name in TMPDIR TERM LANG LC_ALL LC_CTYPE; do
+    value=${(P)name}
+    [[ -n $value ]] && exec_argv+=("$name=$value")
+  done
+  exec_argv+=("$@")
+
+  for part in "${exec_argv[@]}"; do
+    command_string+="${command_string:+ }${(qq)part}"
+  done
+
+  command sops exec-env --pristine "$selected" "$command_string"
+}
