@@ -12,6 +12,7 @@
 }:
 let
   username = "gigun";
+  sopsHostIdentityPath = "/var/lib/sops-nix/key.txt";
 
   # nixpkgs の更新を待たず、Cloudflare のセキュリティ修正版だけを固定する。
   # Tunnel service と host CLI は同じ derivation を参照する。
@@ -1343,12 +1344,35 @@ in
     };
   };
 
-  # SOPSへ移行する秘密はSSH host keyと分離した専用identityで復号する。まだ
-  # sops.secretsは宣言せず、pilotのrecipientを確定する前にidentityだけ生成する。
+  # SOPSへ移行する秘密はSSH host keyと分離した専用identityで復号する。
+  # sops-nixのgenerateKeyはsops.secretsが空だとactivation自体を生成しないため、
+  # pilot前にも使える専用identityはここで原子的に作る。将来sops.secretsを宣言した後は、
+  # sops-nixも同じpathを使い、既存fileを上書きしない。
   # primary / backup YubiKeyも各暗号文のrecipientに入るため、このfileを失っても
   # 新しいhost identityへrekeyできる。SSH host keyを暗黙の復号経路へ戻さない。
+  system.activationScripts.dotfiles-sops-host-identity = ''
+    identity=${lib.escapeShellArg sopsHostIdentityPath}
+    if [ -e "$identity" ] && [ ! -f "$identity" ]; then
+      echo "refusing to replace non-regular SOPS host identity" >&2
+      exit 1
+    fi
+    if [ ! -f "$identity" ]; then
+      ${pkgs.coreutils}/bin/install -d -m 0700 -o root -g root "$(${pkgs.coreutils}/bin/dirname "$identity")"
+      temporary="$(${pkgs.coreutils}/bin/mktemp "$identity.tmp.XXXXXX")"
+      trap '${pkgs.coreutils}/bin/rm -f "$temporary"' EXIT
+      if ! ${pkgs.age}/bin/age-keygen -o "$temporary" >/dev/null 2>&1; then
+        echo "failed to generate SOPS host identity" >&2
+        exit 1
+      fi
+      ${pkgs.coreutils}/bin/chown root:root "$temporary"
+      ${pkgs.coreutils}/bin/chmod 0600 "$temporary"
+      ${pkgs.coreutils}/bin/mv "$temporary" "$identity"
+      trap - EXIT
+    fi
+  '';
+
   sops.age = {
-    keyFile = "/var/lib/sops-nix/key.txt";
+    keyFile = sopsHostIdentityPath;
     generateKey = true;
     sshKeyPaths = [ ];
   };
