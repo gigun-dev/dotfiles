@@ -252,6 +252,54 @@ class DeliveryTests(unittest.TestCase):
         self.deliver()
         self.opener.open.assert_called_once()
 
+    def test_generation_symlink_is_accepted_and_checked_through_open_descriptor(self):
+        generation = Path(self.directory.name) / "generation"
+        generation.mkdir()
+        target = generation / "token"
+        target.write_text("fixture-only-secret\n")
+        target.chmod(0o400)
+        current = Path(self.directory.name) / "current"
+        current.symlink_to(generation, target_is_directory=True)
+        self.opener.open.return_value = self.response()
+        heartbeat.send(self.endpoint, current / "token", self.payload)
+        self.opener.open.assert_called_once()
+
+    def test_atomic_reader_checks_the_open_target_not_path_stat(self):
+        with patch.object(Path, "stat", side_effect=AssertionError("separate stat is unsafe")), \
+                patch.object(Path, "read_text", side_effect=AssertionError("separate read is unsafe")):
+            self.assertEqual(heartbeat.read_private_token(self.token), "fixture-only-secret")
+
+    def test_non_regular_token_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "private"):
+            heartbeat.read_private_token(self.directory.name)
+
+    def test_executable_owner_mode_is_rejected(self):
+        self.token.chmod(0o700)
+        with self.assertRaisesRegex(ValueError, "private"):
+            heartbeat.read_private_token(self.token)
+
+    def test_value_free_preflight_has_one_fixed_success_message(self):
+        output = io.StringIO()
+        with patch("sys.argv", ["host-heartbeat", "--check-token-file", str(self.token)]), \
+                contextlib.redirect_stdout(output):
+            heartbeat.main()
+        self.assertEqual(output.getvalue(), "host-heartbeat: token preflight passed\n")
+        self.assertNotIn("fixture-only-secret", output.getvalue())
+
+    def test_preflight_cannot_be_combined_with_delivery(self):
+        delivery_options = [
+            ["--source", "mini-vm"],
+            ["--systemctl", "/fixture/systemctl"],
+            ["--tunnel-unit", "fixture.service"],
+            ["--tunnel-ready-url", "http://127.0.0.1:9999/ready"],
+        ]
+        for options in delivery_options:
+            with self.subTest(options=options), \
+                    patch("sys.argv", ["host-heartbeat", "--check-token-file", str(self.token),
+                                       *options]), contextlib.redirect_stderr(io.StringIO()), \
+                    self.assertRaises(SystemExit):
+                heartbeat.main()
+
     def test_invalid_endpoint_never_reads_or_transmits_secret(self):
         for endpoint in ["http://hub.example/uptime/heartbeat", "https://hub.example/other",
                          "https://user@hub.example/uptime/heartbeat", "https://hub.example/uptime/heartbeat?q=1"]:

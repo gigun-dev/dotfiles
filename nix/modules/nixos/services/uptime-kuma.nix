@@ -1,7 +1,7 @@
 { config, pkgs, ... }:
 let
   image = "louislam/uptime-kuma:2.5.5@sha256:c74379ac4509ce2d2c2633f509e67003ee2e45b6e995c5e43fc101f45a0e1fbe";
-  environmentFile = config.age.secrets.uptime-kuma-env.path;
+  environmentFile = config.dotfiles.runtimeSecretFiles.uptimeKumaEnv;
   python = pkgs.python313.withPackages (ps: [ ps."uptime-kuma-api" ]);
   bootstrap = pkgs.writeText "uptime-kuma-bootstrap.py" ''
     import os
@@ -87,13 +87,6 @@ let
   '';
 in
 {
-  age.secrets.uptime-kuma-env = {
-    file = ../../../../secrets/uptime-kuma-env.age;
-    owner = "root";
-    group = "root";
-    mode = "0400";
-  };
-
   virtualisation.oci-containers.backend = "docker";
   virtualisation.oci-containers.containers.uptime-kuma = {
     inherit image;

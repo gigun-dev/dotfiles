@@ -1,6 +1,6 @@
 # セキュリティの方針
 
-個人のアカウントから開発環境・クラウドまでを、侵害に強くするための見取り図。YubiKey の導入 (2026-10 に届く予定) を機に作った。決まったことは「決定」、決めていないことは「未決事項」に置き、未決事項は 1 項目ずつ合意してから「決定」へ移す。
+個人のアカウントから開発環境・クラウドまでを侵害に強くするための見取り図。current state、決定、未決事項を分け、古い案は現行手順として残さない。
 
 ## 1. 考え方
 
@@ -14,7 +14,7 @@
 
 「dotfiles に入れるか」と「Mac の上でどう守るか」は別の問い。dotfiles で暗号化して管理しても、Mac で平文のファイルになるなら Mac 上の安全性は変わらない (変わるのは新しいマシンでの再現性だけ)。
 
-1. **dotfiles に入れるか**: 新しいマシンで自動で用意したいなら入れる。dotfiles は public なので暗号化が必須。マシンごとに 1 回手で設定すれば済むなら、入れずにローカルに置く。
+1. **dotfiles に入れるか**: 新しいマシンで自動で用意したいなら入れる。public化を前提に、非公開入力は暗号化する。マシンごとに1回設定すれば済むものやproviderが正本のものは入れない。
 2. **Mac の上でどう守るか**: 誰がいつ使うかで決める。
 
 | 使われ方 | 復号に使う鍵 | 平文が存在する時間 |
@@ -22,6 +22,8 @@
 | 人がたまに使う (tofu など) | YubiKey (毎回タッチ) | 実行中だけ |
 | アプリや自動処理がファイルから常に読む (npmrc、MCP のトークンなど) | タッチ不要の鍵 (Secure Enclave など) | 常に。だからトークンの権限を狭く・期限を短くする |
 | 無人のホスト (mini-vm) | そのホストの鍵 | 起動中 |
+
+資格情報の分類と値なし判断は[資格情報クラス台帳](credential-inventory.md)、consumerは宣言、scope・期限・active key等の現在値はprovider管理面を正本として確認する。実行に必要な非公開入力はSOPS、1Password、Keychainへ置き、同じ情報をprivateな散文へ複写しない。認証要求の見分け方と紛失・侵害時の一般順序は[復旧runbook](security-recovery.md)に置き、再構成不能な復旧材料だけ独立backupを持つ。過去の実機観測は現在値として扱わない。
 
 例: cachix のトークンは `~/.config/cachix/cachix.dhall` (600) に平文で、dotfiles に入れていない。この平文保存方式ではトークンを読み取って送信できる。通常 switch/update の自動送信は廃止したが、明示送信時の保管・認証方式は別途判断する。盗まれると gigun キャッシュに偽のビルド結果を上げられ、それを取り込む mini-vm などに入る。トークンを gigun への書き込みだけに絞っても、この「偽物を混ぜる」は防げない (防げるのはキャッシュの削除・設定変更・他キャッシュへの影響だけ)。根本の対策は「誰に push を許すか」で、未決事項 14。
 
@@ -33,7 +35,7 @@
 | GitHub | ログイン、鍵やトークンの追加 (sudo mode) | 盗まれたトークン → 権限を絞る |
 | 決済・証券 | 対応しているサービスのログイン | 非対応のサービス。証券のパスキーはキーに入れない (§4) |
 | クラウド (AWS / Cloudflare / LLM、課金が青天井) | コンソールのログイン | API キーの漏洩 → 権限・期限・利用上限 |
-| dotfiles の秘密 (agenix)・tofu のトークン | 人が復号するとき (タッチ) | 無人で復号するもの |
+| dotfiles の暗号化秘密・tofu のトークン | 人がSOPSを復号するとき (タッチ) | 専用host identityで無人復号するもの |
 | 開発中サービスの .env・API キー | 人が起動するときの復号 (タッチ) | 実行中プロセスの環境変数・メモリ |
 | 開発中サービスのユーザー個人情報 | 本番やコンソールのログイン | アプリの脆弱性、DB の権限 |
 | ライブラリ (サプライチェーン) | ほぼ効かない | Takumi Guard、lockfile、取り込みの待ち期間、実行権限 |
@@ -43,7 +45,6 @@
 | 日付 | 決定 | 理由 |
 |---|---|---|
 | 2026-10-17 | commit 署名は今のまま (Secure Enclave の鍵、Touch ID なし、`nix/modules/darwin/secure-enclave-key.nix`)。YubiKey は署名に使わない | 鍵は持ち出せないので、他のマシンからのなりすましは防げる。署名のたびにタッチを求めるとエージェントの commit が止まる。ryoppippi も同じ選択 (理由はエージェントが止まらないこと) |
-| 2026-10-17 | 1Password などサブスクのパスワードマネージャは入れない | 費用。パスワードは Apple の「パスワード」、機械が読む秘密は agenix |
 | 2026-11-03 | 既存アカウントを使うため、Pro に 1Password アプリと CLI を導入する | 保管先の移行や CLI 連携、SSH agent の利用は別途判断する |
 | 2026-10-17 | Apple ID と Google に YubiKey を 2 本とも登録する。Apple ID はセキュリティキー、Google は高度な保護機能プログラムも有効にする。Nano は Mac に挿したまま、NFC 版は自宅で保管する。証券のパスキーはキーに入れない | 起点のアカウントで、数字コードや SMS などフィッシングできる経路を閉じる。iPhone で要るときは Nano (USB-C) か自宅の NFC 版を使う |
 | 2026-10-22 | Google は普段 Apple の「パスワード」の passkey (Touch ID) でログインし、YubiKey 2 本は passkey として予備と新しい環境用に登録する。認証システム (TOTP) と 2 段階認証の SMS は消した。パスワード・再設定用の電話番号とメールは残す。バックアップコード・自撮り動画・復旧用の連絡先は足さない | ログインの強さは残っている一番弱い経路で決まる。TOTP と SMS は偽サイトでその場で中継でき、SMS は SIM スワップも受ける。Apple から独立した鍵があるので弱い経路を消しても締め出されない。復旧の経路は増やすほど入口が増える |
@@ -52,61 +53,44 @@
 | 2026-10-22 | Cloudflare の 2 段階認証は Apple の「パスワード」の passkey (Touch ID) を普段使いにし、TOTP は消す。YubiKey は予備 | Cloudflare は passkey でのログインが無く毎回 2 段階認証が要り、Access (IdP が Cloudflare アカウント) の入口でもある。YubiKey はタッチ・PIN・タッチで日常には重い。Apple の passkey ならドメインに結びついたまま Touch ID 1 回で済む |
 | 2026-10-22 | 高度な保護機能プログラムでは、このアカウントの Gmail・Drive を自作の OAuth クライアントから読めなくなる (テストモードでも `policy_enforced`)。Gmail と連携するアプリの開発には、プログラムに入れていない別アカウントをテストユーザーに使う | gws は 3 月から使っておらず困らない。要るようになったらプログラムはいつでも抜けられる |
 | 2026-10-22 | FIDO2 の PIN はキー 1 本につき 1 つで全サービス共通。Nano と NFC は同じ値にし、Mac のログインパスワードとは別にして Apple の「パスワード」に保存する。要るのはキーの中に passkey を作るときだけ | Nano は Mac に挿したままなので、Mac と一緒に盗まれる。のぞき見た 1 つの秘密で両方が開かないようにする |
-| 2026-10-17 | GitHub に YubiKey を passkey / セキュリティキーとして 2 本とも登録し、TOTP のシードを YubiKey の OATH に移す。リカバリコードは Apple の「パスワード」に置く | TOTP は GitHub の仕様で外せないので、6 桁を出すのにもタッチを要求する。Apple ID を YubiKey で固めるので、保管庫は十分に強い |
 | 2026-10-17 | gh のトークンから `admin:public_key` と `admin:ssh_signing_key` を外し、署名鍵の `autoAdd` を止める。鍵の登録は新しい Mac のときに Web で手で行う | 鍵を足せるトークンが盗まれると、攻撃者の鍵を登録されて失効後も残る裏口になる |
 | 2026-10-17 | Access の Logpush はダッシュボードの自動セットアップで作る。R2 の鍵は Cloudflare が自分で作り、tofu にも `.age` にも入れない (別セッションで決定、todo 0094) | 手元に持つ秘密を増やさない |
-| 2026-10-17 | 開発プロジェクトの平文 .env は当面そのまま運用する。扱いは他の人の運用例を集めてから決める (todo 0099) | 急いで仕組みを入れるより、実例を見て慎重に決めたい |
 
-## 4. 現状の抜け道 (2026-10-17 に実機で確認)
+## 4. 移行中の抜け道
 
-- **`~/.ssh/id_ed25519` (パスフレーズなし) が役割を兼ねすぎている**。これ 1 本が盗まれると全部失う。
-  - GitHub の SSH 認証鍵 (「Github CLI」、2025-04-20)。ghq 配下 170 リポのうち 36 リポの remote が SSH。
-  - agenix の受信者 `gigun` (編集用)。`secrets/secrets.nix` の `all` に入っている秘密をすべて開ける。
-  - `nix run .#tofu` の実行時復号 (`secrets/tofu-env.age`)。
-- **`tofu-env.age` の受信者が `all`** で、mini-vm のホスト鍵でも開ける。mini-vm の nix 設定に tofu の利用は無く、Cloudflare を書き換えられるトークンを無人のホストに持たせている。
-  - `claude/hooks/bark-notify.sh` の自動復号 (todo 0098)。
-  - ほかのホストへの SSH ログインの既定鍵 (どこが受け入れているかは未確認)。
+- legacy file SSH keyがGitHub認証、agenix編集、tofu復号、他hostへのSSH等を兼ねている。SOPS移行とconsumer受入前に削除しないが、新しい用途は足さない。
+- agenixの広いrecipient集合に、人用secretと無人hostが混在する。ADR 0016に従い、人用はprimary / backup YubiKey、host用は専用host identity + 両YubiKeyへ分ける。
+- 人用通知hookと無人serviceがprovider credentialを共有する。暗号文だけでなくprovider credentialも分ける。
 - **gh の github.com 用 `git_protocol` が `ssh`**。全体の設定は `https`。
 - **main の保護は署名を求めず、管理者には適用されない** (`required_signatures=false`、`enforce_admins=false`)。
 - **GitHub のログインに TOTP が残る**。passkey の前に必須な GitHub の仕様。
 - **開発プロジェクトの .env は平文** (gitignore のみ)。Claude Code の設定に .env の deny・sandbox・環境変数の scrub は無く、Codex にも env policy が無い。
 
-## 5. 未決事項
+## 5. 未決事項と実施中の決定
 
 効果の大きい順。1 項目ずつ決める。
 
 3. **push の権限を誰に持たせるか**。 **2026-10-22**: Mac の push を Enclave の SSH 鍵に寄せた (§3)。残りは gh のトークンから push の権限を外すこと、`id_ed25519` を GitHub から外すこと、mini-vm のトークンを必要なリポと権限だけの fine-grained にすること (無人機なので期限の更新を自動化できるかが論点)。候補: push は SSH と Secure Enclave の鍵 (ryoppippi の `type = "both"`、持ち出せない) で行い、gh のトークンは fine-grained にして Contents の書き込みを外す (盗まれても push できない)。未確認: Contents 書き込み無しで gh の普段の操作が回るか、期限管理の手間。あわせて「Github CLI」の鍵の削除、`git_protocol`、36 リポの remote を決める。
-4. **`~/.ssh/id_ed25519` を役割ごとに分ける**。 **試行 (2026-10-22)**: Nano の PIV に age の鍵を作った (PIN は once、タッチは always。ファームウェア 5.7 は管理鍵の初期値が AES で age-plugin-yubikey が未対応 (#92) のため、`ykman piv access change-management-key -a TDES --protect` で PIN 保護の TDES に置き換えてから生成)。ダミーの .env を sops で暗号化し、`sops exec-env` で復号できた。初回は PIN とタッチ、2 回目以降はタッチだけ。本番の秘密は YubiKey だけを受信者にし、Enclave など弱い鍵と同じファイルに混ぜない。人が使う秘密 (agenix の編集、tofu) は age-plugin-yubikey (PIV、復号のたびにタッチ) に移す。保管用の age 鍵は NFC 版の YubiKey に移す候補。無人で復号するもの (bark など) は、その秘密だけを開ける専用の鍵にする。agenix-rekey は YubiKey を前提にした拡張で候補。 **方向 (2026-10-17、未決定)**: agenix から sops-nix へ移し、受信者を YubiKey 2 本 + 保管用 age 鍵 + mini-vm のホスト鍵にする。決め手は、値ごとの暗号化で差分 (キー名) が読めることと、開発プロジェクトの .env (5) と同じ道具で扱えること。agenix-rekey はホスト用の暗号文を自動生成する点が利点だが、ホストが 2 台では効かない。参考の mozumasu は sops-nix だが、鍵は平文ファイル 1 つ (`~/.config/sops/age/keys.txt`)。制約: Mac で switch のときに復号する秘密を YubiKey 宛てだけにすると、pull 後の自動 switch がタッチ待ちで止まる。今の Mac には switch 時の復号は無く (activation で復号するのは mini-vm だけ)、Mac の秘密は使うときに復号する形を保つ。YubiKey が届き PIV を確認してから、1 ファイルで試す。
-5. **開発プロジェクトの API キー** (長期、todo 0099。当面は平文のまま)。候補 (中間案): .env を SOPS (v3.10 以降で age プラグイン対応) + age-plugin-yubikey で暗号化して平文を消し、秘密を使う開発サーバーはエージェントの外の端末で `sops exec-env` から起動する。dotenvx は鍵の置き場が `.env.keys` か有料の Armor で、YubiKey に非対応。`dotenvx run --redact` は出力の文字列を伏せるだけでエージェントからの隔離にはならない ([docs](https://dotenvx.com/docs/cli/run-redact/))。
+4. **`~/.ssh/id_ed25519` を役割ごとに分ける**。 **試行 (2026-10-22)**: Nano の PIV に age の鍵を作った (PIN は once、タッチは always。ファームウェア 5.7 は管理鍵の初期値が AES で age-plugin-yubikey が未対応 (#92) のため、`ykman piv access change-management-key -a TDES --protect` で PIN 保護の TDES に置き換えてから生成)。ダミーの .env を sops で暗号化し、`sops exec-env` で復号できた。初回は PIN とタッチ、2 回目以降はタッチだけ。dummy復号試験は本番移行や予備鍵復旧の証拠にしない。 **決定 (2026-11-09、[ADR 0016](adr/0016-unify-secret-delivery-with-sops.md))**: agenixとの恒久hybridは採用せず、SOPSへ全面移行する。人用秘密はprimary / backup YubiKeyだけ、host用秘密はhost専用SOPS identity + 両YubiKeyとし、人用暗号文からhost identityを外す。Nix管理hostではsops-nix、Nix管理外hostでは同じSOPS暗号文から明示的に配送する。通知は暗号文だけでなくprovider credentialも人用 / 無人用へ分ける。影響の小さい無人secretをpilotにし、owner / mode、regular-file配送、service継続、reboot、予備鍵復旧、agenix pathへのrollbackを受入してから展開する。全agenix参照をなくし、重要credentialをrotateして旧credential拒否を確認した後にagenixを撤去する。SOPSでもbinaryは構造差分が見えず、structured fileはkey名とrecipient metadataが見えるため、公開境界はtodo 0177で別に扱う。Macのswitch時にYubiKey待ちを持ち込まず、人用秘密は利用時だけ復号する。
+5. **開発プロジェクトの API キー** (長期、todo 0099。当面は平文のまま)。候補 (中間案): .env を SOPS (v3.10 以降で age プラグイン対応) + age-plugin-yubikey で暗号化して平文を消し、秘密を使う開発サーバーはエージェントの外の端末で `sops-env -- <command> [args...]` から起動する。`sops-env`はcwdからGit rootまでの`*.sops.env`だけを探し、複数候補はfzfまたは明示的な`--file`を要求し、`sops exec-env --pristine`へ安全にargvを渡す。dotenvx は鍵の置き場が `.env.keys` か有料の Armor で、YubiKey に非対応。`dotenvx run --redact` は出力の文字列を伏せるだけでエージェントからの隔離にはならない ([docs](https://dotenvx.com/docs/cli/run-redact/))。
 6. **エージェントから秘密を切り離す設定**。Claude Code: `Read(**/.env*)` の deny、sandbox の `filesystem.denyRead` (`~/.ssh`、`.env`)、`allowUnsandboxedCommands: false`、`CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`。deny は `grep -r` や Python が自分で開く場合には効かない ([permissions](https://code.claude.com/docs/en/permissions)、[sandboxing](https://code.claude.com/docs/en/sandboxing))。Codex: 既定で環境変数をすべて子プロセスに渡すので、env policy と `*.env` の deny を足す。
 7. **課金の上限とキーの寿命**。Anthropic: 独自の月額上限、キーの期限 (作成時に選ぶ)、workspace 限定。OpenAI: project のハードリミット、Restricted キー。AWS: ハードキャップは無い。Budget actions で Deny ポリシーを自動適用、長期キーをやめて一時認証情報へ。Cloudflare: 予算アラートは通知のみ。トークンを権限・リソース・IP・TTL で絞る。
 8. **Cloudflare のログインと Access** (別セッションの todo 0097 / 0094 と連携)。Cloudflare アカウントのログインに YubiKey を 2 本登録し、TOTP を外す。Access の IdP は Cloudflare アカウントなので、新規ログインの強さはここで決まる。Access 側でハードウェアキーを要求できるか (independent MFA / AMR) は未確認。 2 段階認証は §3 で決定済み (Apple の passkey)。Access の IdP を Google (passkey) に変える案は、急がない改善として残す。Logpush の扱いは決定済み (§3)。
 9. **IaC (OpenTofu) の秘密と state**。state は 2026-09-06 から暗号化済み (pbkdf2 + aes_gcm、平文の書き込みを拒否する enforced、`tofu/versions.tf`)。`tofu-env.age` には Cloudflare のトークン、R2 (state バケット) の AWS キー、state のパスフレーズ、Tailscale の OAuth が入っている。論点はこの `.age` を開ける鍵の扱いで、4 と同じ話として決める。受信者が `all` である件は §4。Cloudflare 以外に広げるときもこの形を踏襲するか。 スマホから変更したい場合の候補: tofu を GitHub Actions で実行し、apply の前に environment の承認を挟む (承認は GitHub へのログイン = YubiKey で守られる)。トークンは GitHub の secret に置くことになる。
-10. **GitHub Actions とリポの硬化** (ryoppippi の ccusage を参考に)。workflow 先頭の `permissions: {}` / `read-all`、checkout の `persist-credentials: false`、actionlint・zizmor・gitleaks (pre-commit と CI)、依存の取り込みに待ち期間 (renovate の `minimumReleaseAge: 3 days`、pnpm の `minimumReleaseAge` と `allowBuilds`)、npm 公開は OIDC の trusted publishing と `--provenance`、bot の commit は GitHub App で作る。
+10. **GitHub Actions とリポの硬化** (ryoppippi の ccusage を参考に)。2026-11-09時点で、外部Actionは40桁SHA固定、repository側のSHA固定強制は有効、既定workflow tokenはread、PR review承認は禁止、read-only jobのcheckoutはcredentialを保持しない。full-tree secret scan、actionlint全件、zizmorのoffline・Medium以上を一つのread-only jobでgateする。意図的にpushするfzf更新jobだけcheckoutのcredential保持を明示する。同一repo Actionの`$/`構文はGitHub runner 2.338.0で利用可能だが、固定actionlint 1.7.12が未対応なので移行を保留する。branch protectionの最終gate移行はlive確認中。残りは書込jobの権限分割、依存の取り込みに待ち期間 (renovate の `minimumReleaseAge: 3 days`、pnpm の `minimumReleaseAge` と `allowBuilds`)、npm 公開時のOIDC trusted publishingと`--provenance`、bot commitのGitHub App化。ryoppippiの現行Nix buildはread-only checkoutでもcredentialを保持する既定値だが、このrepoはprivate self-hosted fallbackを持つため狭くした。
 11. **エージェント規則**。秘密をコマンドの文字列に書かず、実行時に `$(gh auth token)` などで読む。漏れたら rotate する (ryoppippi の `agents/shared/command-privacy.md`)。
 12. **紛失・侵害時の手順書**。YubiKey の紛失、Mac の紛失、侵害の疑いそれぞれで、GitHub のトークンと鍵の失効、Apple ID・Google の鍵の削除、Cloudflare Access のセッション取り消し (Zero Trust > Users > Revoke)、クラウドのキーの rotate をどの順で行うか。
 13. **sudo は Touch ID のまま** の確認。挿しっぱなしの Nano をタッチするだけの pam-u2f は、生体認証の Touch ID より弱い。
-14. **cachix に push できるのは誰か**。通常 switch/update からの自動送信は廃止した。明示的に送信する場合の対象と送信者は未決定。Mac が侵害されると、偽のビルド結果が mini-vm などに取り込まれる経路になる。ryoppippi は自分のキャッシュから取得するだけで、push は CI (GitHub Actions の secret) からだけ行う (`ryoppippi/nix-claude-code` の workflow)。CI か mini-vm だけに push を限るか。キャッシュ取得設定は維持し、送信の効果 (他マシンでの再利用) と公開・汚染のリスクを比べて決める。 現状の事実 (2026-10-17): CI (`nix-build.yaml`) は ubuntu で mini-vm と x86_64-linux の home を build するだけで、darwin の build も cachix への push も無い。mini-vm も push していない。Mac が上げる darwin の build 結果を使うのは実質この Mac だけなので、汚染されて困るのは「侵害後に作り直した Mac が偽物を取り込む」場面 (再インストールしても残る)。ソースの tarball など内容の hash で検証されるものは偽装できない。CI だけに寄せるなら、GitHub Actions の macOS runner で darwin の構成を build して push する job が要る。
+14. **cachix に push できるのは誰か**。通常 switch/update からの自動送信は廃止した。 **監査更新 (2026-11-09)**: repo、CI、switch/update、常駐serviceにCachix送信経路はなく、GitHub ActionsにもCachix writer secretは無い。Proにはmode 0600の標準設定ファイルが存在するが、内容・tokenの有無・有効性は読んでいない。mini-vmは標準設定、post-build hook、process、unitがいずれも無く、mini macOSとprovider側writer・最終利用は未確認である。ryoppippiの現行もread-only Cachix + GitHub Actions cacheで、Cachix writer/actionは撤去済み。現行推奨は当面送信せず、provider側writerを確認・失効してからProとmini macOSのlocal writer設定を削除し、substituter / trusted keyだけを残すこと。正式採用までは削除済みと扱わない。書込を廃止しても既存cacheのreadは継続でき、失うのは新しいlocal buildを他hostへCachix経由で再配布する機能である。将来必要になった場合だけ、送信主体・対象・承認点を限定したCI writerを別設計する。
 
-## 6. YubiKey が届いたらやること
+## 6. 残るYubiKey受入
 
-### 最初に確認すること
+主要サービスへの2本の登録と、primary側PIVによるSOPS dummy復号は完了済みである。これは本番secret移行やbackup復旧の証拠にはしない。
 
-- `ykman info` で型番とファームウェア。OpenAI のバンドルは C NFC と C Nano の 2 本組と報じられている (未確認)。FIDO 専用の「Security Key」系なら PIV が無く、age-plugin-yubikey は使えない (その場合は age-plugin-se = Touch ID で代替)。ファームウェア 5.7 未満なら ECDSA の advisory (YSA-2024-03、物理アクセスが前提) を読む。
-- 挿しっぱなしにする Nano は、誤タッチで文字列を打ち込まないよう OTP を無効にする (`ykman config usb --disable OTP`)。
-
-### 登録と移行 (§3 の決定を実行する)
-
-順に行う。各サービスで 2 本とも登録する (NFC 版は登録後に自宅で保管)。
-
-- [x] Apple ID: セキュリティキーを登録する (数字コードの経路が閉じる) — 2026-10-22
-- [x] Google: キーを登録し、高度な保護機能プログラムを有効にする — 2026-10-22
-- [x] OpenAI (ChatGPT・API の課金): セキュリティキーを登録し、リカバリーコードを Apple の「パスワード」に置く — 2026-10-22
-- [x] GitHub: YubiKey 2 本を passkey として登録 (普段は Apple の passkey)。TOTP は Apple の「パスワード」のまま (§3)。backup email は primary (iCloud) だけ、メールを晒す push を止める設定を有効 — 2026-10-22
-- [x] GitHub: リカバリコードを作り直して Apple の「パスワード」に置く。GitHub Mobile の 2 台が自分の端末か確かめる — 2026-10-22
-- [x] Cloudflare: Apple の「パスワード」の passkey をセキュリティキーとして登録し、TOTP を消し、バックアップコードを作り直して Apple の「パスワード」に置く 。YubiKey 2 本も予備として登録 — 2026-10-22
-- [ ] 決済・クラウド (AWS など) のうち、セキュリティキーに対応しているものに登録する (証券のパスキーはキーに入れない)
-- [ ] PIV があれば、sops + age-plugin-yubikey を 1 ファイルで試してから、未決事項 4 を決める
+- backup YubiKeyにもSOPS用identityを作り、同じ非本番fixtureを各key単独で復号する。
+- primary不在、backup不在、host identity消失の各caseでrekeyとrollbackを確認する。
+- recovery codeとpassword manager recoveryを日常端末・対象providerとは別のfailure domainから再読取する。
+- 決済・クラウドのうちsecurity key対応サービスは、弱いfallback経路を含めて個別に判断する。
 
 ## 7. 参考
 
@@ -119,4 +103,4 @@
 
 ## 実行環境とアクセス境界の確認
 
-[診断手順](execution-context.md)でsandbox内の失敗と認証・署名の問題を区別する。[ホスト別のアクセス境界](security-access-boundaries.md)は、宣言と実機未確認を分けて記載する。秘密の棚卸しは既存の非公開記録に置き、ここには値を持ち込まない。
+[診断手順](execution-context.md)でsandbox内の失敗と認証・署名の問題を区別する。[ホスト別のアクセス境界](security-access-boundaries.md)は、宣言と実機未確認を分けて記載する。秘密値はSOPS、1Password、Keychainまたはprovider secret store、現在の権限やresource状態はprovider、consumerとの対応は値なしのpublic宣言を正本とする。current stateをprivateな散文へ複写しない。

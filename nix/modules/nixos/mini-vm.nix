@@ -107,11 +107,11 @@ let
   # Why not protection API から毎回読む: 読むのに admin 権限が要り、無人経路のトークンを
   # 絞る old:DF-37 と両立しない。
   requiredChecksJson = builtins.toJSON [
-    "check"
-    "build"
+    "nix-ci-gate"
   ];
   # 見送りの理由を通知 unit へ渡す。/run は tmpfs なので再起動で消えてよい。
   autoswitchSkipReason = "/run/dotfiles-autoswitch-skip-reason";
+  barkEnvironmentFile = config.dotfiles.runtimeSecretFiles.barkEnv;
 
   langfuseRollbackSafe = pkgs.writeShellScript "langfuse-rollback-safe" (
     builtins.readFile ../../../infra/langfuse/scripts/rollback-safe.sh
@@ -356,10 +356,10 @@ let
   '';
 
   # unit の失敗を Bark (iOS プッシュ) へ届ける。$1 = journal を読む unit、$2 = 通知タイトル。
-  # 呼び出し側は `EnvironmentFile = "-/run/agenix/bark-env"` で BARK_* を渡すこと。
+  # 呼び出し側はhost構成が選んだoptionalなEnvironmentFileでBARK_*を渡すこと。
   #
   # 括り出してあるのは、暗号化の手順を unit ごとに写すと Bark アプリ側の復号設定
-  # (鍵と IV は 1 組しか持てない) と食い違ったときの直す場所が増えるため。形式
+  # (鍵は 1 組しか持てない) と食い違ったときの直す場所が増えるため。形式
   # (AES-256-CBC、ciphertext と iv を form で POST) は macOS 側の
   # claude/hooks/bark-notify.sh と必ず揃えること。
   #
@@ -377,7 +377,6 @@ let
     # 秘密が無い機械では黙って終わる (失敗自体は journal に残る)。
     [ -n "''${BARK_DEVICE_KEY:-}" ] || exit 0
     [ -n "''${BARK_ENCRYPT_KEY:-}" ] || exit 0
-    [ -n "''${BARK_ENCRYPT_IV:-}" ] || exit 0
 
     push_url="''${BARK_PUSH_URL:-https://api.day.app/$BARK_DEVICE_KEY}"
     # device key を含む route は秘密。HTTP への誤設定は送信せず、URL もログに出さない。
@@ -447,14 +446,18 @@ let
       '{title: $title, body: $body, group: $group, level: $level} + (if $url == "" then {} else {url: $url} end)')
 
     key_hex=$(printf '%s' "$BARK_ENCRYPT_KEY" | ${pkgs.coreutils}/bin/od -An -tx1 | ${pkgs.coreutils}/bin/tr -d ' \n')
-    iv_hex=$(printf '%s' "$BARK_ENCRYPT_IV" | ${pkgs.coreutils}/bin/od -An -tx1 | ${pkgs.coreutils}/bin/tr -d ' \n')
+    # Barkはrequestのivを保存済みfallbackより優先する。固定CBC IVを再利用せず、
+    # 12 random bytesを16文字base64へして通知ごとに新しいIVを渡す。
+    encrypt_iv=$(${pkgs.openssl}/bin/openssl rand -base64 12)
+    [ "$(${pkgs.coreutils}/bin/printf %s "$encrypt_iv" | ${pkgs.coreutils}/bin/wc -c | ${pkgs.coreutils}/bin/tr -d ' ')" = 16 ] || exit 1
+    iv_hex=$(printf '%s' "$encrypt_iv" | ${pkgs.coreutils}/bin/od -An -tx1 | ${pkgs.coreutils}/bin/tr -d ' \n')
 
     ciphertext=$(printf '%s' "$payload" \
       | ${pkgs.openssl}/bin/openssl enc -aes-256-cbc -K "$key_hex" -iv "$iv_hex" -base64 -A)
 
     response=$(${pkgs.curl}/bin/curl -fsS -m 30 --retry 3 \
       --data-urlencode "ciphertext=$ciphertext" \
-      --data-urlencode "iv=$BARK_ENCRYPT_IV" \
+      --data-urlencode "iv=$encrypt_iv" \
       "$push_url" 2>/dev/null) || {
       echo "Bark の失敗通知 HTTP 受付に失敗" >&2
       exit 1
@@ -465,6 +468,23 @@ let
       exit 1
     fi
     echo "Bark 失敗通知受付済み (code=200)"
+  '';
+
+  barkSmokeBody = pkgs.writeText "bark-notify-smoke-body" ''
+    mini-vm の Bark runtime secret と送信経路を手動確認
+  '';
+  barkNotifySmoke = pkgs.writeShellScript "bark-notify-smoke" ''
+    set -eu
+    [ -n "''${BARK_DEVICE_KEY:-}" ] || exit 1
+    [ "$(${pkgs.coreutils}/bin/printf %s "''${BARK_ENCRYPT_KEY:-}" | ${pkgs.coreutils}/bin/wc -c | ${pkgs.coreutils}/bin/tr -d ' ')" = 32 ] || exit 1
+    case "''${BARK_PUSH_URL:-https://api.day.app/$BARK_DEVICE_KEY}" in
+      https://*) ;;
+      *) exit 1 ;;
+    esac
+    exec ${barkNotifyUnitFailure} \
+      bark-notify-smoke.service \
+      'mini-vm Bark rotation smoke' \
+      ${barkSmokeBody}
   '';
 
   # flake.lock の更新を「提案」する本体。$1 がレーン名で、更新する input が変わる。
@@ -726,6 +746,9 @@ in
   # Finder 経由の iPhone バックアップ・画面共有・Tailscale だけを担う。
   # ホストは Intel なので x86_64 ゲストがネイティブで動く (vz ドライバ)。
   imports = [
+    ../../../ci/linux-runner/mini-runner.nix
+    ./runtime-secret-files.nix
+    ./host-heartbeat-secret-delivery.nix
     ./services/host-heartbeat.nix
     ./services/dotfiles-job-heartbeat.nix
     (modulesPath + "/profiles/qemu-guest.nix")
@@ -735,14 +758,30 @@ in
     ./services/codex-mcp-login.nix
   ];
 
+  # Consumers receive only runtime paths. The host configuration owns the
+  # delivery backend so each migration from agenix to SOPS is one assignment,
+  # not a service-module rewrite.
+  dotfiles.runtimeSecretFiles = {
+    barkEnv = config.age.secrets.bark-env.path;
+    beszelEnv = config.age.secrets.beszel-env.path;
+    langfuseEnv = config.age.secrets.langfuse-env.path;
+    uptimeKumaEnv = config.age.secrets.uptime-kuma-env.path;
+  };
+
   # hub owns incident history and notifications; only host-local evidence is collected here.
   services.host-heartbeat = {
     enable = true;
     source = "mini-vm";
     endpoint = "https://hub-monitor.097969.xyz/uptime/heartbeat";
-    tokenFile = config.age.secrets.host-heartbeat-vm.path;
     localVmChecks = true;
     tunnelUnit = "cloudflared-tunnel-5b8ec787-4730-4b2b-87b8-e86acbd3954b.service";
+  };
+  dotfiles.hostHeartbeatSecretDelivery = {
+    # SOPS current/next stay staged at distinct paths. A reviewed Nix change is
+    # the only promotion mechanism; the agenix credential remains the default
+    # rollback source until the live pilot is accepted.
+    selector = "agenix-rollback";
+    paths.agenix-rollback = config.age.secrets.host-heartbeat-vm.path;
   };
 
   # Apply only after hub registration and all three schedule definitions are initialized.
@@ -765,7 +804,7 @@ in
     accessTeamDomain = "https://gigun.cloudflareaccess.com";
     # tofu の cloudflare_zero_trust_access_application.mcp_login の aud。秘密ではない (全 JWT に載る)。
     # 指定しないと同じ team の他アプリ向け JWT も通る。
-    accessAud = "854d479bbe5dcb56a34d6263667146c0be4048c5ee33fb561916df1adbff093e";
+    accessAud = "854d479bbe5dcb56a34d6263667146c0be4048c5ee33fb561916df1adbff093e"; # gitleaks:allow -- public JWT audience, not a credential
     notifier = "${barkNotifyUnitFailure}";
   };
 
@@ -1304,6 +1343,17 @@ in
     };
   };
 
+  # SOPSへ移行する秘密はSSH host keyと分離した専用identityで復号する。まだ
+  # sops.secretsは宣言せず、pilotのrecipientを確定する前にidentityだけ生成する。
+  # primary / backup YubiKeyも各暗号文のrecipientに入るため、このfileを失っても
+  # 新しいhost identityへrekeyできる。SSH host keyを暗黙の復号経路へ戻さない。
+  sops.age = {
+    keyFile = "/var/lib/sops-nix/key.txt";
+    generateKey = true;
+    sshKeyPaths = [ ];
+  };
+  sops.gnupg.sshKeyPaths = [ ];
+
   # 秘密の宣言管理 (agenix)。暗号文は secrets/*.age として git に入っており、
   # このホストの SSH ホスト鍵で activation 時に復号される。受信者は secrets/secrets.nix。
   #
@@ -1359,6 +1409,29 @@ in
       mode = "0400";
     };
 
+    beszel-env = {
+      file = ../../../secrets/beszel-env.age;
+      owner = "beszel";
+      group = "beszel";
+      mode = "0400";
+    };
+
+    # The proposal unit validates the Compose file as the repository owner,
+    # while the startup unit runs as root and can read the same file.
+    langfuse-env = {
+      file = ../../../secrets/langfuse-env.age;
+      owner = username;
+      group = "users";
+      mode = "0400";
+    };
+
+    uptime-kuma-env = {
+      file = ../../../secrets/uptime-kuma-env.age;
+      owner = "root";
+      group = "root";
+      mode = "0400";
+    };
+
     # Keep regular-file leaves under the standard agenix directory; custom aliases
     # would conflict with the sender's O_NOFOLLOW check.
     job-heartbeat-autoswitch = {
@@ -1377,6 +1450,15 @@ in
       file = ../../../secrets/job-heartbeat-slow.age;
       owner = username;
       group = "users";
+      mode = "0400";
+    };
+
+    # Pilot移行まではrollback sourceとしてagenix側を維持する。consumer moduleは
+    # delivery backendを宣言せず、このhost構成がtokenFileを選ぶ。
+    host-heartbeat-vm = {
+      file = ../../../secrets/host-heartbeat-vm.age;
+      owner = "root";
+      group = "root";
       mode = "0400";
     };
 
@@ -1715,8 +1797,20 @@ in
     serviceConfig = {
       Type = "oneshot";
       User = "root";
-      EnvironmentFile = "-/run/agenix/bark-env";
+      EnvironmentFile = "-${barkEnvironmentFile}";
       ExecStart = "${barkNotifyUnitFailure} codex-openai-bridge-refresh.service 'mini-vm codex-bridge 更新確認 失敗'";
+    };
+  };
+
+  # Rotation時だけoperatorが起動する受入用unit。wantedBy/timerを持たず、通常運用では
+  # 発火しない。通知用unitと異なりEnvironmentFileを必須にし、欠落や長さ不正を成功扱いしない。
+  systemd.services.bark-notify-smoke = {
+    description = "Bark runtime secret と送信経路の手動smoke test";
+    serviceConfig = {
+      Type = "oneshot";
+      User = "root";
+      EnvironmentFile = barkEnvironmentFile;
+      ExecStart = "${barkNotifySmoke}";
     };
   };
 
@@ -1732,7 +1826,7 @@ in
     serviceConfig = {
       Type = "oneshot";
       User = "root";
-      EnvironmentFile = "-/run/agenix/bark-env";
+      EnvironmentFile = "-${barkEnvironmentFile}";
       ExecStart = "${barkNotifyUnitFailure} langfuse.service 'mini-vm Langfuse 起動失敗'";
     };
   };
@@ -1742,7 +1836,7 @@ in
     serviceConfig = {
       Type = "oneshot";
       User = "root";
-      EnvironmentFile = "-/run/agenix/bark-env";
+      EnvironmentFile = "-${barkEnvironmentFile}";
       ExecStart = "${barkNotifyUnitFailure} langfuse-update-propose.service 'mini-vm Langfuse 更新確認 失敗'";
     };
   };
@@ -1871,14 +1965,14 @@ in
           # 見送り続けると、トークン失効で自動更新が止まったことに気づけない。
           check_runs=$(as_user ${pkgs.gh}/bin/gh api "repos/${dotfilesRepo}/commits/$target/check-runs?per_page=100")
           # 判定: Actions の check run が 1 つでも success/skipped/neutral 以外で終わっていれば red、
-          # 未完了か required が未出現なら pending、どちらでもなければ green。
-          # skipped を green に数えるのは、nix を触らない commit で check/build が paths-filter に
-          # 飛ばされるため。その代わり changes job 自体の失敗 (→ check/build も skipped) は
-          # red として拾う (required の名前だけ見ると skipped が素通りする)。
+          # 未完了か required が未出現なら pending、どちらでもなければ green。ただしrequiredの
+          # gateはsuccessだけを許す。条件付きcheck/buildのskippedを集約するのはgate自身の責務で、
+          # gateのskippedをgreenにするとbranch protectionと同じ抜け道が再発する。
           verdict=$(printf '%s' "$check_runs" | ${pkgs.jq}/bin/jq -r --argjson required '${requiredChecksJson}' '
             [.check_runs[] | select(.app.slug == "github-actions")] as $runs
-            | ($runs | map(select(.status == "completed"
-                and (.conclusion | IN("success", "skipped", "neutral") | not))
+            | ($runs | map(select(. as $run | $run.status == "completed"
+                and (($run.conclusion | IN("success", "skipped", "neutral") | not)
+                  or (($required | index($run.name)) != null and $run.conclusion != "success")))
                 | "\(.name)=\(.conclusion)")) as $bad
             | (($runs | map(select(.status != "completed") | .name))
                 + ($required - ($runs | map(.name)))) as $pending
@@ -1970,7 +2064,7 @@ in
     serviceConfig = {
       Type = "oneshot";
       User = "root";
-      EnvironmentFile = "-/run/agenix/bark-env";
+      EnvironmentFile = "-${barkEnvironmentFile}";
       ExecStart = "${barkNotifyUnitFailure} dotfiles-autoswitch.service 'mini-vm 自動更新 失敗'";
     };
   };
@@ -1983,7 +2077,7 @@ in
     serviceConfig = {
       Type = "oneshot";
       User = "root";
-      EnvironmentFile = "-/run/agenix/bark-env";
+      EnvironmentFile = "-${barkEnvironmentFile}";
       ExecStart = "${barkNotifyUnitFailure} dotfiles-autoswitch.service 'mini-vm 自動更新 見送り' ${autoswitchSkipReason}";
     };
   };
@@ -2064,7 +2158,7 @@ in
     serviceConfig = {
       Type = "oneshot";
       User = "root";
-      EnvironmentFile = "-/run/agenix/bark-env";
+      EnvironmentFile = "-${barkEnvironmentFile}";
       ExecStart = "${barkNotifyUnitFailure} 'dotfiles-lock-propose@%i.service' 'mini-vm lock 更新 (%i) 失敗'";
     };
   };
@@ -2134,7 +2228,7 @@ in
     serviceConfig = {
       Type = "oneshot";
       User = "root";
-      EnvironmentFile = "-/run/agenix/bark-env";
+      EnvironmentFile = "-${barkEnvironmentFile}";
       ExecStart = "${barkNotifyUnitFailure} pve-write-probe.service 'pve 書き込み不可 / 応答なし'";
     };
   };

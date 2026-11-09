@@ -32,7 +32,8 @@ def main():
         run=api(f"repos/{repo}/actions/runs/{artifact['workflow_run']['id']}")
         if run['conclusion'] != 'success' or run['path'] != '.github/workflows/fzf-intel-bottle.yml':
             continue
-        if run['head_repository']['full_name'] != repo or run['event'] != 'workflow_dispatch':
+        if (run['head_repository']['full_name'] != repo or run['head_branch'] != 'main'
+                or run['event'] not in ('repository_dispatch', 'workflow_dispatch')):
             continue
         subprocess.run(['gh','run','download',str(run['id']),'--repo',repo,'--name',name,'--dir',destination],check=True)
         state.verify(destination,key)  # A corrupt hit stops; it is never silently rebuilt.

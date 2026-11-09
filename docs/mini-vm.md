@@ -5,21 +5,13 @@
 
 ## 運用ダッシュボード
 
-mini-vmのCPU・メモリ・ディスク・ネットワークとDockerコンテナ別の使用量はBeszelで
-確認する。VMには物理温度sensorが公開されていないため、現状は温度だけ取得できない。
-Hubは`127.0.0.1:8090`だけで待ち受け、ブラウザからは既存named tunnelの
-`https://beszel.097969.xyz`をCloudflare Accessで保護して開く。障害時の切り分けでは
-`ssh -L 8090:127.0.0.1:8090 mini-vm`でも直接確認できる。
+host内のresource監視と、host外からのliveness監視を分ける。host内dashboardが見えることを、
+host自体の生存証明にしない。Web UIはloopbackまたはprivate networkで待ち受け、外部入口は
+Cloudflare Access等の認証境界を通す。SDK用の非対話入口はpathとproject credentialを限定する。
 
-mini-vm自体が停止した場合は同居するBeszelでは検出できないため、LangfuseとCodex Proxyの
-死活監視はCloudflare Worker Cronから5分ごとに行う。最新結果は
-`https://uptime.097969.xyz`で確認でき、2回連続失敗と復旧時はBarkへ通知する。
-Worker・KV・Cron・custom domainは`gigun-dev/hub`の`infra/uptime/`でOpenTofu管理する。
-Beszel・Uptime Kuma・Langfuse の Web UI は Cloudflare Access で保護し、Access の認証済み利用者を
-信頼してアプリ内の二重ログインは設けない。tailnet 外の SDK から使う Langfuse の OTLP 入口だけは
-対話ログインを要求せず、限定したパスと Langfuse の project key 認証を境界とする。
-Langfuse は公式に近い Compose とローカル MinIO で動かす。容量と費用を測るまで外部ストレージは
-増やさず、S3 互換ストレージへ移せる境界を保つ。
+service、port、tunnel、monitoring scheduleの正本はNixとOpenTofu宣言であり、完全URLや現在の
+provider resource対応をこの文書へ複写しない。障害時はlocal health、tunnel、Access、外部probeを
+別々に確認する。
 
 ## Claude の設定
 
@@ -73,9 +65,10 @@ timer の時刻(autoswitch 04:00 など)はすべて JST。mini-vm のシステ�
   手元の pre-push 関門を外したので、main には CI 前の commit が直接入る。autoswitch は fetch した
   `@{upstream}` の commit について `gh api repos/gigun-dev/dotfiles/commits/<sha>/check-runs` を
   gigun の gh 認証で読み、GitHub Actions の check run が全て success / skipped / neutral で終わり、
-  required の `check` と `build` が出揃っていれば green としてその commit へ `merge --ff-only` する。
-  skipped を green に数えるのは paths-filter で nix 以外の commit の check/build が飛ばされるため
-  (代わりに `changes` job 自体の失敗は red)。red(失敗・cancelled 等)は即座に、pending(未完了・未出現)は
+  required の `nix-ci-gate` が success なら green としてその commit へ `merge --ff-only` する。
+  paths-filter で nix 以外の commit の check/build が skipped でも、常時実行する gate が整合性を検証する。
+  gate 自体は success 以外を green にせず、未出現・実行中は pending、skipped / neutral / failure 等は red にする。
+  他jobの red(失敗・cancelled 等)も即座に、pending(未完了)は
   60 秒ごとに fetch し直して最大 30 分待ち、それでも終わらなければ**見送り**: unit は成功で終わり、理由を `dotfiles-autoswitch-notify-skip` が Bark へ送り、
   成功 heartbeat も送る。翌日の timer が判定し直す。API が引けない(認証切れ等)は見送りではなく
   失敗として既存の失敗通知へ流す。作業コピーが upstream より先行していても止める。
@@ -146,38 +139,17 @@ mini-vm への適用は上記の CI ゲートで塞いだが、main 自体には
 [`codex-bridge-update-acceptance.json`](codex-bridge-update-acceptance.json)。
 通常日次を待った実績と、時刻を一時変更した timer 経由の受け入れは区別する。
 
-## mini-vm のトークンを絞る (2026-09-06 調査)
+## GitHub認証の分離
 
-mini-vm の `gh` トークンは `repo` scope で、dotfiles に対して **`admin: true`**(branch protection の
-変更まで可能)。無人で毎日 push する経路に乗っている資格としては広すぎる。
+人の対話用credentialと、lock更新等の無人処理用credentialを共有しない。無人用は対象repository、
+Contents / Pull requests、check読取等の必要操作だけに限定し、Administration、workflow変更、key管理を
+与えない。current scope、期限、owner、最終利用はGitHub providerで確認し、この文書へ複写しない。
 
-**A(1 本を絞る)と B(無人経路だけ専用トークン)は対立しない。二段でやる。**
-mini-vm には性質の違う 2 つの信頼経路があり、1 本に両方を担がせているのが根本の問題:
+public化後にlock提案をActionsへ移す場合は、host専用credentialを残さない。短命installation tokenを
+使うGitHub Appまたは移行用selected-repository credentialを候補とし、PR作成、CI状態判定、auto-merge、
+拒否すべき管理操作を受入してから旧credentialを失効する。
 
-| 経路 | 必要権限 | ライフサイクル |
-|---|---|---|
-| 無人(`dotfiles-lock-propose@`) | dotfiles に contents + PR だけ | 無期限に安定していてほしい |
-| 対話(ssh して realbind で作業) | 広い | いつでも失効・再ログインできる |
-
-- **段 1(今すぐ・可逆)**: dotfiles 限定の fine-grained PAT を発行し、agenix 経由で
-  `GH_TOKEN` として `EnvironmentFile` から注入。**gigun-dev 個人所有なので org ポリシーと
-  無関係に今日できる**。`GH_TOKEN` は hosts.yml より優先され、remote が HTTPS なら
-  `git push` にも効く(`gh auth git-credential` が同じ解決系を通るため。実機の remote は HTTPS)。
-- **段 2**: 対話用の `gho_` を縮める。**ただし classic PAT では `admin: true` を消せない** —
-  `repo` scope は分割不能で、権限は「scope ∩ 本人の権限」なので repo admin である限り
-  admin API が付く。`public_repo` にすると realbind(private)が全滅する。構造的に不可。
-  fine-grained へ移すには **realbind org が fine-grained PAT を許可しているか**の確認が要る
-  (GitHub の既定は管理者承認必須)。
-
-**B の効用は侵入対策ではない**(hosts.yml を読める侵入者には無力)。守るのは
-**confused deputy と事故** — このホストはエージェント基盤で、LLM が ambient な `gh` 認証を
-継承して動く。誤動作で `gh api -X DELETE` や branch protection 変更が飛ぶ確率は侵入より高い。
-専用トークンなら最悪でも「変な PR が立つ」で止まる(required CI と squash merge が受け皿)。
-もう一つは**ライフサイクル分離** — 広いトークンを revoke してもパイプラインが死なない。
-
-**別の課題**: realbind の業務コードと agenix のホスト鍵が同じ機械に同居している。トークンを
-絞っても clone 自体はディスクに在るので緩和できない。分離するなら別 Lima ゲストか別 Unix
-ユーザー。優先度は上記より下(可逆性とコストの差)。
+個人開発checkoutは同じtrust domainとして扱う。別checkoutはcredentialやhomeの隔離ではない。
 
 ## 宣言管理から外れているもの
 
@@ -227,42 +199,16 @@ mini-vm には性質の違う 2 つの信頼経路があり、1 本に両方を�
 
 ## T3 Code (server、T3 Connect と tailnet)
 
-`nixosConfigurations.mini-vm` の `systemd.services.t3code` (`User=gigun`) が `t3 serve --host 127.0.0.1
---port 3773 --tailscale-serve` を常駐させる。iPhone は **T3 Connect** (Clerk の T3 アカウントで認証し、
-Cloudflare の managed tunnel で届く) で使い、iPhone に Tailscale は入れない (2026-11-08 のユーザー判断。
-ryoppippi も Connect で使う)。Pro のデスクトップからは tailnet 経由の linked environments でも使える。
-tunnel の cloudflared は `T3CODE_CLOUDFLARED_PATH` で nix の実体を渡す。`--lan` と loopback 以外の bind は
-使わない。`services.tailscale.extraSetFlags = [ "--operator=gigun" ]` は gigun が `tailscale serve` を
-叩くため。agent は home-manager の nix の claude / codex (`nix/modules/home/programs/t3code` が
-`~/.t3/userdata/settings.json` の `providerInstances` に store パスを merge。Pro と同じ値で、NixOS のときだけ書く)。
+T3 Codeは通常userのsystemd serviceとしてloopbackだけで待ち受け、remote accessはT3 Connectまたは
+review済みのprivate network経路を使う。LAN bindやpublic unauthenticated listenerを追加しない。
+provider executable、version、hash、service commandはNix宣言を正本とし、この文書へcurrent値を複写しない。
 
-T3 Connect は無料で 3 台まで (スマホとブラウザは数えない)。Pro と mini-vm で 2 台。
+T3 Connectのaccount link、device enrollment、linked environmentはprovider current stateである。再構築時は
+本人が短命codeを別端末で承認し、service再起動後にstatusと実接続を確認する。code、approval URL、device ID、
+last-seen等をrepoへ保存しない。unlink / logout / provider側revokeを区別し、侵害時はprovider側登録も失効する。
 
-版は公式 release の linux-x64 を hash 固定した `t3codeOfficial` (`mini-vm.nix` の let。Pro と同じ 0.1.7)。
-取得元は `https://github.com/pingdotgg/t3code/releases/download/v<ver>/t3-<ver>-linux-x64.tar.gz` で、
-npm `t3` の launcher が `~/.t3/runtime/versions/<ver>` へ取るものと同じ (SHA256SUMS で検証)。bun 製の単一 ELF
-なので patchelf はせず `programs.nix-ld` に任せ、`NIX_LD*` はラッパー (`bin/t3`) が渡す。
-`t3 update` もアプリ内更新も使わない。**更新手順**: `version` を上げ、release の `SHA256SUMS` の linux-x64 行を
-`nix hash convert --hash-algo sha256 --to sri <hex>` で SRI にして `hash` に入れる。Pro の版と揃える。
-
-**障害の記録 (2026-11-08)**: 当初 nixpkgs の `t3code` 0.1.6 を使ったが、`t3 connect ...` が
-"T3 Connect commands are unavailable: this build is missing T3 Connect public configuration." で使えなかった。
-Connect の public configuration (Clerk の publishable key 等) はビルド時に埋め込まれる値で、nixpkgs のビルドには
-入らない。公式 release のバイナリは埋め込み済み (`strings` で Clerk の publishable key を確認)。
-
-### 端末ごとの手順 (宣言できない状態)
-
-1. Pro: デスクトップの Settings → Sharing & access → T3 Connect で T3 アカウントにサインインし、有効にする。
-2. mini-vm: `t3 connect link --headless` を実行し、出た URL と短いコードを Pro か iPhone のブラウザで、
-   同じ T3 アカウントで承認する。その後 `sudo systemctl restart t3code` で tunnel を張る。
-   `t3 connect status` で他の端末から届くかを確かめる。
-3. iPhone: T3 Code アプリで同じ T3 アカウントにサインインし、Pro と mini-vm を選ぶ (全権)。
-4. (任意) Pro から mini-vm を linked environments で操作するときは、mini-vm で `t3 pair --tailscale` の
-   code を出して Settings → Environments → Linked environments → Link。**リンクの寿命は 30 日**。
-5. 止めるときは `t3 connect unlink` (ログインは残る) か `t3 connect logout`。
-
-状態確認: `systemctl status t3code`、`journalctl -u t3code`。`tailscale serve status` に 443 → 127.0.0.1:3773 が出る。
-`tailscale serve` の既存 mapping が 443 にあると置き換わる点に注意。
+状態確認ではservice active、loopback listener、tunnel / private route、実remote操作を別々に確認する。
+一つの到達成功をprovider認証やOS sandboxの証拠にしない。
 
 ## 未解決の調査メモ
 
@@ -287,8 +233,15 @@ Connect の public configuration (Clerk の publishable key 等) はビルド時
 共通失敗通知と Claude hook は `secrets/bark-env.age` の `BARK_PUSH_URL` に指定した
 完全な HTTPS route へ送る。URL は秘密として扱い、ログ・Nix store に保存しない。
 未指定時は公式 `https://api.day.app/<device-key>` を使う。hub H0 でも既存の
-AES-256-CBC `ciphertext` / `iv` を受け付けるので、端末の鍵・IV と揃える。
+AES-256-CBC `ciphertext` / `iv` を受け付ける。端末とは鍵だけを揃え、IVは通知ごとに送る。
 HTTP 成功と JSON `code=200` は受付の確認で、端末表示の確認とは区別する。
+
+暗号鍵のrotation時は、runtime secretを配送して受信端末の設定を揃えた後に
+`sudo systemctl start bark-notify-smoke`を手動実行する。このunitはwantedByもtimerも持たず、
+通常運用では起動しない。runtime fileを必須にし、keyのbyte長とHTTPS routeを値非表示で
+検査してから既存helperでcontrolled通知を送る。unit成功はHTTP / JSON受付までであり、端末での
+新鍵復号表示と旧鍵での復号拒否は本人が別々に確認する。IVは秘密としてrotationせず、送信ごとに
+新しいrandom値を生成してrequestへ含める。
 
 ## スマホからのCodex接続とペアリング
 
@@ -304,13 +257,12 @@ uv run scripts/codex-pair.py
 
 2026-10-03の受け入れ: 発行helperでコードと期限を取得し、一時転送終了を確認。本人の追加報告後、remoteControl/status/readでconnected、remoteControl/client/listで新しいiOS 27 iPhone登録とlastSeenAtを確認。旧iPhone登録は削除していない。
 
-Tailscaleポリシーは `tofu/tailscale/` で管理する。公開テンプレートは汎用タグと権限定義、所有者IDは `secrets/tofu-env.age` の `TF_VAR_tailnet_owner`、配布先IPは `TF_VAR_ota_hosts`、OAuth資格情報も同じage環境ファイルに保存する。Cloudflareとは別の暗号化stateを使い、既存の `nix run .#tofu -- -chdir=tailscale` で実行する。判断はADR 0010を参照。
+Tailscale policyは`tofu/tailscale/`の公開templateを正本とし、owner、node selector、OAuth等の
+非公開入力はSOPSへ移行する。Cloudflareとはstateとcredentialを分ける。判断は[ADR 0010](adr/0010-tailscale-policy-as-code.md)を参照する。
 
-初回はpolicy_file権限のOAuth資格情報を登録後、`init`、`import tailscale_acl.policy acl`、`plan -detailed-exitcode` の順で現行の意味を変えていないことを確認する。ポリシー用OAuthをageへ保存し、importと本番の変更なしplanを確認済み。OAuthにはpolicy_fileとTailscaleが自動追加するdevices:core:read／devices:posture_attributesの依存権限が付く。管理画面のSSO問題はChromeで解消し、現行ポリシーを取得済み。
-
-タグ無しの本人端末からPro／miniのTCP 443だけを許可済み。policy testsで本人HTTPSの許可・配布先とserver宛SSHの拒否・既存管理端末の接続維持をAPI検証し、apply後のplanも変更なし。既存grant・SSH・tagOwners・Taildriveの定義は保持した。配布先はタグ全体でなく `ota-pro`／`ota-mini` の個別IPへ限定し、再登録でIPが変わった場合はageのmapを更新する。手元から両OTAページのHTTPS 200を確認済みだが、iPhone Safariからの表示・インストールは本人確認が残る。
-
-管理画面の編集防止と正典へのリンクを設定済み。緊急変更は管理画面で解除して行えるが、正典へ取り込み、次のapplyで黙って上書きしない。通常は `nix run .#tofu -- -chdir=tailscale plan` で差分と接続テストを確認し、同じ入口の `apply` で適用する。Git pushだけではACLを自動適用しない。現在の広いタグ間許可は別変更で見直す。
+初回importやpolicy変更では、plan、policy test、必要経路の成功、禁止経路の拒否、変更後の差分なしplanを
+確認する。node、address、current scope、到達結果はprovider current stateとして扱う。緊急のdashboard変更は
+宣言へ取り込み、次のapplyで意図せず上書きしない。Git pushだけでpolicyを自動適用しない。
 
 ## codex の MCP OAuth の張り直し
 
@@ -321,8 +273,8 @@ refresh では延びない。張り直しはスマホから行う(設計は ADR 
 - **通常の流れ**: 最終ログインから 27 日目以降の毎朝 9 時台と、journal に refresh 拒否が出たときに
   Bark が「mini-vm MCP 再ログイン: cloudflare」を送る。タップ → Cloudflare Access → Cloudflare の同意画面 →
   「cloudflare: ログイン完了」で終わり。通知は server ごとに 1 日 1 通まで。
-- **通知を待たずに張り直す**: `https://mcp-login.097969.xyz/`(Access の App Launcher にもタイルが出る)を開き、
-  リンクから `/start` へ進む。最終ログインからの日数もここに出る。
+- **通知を待たずに張り直す**: Accessで保護したlogin入口を開き、開始linkへ進む。完全URLとprovider
+  resource対応は宣言を正本にする。
 - **通知だけ試す**: `sudo systemctl start codex-mcp-login-remind`(期限前なら何も送らない。送ったかは journal で見る)。
 - **入口が使えないとき**: `ssh -t mini-vm codex-mcp-relogin cloudflare` で従来の callback URL 貼り付け手順を
   走らせる。中身は `codex mcp login cloudflare --no-browser` で、成功したら最終ログイン時刻を記録する。
@@ -331,8 +283,8 @@ refresh では延びない。張り直しはスマホから行う(設計は ADR 
   `journalctl -u codex-mcp-login-remind -e`、`cat /var/lib/codex-mcp-login/cloudflare.login-at`(epoch 秒)。
 - **張り直した後**: 実行中の `codex-remote-control` が新しい資格情報に切り替わらない(MCP の呼び出しが
   まだ失敗する)ときは `sudo systemctl restart codex-remote-control`。
-- **codex の callback listener**: 18791 で `0.0.0.0` に bind するが、raw 表の `codex-mcp-callback` chain が
-  loopback 以外を落とす。`sudo iptables -t raw -S codex-mcp-callback` で確認できる。
+- **codex の callback listener**: callbackは一時listenerを使うが、firewallでloopback以外を拒否する。
+  listener待受中にloopback成功と外部経路拒否を同時に受入する。port等のcurrent値は宣言で確認する。
 
 ## agy の remote control(常駐と、手で当てる状態)
 
@@ -371,31 +323,38 @@ refresh では延びない。張り直しはスマホから行う(設計は ADR 
 
 ### mini本体でのiOSビルド・署名
 
-Xcodeはmini-vmではなくmacOS本体で実行する。`ssh gigun@mini`から既存の`ghq`を使え、MCPHostは`~/ghq/github.com/gigun-dev/swift-mcp-app`に取得済み。Intel macOSのNix構成は凍結しているため、XcodeGen 2.46.0は`brew install xcodegen`で導入した。プロジェクトはGit管理される`project.yml`から生成する。
+**現在地 (2026-11-09)**: 以下のGUI runner経路は2026-10-04に成功した旧経路の記録であり、
+現在の分離済み本番構成ではない。現行本番はGUIログインユーザーと同じsecurity session / UIDで
+build、sign / export、publishを同じjobが担う。asc-mcp側には固定archiveの入力digest、未署名IPA拒否、
+一時Keychainでのmanual export、publish子processだけへのcredential注入を行う新adapterがあるが、
+本番Actions、別OS主体、成果物受渡しには未接続である。
 
-```sh
-ghq get github.com/gigun-dev/swift-mcp-app
-cd ~/ghq/github.com/gigun-dev/swift-mcp-app
-xcodegen generate
-xcodebuild -project MCPHost.xcodeproj -scheme MCPHost -configuration Release \
-  -destination 'generic/platform=iOS' -archivePath /tmp/MCPHost-mini.xcarchive \
-  -allowProvisioningUpdates archive
-```
+署名専用ユーザーの所有者contextで実行する値非表示inventoryは用意済みだが、そのcontextでは未実行。
+通常ユーザーから保護領域を読めなかったことを、資材不存在とは扱わない。inventoryで証明書と秘密鍵、
+profileの対象・期限・端末適合を確認してから、同一mini内のbuild / sign / publish専用UID、固定hash manifest、
+承認点、旧GUI runnerへのrollbackを設計・受入する。別VMはXcode / Keychainの代替にならないため、最初の
+分離案にはしない。
 
-通常の準備はminiのXcodeでAppleアカウントを登録し、Team `KK42DL23GH`と自動署名を選ぶ。SSHからのビルドも同じ設定を使うが、実行コンテキストが署名用の秘密鍵をキーチェーンから利用できる必要がある。パスワードをSSHの引数・ログへ渡さない。
+Xcode、SDK、Simulator、Keychainが必要な処理はmacOS本体で実行する。project、scheme、configuration、
+destination、archive pathは対象repositoryの宣言を正本とし、host固有checkout pathやaccount selectorを
+この文書へ複写しない。通常buildへautomatic provisioningを無条件で許可せず、署名が必要な工程だけ
+profile / identityの組を明示する。passwordやcredentialをSSH引数・logへ渡さない。
 
-署名はGUIログインセッション（`gui/501`）のキーチェーンを使う。SSHからは同じユーザーでも署名identityが見えない場合があり、鍵の不存在とは判断しない。GitHub公式runnerのLaunchAgentは独立security sessionを作る既定設定で署名に失敗したため、asc-mcpの `scripts/configure-runner-keychain.py` で `SessionCreate=false` にしている。GUIセッションを使うrunnerからRelease archive・Ad Hoc exportが成功した。再起動後はGUIログインとキーチェーン解除が必要。証明書の失効、自動ロック無効化、パスワード保存は行っていない。
+GUI login sessionで過去に署名できたことは、current identity、profile、runner、再起動後の利用可能性を
+証明しない。SSHや別security sessionからidentityが見えなくても、鍵の不存在や失効と判断しない。
+current owner inventoryは値非表示で署名主体のcontextから取得し、専用UID案を非秘密artifactで受入する。
 
-クラウドからは [asc-mcp](https://github.com/gigun-dev/asc-mcp) が非公開 `asc-mcp-control` repoの固定workflowを起動する。miniのrunnerは `~/.local/share/asc-mcp-runner`、labelは `asc-mcp`。MCP受付からarchive・Ad Hoc export・ASC検証・R2配布・Bark受付まで実ビルドで成功した。現在のMCPHost profileの期限は2027-02-13 13:06:57 UTC、iPhone 17・iPad mini 7を収録し、`get-task-allow=false`。
-
-ASC CLIはMacBookではHomebrew coreの`asc`を使い、`nix/modules/darwin/homebrew.nix`に宣言する。Intel miniはNix管理が凍結中なので、公式releaseの`macOS_amd64`バイナリをreleaseのSHA256と照合して`~/.local/bin/asc`へ置く。2026-10-04は両ホストで5.9.2、`asc xcode doctor`成功を確認した（MacBookはXcode 27.0、miniは26.3）。miniバイナリのSHA256は`635b9156014defd11e9662adcf83ea2596c8030095977decb90b0e6adc8fdf37`。
+ASC CLIの取得元、version、checksumは各hostの宣言を正本とする。凍結hostへ置く場合も公式releaseの
+checksumを検証し、具体値をこの運用文書へ複写しない。
 
 `asc xcode archive` / `asc xcode export --method release-testing --ipa-path ...`はローカルのXcodeでarchive・Ad Hoc IPA生成を行う入口。署名・配布検証の `asc distribute prepare` もApp Store ConnectのAPI認証なしで使える。ASCのAPI認証は両ホストとも未登録。配布・通知・サービス専用IaCの手順はasc-mcp repoが管理する。
 
 ### Cloudflareのアプリ配布
 
-固定入口は `https://install.097969.xyz/`（アプリ一覧）、MCPHostは `/swift-mcp-app/`。gigun-devのWorker `ota-distribution` と非公開R2 bucket `ota-distribution` が配信し、mini停止中も公開済みIPAは取得できる。miniはビルド・署名を担当する。Tailscale Serveの配布は実機でのCloudflare経路確認まで残す。
+配布入口、Access policy、download署名、object storageはIaCと配布toolの宣言を正本とする。通常ページは
+本人認証、downloadは短命署名と対象path検証を要求し、Access bypassだけでartifactを公開しない。
+account selector、resource名、完全URL、local pathはautomationに必要なstructured inputまたはprovider
+current stateとして扱う。
 
-Accessアプリとdownload経路の例外は `tofu/ota.tf`、署名用秘密鍵は `secrets/ota-env.age`。通常ページは本人ログイン、downloadはWorkerが10分有効の署名・対象パスを検証する。AccessのBypassだけでIPAを公開する構成にはしない。現在の許可対象はCloudflareアカウント本人1名で、チーム配布時は管理者selectorをOTA専用のemail/groupへ変更する。
-
-配備・IPA公開はclaude-code repoの `plugins/ota-deploy/README.md` のCloudflare手順を使う。ホスト設定は `~/.config/ota-deploy/`、生成物は `~/.ota-deploy/`。Accessは `nix run .#tofu -- plan` / `apply`、Workerはその設定ファイルを指定したWrangler deployで更新する。Barkは既存AES暗号化経路を利用し、サーバー受付と端末での受信を分けて確認する。
+build / sign主体とpublisherを分け、publisherは承認済みartifact hashだけを受け取る。配備時はAccess、
+Worker、storage、通知の受付と実deviceでの取得を別々に確認する。

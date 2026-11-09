@@ -54,6 +54,13 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # ADR 0016 に従って暗号化fileの配送をSOPSへ統一する。agenixはconsumerを
+    # 一件ずつ移行して旧credentialを失効するまでの一時的なrollback経路だけに残す。
+    sops-nix = {
+      url = "github:Mic92/sops-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # Secure Enclave の中に SSH 鍵を作り、それを Git のコミット署名鍵として使う。
     # 秘密鍵はチップから一切出ない (~/.ssh/id_enclave_key はスタブで、実体は
     # Secure Enclave 内)。upstream の `systems` が aarch64-darwin のみなので
@@ -370,6 +377,10 @@
               touch "$out"
             '';
 
+            ssh-private-include = import ./nix/tests/ssh-private-include.nix {
+              inherit pkgs system inputs;
+            };
+
             mini-vm-narrow-mounts = import ./nix/tests/mini-vm-narrow-mounts.nix { inherit pkgs inputs; };
           }
           // import ./nix/tests/developer-checks.nix {
@@ -381,6 +392,9 @@
               ;
           }
           // inputs.nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
+            sops-migration-config = import ./nix/tests/sops-migration-config.nix { inherit pkgs inputs; };
+            sops-host-delivery = import ./nix/tests/sops-host-delivery.nix { inherit pkgs inputs; };
+
             antigravity-service = import ./nix/tests/antigravity-service.nix {
               inherit pkgs;
               nixos = inputs.self.nixosConfigurations.mini-vm;
@@ -401,7 +415,7 @@
             gitleaks = {
               type = "app";
               program = "${pkgs.gitleaks}/bin/gitleaks";
-              meta.description = "Scan staged changes for secrets";
+              meta.description = "Scan repository content for secrets";
             };
 
             switch = mkApp "switch" ''
@@ -676,6 +690,7 @@
             modules = [
               inputs.nixos-lima.nixosModules.lima
               inputs.agenix.nixosModules.default
+              inputs.sops-nix.nixosModules.sops
               ./nix/modules/nixos/mini-vm.nix
             ];
           };

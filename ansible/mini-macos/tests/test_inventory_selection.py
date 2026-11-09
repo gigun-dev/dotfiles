@@ -2,7 +2,6 @@
 import json
 import os
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -39,19 +38,20 @@ class InventorySelection(unittest.TestCase):
         self.assertEqual(result.returncode, 0, "explicit inventory could not be parsed")
         return json.loads(result.stdout)
 
-    def test_private_copy_has_same_groups_and_host_variables(self):
-        private = self.base / "inventory.private.yml"
-        shutil.copyfile(ROOT / "inventory.yml", private)
-        original = self.parsed_inventory(ROOT / "inventory.yml")
-        selected = self.parsed_inventory(private)
-        self.assertTrue(set(original) == set(selected), "inventory groups differ")
-        for group in set(original) - {"_meta"}:
-            self.assertTrue(original[group] == selected[group], "group membership differs")
-        self.assertTrue(set(original["_meta"]["hostvars"]) == set(selected["_meta"]["hostvars"]),
-                        "inventory host names differ")
-        for host, variables in original["_meta"]["hostvars"].items():
-            other = selected["_meta"]["hostvars"][host]
-            self.assertTrue(variables == other, "host variables differ")
+    def test_public_inventory_contains_only_reviewed_fields(self):
+        data = yaml.safe_load((ROOT / "inventory.yml").read_text())
+        hosts = data["all"]["children"]["mini_macos"]["hosts"]
+        self.assertEqual(len(hosts), 1)
+        host, variables = next(iter(hosts.items()))
+        self.assertEqual(set(variables), {
+            "ansible_host", "ansible_user", "ansible_python_interpreter",
+            "ansible_ssh_common_args",
+        })
+        self.assertEqual(variables["ansible_host"], host,
+                         "network address must stay in SSH resolution, not inventory")
+        serialized = json.dumps(data).lower()
+        for forbidden in ("password", "token", "secret", "private_key", "identityfile"):
+            self.assertNotIn(forbidden, serialized)
 
     def test_missing_and_invalid_explicit_inventory_do_not_fallback(self):
         invalid = self.base / "invalid.yml"
@@ -101,16 +101,13 @@ class InventorySelection(unittest.TestCase):
                 facts = {"mini_platform": {"stdout": system}, "mini_identity": {"stdout": user}}
                 self.assertFalse(all(evaluate(expr)(**facts) for expr in platform))
 
-    def test_private_inventory_is_ignored_but_example_is_tracked(self):
-        def ignored(path):
-            return subprocess.run(["git", "check-ignore", "--no-index", "-q", path],
-                                  cwd=REPO, capture_output=True).returncode
-        self.assertEqual(ignored("ansible/mini-macos/inventory.private.yml"), 0)
-        self.assertEqual(ignored("ansible/mini-macos/inventory.example.yml"), 1)
-        tracked = subprocess.run(["git", "ls-files", "--error-unmatch",
-                                  "ansible/mini-macos/inventory.example.yml"],
-                                 cwd=REPO, capture_output=True)
-        self.assertEqual(tracked.returncode, 0)
+    def test_public_and_negative_inventories_are_tracked(self):
+        for name in ("inventory.yml", "inventory.example.yml"):
+            tracked = subprocess.run(
+                ["git", "ls-files", "--error-unmatch", f"ansible/mini-macos/{name}"],
+                cwd=REPO, capture_output=True,
+            )
+            self.assertEqual(tracked.returncode, 0, f"{name} is not tracked")
 
 
 if __name__ == "__main__":

@@ -56,7 +56,7 @@ esac''',
         workflow = (ROOT / ".github/workflows/nix-build.yaml").read_text()
         commands = [line.strip() for line in workflow.splitlines()
                     if line.strip().startswith("printf 'NIX_CONFIG<<EOF")]
-        self.assertEqual(len(commands), 2)
+        self.assertEqual(len(commands), 3)
         output = Path(self.tmp.name) / "github-env"
         for command in commands:
             output.write_text("")
@@ -65,6 +65,56 @@ esac''',
             self.assertEqual(output.read_text(),
                              "NIX_CONFIG<<EOF\naccept-flake-config = true\n"
                              "max-jobs = 1\ncores = 2\nEOF\n")
+
+    def test_every_required_workflow_job_can_use_the_reviewed_runner(self):
+        workflow = (ROOT / ".github/workflows/nix-build.yaml").read_text()
+        selector = ("vars.DOTFILES_LINUX_CI == 'self-hosted' && "
+                    "vars.DOTFILES_CI_REVIEWED_SHA != '' && "
+                    "github.sha == vars.DOTFILES_CI_REVIEWED_SHA")
+        self.assertEqual(workflow.count(selector), 5)
+        self.assertIn("  nix-ci-gate:\n", workflow)
+        self.assertIn("  secret-scan:\n", workflow)
+
+    def test_secret_scan_is_read_only_and_required_by_the_gate(self):
+        workflow = (ROOT / ".github/workflows/nix-build.yaml").read_text()
+        scan = workflow.split("  secret-scan:\n", 1)[1].split("\n  check:\n", 1)[0]
+        gate = workflow.split("  nix-ci-gate:\n", 1)[1]
+        self.assertIn("persist-credentials: false", scan)
+        self.assertIn("nix run .#gitleaks -- dir . --redact=100 --no-banner", scan)
+        self.assertIn("nixpkgs#actionlint -c actionlint -no-color", scan)
+        self.assertIn("nixpkgs#zizmor -c zizmor", scan)
+        self.assertIn("--offline --persona regular --min-severity medium", scan)
+        self.assertIn("--strict-collection --format github", scan)
+        self.assertIn("--no-progress --no-config --no-ignores .", scan)
+        self.assertIn("      - secret-scan\n", gate)
+        self.assertIn("CI_SECRET_SCAN_RESULT: ${{ needs.secret-scan.result }}", gate)
+
+    def test_fzf_writer_uses_only_the_environment_protected_app_token(self):
+        workflow = (ROOT / ".github/workflows/fzf-update.yml").read_text()
+        self.assertIn("permissions:\n  contents: read", workflow)
+        self.assertIn("environment: github-app-updater", workflow)
+        self.assertIn("persist-credentials: false", workflow)
+        self.assertIn("uses: ./.github/actions/setup-github-app-bot", workflow)
+        self.assertNotIn("actions: write", workflow)
+
+    def test_every_always_on_linux_workflow_can_use_the_reviewed_runner(self):
+        selector = ("vars.DOTFILES_LINUX_CI == 'self-hosted' && "
+                    "vars.DOTFILES_CI_REVIEWED_SHA != '' && "
+                    "github.sha == vars.DOTFILES_CI_REVIEWED_SHA")
+        recipe = (ROOT / ".github/workflows/fzf-recipe-checks.yml").read_text()
+        ansible = (ROOT / ".github/workflows/mini-ansible.yaml").read_text()
+        self.assertEqual(recipe.count(selector), 1)
+        self.assertEqual(ansible.count(selector), 1)
+        self.assertIn("  native:\n", ansible)
+        native = ansible.split("  native:\n", 1)[1]
+        self.assertNotIn(selector, native)
+
+    def test_portable_ansible_uses_existing_nix_on_reviewed_runner(self):
+        workflow = (ROOT / ".github/workflows/mini-ansible.yaml").read_text()
+        portable = workflow.split("  portable:\n", 1)[1].split("\n  native:\n", 1)[0]
+        self.assertIn("runner.environment == 'self-hosted'", portable)
+        self.assertIn("uses: ./.github/actions/check-linux-runner", portable)
+        self.assertIn("runner.environment != 'self-hosted'", portable)
 
 
 if __name__ == "__main__":

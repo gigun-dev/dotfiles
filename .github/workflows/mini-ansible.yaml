@@ -35,11 +35,20 @@ concurrency:
 
 jobs:
   portable:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.DOTFILES_LINUX_CI == 'self-hosted' && vars.DOTFILES_CI_REVIEWED_SHA != '' && github.sha == vars.DOTFILES_CI_REVIEWED_SHA && '["self-hosted", "linux", "x64", "dotfiles-reviewed"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+        with:
+          persist-credentials: false
+      - name: Configure reviewed runner Nix client
+        if: ${{ runner.environment == 'self-hosted' }}
+        run: |
+          printf 'NIX_CONFIG<<EOF\naccept-flake-config = true\nmax-jobs = 1\ncores = 2\nEOF\n' >> "$GITHUB_ENV"
+      - uses: ./.github/actions/check-linux-runner
+        if: ${{ runner.environment == 'self-hosted' }}
       - uses: ./.github/actions/setup-nix
+        if: ${{ runner.environment != 'self-hosted' }}
         with:
           store-cache: 'false'
       - name: Verify Ansible (portable)
@@ -51,6 +60,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup-nix
         with:
           store-cache: 'false'

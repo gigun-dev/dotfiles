@@ -1,0 +1,67 @@
+name: 'Bot: Propose flake.lock update'
+
+on:
+  workflow_dispatch:
+    inputs:
+      lane:
+        description: Input update lane
+        required: true
+        type: choice
+        options:
+          - fast
+          - slow
+
+# The default token only reads the checkout. Every write uses the short-lived,
+# one-repository GitHub App token issued inside the job.
+permissions:
+  contents: read
+
+concurrency:
+  group: flake-lock-proposal-${{ inputs.lane }}
+  cancel-in-progress: false
+
+jobs:
+  propose:
+    if: github.ref == 'refs/heads/main'
+    environment: github-app-updater
+    runs-on: ${{ fromJSON(vars.DOTFILES_LINUX_CI == 'self-hosted' && vars.DOTFILES_CI_REVIEWED_SHA != '' && github.sha == vars.DOTFILES_CI_REVIEWED_SHA && '["self-hosted", "linux", "x64", "dotfiles-reviewed"]' || '["ubuntu-latest"]') }}
+    timeout-minutes: 90
+    steps:
+      - name: Checkout repository for local actions
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Configure reviewed runner Nix client
+        if: ${{ runner.environment == 'self-hosted' }}
+        run: |
+          printf 'NIX_CONFIG<<EOF\naccept-flake-config = true\nmax-jobs = 1\ncores = 2\nEOF\n' >> "$GITHUB_ENV"
+
+      - uses: ./.github/actions/check-linux-runner
+        if: ${{ runner.environment == 'self-hosted' }}
+
+      - uses: ./.github/actions/setup-nix
+        if: ${{ runner.environment != 'self-hosted' }}
+        with:
+          store-cache: 'false'
+
+      - name: Prepare and build candidate
+        id: candidate
+        run: scripts/ci/propose-flake-lock.sh prepare '${{ inputs.lane }}'
+
+      - name: Configure GitHub App bot
+        if: steps.candidate.outputs.changed == 'true'
+        id: bot
+        uses: ./.github/actions/setup-github-app-bot
+        with:
+          app-id: ${{ vars.DOTFILES_UPDATER_APP_ID }}
+          private-key: ${{ secrets.DOTFILES_UPDATER_APP_PRIVATE_KEY }}
+
+      - name: Publish candidate
+        if: steps.candidate.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.bot.outputs.token }}
+          GIT_ASKPASS: ${{ runner.temp }}/github-app-askpass
+          GIT_TERMINAL_PROMPT: '0'
+        run: scripts/ci/propose-flake-lock.sh publish '${{ inputs.lane }}'

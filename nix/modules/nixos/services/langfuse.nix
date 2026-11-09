@@ -8,7 +8,7 @@ let
   dotfilesDir = "/home/${username}/ghq/github.com/gigun-dev/dotfiles";
   composeSource = ../../../../infra/langfuse/compose.yaml;
   composeFile = "/etc/langfuse/compose.yaml";
-  environmentFile = config.age.secrets.langfuse-env.path;
+  environmentFile = config.dotfiles.runtimeSecretFiles.langfuseEnv;
 
   waitUntilReady = pkgs.writeShellScript "langfuse-wait-until-ready" ''
     set -eu
@@ -154,15 +154,6 @@ in
       locations."= /api/public/ready".proxyPass = "http://127.0.0.1:3000";
       locations."/".return = "404";
     };
-  };
-
-  age.secrets.langfuse-env = {
-    file = ../../../../secrets/langfuse-env.age;
-    # 更新提案 unit は compose の構文検証だけ gigun として行うため、
-    # 平文はリポジトリ所有者だけが読めるようにする。起動 unit は root なので読める。
-    owner = username;
-    group = "users";
-    mode = "0400";
   };
 
   systemd.services.langfuse = {

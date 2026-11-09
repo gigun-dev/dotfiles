@@ -68,7 +68,8 @@ in
   "gatekeeper-github-env.age".publicKeys = all;
 
   # Bark (iOS プッシュ通知) の宛先と暗号鍵。KEY=VALUE 形式で BARK_DEVICE_KEY /
-  # BARK_ENCRYPT_KEY / BARK_ENCRYPT_IV。
+  # BARK_ENCRYPT_KEY。旧BARK_ENCRYPT_IVは移行中だけ残り得るがconsumerは読まず、
+  # 通知ごとのrandom IVをrequestに付ける。
   #
   # 2026-09-05 に macOS Keychain から移した。Keychain には設定手順の記録が無く、
   # M4 Pro を失うと復旧できないうえ mini-vm から読めなかった (機械が読む秘密は

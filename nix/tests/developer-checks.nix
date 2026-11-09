@@ -132,8 +132,17 @@ in
   developer-tools =
     run "developer-tools"
       [
+        "ci-required-gate"
+        "actions-flake-proposal"
+        "actions-github-app-push"
+        "actions-langfuse-proposal"
         "execution-context"
+        "github-auth-diagnose"
+        "harness-boundary-probe"
         "linux-ci-runner"
+        "sops-exec-env"
+        "sops-env-function"
+        "agent-instructions"
         "claude-user-settings"
         "codex-bridge-refresh"
         "bark-routing"
@@ -142,8 +151,13 @@ in
         "activation-inputs"
       ]
       {
-        CLAUDE_ACTIVATION = pkgs.writeText "claude-link-dotfiles" inputs.self.homeConfigurations.gigun-mini-vm.config.home.activation.linkDotfiles.data;
-        CLAUDE_HOME = inputs.self.homeConfigurations.gigun-mini-vm.config.home.homeDirectory;
+        TEST_SOPS = lib.getExe pkgs.sops;
+        TEST_AGE_KEYGEN = "${pkgs.age}/bin/age-keygen";
+        TEST_ZSH = lib.getExe pkgs.zsh;
+        # 同じsystemのfixtureからactivation textを取る。mini-vmのx86_64-linux
+        # generationを参照すると、Darwin checkがLinux derivationをbuildしようとする。
+        CLAUDE_ACTIVATION = pkgs.writeText "claude-link-dotfiles" activationFixture.config.home.activation.linkDotfiles.data;
+        CLAUDE_HOME = activationFixture.config.home.homeDirectory;
         UV_ACTIVATION = pkgs.writeText "uv-activation" activationFixture.config.home.activation.syncUvTools.data;
         UV_GUARD = pkgs.writeText "uv-guard" activationFixture.config.xdg.configFile."uv/uv.toml".text;
         LANGFUSE_ENDPOINTS =
