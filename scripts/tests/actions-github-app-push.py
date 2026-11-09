@@ -1,5 +1,6 @@
 import os
 import pathlib
+import shutil
 import subprocess
 import tempfile
 import textwrap
@@ -16,10 +17,12 @@ class GitHubAppPushTest(unittest.TestCase):
             root = pathlib.Path(directory)
             tool = root / "git"
             audit = root / "audit"
+            bash = os.environ.get("TEST_BASH") or shutil.which("bash")
+            self.assertIsNotNone(bash)
             tool.write_text(
-                textwrap.dedent(
+                f"#!{bash}\n"
+                + textwrap.dedent(
                     """\
-                    #!/usr/bin/env bash
                     printf '%s\n' "$*" >> "$AUDIT"
                     if [[ "$1" = ls-remote ]]; then
                       [[ "$MODE" = absent ]] && exit 2

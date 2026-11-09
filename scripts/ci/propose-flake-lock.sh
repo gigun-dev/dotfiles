@@ -56,7 +56,7 @@ candidate_tree=$(git write-tree)
 git commit -m "chore(deps): flake.lock を更新 ($lane)" -m "$(cat "$log")"
 [[ $(git rev-parse 'HEAD^{tree}') == "$candidate_tree" ]]
 
-"$script_dir/github-app-push-branch.sh" "$branch"
+"$BASH" "$script_dir/github-app-push-branch.sh" "$branch"
 
 body=$(printf '%s\n\n```text\n%s\n```\n' \
   'GitHub Actions が mini-vm の NixOS 構成と home-manager 構成をビルドした更新候補です。' \

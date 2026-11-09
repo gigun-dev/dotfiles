@@ -19,7 +19,7 @@ if [[ "$phase" == publish ]]; then
   git commit -m "chore(langfuse): v$versionへ更新"
   [[ $(git rev-parse 'HEAD^{tree}') == "$candidate_tree" ]]
 
-  "$script_dir/github-app-push-branch.sh" "$branch"
+  "$BASH" "$script_dir/github-app-push-branch.sh" "$branch"
 
   body=$(cat <<EOF
 Langfuse Web / Workerをv$versionへ揃え、manifest digestを固定しました。

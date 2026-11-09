@@ -31,6 +31,9 @@ class LangfuseProposalTest(unittest.TestCase):
             tools.mkdir()
             audit = root / "audit"
             audit.mkdir()
+            bash = os.environ.get("TEST_BASH") or shutil.which("bash")
+            self.assertIsNotNone(bash)
+            shebang = f"#!{bash}\n"
 
             release = json.dumps(
                 [
@@ -43,12 +46,12 @@ class LangfuseProposalTest(unittest.TestCase):
                 ]
             )
             (tools / "curl").write_text(
-                f"#!/usr/bin/env bash\nprintf '%s\\n' '{release}'\n"
+                shebang + f"printf '%s\\n' '{release}'\n"
             )
             (tools / "skopeo").write_text(
-                textwrap.dedent(
+                shebang
+                + textwrap.dedent(
                     """\
-                    #!/usr/bin/env bash
                     case "$*" in
                       *langfuse-worker*)
                         [[ "$FAILURE" = digest ]] && printf 'invalid\n' || printf 'sha256:%064d\n' 2
@@ -59,15 +62,15 @@ class LangfuseProposalTest(unittest.TestCase):
                 )
             )
             (tools / "docker-compose").write_text(
-                '#!/usr/bin/env bash\nprintf \'%s\\n\' "$*" >> "$AUDIT/compose"\n'
+                shebang + 'printf \'%s\\n\' "$*" >> "$AUDIT/compose"\n'
             )
             (tools / "nix").write_text(
-                '#!/usr/bin/env bash\nprintf \'%s\\n\' "$*" >> "$AUDIT/nix"\n'
+                shebang + 'printf \'%s\\n\' "$*" >> "$AUDIT/nix"\n'
             )
             (tools / "git").write_text(
-                textwrap.dedent(
+                shebang
+                + textwrap.dedent(
                     """\
-                    #!/usr/bin/env bash
                     printf '%s\n' "$*" >> "$AUDIT/git"
                     if [[ "$*" = "diff --cached --name-only" ]]; then printf 'infra/langfuse/compose.yaml\n'; exit 0; fi
                     if [[ "$1" = write-tree || "$1" = rev-parse ]]; then printf 'fixture-tree\n'; exit 0; fi
@@ -77,9 +80,9 @@ class LangfuseProposalTest(unittest.TestCase):
                 )
             )
             (tools / "gh").write_text(
-                textwrap.dedent(
+                shebang
+                + textwrap.dedent(
                     """\
-                    #!/usr/bin/env bash
                     printf '%s\n' "$*" >> "$AUDIT/gh"
                     if [[ "$1 $2" = "pr view" && "$*" = *"--json number"* ]]; then
                       printf '42\n'
