@@ -381,6 +381,8 @@
               inherit pkgs system inputs;
             };
 
+            sops-host-identity = import ./nix/tests/sops-host-identity.nix { inherit pkgs; };
+
             mini-vm-narrow-mounts = import ./nix/tests/mini-vm-narrow-mounts.nix { inherit pkgs inputs; };
           }
           // import ./nix/tests/developer-checks.nix {

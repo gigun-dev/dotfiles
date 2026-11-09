@@ -12,6 +12,15 @@
 }:
 let
   username = "gigun";
+  sopsHostIdentityPath = "/var/lib/sops-nix/key.txt";
+  ensureSopsHostIdentity = pkgs.writeShellApplication {
+    name = "ensure-sops-host-identity";
+    runtimeInputs = [
+      pkgs.age
+      pkgs.coreutils
+    ];
+    text = builtins.readFile ../../../scripts/ensure-sops-host-identity.sh;
+  };
 
   # nixpkgs の更新を待たず、Cloudflare のセキュリティ修正版だけを固定する。
   # Tunnel service と host CLI は同じ derivation を参照する。
@@ -758,6 +767,15 @@ in
     ./services/codex-mcp-login.nix
   ];
 
+  # GitHub-hosted CI remains the default. This only provisions an inactive,
+  # sandboxed runner unit in a trusted generation so an outage does not require
+  # activating candidate code as root. A short-lived token and manual start are
+  # still required for every ephemeral job.
+  dotfiles.reviewedCiRunner = {
+    enable = true;
+    registrationTokenFile = "/run/dotfiles-ci-registration-token";
+  };
+
   # Consumers receive only runtime paths. The host configuration owns the
   # delivery backend so each migration from agenix to SOPS is one assignment,
   # not a service-module rewrite.
@@ -1343,12 +1361,18 @@ in
     };
   };
 
-  # SOPSへ移行する秘密はSSH host keyと分離した専用identityで復号する。まだ
-  # sops.secretsは宣言せず、pilotのrecipientを確定する前にidentityだけ生成する。
+  # SOPSへ移行する秘密はSSH host keyと分離した専用identityで復号する。
+  # sops-nixのgenerateKeyはsops.secretsが空だとactivation自体を生成しないため、
+  # pilot前にも使える専用identityはここで原子的に作る。将来sops.secretsを宣言した後は、
+  # sops-nixも同じpathを使い、既存fileを上書きしない。
   # primary / backup YubiKeyも各暗号文のrecipientに入るため、このfileを失っても
   # 新しいhost identityへrekeyできる。SSH host keyを暗黙の復号経路へ戻さない。
+  system.activationScripts.dotfiles-sops-host-identity = ''
+    ${ensureSopsHostIdentity}/bin/ensure-sops-host-identity ${lib.escapeShellArg sopsHostIdentityPath}
+  '';
+
   sops.age = {
-    keyFile = "/var/lib/sops-nix/key.txt";
+    keyFile = sopsHostIdentityPath;
     generateKey = true;
     sshKeyPaths = [ ];
   };

@@ -2,6 +2,7 @@
 let
   inherit (pkgs) lib;
   config = inputs.self.nixosConfigurations.mini-vm.config;
+  hostIdentityActivation = config.system.activationScripts.dotfiles-sops-host-identity;
   tokenFile = config.services.host-heartbeat.tokenFile;
   heartbeatDelivery = config.dotfiles.hostHeartbeatSecretDelivery;
   runtimeSecretFiles = config.dotfiles.runtimeSecretFiles;
@@ -21,6 +22,9 @@ assert config.sops.age.keyFile == "/var/lib/sops-nix/key.txt";
 assert config.sops.age.generateKey;
 assert config.sops.age.sshKeyPaths == [ ];
 assert config.sops.gnupg.sshKeyPaths == [ ];
+assert lib.hasInfix config.sops.age.keyFile hostIdentityActivation;
+assert lib.hasInfix "ensure-sops-host-identity" hostIdentityActivation;
+assert !(lib.hasInfix "/etc/ssh/" hostIdentityActivation);
 assert
   builtins.attrNames runtimeSecretFiles == [
     "barkEnv"
