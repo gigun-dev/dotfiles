@@ -34,7 +34,7 @@ Codex、Claude Code、T3 Codeのpermission mode、provider approval、OS sandbox
 
 ## metadataだけを記録する
 
-`github-auth-diagnose.py` はGitHubだけのprobe、`execution-context.py` は観測済み結果を入力する記録器である。どちらも権限追加、credential更新、自動再試行を行わない。`--context reviewed-read-only`は呼出側の申告であり、承認を与える機能ではない。生出力、command文字列、環境変数、任意のhost名を受け付けない。stdoutのJSONは比較中だけ期限付きの値なしreceiptとして保持し、恒久的な設計変更と未解決事項をtodoへ反映した後に削除する。
+`github-auth-diagnose.py` はGitHubだけのprobe、`harness-boundary-probe.py`はcredentialを使わない共通OS境界probe、`execution-context.py` は観測済み結果を入力する記録器である。いずれも権限追加、credential更新、自動再試行を行わない。`--context reviewed-read-only`、共通probeのharness/provider名は呼出側の申告であり、承認やprovider解決の証拠ではない。生出力、command文字列、環境変数、任意のhost名を受け付けない。stdoutのJSONは比較中だけ期限付きの値なしreceiptとして保持し、恒久的な設計変更と未解決事項をtodoへ反映した後に削除する。
 
 ```sh
 # sandbox内: Seatbelt denyならonlineProbeを実行せずexit 3

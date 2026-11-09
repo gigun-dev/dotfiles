@@ -54,6 +54,17 @@ Codex、Claude Code、T3 Codeで同じ`Auto`という表示があっても、同
 
 比較中だけ保持するreceiptは、provider class、version、OS class、resolved mode、probe class、result class、時刻、承認前後の結果に限定する。token、account ID、鍵、内部接続先、exact secret path、生stderrを保存しない。恒久的な設計変更と未解決事項をtodoへ反映した後、receiptは削除する。
 
+共通の非秘密probeはリポジトリrootから次のように実行する。既定ではnetworkへ接続せず、script自身のread、現在の作業directoryとOSの一時directoryへの固定canary write/read/delete、自processだけの`ps`、Apple Sandboxの`network-outbound` policyを独立して記録する。拒否があっても後続probeを止めず、credentialの有効・無効は評価しない。
+
+```sh
+python3 scripts/harness-boundary-probe.py \
+  --host pro --harness t3-code --provider codex
+```
+
+networkを比較するときだけ`--network`を付ける。接続先は固定のpublic canary `example.com`で、DNSとHTTPS HEADを別結果にする。HTTP応答はstatusだけを記録し、bodyやheaderは読まない。実credentialを使うGitHub確認はこのprobeへ混ぜず、`github-auth-diagnose.py`で別に行う。
+
+各harnessで同じcommit、同じ引数を使い、stdoutのJSONを期限付きreceiptとして比較する。`declaredHarness`と`declaredProvider`は呼出側の申告であり、実際に解決されたproviderやapproval policyの証拠ではない。resolved modeとversionはharness自身の表示・session metadataで別に確認する。通常contextと承認済みcontextの結果を上書きせず、両方を残す。
+
 ## 監査checklist
 
 final resolved policy、OS privacy、Linux backend、MCP実行主体、remote toolの実行場所、上位managed policy、cross-repository rule scopeを非秘密canaryで確認する。

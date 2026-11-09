@@ -138,6 +138,7 @@ in
         "actions-langfuse-proposal"
         "execution-context"
         "github-auth-diagnose"
+        "harness-boundary-probe"
         "linux-ci-runner"
         "sops-exec-env"
         "sops-env-function"
