@@ -99,8 +99,10 @@ git push origin --delete <branch>    # remote branch の削除
 
 ```bash
 gh auth login        # 1 回。以後 git の push / pull も通る
-gh auth status
+python3 scripts/github-auth-diagnose.py
 ```
+
+`gh auth status` は`--no-refresh`を付けてもnetwork denyをtoken invalidと表示し得る。診断scriptはローカル設定、Apple Seatbeltのnetwork policy、GitHub APIのHTTP応答を分け、401を観測した場合だけcredential拒否と判定する。
 
 `credential.helper = gh auth git-credential` なので SSH key は管理しない。remote は HTTPS。
 
@@ -133,7 +135,7 @@ fork が要る repo は `gh repo fork` を使う。本文は `--body-file` に�
 
 ### dotfiles の CI
 
-workflow は `CI: Nix check` (`.github/workflows/nix-build.yaml`)。`check` / `build` が required で、nix 関連パスの変更時だけ ubuntu で走る (PR と main への push の両方)。
+workflow は `CI: Nix check` (`.github/workflows/nix-build.yaml`)。常時実行する `nix-ci-gate` が required で、nix 関連パスの変更時だけ `check` / `build` を ubuntu で走らせ、その結果を集約する (PR と main への push の両方)。
 
 macOS ランナーは課金が Linux の 10 倍なので常時 CI では使わない。
 

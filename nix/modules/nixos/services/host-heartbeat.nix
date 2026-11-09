@@ -11,11 +11,6 @@ in
 {
   imports = [ ../../host-heartbeat-options.nix ];
   config = lib.mkIf cfg.enable {
-    age.secrets.host-heartbeat-vm = {
-      file = ../../../../secrets/host-heartbeat-vm.age;
-      mode = "0400";
-      owner = "root";
-    };
     assertions = [
       {
         assertion = lib.hasPrefix "/" cfg.tokenFile && !(lib.hasPrefix "/nix/store/" cfg.tokenFile);

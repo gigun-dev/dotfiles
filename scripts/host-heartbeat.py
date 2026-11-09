@@ -118,6 +118,24 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
+def read_private_token(token_file):
+    """Read one private token from the same descriptor whose metadata was checked."""
+    descriptor = os.open(token_file, os.O_RDONLY | os.O_CLOEXEC)
+    try:
+        mode = os.fstat(descriptor).st_mode
+        if not stat.S_ISREG(mode) or stat.S_IMODE(mode) not in (0o400, 0o600):
+            raise ValueError("token file must be private (0600 or 0400)")
+        with os.fdopen(descriptor, encoding="utf-8") as source:
+            descriptor = -1
+            token = source.read().strip()
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+    if not token or any(c.isspace() for c in token):
+        raise ValueError("invalid token file")
+    return token
+
+
 def send(endpoint, token_file, payload, local_test=False):
     url = urllib.parse.urlsplit(endpoint)
     loopback = local_test and url.scheme == "http" and url.hostname == "127.0.0.1"
@@ -126,15 +144,9 @@ def send(endpoint, token_file, payload, local_test=False):
         raise ValueError("endpoint must be an HTTPS /uptime/heartbeat URL")
     if local_test and not loopback:
         raise ValueError("local test must use literal IPv4 loopback HTTP")
-    path = Path(token_file)
-    mode = path.stat().st_mode
-    if not stat.S_ISREG(mode) or mode & 0o077:
-        raise ValueError("token file must be private (0600 or 0400)")
-    token = path.read_text().strip()
+    token = read_private_token(token_file)
     if local_test and not token.startswith("local-fixture-"):
         raise ValueError("local test requires a fixture token")
-    if not token or any(c.isspace() for c in token):
-        raise ValueError("invalid token file")
     request = urllib.request.Request(endpoint, json.dumps(payload).encode(),
                                      {"Authorization": "Bearer " + token,
                                       "Content-Type": "application/json",
@@ -179,15 +191,26 @@ def save_snapshot(path, value):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source", required=True)
-    parser.add_argument("--snapshot", required=True)
+    parser.add_argument("--source")
+    parser.add_argument("--snapshot")
     parser.add_argument("--endpoint")
     parser.add_argument("--token-file")
+    parser.add_argument("--check-token-file")
     parser.add_argument("--local-vm-checks", action="store_true")
     parser.add_argument("--systemctl", default="systemctl")
     parser.add_argument("--tunnel-unit")
     parser.add_argument("--tunnel-ready-url", default="http://127.0.0.1:20241/ready")
     args = parser.parse_args()
+    if args.check_token_file:
+        if (args.source or args.snapshot or args.endpoint or args.token_file or args.local_vm_checks
+                or args.systemctl != "systemctl" or args.tunnel_unit
+                or args.tunnel_ready_url != "http://127.0.0.1:20241/ready"):
+            parser.error("check-token-file cannot be combined with delivery options")
+        read_private_token(args.check_token_file)
+        print("host-heartbeat: token preflight passed")
+        return
+    if not args.source or not args.snapshot:
+        parser.error("source and snapshot are required for heartbeat delivery")
     if args.local_vm_checks and (platform.system() != "Linux" or not args.tunnel_unit):
         parser.error("local-vm-checks requires Linux and a tunnel-unit")
     if args.tunnel_ready_url != "http://127.0.0.1:20241/ready":

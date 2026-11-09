@@ -1,5 +1,7 @@
 name: fzf Intel bottle
 on:
+  repository_dispatch:
+    types: [fzf_candidate]
   workflow_dispatch:
     inputs:
       bounded_trial:
@@ -14,11 +16,48 @@ concurrency:
   cancel-in-progress: false
 jobs:
   gate:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    environment: github-app-updater
     outputs:
       enabled: ${{ steps.policy.outputs.enabled }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Read candidate without executing its code
+        if: github.event_name == 'repository_dispatch'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.client_payload.head_sha }}
+          path: candidate
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Validate candidate boundary
+        env:
+          EXPECTED_ACTOR: ${{ vars.DOTFILES_UPDATER_BOT_LOGIN }}
+          CANDIDATE_BRANCH: ${{ github.event.client_payload.branch }}
+          CANDIDATE_HEAD: ${{ github.event.client_payload.head_sha }}
+          SOURCE_KEY: ${{ github.event.client_payload.source_key }}
+        run: |
+          if test "$GITHUB_EVENT_NAME" = repository_dispatch; then
+            test "$GITHUB_ACTOR" = "$EXPECTED_ACTOR"
+            [[ "$CANDIDATE_BRANCH" =~ ^update/fzf-[0-9a-f]{64}$ ]]
+            [[ "$CANDIDATE_HEAD" =~ ^[0-9a-f]{40}$ ]]
+            [[ "$SOURCE_KEY" =~ ^[0-9a-f]{64}$ ]]
+            test "$(git -C candidate rev-parse HEAD)" = "$CANDIDATE_HEAD"
+            test "$(git -C candidate rev-list --parents -n 1 HEAD | wc -w | tr -d ' ')" = 2
+            test "$(git -C candidate diff-tree --no-commit-id --name-only -r HEAD)" = ci/homebrew-fzf/fzf.lock.json
+            cp candidate/ci/homebrew-fzf/fzf.lock.json ci/homebrew-fzf/fzf.lock.json
+            python3 - <<'PY'
+          import json, os, sys
+          sys.path.insert(0, 'ci/homebrew-fzf')
+          import state
+          lock = state.validate(json.load(open('ci/homebrew-fzf/fzf.lock.json')))
+          assert state.sha(state.encoded(state.inputs(lock))) == os.environ['SOURCE_KEY']
+          PY
+          fi
       - run: |
           bash -n ci/homebrew-fzf/recipe.sh
           python3 -m unittest discover -s ci/homebrew-fzf/tests -v
@@ -31,6 +70,12 @@ jobs:
           p=json.load(open('ci/homebrew-fzf/policy.json'))
           print('enabled='+str(p['build_enabled'] or os.environ.get('BOUNDED_TRIAL') == 'true').lower())
           PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: fzf-candidate-lock
+          path: ci/homebrew-fzf/fzf.lock.json
+          retention-days: 1
+          if-no-files-found: error
   build:
     needs: gate
     if: needs.gate.outputs.enabled == 'true'
@@ -41,6 +86,13 @@ jobs:
       key: ${{ steps.identity.outputs.key }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: fzf-candidate-lock
+          path: ci/homebrew-fzf
       - id: identity
         run: |
           bash ci/homebrew-fzf/recipe.sh preflight > "$RUNNER_TEMP/preflight.json"
@@ -69,6 +121,13 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: fzf-candidate-lock
+          path: ci/homebrew-fzf
       - env:
           GH_TOKEN: ${{ github.token }}
           BUILD_KEY: ${{ needs.build.outputs.key }}

@@ -17,6 +17,8 @@
 - Before stating history or causes ("it used to be X", "Y is the cause"), check with `git log -p`,
   `git show <ref>:<file>` or a minimal reproduction. If unverified, say so.
 
+@~/.claude/shared/command-privacy.md
+
 @~/.claude/shared/work-management.md
 
 @~/.claude/shared/delegate-work.md

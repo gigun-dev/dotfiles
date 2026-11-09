@@ -37,24 +37,23 @@ class ReleaseTests(unittest.TestCase):
 
 class ResumeTests(unittest.TestCase):
     def test_transition_recovery(self):
-        self.assertEqual(update.next_action(False,[],[]),'branch')
-        self.assertEqual(update.next_action(True,[],[]),'pr')
-        self.assertEqual(update.next_action(True,[{'state':'open'}],[]),'dispatch')
-        for status in ['queued','in_progress','success','failure']:
-            self.assertEqual(update.next_action(True,[{'state':'open'}],[{'status':status}]),'done')
-        self.assertEqual(update.next_action(True,[{'state':'closed'}],[]),'closed')
+        self.assertEqual(update.next_action(False,[]),'branch')
+        self.assertEqual(update.next_action(True,[]),'pr')
+        self.assertEqual(update.next_action(True,[{'state':'open'}]),'done')
+        self.assertEqual(update.next_action(True,[{'state':'closed'}]),'closed')
     def test_resume_does_not_repush_or_recreate_pr(self):
         lock=state.read(state.ROOT/'fzf.lock.json')
         content={'content':base64.b64encode(json.dumps(lock).encode()).decode()}
-        for prs,expected in [([],['pr','workflow']),([{'state':'open'}],['workflow']),([{'state':'closed'}],[])]:
+        for prs,expected in [([],['pr']),([{'state':'open'}],[]),([{'state':'closed'}],[])]:
             with tempfile.TemporaryDirectory() as tmp:
                 candidate=pathlib.Path(tmp)/'candidate';candidate.write_text(json.dumps(lock))
                 original=state.read
                 def read(path):return {'update_pr_enabled':True,'build_enabled':True} if pathlib.Path(path).name=='policy.json' else original(path)
-                responses=[content,prs]+([] if prs==[{'state':'closed'}] else [{'object':{'sha':'b'*40}},{'workflow_runs':[]}])
-                with patch.object(sys,'argv',['update',str(candidate)]),patch.dict(os.environ,{'GITHUB_REPOSITORY':'o/r'}),patch.object(state,'read',side_effect=read),patch.object(update.subprocess,'run',return_value=subprocess.CompletedProcess([],0)),patch.object(releases,'api',side_effect=responses),patch.object(update,'command') as command:
+                responses=[content,prs]
+                with patch.object(sys,'argv',['update',str(candidate)]),patch.dict(os.environ,{'GITHUB_REPOSITORY':'o/r'}),patch.object(state,'read',side_effect=read),patch.object(update.subprocess,'run',return_value=subprocess.CompletedProcess([],0)),patch.object(update.subprocess,'check_output',return_value='a'*40+'\trefs/heads/update\n'),patch.object(releases,'api',side_effect=responses),patch.object(update,'command') as command:
                     update.main()
-                    self.assertEqual([c.args[1] for c in command.call_args_list],expected)
+                    dispatched=[] if prs else ['api']
+                    self.assertEqual([c.args[1] for c in command.call_args_list],dispatched+expected)
     def test_disabled_has_no_remote_effect(self):
         with patch.object(state,'read',return_value={'update_pr_enabled':False}),patch.object(sys,'argv',['update','unused']),patch.object(update,'command') as command,patch.object(releases,'api') as api:
             with self.assertRaises(AssertionError):update.main()
@@ -69,7 +68,7 @@ class BuildPolicyTests(unittest.TestCase):
             candidate=pathlib.Path(tmp)/'candidate';candidate.write_text(json.dumps(lock))
             original=state.read
             def read(path):return {'update_pr_enabled':True,'build_enabled':False} if pathlib.Path(path).name=='policy.json' else original(path)
-            with patch.object(sys,'argv',['update',str(candidate)]),patch.dict(os.environ,{'GITHUB_REPOSITORY':'o/r'}),patch.object(state,'read',side_effect=read),patch.object(update.subprocess,'run',return_value=subprocess.CompletedProcess([],0)),patch.object(releases,'api',side_effect=[content,[{'state':'open'}],{'object':{'sha':'b'*40}},{'workflow_runs':[]}]),patch.object(update,'command') as command:
+            with patch.object(sys,'argv',['update',str(candidate)]),patch.dict(os.environ,{'GITHUB_REPOSITORY':'o/r'}),patch.object(state,'read',side_effect=read),patch.object(update.subprocess,'run',return_value=subprocess.CompletedProcess([],0)),patch.object(releases,'api',side_effect=[content,[{'state':'open'}]]),patch.object(update,'command') as command:
                 with self.assertRaisesRegex(AssertionError,'build activation disabled'):update.main()
                 command.assert_not_called()
 
@@ -92,18 +91,19 @@ class LocalGitResumeTests(unittest.TestCase):
             proposed=dict(lock,version='0.74.6');candidate=root/'candidate.json';candidate.write_text(json.dumps(proposed))
             content={'content':base64.b64encode(json.dumps(proposed).encode()).decode()}
             commands=[]
-            def execute(*args):
+            def execute(*args, **kwargs):
                 commands.append(args)
                 if args[0]=='git':return subprocess.run(args,check=True,capture_output=True)
+                if args[:2]==('gh','api'):return subprocess.CompletedProcess(args,0)
                 if args[:3]==('gh','pr','create'):raise subprocess.CalledProcessError(1,args)
             previous=os.getcwd();os.chdir(repo)
             try:
                 with patch.object(state,'ROOT',folder),patch.object(sys,'argv',['update',str(candidate)]),patch.dict(os.environ,{'GITHUB_REPOSITORY':'o/r'}),patch.object(releases,'api',side_effect=[content,[]]),patch.object(update,'command',side_effect=execute):
                     with self.assertRaises(subprocess.CalledProcessError):update.main()
                 self.assertEqual(sum(c[:2]==('git','push') for c in commands),1)
-                with patch.object(state,'ROOT',folder),patch.object(sys,'argv',['update',str(candidate)]),patch.dict(os.environ,{'GITHUB_REPOSITORY':'o/r'}),patch.object(releases,'api',side_effect=[content,[],{'object':{'sha':'b'*40}},{'workflow_runs':[]}]),patch.object(update,'command') as resumed:
+                with patch.object(state,'ROOT',folder),patch.object(sys,'argv',['update',str(candidate)]),patch.dict(os.environ,{'GITHUB_REPOSITORY':'o/r'}),patch.object(releases,'api',side_effect=[content,[]]),patch.object(update,'command') as resumed:
                     update.main()
-                    self.assertEqual([c.args[:2] for c in resumed.call_args_list],[('gh','pr'),('gh','workflow')])
+                    self.assertEqual([c.args[:2] for c in resumed.call_args_list],[('gh','api'),('gh','pr')])
             finally:os.chdir(previous)
 
 if __name__=='__main__':unittest.main()

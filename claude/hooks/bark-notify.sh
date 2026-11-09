@@ -33,18 +33,16 @@ ENV_CONTENT=$(age -d -i "$IDENTITY" "$SECRET" 2>/dev/null) || exit 0
 
 BARK_KEY=""
 ENCRYPT_KEY=""
-ENCRYPT_IV=""
 PUSH_URL=""
 while IFS='=' read -r k v; do
   case "$k" in
     BARK_PUSH_URL) PUSH_URL=$v ;;
     BARK_DEVICE_KEY) BARK_KEY=$v ;;
     BARK_ENCRYPT_KEY) ENCRYPT_KEY=$v ;;
-    BARK_ENCRYPT_IV) ENCRYPT_IV=$v ;;
   esac
 done <<< "$ENV_CONTENT"
 
-[ -n "$BARK_KEY" ] && [ -n "$ENCRYPT_KEY" ] && [ -n "$ENCRYPT_IV" ] || exit 0
+[ -n "$BARK_KEY" ] && [ -n "$ENCRYPT_KEY" ] || exit 0
 
 PUSH_URL=${PUSH_URL:-https://api.day.app/$BARK_KEY}
 # 秘密 route の誤設定を HTTP に送らず、URL を診断出力へ残さない。
@@ -81,10 +79,16 @@ PAYLOAD=$(jq -n \
   --arg level "timeSensitive" \
   '{title: $title, body: $body, group: $group, level: $level} + (if $url == "" then {} else {url: $url} end)')
 
-KEY_HEX=$(printf '%s' "$ENCRYPT_KEY" | xxd -ps -c 200)
-IV_HEX=$(printf '%s' "$ENCRYPT_IV" | xxd -ps -c 200)
+KEY_HEX=$(printf '%s' "$ENCRYPT_KEY" | od -An -tx1 | tr -d ' \n') || exit 0
+# Bark accepts a per-message IV in the request. Reusing a stored CBC IV leaks
+# relationships between payloads, so keep only the encryption key as secret.
+# Twelve random bytes encode to exactly 16 base64 characters, the CBC IV size
+# Bark expects when it converts the request value to UTF-8 bytes.
+ENCRYPT_IV=$(openssl rand -base64 12) || exit 0
+[ "${#ENCRYPT_IV}" = 16 ] || exit 0
+IV_HEX=$(printf '%s' "$ENCRYPT_IV" | od -An -tx1 | tr -d ' \n') || exit 0
 
-CIPHERTEXT=$(printf '%s' "$PAYLOAD" | openssl enc -aes-256-cbc -K "$KEY_HEX" -iv "$IV_HEX" -base64 -A)
+CIPHERTEXT=$(printf '%s' "$PAYLOAD" | openssl enc -aes-256-cbc -K "$KEY_HEX" -iv "$IV_HEX" -base64 -A) || exit 0
 
 curl -s \
   --data-urlencode "ciphertext=${CIPHERTEXT}" \

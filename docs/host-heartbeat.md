@@ -6,8 +6,10 @@ host は boot とローカルの証拠を採取し、hub が停止範囲の判�
 H1b ジョブ成功用 `/heartbeat` とは別の契約である。
 
 VM の root system service は起動後15秒、以降60秒ごと。宣言は `services.host-heartbeat`、
-秘密は root:0400 の `/run/agenix/host-heartbeat-vm`、snapshot は root:0600 の
-`/var/lib/host-heartbeat/latest.json`。現在の配備・受付根拠は
+現在選択中の秘密は root:0400 の `/run/agenix/host-heartbeat-vm`、snapshot は root:0600 の
+`/var/lib/host-heartbeat/latest.json`。SOPS 移行候補は current と next を別の runtime path に配送し、
+値を出さない手動 preflight を通しても自動では昇格しない。consumer が読む世代は Nix の固定 selector
+だけで変更し、実受付の確認までは `agenix-rollback` を rollback 元として維持する。現在の配備・受付根拠は
 [`host-heartbeat-acceptance.json`](host-heartbeat-acceptance.json)。
 Mac は凍結 Intel mini の System LaunchDaemon を使い、user agent へ置き換えない。
 
@@ -51,11 +53,17 @@ error log は Mac の `/var/lib/host-heartbeat/error.log`、VM は journal。例
 
 ## 秘密と復旧
 
-`secrets/host-heartbeat-mac.age` / `host-heartbeat-vm.age` は独立した source token。
+現行の `secrets/host-heartbeat-mac.age` / `host-heartbeat-vm.age` は独立した source token。
 互いの host key を受信者に含めず、管理・backup 受信者だけを共有する。平文は runtime private file に
 置き、Nix store・Git・環境変数・コマンド引数へ入れない。hub 登録更新は
 `scripts/prepare-host-heartbeat-registration.py` で既存 owner・配送先を引き継ぎ、他 source と管理権限を
 保持する。送信 source に monitorControl を付与しない。rotate は hub 登録と各 runtime file を揃える。
+
+VM の段階移行では `/run/secrets/host-heartbeat-vm-current` と
+`/run/secrets/host-heartbeat-vm-next` を候補専用に使う。`host-heartbeat-sops-*-preflight.service` は
+ファイル種別・権限・非空の形式だけを同じ file descriptor で検査し、値、長さ、hash を出力しない。
+preflight は selector、timer、hub 登録を変更しない。候補を実送信に使う変更、受付確認、rollback は
+それぞれ別の操作として記録し、受入前に agenix の暗号文や runtime file を削除しない。
 
 送信だけを止める場合、VM は timer を停止して宣言を `enable=false` に戻す。
 Mac は `sudo launchctl bootout system/dev.gigun.host-heartbeat` と追加 plist の退避。

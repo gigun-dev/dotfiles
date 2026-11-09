@@ -1,8 +1,6 @@
 name: Detect fzf update
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "17 21 * * *" # 06:17 JST; detection only when unchanged
 permissions:
   contents: read
 concurrency:
@@ -10,20 +8,37 @@ concurrency:
   cancel-in-progress: false
 jobs:
   detect:
+    if: github.ref == 'refs/heads/main'
+    environment: github-app-updater
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    permissions:
-      contents: write
-      pull-requests: write
-      actions: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - env:
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - id: candidate
+        env:
           GH_TOKEN: ${{ github.token }}
         run: |
           python3 -c 'import json; assert json.load(open("ci/homebrew-fzf/policy.json"))["update_pr_enabled"]'
           python3 ci/homebrew-fzf/state.py detect --output "$RUNNER_TEMP/candidate.json"
-          test -f "$RUNNER_TEMP/candidate.json" || exit 0
-          python3 ci/homebrew-fzf/update.py "$RUNNER_TEMP/candidate.json"
-# actions:write is used only for explicit dispatch: token-created PRs do not
-# trigger PR workflows. No reviews, merge, release publication or host apply.
+          if test -f "$RUNNER_TEMP/candidate.json"; then
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Configure GitHub App bot
+        if: steps.candidate.outputs.changed == 'true'
+        id: bot
+        uses: ./.github/actions/setup-github-app-bot
+        with:
+          app-id: ${{ vars.DOTFILES_UPDATER_APP_ID }}
+          private-key: ${{ secrets.DOTFILES_UPDATER_APP_PRIVATE_KEY }}
+      - name: Publish candidate
+        if: steps.candidate.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.bot.outputs.token }}
+          GIT_ASKPASS: ${{ runner.temp }}/github-app-askpass
+          GIT_TERMINAL_PROMPT: '0'
+        run: python3 ci/homebrew-fzf/update.py "$RUNNER_TEMP/candidate.json"

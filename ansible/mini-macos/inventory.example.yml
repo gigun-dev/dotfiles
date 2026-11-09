@@ -1,5 +1,5 @@
 ---
-# Parsing example only. Select a private inventory explicitly; never use this for apply.
+# Negative parsing fixture only. It intentionally fails the production identity guard.
 # The example host and user intentionally do not pass the mini identity preflight.
 all:
   children:
