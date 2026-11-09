@@ -47,17 +47,21 @@ promoted into a new cache entry.
 
 The repository remains private. `policy.json` enables builds and update PRs,
 and names `gigun-dev/dotfiles` as the private Release destination.
-`fzf-update.yml` runs lightweight detection daily at21:17UTC (06:17JST;
-GitHub scheduling is approximate) and can also be dispatched manually.
+`fzf-update.yml` currently runs only when dispatched manually. Its daily schedule
+stays disabled until the GitHub App and protected Environment pass live acceptance.
 No relevant input change means no PR or Intel job. A changed fzf/Go/formula
-creates one draft PR and explicitly dispatches bounded build/validation.
+creates one draft PR; the App then sends `repository_dispatch` to the trusted
+default-branch workflow to start bounded build/validation.
 There is no autoapproval, automerge or mini autoapply.
 
 `update.py` resumes partial failures after branch/PR creation, does not reopen
 closed PRs or automatically retry failed builds each day, and stops on API errors.
-The dispatched build gate runs lightweight tests because token-created PRs do not
-trigger normal PR workflows. Only the updater job receives contents/PR/actions
-write permissions; build/verify stays read-only. `actions:write` is for dispatch.
+The gate rejects dispatches from actors other than the configured App bot, checks
+that the candidate commit changes only `fzf.lock.json`, and reads that lock without
+executing candidate-branch code. The default
+workflow token remains read-only; only the updater's short-lived, one-repository
+GitHub App token can write Contents and Pull requests. The App has no Actions,
+Administration or Workflows permission. Build and verify stay read-only.
 The repository default token permission stays read; the combined repository
 Actions create/approve-PR setting is separately enabled for PR creation only.
 

@@ -133,6 +133,9 @@ in
     run "developer-tools"
       [
         "ci-required-gate"
+        "actions-flake-proposal"
+        "actions-github-app-push"
+        "actions-langfuse-proposal"
         "execution-context"
         "github-auth-diagnose"
         "linux-ci-runner"

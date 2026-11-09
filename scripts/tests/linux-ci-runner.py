@@ -89,10 +89,13 @@ esac''',
         self.assertIn("      - secret-scan\n", gate)
         self.assertIn("CI_SECRET_SCAN_RESULT: ${{ needs.secret-scan.result }}", gate)
 
-    def test_write_checkout_explicitly_keeps_push_credentials(self):
+    def test_fzf_writer_uses_only_the_environment_protected_app_token(self):
         workflow = (ROOT / ".github/workflows/fzf-update.yml").read_text()
-        self.assertIn("permissions:\n      contents: write", workflow)
-        self.assertIn("persist-credentials: true", workflow)
+        self.assertIn("permissions:\n  contents: read", workflow)
+        self.assertIn("environment: github-app-updater", workflow)
+        self.assertIn("persist-credentials: false", workflow)
+        self.assertIn("uses: ./.github/actions/setup-github-app-bot", workflow)
+        self.assertNotIn("actions: write", workflow)
 
     def test_every_always_on_linux_workflow_can_use_the_reviewed_runner(self):
         selector = ("vars.DOTFILES_LINUX_CI == 'self-hosted' && "

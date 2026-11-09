@@ -70,16 +70,19 @@ class ReuseTests(unittest.TestCase):
         import os
         key='a'*64
         artifact={'expired':False,'name':'fzf-validated-'+key,'workflow_run':{'id':7}}
-        bad={'id':7,'conclusion':'failure','path':'.github/workflows/fzf-intel-bottle.yml','head_repository':{'full_name':'owner/repo'},'event':'workflow_dispatch'}
+        bad={'id':7,'conclusion':'failure','path':'.github/workflows/fzf-intel-bottle.yml','head_repository':{'full_name':'owner/repo'},'head_branch':'main','event':'pull_request'}
         with tempfile.TemporaryDirectory() as tmp:
             output=pathlib.Path(tmp)/'output'
             with patch.object(state,'read',return_value={'durable_destination':'owner/repo'}),patch.dict(os.environ,{'GITHUB_REPOSITORY':'owner/repo','GITHUB_OUTPUT':str(output)}),patch.object(sys,'argv',['reuse',key,tmp]),patch.object(reuse,'api',side_effect=[{'artifacts':[artifact]},bad]),patch.object(reuse.subprocess,'run') as download:
                 reuse.main();download.assert_not_called()
             self.assertEqual(output.read_text(),'reused=false\n')
-            good=dict(bad,conclusion='success')
+            good=dict(bad,conclusion='success',event='repository_dispatch')
             with patch.object(state,'read',return_value={'durable_destination':'owner/repo'}),patch.dict(os.environ,{'GITHUB_REPOSITORY':'owner/repo','GITHUB_OUTPUT':str(output)}),patch.object(sys,'argv',['reuse',key,tmp]),patch.object(reuse,'api',side_effect=[{'artifacts':[artifact]},good]),patch.object(reuse.subprocess,'run') as download,patch.object(state,'verify') as verify:
                 reuse.main();download.assert_called_once();verify.assert_called_once_with(tmp,key)
             self.assertTrue(output.read_text().endswith('reused=true\n'))
+            feature=dict(good,head_branch='feature')
+            with patch.object(state,'read',return_value={'durable_destination':'owner/repo'}),patch.dict(os.environ,{'GITHUB_REPOSITORY':'owner/repo','GITHUB_OUTPUT':str(output)}),patch.object(sys,'argv',['reuse',key,tmp]),patch.object(reuse,'api',side_effect=[{'artifacts':[artifact]},feature]),patch.object(reuse.subprocess,'run') as download:
+                reuse.main();download.assert_not_called()
 
 class GoTests(unittest.TestCase):
     def test_same_version_wrong_origin_or_revision_refused(self):
