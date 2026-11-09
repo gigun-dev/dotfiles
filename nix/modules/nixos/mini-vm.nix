@@ -359,7 +359,7 @@ let
   # 呼び出し側はhost構成が選んだoptionalなEnvironmentFileでBARK_*を渡すこと。
   #
   # 括り出してあるのは、暗号化の手順を unit ごとに写すと Bark アプリ側の復号設定
-  # (鍵と IV は 1 組しか持てない) と食い違ったときの直す場所が増えるため。形式
+  # (鍵は 1 組しか持てない) と食い違ったときの直す場所が増えるため。形式
   # (AES-256-CBC、ciphertext と iv を form で POST) は macOS 側の
   # claude/hooks/bark-notify.sh と必ず揃えること。
   #
@@ -377,7 +377,6 @@ let
     # 秘密が無い機械では黙って終わる (失敗自体は journal に残る)。
     [ -n "''${BARK_DEVICE_KEY:-}" ] || exit 0
     [ -n "''${BARK_ENCRYPT_KEY:-}" ] || exit 0
-    [ -n "''${BARK_ENCRYPT_IV:-}" ] || exit 0
 
     push_url="''${BARK_PUSH_URL:-https://api.day.app/$BARK_DEVICE_KEY}"
     # device key を含む route は秘密。HTTP への誤設定は送信せず、URL もログに出さない。
@@ -447,14 +446,18 @@ let
       '{title: $title, body: $body, group: $group, level: $level} + (if $url == "" then {} else {url: $url} end)')
 
     key_hex=$(printf '%s' "$BARK_ENCRYPT_KEY" | ${pkgs.coreutils}/bin/od -An -tx1 | ${pkgs.coreutils}/bin/tr -d ' \n')
-    iv_hex=$(printf '%s' "$BARK_ENCRYPT_IV" | ${pkgs.coreutils}/bin/od -An -tx1 | ${pkgs.coreutils}/bin/tr -d ' \n')
+    # Barkはrequestのivを保存済みfallbackより優先する。固定CBC IVを再利用せず、
+    # 12 random bytesを16文字base64へして通知ごとに新しいIVを渡す。
+    encrypt_iv=$(${pkgs.openssl}/bin/openssl rand -base64 12)
+    [ "$(${pkgs.coreutils}/bin/printf %s "$encrypt_iv" | ${pkgs.coreutils}/bin/wc -c | ${pkgs.coreutils}/bin/tr -d ' ')" = 16 ] || exit 1
+    iv_hex=$(printf '%s' "$encrypt_iv" | ${pkgs.coreutils}/bin/od -An -tx1 | ${pkgs.coreutils}/bin/tr -d ' \n')
 
     ciphertext=$(printf '%s' "$payload" \
       | ${pkgs.openssl}/bin/openssl enc -aes-256-cbc -K "$key_hex" -iv "$iv_hex" -base64 -A)
 
     response=$(${pkgs.curl}/bin/curl -fsS -m 30 --retry 3 \
       --data-urlencode "ciphertext=$ciphertext" \
-      --data-urlencode "iv=$BARK_ENCRYPT_IV" \
+      --data-urlencode "iv=$encrypt_iv" \
       "$push_url" 2>/dev/null) || {
       echo "Bark の失敗通知 HTTP 受付に失敗" >&2
       exit 1
@@ -474,7 +477,6 @@ let
     set -eu
     [ -n "''${BARK_DEVICE_KEY:-}" ] || exit 1
     [ "$(${pkgs.coreutils}/bin/printf %s "''${BARK_ENCRYPT_KEY:-}" | ${pkgs.coreutils}/bin/wc -c | ${pkgs.coreutils}/bin/tr -d ' ')" = 32 ] || exit 1
-    [ "$(${pkgs.coreutils}/bin/printf %s "''${BARK_ENCRYPT_IV:-}" | ${pkgs.coreutils}/bin/wc -c | ${pkgs.coreutils}/bin/tr -d ' ')" = 16 ] || exit 1
     case "''${BARK_PUSH_URL:-https://api.day.app/$BARK_DEVICE_KEY}" in
       https://*) ;;
       *) exit 1 ;;

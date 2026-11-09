@@ -55,12 +55,12 @@ private文書や専用private repoの不存在はblockerにしない。public化
 
 ## current treeの公開blocker
 
-1. Barkの新しいkey / IVをrepo外で生成し、受信端末、mini-vm、Proの全consumerを切り替える。新鍵の受信と旧鍵の復号拒否を確認するまで、過去鍵を失効済みと扱わない。
+1. Barkの固定IVを廃止して通知ごとのrandom IVへ移行する。暗号鍵は現行Barkに無人変更経路や複数slotがないため、無人でcandidate生成・SOPS staging・rollback準備まで行い、iPhone側の切替だけ本人承認にする。public前に履歴上の現行鍵を使い続ける場合は、通知内容の暗号化が公開鍵相当になることを明示的に受容する。受容しない場合はone-time cutoverし、新鍵の表示と旧鍵の復号拒否を確認する。
 2. [ADR 0016](adr/0016-unify-secret-delivery-with-sops.md)に従い、human、host、通知等のrecipient群を分けてSOPSへ移行する。
 3. 共通SSH設定にはprivate includeの受渡し口を追加済み。SOPS生成の0600 includeを配送・受入してから、public moduleのhost固有alias、endpoint、user、key配置を削除する。
 4. `docs/mini-vm.md`等からcurrent token scope、account関係、実UID/session、private runner path、完全な内部endpoint、日時付きlive観測を除く。
 5. 非再構成可能なrecovery assetをprimary / backup経路から実際に再読取する。
-6. Bark鍵のrotation後、全remote refとtagを含むhistory rewriteまたは監査済み新履歴を本人が選ぶ。commit messageに残るagent session metadataと旧attributionも同じ判断に含める。
+6. Bark鍵のone-time cutoverまたは公開リスク受容を確定後、全remote refとtagを含むhistory rewriteまたは監査済み新履歴を本人が選ぶ。commit messageに残るagent session metadataと旧attributionも同じ判断に含める。
 
 ## GitHub公開面の最終監査
 

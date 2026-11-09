@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Exercise both shipped notification transports without sending notifications."""
+import base64
 import json
 import os
 from pathlib import Path
@@ -22,6 +23,7 @@ def fixture_secret(label, length):
 
 class Routing(unittest.TestCase):
     def test_transports(self):
+        observed_ivs = set()
         for custom in (False, True, "insecure"):
             for hook in (False, True):
                 with self.subTest(custom=custom, hook=hook), tempfile.TemporaryDirectory() as directory:
@@ -33,8 +35,8 @@ class Routing(unittest.TestCase):
                     (base / '.ssh/id_ed25519').touch()
                     env = dict(os.environ, HOME=str(base), FIXTURE=str(base),
                                BARK_DEVICE_KEY=fixture_secret('device', 24),
-                               BARK_ENCRYPT_KEY=fixture_secret('encryption', 32),
-                               BARK_ENCRYPT_IV='i' * 16)
+                               BARK_ENCRYPT_KEY=fixture_secret('encryption', 32))
+                    env.pop('BARK_ENCRYPT_IV', None)
                     if custom:
                         env['BARK_PUSH_URL'] = ('http://' if custom == 'insecure' else 'https://') + 'fixture.invalid/private/key'
                     else:
@@ -87,8 +89,24 @@ class Routing(unittest.TestCase):
                     self.assertEqual(request[-1], env.get('BARK_PUSH_URL',
                                                           'https://api.day.app/' + env['BARK_DEVICE_KEY']))
                     self.assertTrue(any(arg.startswith('ciphertext=') for arg in request))
-                    self.assertIn('iv=' + 'i' * 16, request)
+                    ivs = [arg.removeprefix('iv=') for arg in request if arg.startswith('iv=')]
+                    self.assertEqual(len(ivs), 1)
+                    self.assertEqual(len(ivs[0]), 16)
+                    observed_ivs.add(ivs[0])
+                    ciphertext = next(arg.removeprefix('ciphertext=') for arg in request
+                                      if arg.startswith('ciphertext='))
+                    decrypted = subprocess.run(
+                        [shutil.which('openssl'), 'enc', '-d', '-aes-256-cbc',
+                         '-K', env['BARK_ENCRYPT_KEY'].encode().hex(),
+                         '-iv', ivs[0].encode().hex()],
+                        input=base64.b64decode(ciphertext), capture_output=True, check=True,
+                    )
+                    payload = json.loads(decrypted.stdout)
+                    self.assertEqual(payload['title'],
+                                     'fixture-title [fixture]' if hook else 'fixture-title')
+                    self.assertIn('fixture-body', payload['body'])
                     self.assertNotIn('https://fixture.invalid', result.stdout + result.stderr)
+        self.assertGreater(len(observed_ivs), 1, 'a fresh IV must be generated for each send')
 
 
 class HookJobMode(unittest.TestCase):
@@ -104,7 +122,9 @@ class HookJobMode(unittest.TestCase):
             (base / '.ssh/id_ed25519').touch()
             stubs = {
                 'age': '#!/bin/sh\nenv | sort | sed -n "/^BARK_/p"',
-                'openssl': '#!/bin/sh\ncat > "$FIXTURE/payload"\necho ciphertext\n',
+                'openssl': ('#!/bin/sh\n'
+                            'if [ "$1" = rand ]; then printf 0123456789abcdef; exit; fi\n'
+                            'cat > "$FIXTURE/payload"\necho ciphertext\n'),
                 # Sleep so that a backgrounded send would not have written yet on return.
                 'curl': '#!/bin/sh\nsleep 0.3\necho "$@" > "$FIXTURE/request"\n',
             }
@@ -114,7 +134,8 @@ class HookJobMode(unittest.TestCase):
             script = base / 'claude/hooks/bark-notify.sh'
             script.write_text((ROOT / 'claude/hooks/bark-notify.sh').read_text())
             env = dict(os.environ, HOME=str(base), FIXTURE=str(base), PATH=str(base) + os.pathsep + os.environ['PATH'],
-                       BARK_DEVICE_KEY='k', BARK_ENCRYPT_KEY='k' * 32, BARK_ENCRYPT_IV='i' * 16)
+                       BARK_DEVICE_KEY='k', BARK_ENCRYPT_KEY='k' * 32)
+            env.pop('BARK_ENCRYPT_IV', None)
             env.pop('BARK_PUSH_URL', None)
             data = json.dumps({'title': 'uv tool upgrade 失敗', 'message': 'body', 'cwd': '/x/dotfiles'})
             result = subprocess.run(['bash', str(script), *args], input=data, env=env, capture_output=True, text=True, timeout=10)
@@ -153,7 +174,9 @@ class UnitFailureBody(unittest.TestCase):
                 'journalctl': '#!/bin/sh\n[ -f "$FIXTURE/journal.txt" ] || exit 1\ncat "$FIXTURE/journal.txt"\n',
                 'systemctl': '#!/bin/sh\ncat "$FIXTURE/props.txt"\n',
                 # openssl stub: record the plaintext payload instead of encrypting it.
-                'openssl': '#!/bin/sh\ncat > "$FIXTURE/payload"\necho ciphertext\n',
+                'openssl': ('#!/bin/sh\n'
+                            'if [ "$1" = rand ]; then printf 0123456789abcdef; exit; fi\n'
+                            'cat > "$FIXTURE/payload"\necho ciphertext\n'),
                 'curl': '#!/bin/sh\necho \'{"code":200}\'\n',
             }
             for name, text in stubs.items():
@@ -161,8 +184,8 @@ class UnitFailureBody(unittest.TestCase):
                 (base / name).chmod(0o755)
             env = dict(os.environ, FIXTURE=str(base), LC_ALL='en_US.UTF-8',
                        BARK_DEVICE_KEY=fixture_secret('device', 24),
-                       BARK_ENCRYPT_KEY=fixture_secret('encryption', 32),
-                       BARK_ENCRYPT_IV='i' * 16)
+                       BARK_ENCRYPT_KEY=fixture_secret('encryption', 32))
+            env.pop('BARK_ENCRYPT_IV', None)
             env.pop('BARK_PUSH_URL', None)
             args = ['bash', str(base / 'helper'), unit, 'title']
             if body_file is not None:

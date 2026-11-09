@@ -5,6 +5,7 @@
 
 mini-vmの失敗通知とClaude hookは `secrets/bark-env.age` の `BARK_PUSH_URL` にある
 hub H0へ送り、既存のAES暗号化を維持する。[mini-vm運用](mini-vm.md)を参照。
+暗号鍵はruntime secretから読み、CBC IVは固定値を再利用せず通知ごとに生成してrequestへ含める。
 HTTP成功とJSONの受付成功、APNs受付、本人端末での表示は別の検証である。
 
 Mac/VMの生存報告と公開Codex・Langfuseの検査、停止・復旧履歴と通知は配備済み。

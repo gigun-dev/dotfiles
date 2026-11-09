@@ -233,14 +233,15 @@ last-seen等をrepoへ保存しない。unlink / logout / provider側revokeを�
 共通失敗通知と Claude hook は `secrets/bark-env.age` の `BARK_PUSH_URL` に指定した
 完全な HTTPS route へ送る。URL は秘密として扱い、ログ・Nix store に保存しない。
 未指定時は公式 `https://api.day.app/<device-key>` を使う。hub H0 でも既存の
-AES-256-CBC `ciphertext` / `iv` を受け付けるので、端末の鍵・IV と揃える。
+AES-256-CBC `ciphertext` / `iv` を受け付ける。端末とは鍵だけを揃え、IVは通知ごとに送る。
 HTTP 成功と JSON `code=200` は受付の確認で、端末表示の確認とは区別する。
 
-key / IVのrotation時は、runtime secretを配送して受信端末の設定を揃えた後に
+暗号鍵のrotation時は、runtime secretを配送して受信端末の設定を揃えた後に
 `sudo systemctl start bark-notify-smoke`を手動実行する。このunitはwantedByもtimerも持たず、
-通常運用では起動しない。runtime fileを必須にし、key / IVのbyte長とHTTPS routeを値非表示で
+通常運用では起動しない。runtime fileを必須にし、keyのbyte長とHTTPS routeを値非表示で
 検査してから既存helperでcontrolled通知を送る。unit成功はHTTP / JSON受付までであり、端末での
-新鍵復号表示と旧鍵での復号拒否は本人が別々に確認する。
+新鍵復号表示と旧鍵での復号拒否は本人が別々に確認する。IVは秘密としてrotationせず、送信ごとに
+新しいrandom値を生成してrequestへ含める。
 
 ## スマホからのCodex接続とペアリング
 
