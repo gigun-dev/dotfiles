@@ -59,7 +59,7 @@ assert builtins.all
     builtins.elem path mini.systemd.services.github-runner-dotfiles-ci.serviceConfig.InaccessiblePaths
   )
   [
-    "/run/dotfiles-ci-registration-token"
+    "-/run/dotfiles-ci-registration-token"
     "%S/github-runner/dotfiles-ci/.current-token"
   ];
 pkgs.runCommand "reviewed-ci-runner-config" { } ''
