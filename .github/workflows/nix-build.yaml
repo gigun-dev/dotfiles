@@ -48,6 +48,9 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          # pushではpaths-filterが直前commitと比較する。credentialを保持して
+          # 後からfetchさせず、必要な2 commitsをcheckout時に取得する。
+          fetch-depth: 2
           persist-credentials: false
       - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
         id: filter

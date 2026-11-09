@@ -75,6 +75,12 @@ esac''',
         self.assertIn("  nix-ci-gate:\n", workflow)
         self.assertIn("  secret-scan:\n", workflow)
 
+    def test_changes_job_has_push_history_without_persisted_credentials(self):
+        workflow = (ROOT / ".github/workflows/nix-build.yaml").read_text()
+        changes = workflow.split("  changes:\n", 1)[1].split("\n  secret-scan:\n", 1)[0]
+        self.assertIn("fetch-depth: 2", changes)
+        self.assertIn("persist-credentials: false", changes)
+
     def test_secret_scan_is_read_only_and_required_by_the_gate(self):
         workflow = (ROOT / ".github/workflows/nix-build.yaml").read_text()
         scan = workflow.split("  secret-scan:\n", 1)[1].split("\n  check:\n", 1)[0]
