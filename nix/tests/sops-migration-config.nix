@@ -3,6 +3,7 @@ let
   inherit (pkgs) lib;
   config = inputs.self.nixosConfigurations.mini-vm.config;
   tokenFile = config.services.host-heartbeat.tokenFile;
+  heartbeatDelivery = config.dotfiles.hostHeartbeatSecretDelivery;
   runtimeSecretFiles = config.dotfiles.runtimeSecretFiles;
   consumerSources = map builtins.readFile [
     ../modules/nixos/services/beszel.nix
@@ -53,6 +54,16 @@ assert
   config.systemd.services.bark-notify-smoke.serviceConfig.EnvironmentFile
   == runtimeSecretFiles.barkEnv;
 assert tokenFile == config.age.secrets.host-heartbeat-vm.path;
+assert heartbeatDelivery.selector == "agenix-rollback";
+assert heartbeatDelivery.selectedPath == heartbeatDelivery.paths.agenix-rollback;
+assert heartbeatDelivery.paths.sops-current == "/run/secrets/host-heartbeat-vm-current";
+assert heartbeatDelivery.paths.sops-next == "/run/secrets/host-heartbeat-vm-next";
+assert config.systemd.services.host-heartbeat-sops-current-preflight.wantedBy == [ ];
+assert config.systemd.services.host-heartbeat-sops-next-preflight.wantedBy == [ ];
+assert lib.hasInfix heartbeatDelivery.paths.sops-current
+  config.systemd.services.host-heartbeat-sops-current-preflight.serviceConfig.ExecStart;
+assert lib.hasInfix heartbeatDelivery.paths.sops-next
+  config.systemd.services.host-heartbeat-sops-next-preflight.serviceConfig.ExecStart;
 assert lib.hasPrefix "/run/agenix/" tokenFile;
 assert !(lib.hasPrefix "/nix/store/" tokenFile);
 assert config.age.secrets.host-heartbeat-vm.mode == "0400";

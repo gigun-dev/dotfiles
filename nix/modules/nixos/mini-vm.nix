@@ -748,6 +748,7 @@ in
   imports = [
     ../../../ci/linux-runner/mini-runner.nix
     ./runtime-secret-files.nix
+    ./host-heartbeat-secret-delivery.nix
     ./services/host-heartbeat.nix
     ./services/dotfiles-job-heartbeat.nix
     (modulesPath + "/profiles/qemu-guest.nix")
@@ -772,9 +773,15 @@ in
     enable = true;
     source = "mini-vm";
     endpoint = "https://hub-monitor.097969.xyz/uptime/heartbeat";
-    tokenFile = config.age.secrets.host-heartbeat-vm.path;
     localVmChecks = true;
     tunnelUnit = "cloudflared-tunnel-5b8ec787-4730-4b2b-87b8-e86acbd3954b.service";
+  };
+  dotfiles.hostHeartbeatSecretDelivery = {
+    # SOPS current/next stay staged at distinct paths. A reviewed Nix change is
+    # the only promotion mechanism; the agenix credential remains the default
+    # rollback source until the live pilot is accepted.
+    selector = "agenix-rollback";
+    paths.agenix-rollback = config.age.secrets.host-heartbeat-vm.path;
   };
 
   # Apply only after hub registration and all three schedule definitions are initialized.
