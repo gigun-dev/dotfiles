@@ -3,6 +3,8 @@
 
 import os
 from pathlib import Path
+import shlex
+import shutil
 import subprocess
 import tempfile
 import textwrap
@@ -23,6 +25,15 @@ class SopsEnvFunctionTest(unittest.TestCase):
         self.bin.mkdir()
         self.sops_capture = self.root / "sops-argv"
         self.command_capture = self.root / "command-argv"
+
+        real_env = shutil.which("env")
+        self.assertIsNotNone(real_env)
+        self.write_executable(
+            "env",
+            f'''#!/bin/sh
+exec {shlex.quote(real_env)} "$@"
+''',
+        )
 
         self.write_executable(
             "git",
@@ -112,6 +123,7 @@ printf '%s\0' "$@" > "$output"
         sops_arguments = self.nul_arguments(self.sops_capture)
         self.assertEqual(sops_arguments[:3], ["exec-env", "--pristine", str(encrypted.resolve())])
         self.assertEqual(len(sops_arguments), 4)
+        self.assertIn(str(self.bin / "env"), sops_arguments[3])
         self.assertFalse(touched.exists(), "command substitution escaped its argument boundary")
 
     def test_multiple_candidates_fail_closed_without_a_tty(self):

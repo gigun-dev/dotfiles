@@ -34,6 +34,10 @@ sops-env() {
     print -u2 -r -- "sops-env: sops is not installed"
     return 127
   fi
+  if (( ! $+commands[env] )); then
+    print -u2 -r -- "sops-env: env is not installed"
+    return 127
+  fi
 
   if [[ -n $selected ]]; then
     selected=${selected:A}
@@ -96,7 +100,9 @@ sops-env() {
     esac
   fi
 
-  exec_argv=(/usr/bin/env "PATH=$PATH" "HOME=$HOME")
+  # Resolve env through zsh's command table.  /usr/bin/env exists on macOS and
+  # GitHub-hosted Ubuntu, but not on NixOS or other non-FHS systems.
+  exec_argv=("${commands[env]}" "PATH=$PATH" "HOME=$HOME")
   for name in TMPDIR TERM LANG LC_ALL LC_CTYPE; do
     value=${(P)name}
     [[ -n $value ]] && exec_argv+=("$name=$value")
