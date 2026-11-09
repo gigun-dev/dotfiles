@@ -6,14 +6,14 @@
 
 現在は**NO-GO**。visibilityを変更してはならない。理由は次の未完項目である。
 
-- SOPS移行、recipient分離、旧credential失効、agenix撤去が未完
 - 到達可能履歴に現在も有効な可能性があるBark対称鍵が平文で残る
-- 非再構成可能なrecovery assetの独立復旧が未確認
-- SSHのhost固有入力がpublic moduleに残る
 - current tree以外のGitHub公開面に未確認範囲がある
 - 最終SHAのrequired CIと必要なmacOS検証が未実行
 
-private文書や専用private repoの不存在はblockerにしない。public化で課金問題を回避することも、監査の代替にしない。
+private文書や専用private repoの不存在はblockerにしない。SOPS全面移行、recipient細分化、
+recovery assetの実復旧、P0〜P2の残りも、暗号文とcurrent treeの公開安全性を確認した上で
+public後に継続する。public化で課金問題を回避することは監査の代替にしないが、必須gateを
+閉じた後はhosted CIを使って残作業を進めてよい。
 
 ## 情報の分類
 
@@ -55,12 +55,21 @@ private文書や専用private repoの不存在はblockerにしない。public化
 
 ## current treeの公開blocker
 
-1. Barkの固定IVを廃止して通知ごとのrandom IVへ移行する。暗号鍵は現行Barkに無人変更経路や複数slotがないため、無人でcandidate生成・SOPS staging・rollback準備まで行い、iPhone側の切替だけ本人承認にする。public前に履歴上の現行鍵を使い続ける場合は、通知内容の暗号化が公開鍵相当になることを明示的に受容する。受容しない場合はone-time cutoverし、新鍵の表示と旧鍵の復号拒否を確認する。
-2. [ADR 0016](adr/0016-unify-secret-delivery-with-sops.md)に従い、human、host、通知等のrecipient群を分けてSOPSへ移行する。
-3. 共通SSH設定にはprivate includeの受渡し口を追加済み。SOPS生成の0600 includeを配送・受入してから、public moduleのhost固有alias、endpoint、user、key配置を削除する。
-4. `docs/mini-vm.md`等からcurrent token scope、account関係、実UID/session、private runner path、完全な内部endpoint、日時付きlive観測を除く。
-5. 非再構成可能なrecovery assetをprimary / backup経路から実際に再読取する。
-6. Bark鍵のone-time cutoverまたは公開リスク受容を確定後、全remote refとtagを含むhistory rewriteまたは監査済み新履歴を本人が選ぶ。commit messageに残るagent session metadataと旧attributionも同じ判断に含める。
+1. Barkの固定IV廃止と通知ごとのrandom IV化は完了済み。履歴上の現行暗号鍵を
+   one-time cutoverし、Proとmini-vmのHTTP受付、iPhone上の復号表示、rollback可能性を
+   確認する。一般rotation helperと恒久的なsecret store分担はpublic後に扱う。
+2. cutover後、全remote refとtagを含むhistory rewriteまたは監査済み新履歴を本人が選ぶ。
+   旧鍵を全到達履歴から除き、commit messageに残るagent session metadataと旧attributionも
+   同じ判断に含める。
+3. 最終候補SHAについてcurrent treeとGitHub公開面を再監査し、required CIを成功させる。
+
+Bark cutoverは、候補生成・作業ツリー適用、review・CI・merge、green mainのPro / mini-vm適用、
+iPhone設定変更、両senderの受付と表示確認、clipboard clear、履歴処理、finalizeの順で行う。
+`finalize`まではprivate rollback stateを残す。
+
+SOPS全面移行、private SSH includeの実配送、host固有metadataの追加一般化、recovery assetの
+独立復旧はhardeningとしてpublic後に継続する。これらからactual secretまたは公開不能な個人情報が
+最終scanで見つかった場合だけ、その項目を公開blockerへ戻す。
 
 ## GitHub公開面の最終監査
 
