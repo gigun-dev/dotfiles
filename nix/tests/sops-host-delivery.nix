@@ -14,7 +14,9 @@ pkgs.runCommand "sops-host-delivery"
   ''
     set -eu
     root="$TMPDIR/fixture"
-    mkdir -p "$root/plain" "$root/encrypted" "$root/run"
+    export XDG_RUNTIME_DIR="$root/runtime"
+    mkdir -p "$root/plain" "$root/encrypted" "$root/run" "$XDG_RUNTIME_DIR"
+    chmod 0700 "$XDG_RUNTIME_DIR"
     age-keygen -o "$root/identity" 2> "$root/age-keygen.log"
     recipient=$(age-keygen -y "$root/identity")
 
