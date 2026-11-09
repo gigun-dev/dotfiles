@@ -17,6 +17,7 @@
     ./programs/git
     ./programs/ssh
     ./programs/t3code
+    ./programs/codex
   ];
 
   programs.home-manager.enable = true;
