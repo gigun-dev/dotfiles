@@ -759,6 +759,15 @@ in
     ./services/codex-mcp-login.nix
   ];
 
+  # GitHub-hosted CI remains the default. This only provisions an inactive,
+  # sandboxed runner unit in a trusted generation so an outage does not require
+  # activating candidate code as root. A short-lived token and manual start are
+  # still required for every ephemeral job.
+  dotfiles.reviewedCiRunner = {
+    enable = true;
+    registrationTokenFile = "/run/dotfiles-ci-registration-token";
+  };
+
   # Consumers receive only runtime paths. The host configuration owns the
   # delivery backend so each migration from agenix to SOPS is one assignment,
   # not a service-module rewrite.

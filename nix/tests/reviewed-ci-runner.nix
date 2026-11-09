@@ -19,6 +19,7 @@ let
   enabled = evaluate true "/run/keys/dotfiles-ci-test-token";
   service = enabled.systemd.services.github-runner-dotfiles-ci;
   settings = service.serviceConfig;
+  mini = inputs.self.nixosConfigurations.mini-vm.config;
 in
 assert !(disabled.systemd.services ? github-runner-dotfiles-ci);
 assert service.wantedBy == [ ];
@@ -27,6 +28,7 @@ assert enabled.users.users.dotfiles-ci.extraGroups == [ ];
 assert !(builtins.elem "dotfiles-ci" enabled.nix.settings.trusted-users);
 assert settings.NoNewPrivileges && settings.ProtectHome && settings.ProtectSystem == "strict";
 assert settings.Restart == "no" && settings.RestartForceExitStatus == [ ];
+assert settings.MemoryMax == "8G" && settings.CPUQuota == "400%";
 assert enabled.services.github-runners.dotfiles-ci.ephemeral;
 assert
   enabled.services.github-runners.dotfiles-ci.extraPackages == [
@@ -46,6 +48,10 @@ assert builtins.all (path: builtins.elem path settings.InaccessiblePaths) [
   "-/run/secrets"
   "-/run/tailscale"
 ];
+assert mini.dotfiles.reviewedCiRunner.enable;
+assert
+  mini.dotfiles.reviewedCiRunner.registrationTokenFile == "/run/dotfiles-ci-registration-token";
+assert mini.systemd.services.github-runner-dotfiles-ci.wantedBy == [ ];
 pkgs.runCommand "reviewed-ci-runner-config" { } ''
   touch "$out"
 ''
