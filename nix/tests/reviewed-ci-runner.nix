@@ -29,7 +29,7 @@ assert !(builtins.elem "dotfiles-ci" enabled.nix.settings.trusted-users);
 assert settings.NoNewPrivileges && settings.ProtectHome && settings.ProtectSystem == "strict";
 assert settings.Restart == "no" && settings.RestartForceExitStatus == [ ];
 assert settings.MemoryMax == "8G" && settings.CPUQuota == "400%";
-assert enabled.services.github-runners.dotfiles-ci.ephemeral;
+assert !(enabled.services.github-runners.dotfiles-ci.ephemeral);
 assert
   enabled.services.github-runners.dotfiles-ci.extraPackages == [
     pkgs.gh
@@ -52,6 +52,16 @@ assert mini.dotfiles.reviewedCiRunner.enable;
 assert
   mini.dotfiles.reviewedCiRunner.registrationTokenFile == "/run/dotfiles-ci-registration-token";
 assert mini.systemd.services.github-runner-dotfiles-ci.wantedBy == [ ];
+assert mini.users.users.dotfiles-ci.extraGroups == [ ];
+assert builtins.all
+  (
+    path:
+    builtins.elem path mini.systemd.services.github-runner-dotfiles-ci.serviceConfig.InaccessiblePaths
+  )
+  [
+    "/run/dotfiles-ci-registration-token"
+    "%S/github-runner/dotfiles-ci/.current-token"
+  ];
 pkgs.runCommand "reviewed-ci-runner-config" { } ''
   touch "$out"
 ''

@@ -45,7 +45,9 @@ in
       tokenType = "registration";
       user = "dotfiles-ci";
       group = "dotfiles-ci";
-      ephemeral = true;
+      # One reviewed workflow run can contain several dependent jobs. Keep one
+      # registration for that run, then remove it during mandatory cleanup.
+      ephemeral = false;
       extraLabels = [ "dotfiles-reviewed" ];
       # GitHub-hosted Ubuntu provides Python implicitly.  The fzf recipe job
       # invokes unittest directly, so declare the reviewed runner toolchain

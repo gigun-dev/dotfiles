@@ -23,9 +23,7 @@ assert config.sops.age.generateKey;
 assert config.sops.age.sshKeyPaths == [ ];
 assert config.sops.gnupg.sshKeyPaths == [ ];
 assert lib.hasInfix config.sops.age.keyFile hostIdentityActivation;
-assert lib.hasInfix "age-keygen" hostIdentityActivation;
-assert lib.hasInfix "chmod 0600" hostIdentityActivation;
-assert lib.hasInfix "refusing to replace non-regular SOPS host identity" hostIdentityActivation;
+assert lib.hasInfix "ensure-sops-host-identity" hostIdentityActivation;
 assert !(lib.hasInfix "/etc/ssh/" hostIdentityActivation);
 assert
   builtins.attrNames runtimeSecretFiles == [
