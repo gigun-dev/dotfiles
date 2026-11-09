@@ -80,6 +80,8 @@ let
             pkgs.gnugrep
             pkgs.diffutils
             pkgs.findutils
+            pkgs.git
+            pkgs.age
             pkgs.openssl
             pkgs.python3
           ];
@@ -91,6 +93,8 @@ let
             pkgs.gnugrep
             pkgs.diffutils
             pkgs.findutils
+            pkgs.git
+            pkgs.age
             pkgs.openssl
             pkgs.python3
           ];
@@ -145,6 +149,7 @@ in
         "agent-instructions"
         "claude-user-settings"
         "codex-bridge-refresh"
+        "bark-key-cutover"
         "bark-routing"
         "codex-mcp-login"
         "uv-sync-tools"
