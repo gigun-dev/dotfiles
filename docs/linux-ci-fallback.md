@@ -6,7 +6,7 @@ selector変数とrunner labelは認可境界ではない。workflowを編集で�
 
 ## 信頼の起点
 
-fallbackの専用user・unit・sandboxは、required CIがgreenになったmainの信頼済みgenerationへ既定無効で事前導入する。非常時に行うroot操作は、短命registration tokenの配置と、その既存unitの明示起動・停止・cleanupだけに限定する。
+fallbackの専用user・unit・sandboxは、required CIがgreenになったmainの信頼済みgenerationへ事前導入し、unitはboot targetへ紐付けず既定停止にする。非常時に行うroot操作は、短命registration tokenの配置と、その既存unitの明示起動・停止・cleanupだけに限定する。
 
 候補PRのNixOS構成をrootでactivateしてrunnerをbootstrapしてはならない。system switchはrunner以外のactivation、秘密の再配送、既存serviceの再起動も実行するため、CI前の候補コードをhost管理境界の内側で先に動かすことになる。候補SHAは、信頼済みgenerationから起動した非特権runnerのjob入力としてだけ扱う。
 
@@ -14,9 +14,9 @@ fallbackの専用user・unit・sandboxは、required CIがgreenになったmain�
 
 ## runnerの境界
 
-[opt-in NixOS module](../ci/linux-runner/mini-runner.nix) は既定無効で、明示的に有効化したときだけ専用system userとrunnerを作る。
+[NixOS module](../ci/linux-runner/mini-runner.nix) はmini-vmの信頼済みgenerationに専用system userと既定停止のrunner unitを配置する。
 
-- jobごとに登録・解除するephemeral runnerとし、boot起動や自動再登録をしない。
+- review済みの1 workflow runごとに登録し、そのrunの依存jobを順に処理したら解除する。boot起動や自動再登録をしない。
 - runner userへsudo、container group、Nix trusted userを与えない。
 - host secret、container control socket、overlay network control socketをrunnerから隠す。
 - registration tokenはNix storeへ入れず、job終了後にtoken、state、work、logを処理する。
@@ -30,8 +30,8 @@ fallbackの専用user・unit・sandboxは、required CIがgreenになったmain�
 1. 現在の信頼済みgenerationに既定無効の専用unitが含まれ、候補generationへswitchしないことを確認する。
 2. 対象SHA、workflow差分、他のqueued jobを確認する。
 3. selectorを設定し、新しいrunを起動する。既にqueuedのjobは自動で振り直されない。
-4. 短命tokenで既存unitを明示起動し、runnerを一度だけ登録する。job終了と登録解除を確認する。
-5. 次のjobごとに新しいephemeral登録を行う。同時実行しない。
+4. 短命tokenで既存unitを明示起動し、runnerを一度だけ登録する。同じreview済みSHAのrunに属するjobだけが順に処理されることを確認する。
+5. aggregate gateを含むrun全体の終了後にrunnerを停止し、provider登録を削除する。次のrunでは新しい短命tokenで再登録する。
 6. failure、cancelled、skipped、結果欠落をaggregate gateが成功扱いしないことを確認する。
 7. 最後にrunner登録、selector、token、state、work、logの残存を確認して撤去する。unitと専用userは信頼済みgeneration内で無効のまま維持する。
 
@@ -39,6 +39,6 @@ Linux結果はmacOS検証を代替しない。Darwin buildとAnsible native fixt
 
 ## 受入済み範囲
 
-2026-11-09、review済みPR mergeを対象にLinuxの変更判定、secret scan、check、build、aggregate gate、portable testが成功した。jobごとのephemeral登録解除と、使用後のselector、token、runner state、work、log、専用unit / userの撤去も確認した。失敗fixtureをgateがfailureへ集約する経路も別に確認している。
+2026-11-09、review済みPR mergeを対象にLinuxの変更判定、secret scan、check、build、aggregate gate、portable testが成功した。当時はjobごとのephemeral登録解除と、使用後のselector、token、runner state、work、log、専用unit / userの撤去も確認した。失敗fixtureをgateがfailureへ集約する経路も別に確認している。後続運用ではprivate CI制限時の効率を優先し、境界をreview済みworkflow run単位へ広げる。run間では登録と状態を再利用しない。
 
 この受入は当時のreview済みSHAだけを対象とし、後続commitや最終公開SHAを証明しない。public化前には最終SHAでLinux一式を再実行し、必要なmacOS検証を別gateとして記録する。

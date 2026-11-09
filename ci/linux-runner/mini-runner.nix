@@ -1,5 +1,6 @@
-# Opt-in module. mini-vm imports it disabled; enabling still requires an explicit
-# short-lived token path under /run and a separately reviewed system activation.
+# mini-vm provisions this module in a trusted generation, but the unit has no
+# wantedBy target. Each job still requires an explicit short-lived token under
+# /run and a manual start.
 {
   config,
   lib,
@@ -44,7 +45,9 @@ in
       tokenType = "registration";
       user = "dotfiles-ci";
       group = "dotfiles-ci";
-      ephemeral = true;
+      # One reviewed workflow run can contain several dependent jobs. Keep one
+      # registration for that run, then remove it during mandatory cleanup.
+      ephemeral = false;
       extraLabels = [ "dotfiles-reviewed" ];
       # GitHub-hosted Ubuntu provides Python implicitly.  The fzf recipe job
       # invokes unittest directly, so declare the reviewed runner toolchain
@@ -58,8 +61,8 @@ in
       serviceOverrides = {
         Restart = lib.mkForce "no";
         RestartForceExitStatus = lib.mkForce [ ];
-        MemoryMax = "4G";
-        CPUQuota = "200%";
+        MemoryMax = "8G";
+        CPUQuota = "400%";
         # The portable mini-macos fixtures exercise the absolute command paths
         # used by the real macOS target.  Expose only those commands inside the
         # runner's mount namespace instead of adding an FHS layer to mini-vm.
