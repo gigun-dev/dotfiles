@@ -1,0 +1,99 @@
+---
+# mini-vm を GUI ログインに依存させず、ブート時に system ドメインから起動する。
+# 2026-11-11: macOS の自動アップデートで再起動した後、アップデート後の設定アシスタント
+# (MiniBuddy) が終わるまで gui/501 が on-demand-only のままで、LaunchAgent の VM が 10 分起動しなかった。
+- name: Read installed Lima version
+  ansible.builtin.command:
+    argv: ["{{ mini_lima_bin }}", --version]
+  register: mini_lima_version
+  changed_when: false
+  check_mode: false
+# 2.2.x は daemon 起動の vz インスタンスが再起動のたびに Broken になる (lima-vm/lima#5087、2.3.0 の #5088 で修正)。
+- name: Require a Lima release that recovers boot-started vz instances
+  ansible.builtin.assert:
+    that:
+      - mini_lima_version.stdout.split() | last is version(mini_lima_min_version, '>=')
+    fail_msg: "Lima {{ mini_lima_version.stdout }} is older than {{ mini_lima_min_version }}; update it with update.yml first."
+- name: Inspect the instance owned by the Lima user
+  ansible.builtin.stat:
+    path: "{{ mini_lima_home }}/{{ mini_lima_instance }}/lima.yaml"
+  register: mini_lima_instance_config
+- name: Refuse to declare a daemon for a missing or foreign instance
+  ansible.builtin.assert:
+    that:
+      - mini_lima_instance_config.stat.exists
+      - mini_lima_instance_config.stat.pw_name == mini_lima_user
+- name: Inspect the legacy login agent
+  ansible.builtin.stat:
+    path: "{{ mini_lima_agent_plist }}"
+  register: mini_lima_agent
+# 両方が残るとログイン時に二重起動する。limactl autostart disable は agent を見つけた時点で
+# return するので daemon 側が残る (lima-vm/lima#5643)。切り替えは明示フラグの時だけ行う。
+- name: Refuse to run the login agent and the boot daemon together
+  ansible.builtin.assert:
+    that: not mini_lima_agent.stat.exists or mini_lima_daemon_cutover | bool
+    fail_msg: "{{ mini_lima_agent_plist }} still exists. Re-run with mini_lima_daemon_cutover=true to stop the VM and retire it."
+- name: Declare the boot-time LaunchDaemon
+  ansible.builtin.template:
+    src: "{{ mini_controller_repo }}/ansible/mini-macos/templates/lima-daemon.plist.j2"
+    dest: "{{ mini_lima_daemon_plist }}"
+    owner: "{{ mini_lima_daemon_owner | default(omit, true) }}"
+    group: "{{ mini_lima_daemon_group | default(omit, true) }}"
+    mode: '0644'
+    validate: /usr/bin/plutil -lint %s
+  become: "{{ mini_lima_daemon_become | bool }}"
+  register: mini_lima_daemon_plist_result
+- name: Retire the login agent
+  when: mini_lima_agent.stat.exists
+  block:
+    - name: Read the instance status before retiring the agent
+      ansible.builtin.command:
+        argv: ["{{ mini_lima_bin }}", list, --format, "{% raw %}{{.Status}}{% endraw %}", "{{ mini_lima_instance }}"]
+      register: mini_lima_status_before
+      changed_when: false
+      check_mode: false
+    # agent 起動中なら limactl stop が gui ドメインから bootout し、ゲストへ停止を要求する。
+    - name: Stop the VM started by the login agent
+      ansible.builtin.command:
+        argv: ["{{ mini_lima_bin }}", stop, "{{ mini_lima_instance }}"]
+      when: mini_lima_status_before.stdout == 'Running'
+      changed_when: true
+    - name: Unload the login agent even when the VM was already stopped
+      ansible.builtin.command:
+        argv: ["{{ mini_launchctl }}", bootout, "gui/{{ mini_lima_uid }}/io.lima-vm.autostart.{{ mini_lima_instance }}"]
+      register: mini_lima_agent_bootout
+      changed_when: mini_lima_agent_bootout.rc == 0
+      failed_when: false
+    - name: Keep the retired agent beside the original path
+      ansible.builtin.command:
+        argv: [/bin/mv, -n, "{{ mini_lima_agent_plist }}", "{{ mini_lima_agent_plist }}.before-ansible-{{ now(utc=true, fmt='%Y%m%dT%H%M%SZ') }}"]
+      changed_when: true
+- name: Read whether the daemon is loaded
+  ansible.builtin.command:
+    argv: ["{{ mini_launchctl }}", print, "system/{{ mini_lima_daemon_label }}"]
+  register: mini_lima_daemon_loaded
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  become: "{{ mini_lima_daemon_become | bool }}"
+- name: Load the daemon, which starts the VM through RunAtLoad
+  ansible.builtin.command:
+    argv: ["{{ mini_launchctl }}", bootstrap, system, "{{ mini_lima_daemon_plist }}"]
+  when: mini_lima_daemon_loaded.rc != 0
+  changed_when: true
+  become: "{{ mini_lima_daemon_become | bool }}"
+# launchd は bootstrap 時に plist を読むので、読み込み済みの job の変更は次回ブートか手動の reload で効く。
+# reload は VM を止めるため自動では行わない。
+- name: Report a changed plist that the loaded job has not picked up
+  ansible.builtin.debug:
+    msg: "{{ mini_lima_daemon_plist }} changed while loaded; it takes effect at the next boot or after limactl stop + launchctl bootout/bootstrap."
+  when: mini_lima_daemon_plist_result is changed and mini_lima_daemon_loaded.rc == 0
+- name: Wait for the VM to come up after the cutover
+  ansible.builtin.command:
+    argv: ["{{ mini_lima_bin }}", list, --format, "{% raw %}{{.Status}}{% endraw %}", "{{ mini_lima_instance }}"]
+  register: mini_lima_status_after
+  until: mini_lima_status_after.stdout == 'Running'
+  retries: "{{ mini_lima_start_retries }}"
+  delay: 10
+  changed_when: false
+  when: mini_lima_daemon_loaded.rc != 0 and not ansible_check_mode

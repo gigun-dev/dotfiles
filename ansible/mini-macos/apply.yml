@@ -28,6 +28,9 @@
     - name: Manage selected user defaults
       ansible.builtin.include_tasks: tasks/defaults.yml
       when: "'defaults' in mini_targets"
+    - name: Start mini-vm at boot from a LaunchDaemon
+      ansible.builtin.include_tasks: tasks/lima_daemon.yml
+      when: "'lima_daemon' in mini_targets"
     - name: Stage launchd candidates without activating them
       ansible.builtin.include_tasks: tasks/launchd.yml
       when: "'launchd_stage' in mini_targets"

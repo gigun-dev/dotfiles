@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Lima 2.3.0 の `limactl autostart enable` (condition=boot) が生成するものと同じ形
+  (pkg/autostart/launchd/io.lima-vm.daemon.INSTANCE.plist)。label も同じにして、
+  limactl が daemon 起動のインスタンスとして扱えるようにする。
+  上流の雛形に足したのは ExitTimeOut と HOME / USER の2点だけ。
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>{{ mini_lima_daemon_label }}</string>
+	<key>UserName</key>
+	<string>{{ mini_lima_user }}</string>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>LIMA_HOME</key>
+		<string>{{ mini_lima_home }}</string>
+		<!-- UserName 指定の job に launchd が HOME を入れるかは文書化されていない。limactl は ~/.ssh 等を HOME から引くので明示する -->
+		<key>HOME</key>
+		<string>{{ mini_home }}</string>
+		<key>USER</key>
+		<string>{{ mini_lima_user }}</string>
+		<key>PATH</key>
+		<string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+	</dict>
+	<key>ProgramArguments</key>
+	<array>
+		<string>{{ mini_lima_bin }}</string>
+		<string>start</string>
+		<string>{{ mini_lima_instance }}</string>
+		<string>--foreground</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<!-- 正常終了 (limactl stop) では再起動せず、異常終了だけ launchd が起こし直す -->
+	<key>KeepAlive</key>
+	<dict>
+		<key>SuccessfulExit</key>
+		<false/>
+	</dict>
+	<!--
+	  SIGTERM から SIGKILL までの猶予。既定は 5〜20 秒と報告が割れ、vz の停止要求の待ち 30 秒より短い。
+	  macOS 26.4 以降は 60 で頭打ちとの報告があるので、それ以上にはしない。
+	-->
+	<key>ExitTimeOut</key>
+	<integer>60</integer>
+	<key>StandardErrorPath</key>
+	<string>launchd.stderr.log</string>
+	<key>StandardOutPath</key>
+	<string>launchd.stdout.log</string>
+	<key>WorkingDirectory</key>
+	<string>{{ mini_lima_home }}/{{ mini_lima_instance }}</string>
+	<key>ProcessType</key>
+	<string>Background</string>
+</dict>
+</plist>

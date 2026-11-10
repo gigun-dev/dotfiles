@@ -15,7 +15,7 @@ watchdog の観測のみ設定は別途適用済みだが、稼働サービス�
 | Nix | macOS の新規適用は凍結中。既存 generation と user profile は残り、一部 CLI の実体を供給している |
 | Homebrew | Lima / Tailscale や GUI cask 等の導入元。パッケージの導入・更新は手動管理のまま |
 | Ansible | shell・defaults と採用済み CLI 選択リンクの所有を宣言。4 CLI の Homebrew 実体へのリンクと shell リンクは実機で確認した。既定では対象を選択しない |
-| 常駐サービス | `launchd` の移管は未実施。既存の Lima 自動起動と watchdog の登録を維持し、候補の staging と稼働サービスの管理を区別する |
+| 常駐サービス | mini-vm の起動は `lima_daemon` が所有する。watchdog など他の `launchd` は未移管で、候補の staging と稼働サービスの管理を区別する |
 
 `mini_targets` の既定は空。playbook を指定しただけでは管理対象を選ばない。
 `mini_owners` は shell / packages / defaults / launchd など管理グループの所有者を記録する。
@@ -116,6 +116,34 @@ version ディレクトリは削除しない。未知のファイルやリンク
 `--check` は既存選択を検査するが、download・展開・配置後の hash は実行しない。
 実機への適用、鍵参照の検証、署名試験および GitHub 登録は別の作業である。
 
+## mini-vm のブート時起動 (`lima_daemon`)
+
+mini-vm は `/Library/LaunchDaemons/io.lima-vm.daemon.mini-vm.plist` から起動する。
+2026-11-11 に macOS の自動アップデートで再起動したとき、アップデート後の設定アシスタント (MiniBuddy) が
+終わるまで gui/501 が on-demand-only のままになり、LaunchAgent から起動していた VM が 10 分上がらなかった。
+system ドメインの daemon はログインもこの待ちも経ない。plist は Lima 2.3.0 の
+`limactl autostart enable` (condition=boot) の雛形に `ExitTimeOut=60` と `HOME` / `USER` を足したもの。
+Lima 2.2.x では daemon 起動の vz インスタンスが再起動のたびに Broken になる (lima-vm/lima#5087) ため、2.3.0 以上を要求する。
+
+```sh
+# 1. Lima を上げる (稼働中の hostagent はそのまま。新しい版は次の起動から)
+uv run --locked --project ansible/mini-macos ansible-playbook -i ansible/mini-macos/inventory.yml ansible/mini-macos/update.yml -e '{"mini_targets":["packages"],"mini_update_formulae":["lima"],"mini_apply_ack":true,"mini_update_ack":true}'
+# 2. 切り替え (VM を止め、旧 LaunchAgent を .before-ansible-* へ退避し、daemon を bootstrap)。sudo のため -K
+uv run --locked --project ansible/mini-macos ansible-playbook -i ansible/mini-macos/inventory.yml ansible/mini-macos/apply.yml -K -e '{"mini_targets":["lima_daemon"],"mini_lima_daemon_cutover":true,"mini_apply_ack":true}'
+```
+
+旧 LaunchAgent が残っていると、切り替えフラグ無しでは止まる (二重起動を防ぐ)。
+`limactl stop mini-vm` は daemon 起動でも SIGINT で止まり、正常終了なので `KeepAlive{SuccessfulExit=false}` は起こし直さない。
+その後の `limactl start` は launchd を経ずに起動し、次のブートで daemon に戻る。
+plist の変更は読み込み済みの job には効かない (次回ブートか、VM を止めて bootout / bootstrap)。
+
+macOS には shutdown の前にゲストを止める公開の仕組みがない。launchd は SIGTERM 後 `ExitTimeOut` 秒で kill し、
+Lima 2.3.0 は停止要求が通らなければ SSH で `shutdown -h now` を送るが、ホストの shutdown で VZ が先に落ちると届かない。
+手で再起動するときは先に `limactl stop mini-vm` する。
+
+戻すときは daemon を `launchctl bootout system/io.lima-vm.daemon.mini-vm` して plist を消し、
+退避した LaunchAgent を元の名前へ戻して `launchctl bootstrap gui/501` する。
+
 ## launchd はまず配置候補だけ
 
 初期段階は `mini_targets=["launchd_stage"]` で staging のみとし、稼働中の plist の差し替え、load / unload、
@@ -200,7 +228,8 @@ DNS 失敗だけでは Wi-Fi を操作しない。状態が連続 2 サンプル
 | 対象 | 初期実装の範囲 | 残す管理・依存 |
 |---|---|---|
 | shell | `ansible/mini-macos/files/zsh/` の最小 `.zshenv` / `.zshrc` への2リンク。通常ファイル・別リンク・親リンクを拒否。旧5リンクの撤去は明示フラグ | `.zprofile`、`/etc/zsh*`、login shell は未移管 |
-| packages | Lima / XcodeGen / mo の存在維持。明示更新は別入口 | package install/update は manual。Nix CLI 群・GUI casks・VPN・cloudflared は現状維持 |
+| packages | Lima / XcodeGen / mo の存在維持。明示更新は別入口 (2026-11-11 に Lima 2.3.0 へ上げるため owner を ansible に移した) | Nix CLI 群・GUI casks・VPN・cloudflared は現状維持 |
+| lima_daemon | mini-vm の LaunchDaemon 1件と、旧 LaunchAgent の退避 | VM の設定 (`lima.yaml`)・ディスクは Lima のまま |
 | xcodegen | 検証済み 2.46.0 Cellar binary への `/usr/local/bin/xcodegen` 1リンク | Homebrew formula の導入・更新と Nix profile は変更しない |
 | defaults | Dock autohide / KeyRepeat の2項目 | 他のOS設定、電源、認証は未移管 |
 | launchd | 起動検索対象外へ候補2ファイルを配置 | 稼働 user watchdog、heartbeat、Lima等のサービスは現状維持 |

@@ -8,9 +8,10 @@ mini_apply_ack: false
 mini_update_ack: false
 mini_owners:
   shell: ansible
-  packages: manual
+  packages: ansible
   defaults: ansible
   launchd: manual
+  lima_daemon: ansible
   signing_tools: manual
 # mini の対話シェルは Nix に依存しない最小構成 (docs/adr/0014)。共通の zsh/ は配らない。
 mini_shell_links:
@@ -34,6 +35,22 @@ mini_defaults:
   - {domain: com.apple.dock, key: autohide, type: bool, value: true}
   - {domain: NSGlobalDomain, key: KeyRepeat, type: int, value: 2}
 mini_stage_dir: /Users/gigun/Library/Application Support/dotfiles-migration/network-watchdog
+# mini-vm をブート時に system ドメインから起動する (tasks/lima_daemon.yml)。
+mini_lima_bin: /usr/local/bin/limactl
+mini_lima_min_version: "2.3.0"
+mini_lima_home: "{{ mini_home }}/.lima"
+mini_lima_instance: mini-vm
+mini_lima_user: gigun
+mini_lima_uid: 501
+mini_lima_daemon_label: "io.lima-vm.daemon.{{ mini_lima_instance }}"
+mini_lima_daemon_plist: "/Library/LaunchDaemons/{{ mini_lima_daemon_label }}.plist"
+mini_lima_daemon_owner: root
+mini_lima_daemon_group: wheel
+mini_lima_daemon_become: true
+mini_lima_agent_plist: "{{ mini_home }}/Library/LaunchAgents/io.lima-vm.autostart.{{ mini_lima_instance }}.plist"
+mini_lima_daemon_cutover: false
+mini_lima_start_retries: 30
+mini_launchctl: /bin/launchctl
 # Tool targets are policy metadata; adoption records the current owner separately.
 # Structural allowlist only; adoption must separately verify the real filesystem protections.
 mini_service_destination_allowlist_regex: '\A(?![\s\S]*(?:^|/)\.{1,2}(?:/|\Z))(?![\s\S]*[\x00-\x1f\x7f])(?:/nix/store/[^/]+(?:/[^/]+)*|/run/current-system/sw/bin/[^/]+|/Library/PrivilegedHelperTools/[^/]+)\Z'
