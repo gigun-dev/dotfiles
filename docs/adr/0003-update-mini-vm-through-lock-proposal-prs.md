@@ -21,6 +21,11 @@ GitHub App を使う提案 workflow は、flake.lock の fast / slow、Langfuse�
 4. 最初の自然発火と監視の receipt を確認してから、旧 timer / service とホスト側の書込認証を退役する。
 5. 旧 heartbeat source とその通知設定は、旧 timer の停止後に削除する。
 
+2026-11-10に手動受入を終え、fastを毎日01:00 JST、slowを日曜02:00 JST、Langfuseを
+毎日02:00 JST、fzf検出を毎日03:00 JSTとしてGitHub Actionsへ宣言した。scheduled runは
+常にGitHub-hostedとし、review済みself-hosted fallbackは手動dispatchに限定する。この時点では
+手順3と4が未完なので、mini-vmの旧timer・heartbeat・書込認証は停止しない。
+
 したがって schedule の有効化、旧 timer の停止、credential の失効は別々に先行させない。
 移行中は mini-vm の既存 timer が定期実行の正本で、Actions workflow は手動受入経路である。
 GitHub の workflow 名や runner label は認可境界ではなく、提案時の書込権限は protected Environment

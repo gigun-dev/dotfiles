@@ -103,6 +103,24 @@ esac''',
         self.assertIn("uses: ./.github/actions/setup-github-app-bot", workflow)
         self.assertNotIn("actions: write", workflow)
 
+    def test_updater_schedules_use_hosted_runners_and_expected_utc_times(self):
+        flake = (ROOT / ".github/workflows/flake-lock-proposal.yaml").read_text()
+        langfuse = (ROOT / ".github/workflows/langfuse-update-proposal.yaml").read_text()
+        fzf = (ROOT / ".github/workflows/fzf-update.yml").read_text()
+
+        self.assertIn("- cron: '0 16 * * *'", flake)
+        self.assertIn("- cron: '0 17 * * 6'", flake)
+        self.assertIn("- cron: '0 17 * * *'", langfuse)
+        self.assertIn("- cron: '0 18 * * *'", fzf)
+        self.assertIn("github.event.schedule == '0 16 * * *'", flake)
+        self.assertEqual(flake.count("UPDATE_LANE: ${{ matrix.lane }}"), 2)
+        self.assertIn('scripts/ci/propose-flake-lock.sh prepare "$UPDATE_LANE"', flake)
+        self.assertIn('scripts/ci/propose-flake-lock.sh publish "$UPDATE_LANE"', flake)
+        self.assertNotIn("prepare '${{ matrix.lane }}'", flake)
+        self.assertNotIn("publish '${{ matrix.lane }}'", flake)
+        self.assertIn("github.event_name == 'workflow_dispatch' && vars.DOTFILES_LINUX_CI", flake)
+        self.assertIn("github.event_name == 'workflow_dispatch' && vars.DOTFILES_LINUX_CI", langfuse)
+
     def test_every_always_on_linux_workflow_can_use_the_reviewed_runner(self):
         selector = ("vars.DOTFILES_LINUX_CI == 'self-hosted' && "
                     "vars.DOTFILES_CI_REVIEWED_SHA != '' && "

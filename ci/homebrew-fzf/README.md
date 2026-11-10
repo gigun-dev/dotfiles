@@ -47,8 +47,8 @@ promoted into a new cache entry.
 
 The repository remains private. `policy.json` enables builds and update PRs,
 and names `gigun-dev/dotfiles` as the private Release destination.
-`fzf-update.yml` currently runs only when dispatched manually. Its daily schedule
-stays disabled until the GitHub App and protected Environment pass live acceptance.
+`fzf-update.yml` runs manually and daily at 03:00 JST. The schedule was enabled
+after the GitHub App and protected Environment passed live acceptance.
 No relevant input change means no PR or Intel job. A changed fzf/Go/formula
 creates one draft PR; the App then sends `repository_dispatch` to the trusted
 default-branch workflow to start bounded build/validation.
