@@ -25,6 +25,16 @@ let
     web_search = "live";
 
     features.memories = true;
+
+    # 自作 plugin の取得元は全 host で再現可能にする。plugin の有効化は利用する
+    # harness / host ごとに異なるため、ここでは一律に宣言しない。snapshot
+    # refresh は network に依存するため activation では行わず、明示的な
+    # `codex plugin marketplace upgrade gigun` に分離する。
+    marketplaces.gigun = {
+      source = "gigun-dev/claude-code";
+      source_type = "git";
+      ref = "main";
+    };
   };
 in
 {

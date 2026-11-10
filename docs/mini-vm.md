@@ -23,6 +23,26 @@ LinuxへMac固有のpermissions・hooks・proseをコピーせず、gigun market
 新規環境は Claude の既定設定から始めることもできる。既存の symlink は activation が参照先の
 内容を引き継いだ通常ファイルへ置換してから merge する。
 
+Claude の `enabledPlugins` は宣言であり、初回の取得そのものは Claude CLI が行う。Codex は
+この設定を読まないため、`nix/modules/home/programs/codex/default.nix` が `gigun` marketplace と
+その Git source を `~/.codex/config.toml` へ宣言する。plugin の有効化は harness / host の用途で
+異なるため全host必須にはしない。ある時点の local copyを更新元にしない。Home Manager 適用前の
+bootstrap / 復旧では次を使う。
+
+```bash
+codex plugin marketplace remove gigun 2>/dev/null || true
+codex plugin marketplace add gigun-dev/claude-code --ref main
+# そのhostで必要な場合だけ: codex plugin add <plugin>@gigun
+```
+
+Home Manager は登録を再現するが、取得済み snapshot 自体は更新しない。更新時は
+`codex plugin marketplace upgrade gigun` を先に実行し、必要な plugin を
+`codex plugin add <plugin>@gigun` で再同期する。`codex plugin marketplace list --json` の
+`marketplaceSource.sourceType` が `git`、`codex plugin list --json` で対象 plugin が
+installed / enabled であることを値を限定して確認する。Home Manager activation から毎回
+ネットワーク取得は行わない。オフラインの通常 switch と、外部 marketplace の更新・失敗を
+分離するためである。
+
 ## mini-vm の自動更新 (2026-09-06 実装)
 
 **動機**: 無人機なので手で `pull && switch` を打つ機会が無く、push 済みの変更が届かないまま

@@ -36,7 +36,7 @@ activation の dry-run でも独自処理が書き込む場合があるため、
 |---|---|
 | Pro (Apple Silicon) | macOS 開発と Ansible controller のローカル検証に使用。2026-10-29 に固定依存で lint、3 playbook の構文検査、ローカル fixture 20 件が成功。対象への SSH・apply は未実施 |
 | mini (Intel macOS) | Xcode と Swift 6.2.4 の存在を確認済み。`ebook2pdf` の `ce30bb0` で build と合成 fixture 4 件のテストが成功。画面取得・UI・Vision 等に依存する実画面の GUI 検証は未実施 |
-| mini-vm (Linux) | Linux のサービス・開発を担う。今回の guest runtime と開発依存の状態は未確認。macOS 固有 API や画面操作の検証は Mac で行う |
+| mini-vm (Linux) | Linux のサービス・開発を担う。Claude の共有 plugin 宣言適用と、Codex の Git marketplace からの `t3` 導入・実セッション読込を 2026-11-10 に確認済み。外部 marketplace の更新は通常 switch と分離する。macOS 固有 API や画面操作の検証は Mac で行う |
 
 `ebook2pdf` の一部テストは画面撮影・オーバーレイ表示を伴うため、非 GUI の fixture と区別する。
 GUI の実地検証は人の操作でも行える。Computer Use は観察・操作の補助であり、必須ではない。
