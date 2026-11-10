@@ -17,9 +17,5 @@
 - If an actual credential is exposed, stop repeating it, identify only its class and exposure
   channel, and treat revocation or rotation as required; deleting logs is not sufficient. Assess
   sensitive metadata exposure separately: it does not automatically require key rotation.
-- Never ask for, collect, or store the macOS login password, even through a secret card or file
-  delivery: a stored copy outlives the one command that needed it. On macOS, `sudo` authenticates
-  with Touch ID, so run the `sudo` command directly and tell the user a Touch ID prompt is coming.
-  If Touch ID is unavailable, hand the exact command to the user instead.
 - Use public fixtures, dry runs, or disposable resources for tests. Production secrets and private
   data are not test fixtures.
