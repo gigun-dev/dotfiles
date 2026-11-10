@@ -101,6 +101,9 @@
       pgcli
       litecli
     ]
+    ++ lib.optionals (pkgs.stdenv.hostPlatform.isDarwin && pkgs.stdenv.hostPlatform.isAarch64) [
+      (callPackage ../../packages/ghidra-rea { })
+    ]
     ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
       # iOS / Swift 開発 — darwin 限定
       cocoapods
