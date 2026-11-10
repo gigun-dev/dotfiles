@@ -26,6 +26,11 @@ class Switch(unittest.TestCase):
                     body = re.sub(r'/nix/store/[^\s"\']+/bin/([A-Za-z0-9_-]+)',
                                   lambda m: str(bin / m[1]), source)
                     body = body.replace('/etc/NIXOS', str(marker))
+                    # The evaluated Darwin body probes these host paths directly. Keep this
+                    # routing test hermetic: the cleanup guard has its own boundary and must
+                    # never inspect the developer machine's real Homebrew installation.
+                    body = body.replace('/opt/homebrew/bin/brew', str(bin / 'brew'))
+                    body = body.replace('/usr/local/bin/brew', str(bin / 'brew'))
                     for command in ('darwin-rebuild','nixos-rebuild','home-manager','cachix','curl','nix'):
                         p = bin / command
                         p.write_text('#!' + os.environ['TEST_SH'] + '\n' +
