@@ -60,7 +60,10 @@
   - session token は DPoP で client の鍵に束縛され、relay は受け取らない。ただし docs 自身が「relay の署名鍵が破られれば無害ではない」と明記している（trust assumption）。
   - webhook 中継（`/v1/hooks/...`）だけは relay が転送する。
 - CLI host は停止時に tunnel を手放し、次の起動で張り直す。`t3 connect unlink` で公開を止めてもログインは残る。**[確認]** 同、`docs/user/remote-access.md`「Manage or revoke access」
-- Pro が寝ると届かないので、gigun は `pmset -c sleep 0` を入れ済み（ryoppippi と同じ）。**[確認]** dotfiles `nix/modules/darwin/system.nix` 169-174 行目、ryoppippi `nix/modules/darwin/system.nix` 111-115 行目（commit `c6e5ffa3`）
+- Pro が寝ると届かないためclosed-lid維持は必要。ただしryoppippi由来の`ac-awake`と
+  Capsomniaがglobalな`pmset disablesleep`を競合して実際にclamshell sleepへ入ったため、
+  ProはCapsomniaを唯一のownerとする。`pmset -c sleep 0`や`ac-awake`は併用しない。
+  **[確認]** commit `0167d38`の導入履歴と2026-11-10の`pmset` / daemon実測
 
 ### 2.3 LAN / Tailscale 直結
 
@@ -102,7 +105,7 @@
 
 | 機械 | T3 の担い手 | 根拠 |
 |---|---|---|
-| MacBook Pro（aarch64-darwin） | brew cask `t3-code` と home モジュール `programs/t3code`（settings を jq で merge）。AC 時 `pmset -c sleep 0` | **[確認]** `nix/modules/darwin/homebrew.nix` 83 行目、`nix/modules/home/programs/t3code/default.nix`、`system.nix` 169-174 行目 |
+| MacBook Pro（aarch64-darwin） | brew cask `t3-code` と home モジュール `programs/t3code`（settings を jq で merge）。closed-lid維持はCapsomniaが単独で担う | **[確認]** `nix/modules/darwin/homebrew.nix`、`nix/modules/home/programs/t3code/default.nix`、2026-11-10の競合診断 |
 | mini macOS（x86_64-darwin、Nix 凍結、Ansible へ移行中） | CLI もサービスも無い（§2.1）。役割を減らす方針 | **[確認]** CLAUDE.md、ADR 0014 |
 | mini-vm（NixOS、x86_64-linux、24/365） | 未導入。nix-ld あり。`tailscale serve` は 8787 で既に使っている（宣言外の状態） | **[確認]** `mini-vm.nix` 859 行目、`docs/mini-vm.md` 214 行目 |
 | iPhone | App Store の T3 Code | **[確認]** `docs/user/install.md`「Mobile app」 |

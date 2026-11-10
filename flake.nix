@@ -580,10 +580,6 @@
                 ./nix/modules/darwin/host-heartbeat.nix
                 ./nix/modules/darwin/network-watchdog.nix
               ]
-              # 蓋のある機械だけ。常時起動ホストは system.nix の power.sleep で眠らない。
-              ++ inputs.nixpkgs.lib.optionals (!alwaysOn) [
-                ./nix/modules/darwin/ac-awake.nix
-              ]
               ++ [
                 inputs.home-manager.darwinModules.home-manager
                 {
