@@ -19,8 +19,6 @@
 
 @~/.claude/shared/command-privacy.md
 
-@~/.claude/shared/work-management.md
-
 @~/.claude/shared/delegate-work.md
 
 @~/.claude/shared/git.md
