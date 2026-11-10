@@ -9,6 +9,27 @@ let
   dotfilesPath = "${config.home.homeDirectory}/ghq/github.com/gigun-dev/dotfiles";
   mkLink = path: config.lib.file.mkOutOfStoreSymlink "${dotfilesPath}/${path}";
   isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
+  claudeSettings = builtins.fromJSON (builtins.readFile ../../../claude/settings.json);
+  # Linux hosts need the shared plugin registry, but not Darwin-only permissions,
+  # hooks or prose carrying /Users paths. Keep the subset derived from the same
+  # source so enabled plugins cannot silently drift between Pro and mini-vm.
+  linuxClaudeSettings = {
+    inherit (claudeSettings) enabledPlugins extraKnownMarketplaces;
+  }
+  // {
+    extraKnownMarketplaces = claudeSettings.extraKnownMarketplaces // {
+      gigun = claudeSettings.extraKnownMarketplaces.gigun // {
+        source = claudeSettings.extraKnownMarketplaces.gigun.source // {
+          path = "${config.home.homeDirectory}/ghq/github.com/gigun-dev/claude-code";
+        };
+      };
+    };
+  };
+  claudeSettingsSource =
+    if isDarwin then
+      ../../../claude/settings.json
+    else
+      builtins.toFile "claude-settings-linux.json" (builtins.toJSON linuxClaudeSettings);
   uvActivationInputs = builtins.path {
     path = ../../../uv;
     name = "uv-activation-inputs";
@@ -209,17 +230,20 @@ in
   # 宣言から消したキーは live から自動では消えない。消すときは live も手で直す。
   # schema 検証 (check-jsonschema) は $schema の取得にネットワークが要り、同梱するとスキーマが
   # 古びて誤検知するため入れず、JSON として壊れていないことだけ確認する。
-  # home 層は WSL / mini-vm と共有で、正本には Mac 固有のパスが含まれるため Darwin 限定。
-  home.activation.configureClaudeSettings = lib.mkIf isDarwin (
-    lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-      CLAUDE_DIR="${config.home.homeDirectory}/.claude"
-      SETTINGS_FILE="$CLAUDE_DIR/settings.json"
-      SOURCE_FILE="${../../../claude/settings.json}"
-      $DRY_RUN_CMD mkdir -p "$CLAUDE_DIR"
+  # Linux / mini-vm は Mac 固有のpermissions・hooks・proseを除き、plugin宣言とmarketplaceだけを
+  # 同じ正本から導出する。これにより端末固有設定を持ち込まずpluginの導入状態を揃える。
+  home.activation.configureClaudeSettings = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+    CLAUDE_DIR="${config.home.homeDirectory}/.claude"
+    SETTINGS_FILE="$CLAUDE_DIR/settings.json"
+    SOURCE_FILE="${claudeSettingsSource}"
+    if [ -n "''${DRY_RUN_CMD:-}" ]; then
+      echo "would merge declarative Claude settings into $SETTINGS_FILE"
+    else
+      mkdir -p "$CLAUDE_DIR"
       if [ -L "$SETTINGS_FILE" ]; then
         # 旧運用の symlink は実体の内容を引き継いで通常ファイルにする
         LINK_COPY="$(mktemp "$CLAUDE_DIR/.settings.json.XXXXXX")"
-        cp "$SETTINGS_FILE" "$LINK_COPY" && $DRY_RUN_CMD mv "$LINK_COPY" "$SETTINGS_FILE" || rm -f "$LINK_COPY"
+        cp "$SETTINGS_FILE" "$LINK_COPY" && mv "$LINK_COPY" "$SETTINGS_FILE" || rm -f "$LINK_COPY"
       fi
       if [ -f "$SETTINGS_FILE" ]; then
         TEMP_FILE="$(mktemp "$CLAUDE_DIR/.settings.json.XXXXXX")"
@@ -228,14 +252,20 @@ in
           echo "claude settings: merge failed; $SETTINGS_FILE is unchanged" >&2
           exit 1
         fi
-        $DRY_RUN_CMD chmod 644 "$TEMP_FILE"
-        $DRY_RUN_CMD mv "$TEMP_FILE" "$SETTINGS_FILE"
+        chmod 600 "$TEMP_FILE"
+        mv "$TEMP_FILE" "$SETTINGS_FILE"
       else
-        ${lib.getExe pkgs.jq} . "$SOURCE_FILE" > "$SETTINGS_FILE"
-        chmod 644 "$SETTINGS_FILE"
+        TEMP_FILE="$(mktemp "$CLAUDE_DIR/.settings.json.XXXXXX")"
+        if ! ${lib.getExe pkgs.jq} . "$SOURCE_FILE" > "$TEMP_FILE"; then
+          rm -f "$TEMP_FILE"
+          echo "claude settings: initialization failed; $SETTINGS_FILE was not created" >&2
+          exit 1
+        fi
+        chmod 600 "$TEMP_FILE"
+        mv "$TEMP_FILE" "$SETTINGS_FILE"
       fi
-    ''
-  );
+    fi
+  '';
 
   # .zshrc は programs.zsh が管理するため home.file ではなく
   # home.activation で強制シンボリックリンク (ryoppippi パターン)
