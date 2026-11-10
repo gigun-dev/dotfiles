@@ -8,6 +8,7 @@ let
   dotfilesDir = "/home/${username}/ghq/github.com/gigun-dev/dotfiles";
   composeSource = ../../../../infra/langfuse/compose.yaml;
   composeFile = "/etc/langfuse/compose.yaml";
+  clickhouseConfig = ../../../../infra/langfuse/clickhouse-low-load.xml;
   environmentFile = config.dotfiles.runtimeSecretFiles.langfuseEnv;
 
   waitUntilReady = pkgs.writeShellScript "langfuse-wait-until-ready" ''
@@ -109,6 +110,8 @@ in
   environment.systemPackages = [ pkgs.docker-compose ];
 
   environment.etc."langfuse/compose.yaml".source = composeSource;
+  # compose.yaml が ./ 相対で bind mount するので、同じ /etc/langfuse に並べる。
+  environment.etc."langfuse/clickhouse-low-load.xml".source = clickhouseConfig;
 
   # Cloudflare Access protects one browser origin. Langfuse returns presigned
   # MinIO URLs for media, so route the bucket prefix through that same origin;
@@ -166,7 +169,10 @@ in
     ];
     wants = [ "network-online.target" ];
     unitConfig.ConditionPathExists = environmentFile;
-    restartTriggers = [ composeSource ];
+    restartTriggers = [
+      composeSource
+      clickhouseConfig
+    ];
 
     serviceConfig = {
       Type = "oneshot";

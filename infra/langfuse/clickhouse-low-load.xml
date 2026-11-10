@@ -1,0 +1,25 @@
+<clickhouse>
+  <!--
+    単一ノード・個人利用の Langfuse では ClickHouse 自身の観測ログが本体より重い。
+    2026-11-11 の実測で Langfuse のデータ (events_*) 約 460MB に対し system.*_log が 11GB 超、
+    直近 10 分のマージの大半が system.*_log だった (trace_log だけで 6GB / 3 億行)。
+    既定 logger level の trace もファイルログを 1.3GB 書いていた。
+
+    残すもの: query_log (遅いクエリの調査用) と error_log / crash_log (障害時の手がかり。小さい)。
+    remove="1" は以後の書き込みを止めるだけで、既存テーブルは消さない (DROP は手動の一回作業)。
+  -->
+  <logger>
+    <level>warning</level>
+  </logger>
+
+  <trace_log remove="1"/>
+  <text_log remove="1"/>
+  <metric_log remove="1"/>
+  <asynchronous_metric_log remove="1"/>
+  <part_log remove="1"/>
+  <opentelemetry_span_log remove="1"/>
+  <processors_profile_log remove="1"/>
+  <query_metric_log remove="1"/>
+  <query_views_log remove="1"/>
+  <query_thread_log remove="1"/>
+</clickhouse>
