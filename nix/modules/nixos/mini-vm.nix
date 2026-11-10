@@ -1923,7 +1923,6 @@ in
     # (前者は status=127 で即死、後者は健全性ゲートが黙って落ちる)。
     path = with pkgs; [
       git
-      openssh # git pull が SSH remote を使う場合に要る
       nix
       nixos-rebuild # system 層の switch 本体
       systemd
@@ -1955,8 +1954,8 @@ in
 
         # git はリポジトリの所有者 (gigun) で叩く。2026-09-06 に実機で判明:
         # root で叩くと `detected dubious ownership` (safe.directory 保護) で
-        # 即死する。加えて pull の認証情報 (gh credential helper) は gigun の
-        # 設定にしか無いので、どのみち root では引けない。
+        # 即死する。public repo の取得と CI 判定は host の対話credentialに依存させず、
+        # HTTPS fetch と unauthenticated REST API に固定する。
         # DOTFILES_SKIP_AUTO_SWITCH: merge が踏む git/hooks/post-merge に switch させない
         # (フック側も /etc/NIXOS で止まるが、適用の経路をここ 1 本に保つため二重に塞ぐ)。
         as_user() { ${pkgs.sudo}/bin/sudo -u ${username} ${pkgs.coreutils}/bin/env DOTFILES_SKIP_AUTO_SWITCH=1 "$@"; }
@@ -1983,11 +1982,16 @@ in
         poll_rounds=$(printenv AUTOSWITCH_CI_POLL_ROUNDS || echo 30)
         round=0
         while :; do
-          as_user ${pkgs.git}/bin/git fetch --quiet
-          target=$(as_user ${pkgs.git}/bin/git rev-parse '@{upstream}')
-          # API が引けない (認証切れ・GitHub 障害) は見送りではなく失敗にする。黙って
-          # 見送り続けると、トークン失効で自動更新が止まったことに気づけない。
-          check_runs=$(as_user ${pkgs.gh}/bin/gh api "repos/${dotfilesRepo}/commits/$target/check-runs?per_page=100")
+          as_user ${pkgs.coreutils}/bin/env GIT_TERMINAL_PROMPT=0 \
+            ${pkgs.git}/bin/git -c credential.helper= fetch --quiet --no-tags \
+            https://github.com/${dotfilesRepo}.git main
+          target=$(as_user ${pkgs.git}/bin/git rev-parse FETCH_HEAD)
+          # public API が引けない (rate limit・GitHub 障害等) は見送りではなく失敗にする。
+          # host の gh OAuth tokenを使わないため、認証切れをautoswitch停止要因にしない。
+          check_runs=$(${pkgs.curl}/bin/curl -fsS --max-time 30 \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/${dotfilesRepo}/commits/$target/check-runs?per_page=100")
           # 判定: Actions の check run が 1 つでも success/skipped/neutral 以外で終わっていれば red、
           # 未完了か required が未出現なら pending、どちらでもなければ green。ただしrequiredの
           # gateはsuccessだけを許す。条件付きcheck/buildのskippedを集約するのはgate自身の責務で、

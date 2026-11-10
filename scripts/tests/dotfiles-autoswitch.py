@@ -48,7 +48,7 @@ class AutoswitchTests(unittest.TestCase):
         self.current = self.base / "current"
         self.current.symlink_to(self.previous)
         self.env = dict(os.environ, FIXTURE=str(self.base), DIRTY="", REV="fixed42",
-                        HM_STATUS="0", GATE_STATUS="0", SWITCH_STATUS="0", GH_STATUS="0",
+                        HM_STATUS="0", GATE_STATUS="0", SWITCH_STATUS="0", API_STATUS="0",
                         AUTOSWITCH_CI_POLL_INTERVAL="0", AUTOSWITCH_CI_POLL_ROUNDS="3",
                         PATH=str(self.bin) + os.pathsep + os.environ["PATH"])
         self.set_check_runs(GREEN)
@@ -61,24 +61,24 @@ esac
         self.command("git", '''
 echo "git $*" >> "$FIXTURE/calls"
 echo "git env SKIP=${DOTFILES_SKIP_AUTO_SWITCH:-}" >> "$FIXTURE/calls"
+case " $* " in *' fetch '*) echo x >> "$FIXTURE/fetches";; esac
 case "$1" in
 status) printf '%s' "$DIRTY";;
-fetch) echo x >> "$FIXTURE/fetches";;
 merge) exit 0;;
 rev-parse)
-  # @{upstream} は fetch の回数ごとに upstream.<n> があればそれを返す (待つ間に main が進む)。
+  # FETCH_HEAD は fetch の回数ごとに upstream.<n> があればそれを返す (待つ間に main が進む)。
   n=$(wc -l < "$FIXTURE/fetches" 2>/dev/null | tr -d ' ')
   if [ "$2" = HEAD ] && [ -n "${AHEAD:-}" ]; then echo local-ahead
-  elif [ "$2" = '@{upstream}' ] && [ -f "$FIXTURE/upstream.$n" ]; then cat "$FIXTURE/upstream.$n"
+  elif [ "$2" = FETCH_HEAD ] && [ -f "$FIXTURE/upstream.$n" ]; then cat "$FIXTURE/upstream.$n"
   else printf '%s\\n' "$REV"; fi;;
 esac
 ''')
-        self.command("gh", '''
-echo "gh $*" >> "$FIXTURE/calls"
-[ "$GH_STATUS" = 0 ] || exit "$GH_STATUS"
+        self.command("curl", '''
+echo "curl $*" >> "$FIXTURE/calls"
+[ "$API_STATUS" = 0 ] || exit "$API_STATUS"
 # n 回目の問い合わせは check-runs.<n>.json があればそれ、無ければ check-runs.json。
-echo x >> "$FIXTURE/gh-count"
-n=$(wc -l < "$FIXTURE/gh-count" | tr -d ' ')
+echo x >> "$FIXTURE/api-count"
+n=$(wc -l < "$FIXTURE/api-count" | tr -d ' ')
 if [ -f "$FIXTURE/check-runs.$n.json" ]; then cat "$FIXTURE/check-runs.$n.json"
 else cat "$FIXTURE/check-runs.json"; fi
 ''')
@@ -124,7 +124,7 @@ exit "$GATE_STATUS"
             "${dotfilesRevision}": "fixed42",
             "${username}": "fixture-user",
             "${dotfilesDir}": str(self.repo),
-            "${pkgs.gh}/bin/gh": shlex.quote(str(self.bin / "gh")),
+            "${pkgs.curl}/bin/curl": shlex.quote(str(self.bin / "curl")),
             "${pkgs.jq}/bin/jq": shlex.quote(shutil.which("jq") or "jq"),
             "${dotfilesRepo}": "fixture/dotfiles",
             "${requiredChecksJson}": '["nix-ci-gate"]',
@@ -257,9 +257,10 @@ esac
     def test_ci_gate_queries_the_fetched_upstream_commit(self):
         self.run_update()
         calls = self.calls()
-        self.assertIn("git rev-parse @{upstream}", calls)
-        self.assertIn("gh api repos/fixture/dotfiles/commits/fixed42/check-runs?per_page=100", calls)
-        self.assertLess(calls.index("gh api"), calls.index("git merge"))
+        self.assertIn("git rev-parse FETCH_HEAD", calls)
+        self.assertIn("https://api.github.com/repos/fixture/dotfiles/commits/fixed42/check-runs?per_page=100", calls)
+        self.assertLess(calls.index("curl "), calls.index("git merge"))
+        self.assertIn("git -c credential.helper= fetch --quiet --no-tags https://github.com/fixture/dotfiles.git main", calls)
 
     def assert_skipped(self, verdict):
         result = self.run_update()
@@ -291,8 +292,8 @@ esac
         self.set_check_runs(RUNNING, query=2)
         self.run_update()
         calls = self.calls()
-        self.assertEqual(calls.count("gh api"), 3)
-        self.assertEqual(calls.count("git fetch"), 3)
+        self.assertEqual(calls.count("curl "), 3)
+        self.assertEqual(calls.count(" fetch --quiet"), 3)
         self.assertIn("git merge --ff-only --quiet fixed42", calls)
         self.assertNotIn("notify-skip", calls)
 
@@ -309,7 +310,7 @@ esac
     def test_pending_throughout_wait_skips(self):
         self.set_check_runs(RUNNING)
         self.assert_skipped("pending check,nix-ci-gate")
-        self.assertEqual(self.calls().count("gh api"), 3)
+        self.assertEqual(self.calls().count("curl "), 3)
 
     def test_pending_then_red_skips_without_waiting_out(self):
         self.set_check_runs(RUNNING, query=1)
@@ -318,7 +319,7 @@ esac
                                        ("build", "completed", "success"),
                                        ("nix-ci-gate", "completed", "failure")), query=2)
         self.assert_skipped("red check=failure,nix-ci-gate=failure")
-        self.assertEqual(self.calls().count("gh api"), 2)
+        self.assertEqual(self.calls().count("curl "), 2)
 
     def test_red_skips_without_polling(self):
         self.set_check_runs(check_runs(("changes", "completed", "success"),
@@ -326,14 +327,14 @@ esac
                                        ("build", "completed", "success"),
                                        ("nix-ci-gate", "completed", "failure")))
         self.assert_skipped("red check=failure,nix-ci-gate=failure")
-        self.assertEqual(self.calls().count("gh api"), 1)
+        self.assertEqual(self.calls().count("curl "), 1)
 
     def test_api_failure_while_waiting_fails(self):
         self.set_check_runs(RUNNING, query=1)
-        self.command("gh", '''
-echo "gh $*" >> "$FIXTURE/calls"
-echo x >> "$FIXTURE/gh-count"
-[ "$(wc -l < "$FIXTURE/gh-count" | tr -d ' ')" = 1 ] || exit 5
+        self.command("curl", '''
+echo "curl $*" >> "$FIXTURE/calls"
+echo x >> "$FIXTURE/api-count"
+[ "$(wc -l < "$FIXTURE/api-count" | tr -d ' ')" = 1 ] || exit 5
 cat "$FIXTURE/check-runs.1.json"
 ''')
         self.run_update(5)
@@ -380,7 +381,7 @@ cat "$FIXTURE/check-runs.1.json"
         self.assertIn("git merge --ff-only", self.calls())
 
     def test_unreadable_ci_state_fails_instead_of_skipping(self):
-        self.env["GH_STATUS"] = "4"
+        self.env["API_STATUS"] = "4"
         self.run_update(4)
         self.assertNotIn("git merge", self.calls())
         self.assertNotIn("notify-skip", self.calls())
