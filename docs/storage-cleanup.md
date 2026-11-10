@@ -4,6 +4,7 @@ MacBook Pro（M4 Pro、SSD 460GB）の空き容量が逼迫したときの手順
 日付付きの経過は nb のログに残し、ここには再利用できる知識だけを置く。
 2026-03-24 は 2.4GB → 119GB、2026-11-08 は 5.0GB → 約68GB まで回復した。
 どちらも数か月で埋まっており、大きいのは毎回「再生成できるキャッシュ」「リポジトリのビルド成果物」「Nix の古い世代」である。
+2026-11-10 は 2 日で約 57GB 減って 11GB になった。主因はエージェントのスクラッチパッド（`/private/tmp/claude-501`、35GB）で、ホーム配下だけを測る手順では見えなかった。
 
 ## 現状を測る
 
@@ -16,9 +17,12 @@ du -sh ~/Library/* 2>/dev/null | sort -rh | head -15
 du -sh ~/Library/Application\ Support/* 2>/dev/null | sort -rh | head -10
 du -sh ~/.cache/* | sort -rh | head -10
 du -sh ~/ghq/*/*/* | sort -rh | head -20                  # リポジトリごと
-du -sh /nix /Applications
+du -sh /nix /Applications /private/tmp /private/var/run
+du -sh /private/tmp/claude-501/*/*/scratchpad 2>/dev/null | sort -rh | head   # セッション別スクラッチパッド
 ```
 
+`df` の使用量とホーム配下の合計が大きくずれていたら、ホームの外（上の 3 行目）を疑う。
+`/private/var/run/com.apple.security.cryptexd`（17GB）は macOS のシステム領域なので触らない。
 `du` は数分かかる。大きい順に上から潰し、1 項目ごとに `df` で効果を確かめる。
 2026-11-08 の内訳は Library 98G（Application Support 55G、Xcode 13G）、ghq 79G、.cache 33G、/nix 29G だった。
 
@@ -31,7 +35,7 @@ du -sh /nix /Applications
 | 対象 | コマンド | 注意 |
 | --- | --- | --- |
 | Nix 世代と store | `sudo nix-collect-garbage -d` | 下記「Nix」を参照。2026-11-08 に 14.2GiB |
-| pnpm store | `pnpm store prune` | 参照されないパッケージだけ消す。0.9GB |
+| pnpm store | `pnpm store prune` | 参照されないパッケージだけ消す。0.9GB（2026-11-10 は 0.27GB で、3.6GB の大半は参照中だった） |
 | bun cache | `bun pm cache rm` | |
 | npm cache | `npm cache clean --force` | 2026-03 に 16GB。bun/pnpm 併用なら再び溜まる |
 | pip cache | `pip cache purge` | uv に一本化済みでほぼ空 |
@@ -73,6 +77,7 @@ find ~/ghq -name .build -type d -maxdepth 4 -prune                         # Swi
 
 削除前に中身を見て、本人が決める。
 
+- **エージェントのスクラッチパッド**: `/private/tmp/claude-501/<作業ディレクトリ>/<セッションID>/scratchpad`。Claude Code がセッションごとに作る一時フォルダで、実験のたびにモデルやビルドのコピーを置くと数 GB ずつ増える（ebook2pdf の実験で 1 セッション 24GB）。動作中のセッションのものは消さない。直近の更新（`find <dir> -mmin -60`）と、その worktree を cwd にするプロセス（上の `lsof`）で判定し、終わったセッションの分は本人かそのセッションで片付ける。
 - **Codex の作業フォルダ**: `~/Documents/Codex`（日ごとのフォルダ）と `~/.codex/worktrees`。中に ghq リポジトリの git worktree を含む。
 - **Pictures**（Lightroom、旧年のライブラリ、スクリーンショット）、**Downloads**。
 - **/Applications**（Adobe、Office、IntelliJ、Android Studio）と **~/.lmstudio**。
@@ -140,6 +145,14 @@ AVD 実体 `~/.android/avd`、SDK の system-images と emulator、`~/.gradle` �
 - **OneDrive**: `Group Containers/...` の 4GB と `CloudStorage/OneDrive-...` の 4GB は FileProvider の同一実体で、二重ではない。`rm` は同期を壊す。Finder の「空き容量を増やす」を使う。`FileProviderLogs` だけは消してよい。
 - **MacWhisper**: 4GB のうちモデルが 1.5GB、`Database/ExternalMedia` が 2.6GB（文字起こし元の動画・音声を丸ごと保持）。消すと文字起こしテキストは残るがアプリ内で再生できない。
 
+### アプリの削除
+
+`homebrew.nix` の casks で宣言したアプリは、行を消して switch すると cleanup でアンインストールされる。
+switch は宣言外の brew 項目を見つけると sudo の手前で止まり、`DOTFILES_ALLOW_BREW_CLEANUP=1` を付けた再実行を求める（Touch ID が出ないのはこのため）。
+エージェントからの実行は Claude Code の自動許可判定が不可逆な削除として止めるので、本人がターミナルで実行する。
+アンインストール後も常駐プロセス（Ollama の `ollama serve` など）とログイン項目が残ることがあるので、`pgrep` で確かめて止める。
+手で入れたアプリ（LM Studio など）は `.app` に加えてホーム直下のデータ（`~/.lmstudio`）も消す。
+
 ### 削除量と `df` の差
 
 削除量の合計より `df` の増加が小さいのは、APFS ローカルスナップショットの解放待ちによる（44GB 削除して 33GB 反映の例）。`tmutil listlocalsnapshots /` で確かめる。通常は自動で解放される。
@@ -154,8 +167,11 @@ AVD 実体 `~/.android/avd`、SDK の system-images と emulator、`~/.gradle` �
 - **`mise cache clear` で `http-tarballs/` は消えない**: 直接削除する。
 - **`du` のリポジトリ別集計はビルド成果物を含む**: 大きいからと言ってリポジトリごと消さない。まず `.build`、`node_modules`、`dist` を見る。
 - **消したものは `ls` で確かめる**: 存在しないパスへの `rm -rf` は黙って成功する。コマンドの出力と `df` の差分で効果を確認する。
+- **zsh ではグロブが 1 つ外れると `rm` 全体が実行されない**: `rm -rf a b ~/Library/Caches/foo*` で `foo*` が一致しないと `no matches found` で止まり、a と b も消えない。グロブは別コマンドに分けるか `setopt nullglob` を使う。
 
-## ツールの現状（2026-11-08 時点）
+## ツールの現状（2026-11-10 時点）
 
 2026-03 の整理で消した asdf、fnm は残っていない。ランタイムは Nix と mise、パッケージマネージャは bun と pnpm（Nix 配布）を使う。
 `~/.colima` は残っているが、コンテナ実行は OrbStack（`nix/modules/darwin/homebrew.nix`）なので colima は使わない。残っていれば不要。
+2026-11-10 に LM Studio（モデル 0 件、旧エンジン 3.3GB）、Ollama（ローカルモデル 0 件）、Maestro Studio を削除した。ローカル LLM は Hugging Face + MLX（PLaMo、whisper）で足りている。
+`~/ghq/github.com/emscripten-core/emsdk`（1.5GB）は stack-chan の WebAssembly ビルド用なので残す。IntelliJ も残す（JDK は IntelliJ とは独立に Oracle JDK 25 と Temurin 21 が入っている）。
