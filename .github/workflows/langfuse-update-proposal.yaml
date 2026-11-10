@@ -1,6 +1,10 @@
 name: 'Bot: Propose Langfuse update'
 
 on:
+  schedule:
+    # 02:00 JST. Keep the old mini-vm timer until external silence monitoring
+    # and the first natural scheduled receipt are both accepted.
+    - cron: '0 17 * * *'
   workflow_dispatch:
 
 permissions:
@@ -14,7 +18,7 @@ jobs:
   propose:
     if: github.ref == 'refs/heads/main'
     environment: github-app-updater
-    runs-on: ${{ fromJSON(vars.DOTFILES_LINUX_CI == 'self-hosted' && vars.DOTFILES_CI_REVIEWED_SHA != '' && github.sha == vars.DOTFILES_CI_REVIEWED_SHA && '["self-hosted", "linux", "x64", "dotfiles-reviewed"]' || '["ubuntu-latest"]') }}
+    runs-on: ${{ fromJSON(github.event_name == 'workflow_dispatch' && vars.DOTFILES_LINUX_CI == 'self-hosted' && vars.DOTFILES_CI_REVIEWED_SHA != '' && github.sha == vars.DOTFILES_CI_REVIEWED_SHA && '["self-hosted", "linux", "x64", "dotfiles-reviewed"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 90
     steps:
       - name: Checkout repository for local actions

@@ -1,6 +1,10 @@
 name: 'Bot: Propose flake.lock update'
 
 on:
+  schedule:
+    # GitHub cron is UTC. fast: every day 01:00 JST; slow: Sunday 02:00 JST.
+    - cron: '0 16 * * *'
+    - cron: '0 17 * * 6'
   workflow_dispatch:
     inputs:
       lane:
@@ -16,15 +20,19 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: flake-lock-proposal-${{ inputs.lane }}
-  cancel-in-progress: false
-
 jobs:
   propose:
     if: github.ref == 'refs/heads/main'
+    strategy:
+      matrix:
+        lane: ${{ fromJSON(github.event_name == 'schedule' && (github.event.schedule == '0 16 * * *' && '["fast"]' || '["slow"]') || format('["{0}"]', inputs.lane)) }}
+    concurrency:
+      group: flake-lock-proposal-${{ matrix.lane }}
+      cancel-in-progress: false
     environment: github-app-updater
-    runs-on: ${{ fromJSON(vars.DOTFILES_LINUX_CI == 'self-hosted' && vars.DOTFILES_CI_REVIEWED_SHA != '' && github.sha == vars.DOTFILES_CI_REVIEWED_SHA && '["self-hosted", "linux", "x64", "dotfiles-reviewed"]' || '["ubuntu-latest"]') }}
+    # Schedule is always GitHub-hosted. The self-hosted escape hatch is only a
+    # reviewed, manually dispatched emergency path.
+    runs-on: ${{ fromJSON(github.event_name == 'workflow_dispatch' && vars.DOTFILES_LINUX_CI == 'self-hosted' && vars.DOTFILES_CI_REVIEWED_SHA != '' && github.sha == vars.DOTFILES_CI_REVIEWED_SHA && '["self-hosted", "linux", "x64", "dotfiles-reviewed"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 90
     steps:
       - name: Checkout repository for local actions
@@ -48,7 +56,7 @@ jobs:
 
       - name: Prepare and build candidate
         id: candidate
-        run: scripts/ci/propose-flake-lock.sh prepare '${{ inputs.lane }}'
+        run: scripts/ci/propose-flake-lock.sh prepare '${{ matrix.lane }}'
 
       - name: Configure GitHub App bot
         if: steps.candidate.outputs.changed == 'true'
@@ -64,4 +72,4 @@ jobs:
           GH_TOKEN: ${{ steps.bot.outputs.token }}
           GIT_ASKPASS: ${{ runner.temp }}/github-app-askpass
           GIT_TERMINAL_PROMPT: '0'
-        run: scripts/ci/propose-flake-lock.sh publish '${{ inputs.lane }}'
+        run: scripts/ci/propose-flake-lock.sh publish '${{ matrix.lane }}'

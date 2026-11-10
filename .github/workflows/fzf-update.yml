@@ -1,5 +1,9 @@
 name: Detect fzf update
 on:
+  schedule:
+    # 03:00 JST. Detection is cheap; Intel build still starts only for a
+    # bounded candidate through the trusted default-branch workflow.
+    - cron: '0 18 * * *'
   workflow_dispatch:
 permissions:
   contents: read
