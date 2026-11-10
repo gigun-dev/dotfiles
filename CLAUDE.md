@@ -70,6 +70,20 @@ docs/                          # 現行運用・ADR
 - **`~/.local/bin` は例外レーン**: PATH 末尾に追加（nix/brew が常に優先）。self-update 前提のツールなど宣言管理できないものだけ許容する。nixpkgs にない Python CLI は `uv/tools.txt` に宣言し、`uv/sync-tools.sh`（home.activation と bootstrap.sh が呼ぶ）が未導入分だけ入れる。更新は Pro の週次 launchd agent（`uv-tool-upgrade`、`sync-tools.sh --upgrade`、失敗は Bark）、宣言外は警告のみ
 - **Python は uv に一本化**: 再現が要るものは uv プロジェクト（pyproject.toml + uv.lock + .python-version を commit）、使い捨ては素の `python3` か PEP 723 スクリプト。グローバル pip・pyenv・nix devShell での依存管理はしない。詳細は `docs/python.md`
 
+## Code Review Rules
+
+### 秘密と公開境界
+
+- 平文の秘密値、資格情報、内部識別子、秘密の正確な保管場所を、追跡ファイル・テストfixture・ログへ追加しない。安全な経路はSOPS暗号文、値なしのメタデータ、または使い捨ての公開fixtureである。
+
+### 信頼されていない候補コード
+
+- PRの候補generationをrootでswitchしてCI runnerを用意したり、self-hosted jobへsudo、Nix trusted user、host secrets、container socketを与えたりしない。安全な経路はGitHub-hosted runnerを既定にし、greenなmainへ事前導入した既定停止unitをreview済み完全SHAに対して明示起動する方法である。
+
+### 適用ゲート
+
+- red、pending、未実行のcheckを成功として扱わず、そのcommitを自動適用しない。安全な経路は対象SHAのrequired checksとaggregate gateが成功した場合だけ適用することである。
+
 ## Nix 規約
 
 - **標準 nix を使用**: Determinate Nix は使わない（ryoppippi パターン）
