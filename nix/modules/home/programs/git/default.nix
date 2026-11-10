@@ -18,10 +18,17 @@ in
     enable = true;
 
     # notebook は Colab と VS Code で交互に保存すると、execution_count と
-    # metadata.language_info.version の書き換えだけで差分が埋まる。全リポジトリで
-    # commit 時に落とす。出力は残す (--keep-output): lect-machine-learning では
-    # 実行結果ごと GitHub 上で提出・閲覧するため、出力を落とすと提出物が成り立たない。
-    attributes = [ "*.ipynb filter=nbstripout diff=ipynb" ];
+    # metadata.language_info.version の書き換えだけで差分が埋まる。commit 時に落とす
+    # filter と、diff から隠す textconv を下で定義する。出力は残す (--keep-output):
+    # lect-machine-learning では実行結果ごと GitHub 上で提出・閲覧するため、出力を
+    # 落とすと提出物が成り立たない。
+    #
+    # global に掛けるのは表示だけを変える diff=ipynb に限る。filter=nbstripout は
+    # 自分の repo の .gitattributes に書く。clean filter は git が比較する内容そのものを
+    # 変えるので、nbstripout を通さずに commit している他人の repo では触っていない
+    # notebook が常に変更ありと判定され、pull の autostash でも消えず merge が止まる
+    # (openai/codex で踏んだ)。
+    attributes = [ "*.ipynb diff=ipynb" ];
 
     settings = {
       user = {
