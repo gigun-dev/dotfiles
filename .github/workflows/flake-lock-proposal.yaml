@@ -56,7 +56,9 @@ jobs:
 
       - name: Prepare and build candidate
         id: candidate
-        run: scripts/ci/propose-flake-lock.sh prepare '${{ matrix.lane }}'
+        env:
+          UPDATE_LANE: ${{ matrix.lane }}
+        run: scripts/ci/propose-flake-lock.sh prepare "$UPDATE_LANE"
 
       - name: Configure GitHub App bot
         if: steps.candidate.outputs.changed == 'true'
@@ -72,4 +74,5 @@ jobs:
           GH_TOKEN: ${{ steps.bot.outputs.token }}
           GIT_ASKPASS: ${{ runner.temp }}/github-app-askpass
           GIT_TERMINAL_PROMPT: '0'
-        run: scripts/ci/propose-flake-lock.sh publish '${{ matrix.lane }}'
+          UPDATE_LANE: ${{ matrix.lane }}
+        run: scripts/ci/propose-flake-lock.sh publish "$UPDATE_LANE"

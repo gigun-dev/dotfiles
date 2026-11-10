@@ -113,7 +113,11 @@ esac''',
         self.assertIn("- cron: '0 17 * * *'", langfuse)
         self.assertIn("- cron: '0 18 * * *'", fzf)
         self.assertIn("github.event.schedule == '0 16 * * *'", flake)
-        self.assertIn("scripts/ci/propose-flake-lock.sh prepare '${{ matrix.lane }}'", flake)
+        self.assertEqual(flake.count("UPDATE_LANE: ${{ matrix.lane }}"), 2)
+        self.assertIn('scripts/ci/propose-flake-lock.sh prepare "$UPDATE_LANE"', flake)
+        self.assertIn('scripts/ci/propose-flake-lock.sh publish "$UPDATE_LANE"', flake)
+        self.assertNotIn("prepare '${{ matrix.lane }}'", flake)
+        self.assertNotIn("publish '${{ matrix.lane }}'", flake)
         self.assertIn("github.event_name == 'workflow_dispatch' && vars.DOTFILES_LINUX_CI", flake)
         self.assertIn("github.event_name == 'workflow_dispatch' && vars.DOTFILES_LINUX_CI", langfuse)
 
