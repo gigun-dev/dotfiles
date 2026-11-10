@@ -66,7 +66,6 @@ in
       "iterm2"
       "karabiner-elements"
       "monitorcontrol"
-      "ollama-app"
       "orbstack"
       "postman"
       "proxyman"
