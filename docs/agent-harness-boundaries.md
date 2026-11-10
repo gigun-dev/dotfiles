@@ -38,6 +38,9 @@ Codex、Claude Code、T3 Codeで同じ`Auto`という表示があっても、同
 - macOSでは、通常contextと承認済みcontextで同じ無害な`/usr/bin/sandbox-exec` probeを比較できる。通常contextだけnested sandboxの適用を拒否する結果はApple Sandbox経路の関与を示すが、profileの生成元、個別rule、network policyまで特定したことにはならない。
 - Edit / Write hookの拒否はBash、MCP、別providerのOS sandboxを証明しない。
 - remote toolはlocal process、別process、remote serviceのどこで実行されるかを個別に確認する。
+- SSH executorからremote hostでprobeを起動した結果は、そのremote processの境界だけを示す。
+  remote host上のT3 / Codex / Claude native sessionを経由していないなら、そのharnessの
+  sandboxやapproval policyの証拠として扱わない。
 
 ## 観測と記録
 
@@ -65,8 +68,16 @@ networkを比較するときだけ`--network`を付ける。接続先は固定�
 
 各harnessで同じcommit、同じ引数を使い、stdoutのJSONを期限付きreceiptとして比較する。`declaredHarness`と`declaredProvider`は呼出側の申告であり、実際に解決されたproviderやapproval policyの証拠ではない。resolved modeとversionはharness自身の表示・session metadataで別に確認する。通常contextと承認済みcontextの結果を上書きせず、両方を残す。
 
+remote executor比較では、receiptに実行経路のclass（例: local harness process / approved local process /
+SSH-launched remote process）も添える。SSH-launched processが緩い結果でも、remote hostのnative harnessが
+同じ境界だとは判定しない。
+
 ## 監査checklist
 
 final resolved policy、OS privacy、Linux backend、MCP実行主体、remote toolの実行場所、上位managed policy、cross-repository rule scopeを非秘密canaryで確認する。
+
+Proからの対話操作は強い権限を許容する。ただし、その許容はPro上のclient / harness contextに限定し、
+environment link、remote executor、mini-vmのnative harness、無人jobへ自動的に継承されたとは扱わない。
+各経路でresolved sandbox、approval、TCC、実行UIDを別々に確認する。
 
 matrixの保守だけならADRは不要。sandbox既定、machine-wide上限、fail-closed化、人用secret rootのread deny、providerの別UID / 別VM化など、戻す費用の高い境界を決める場合はADR候補とする。
