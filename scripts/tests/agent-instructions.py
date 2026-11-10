@@ -43,7 +43,7 @@ class AgentInstructionsTest(unittest.TestCase):
     def test_codex_generation_expands_privacy_once(self):
         generated = self.generated_codex_instructions()
         privacy = PRIVACY.read_text().rstrip()
-        self.assertEqual(generated.count("## Secrets and Sensitive Metadata"), 1)
+        self.assertEqual(generated.count(privacy.splitlines()[0]), 1)
         self.assertEqual(generated.count(privacy), 1)
         self.assertNotIn(IMPORT_PREFIX, generated)
 
