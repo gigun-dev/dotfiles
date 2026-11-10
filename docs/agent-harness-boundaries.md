@@ -80,4 +80,24 @@ Proからの対話操作は強い権限を許容する。ただし、その許�
 environment link、remote executor、mini-vmのnative harness、無人jobへ自動的に継承されたとは扱わない。
 各経路でresolved sandbox、approval、TCC、実行UIDを別々に確認する。
 
+## 参考実装から採用する原則
+
+ryoppippi/dotfilesは、standalone Codexのapprovalと、調査時のread-only、編集時のworkspace-write、
+必要時だけのnetworkを用途別に分けている。mozumasu/dotfilesはClaudeのtool permissionとhookを
+細かく宣言している。どちらも独自のSeatbelt profileを正本としておらず、tool allow / denyや
+`auto_review`からOS sandboxを推定できない。このrepoでも次だけを原則として採用する。
+
+- 調査・レビューはread-only、repo編集はworkspace-write、networkは必要な実行だけに付与する。
+- approval、tool permission、filesystem / network sandbox、TCCを別の境界として記録する。
+- Proの対話経路で強い権限を許容しても、remote・無人経路へ一般化しない。
+- Claudeの`skipDangerousModePermissionPrompt`は確認表示の省略であり、permission modeやSeatbeltを
+  無効化する設定として扱わない。
+
+参照時点の設定は
+[ryoppippiのCodex](https://github.com/ryoppippi/dotfiles/blob/620d187d/nix/modules/home/programs/codex/default.nix)、
+[用途別sandbox](https://github.com/ryoppippi/dotfiles/blob/620d187d/agents/skills/ask-other-agent/references/outside-t3.md)、
+[mozumasuのClaude](https://github.com/mozumasu/dotfiles/blob/b33d01b/.config/nix/home-manager/claude-code.nix)、
+[mozumasuのCodex](https://github.com/mozumasu/dotfiles/blob/b33d01b/.config/nix/home-manager/codex.nix)。
+current値は変わり得るため、ここへ複写せず比較時に再確認する。
+
 matrixの保守だけならADRは不要。sandbox既定、machine-wide上限、fail-closed化、人用secret rootのread deny、providerの別UID / 別VM化など、戻す費用の高い境界を決める場合はADR候補とする。
