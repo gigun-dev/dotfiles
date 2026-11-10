@@ -25,13 +25,14 @@ LinuxへMac固有のpermissions・hooks・proseをコピーせず、gigun market
 
 Claude の `enabledPlugins` は宣言であり、初回の取得そのものは Claude CLI が行う。Codex は
 この設定を読まないため、`nix/modules/home/programs/codex/default.nix` が `gigun` marketplace と
-必須の `t3` / `todo` plugin を `~/.codex/config.toml` へ宣言する。marketplace は Git source とし、
-ある時点の local copyを更新元にしない。Home Manager 適用前の bootstrap / 復旧では次を使う。
+その Git source を `~/.codex/config.toml` へ宣言する。plugin の有効化は harness / host の用途で
+異なるため全host必須にはしない。ある時点の local copyを更新元にしない。Home Manager 適用前の
+bootstrap / 復旧では次を使う。
 
 ```bash
 codex plugin marketplace remove gigun 2>/dev/null || true
 codex plugin marketplace add gigun-dev/claude-code --ref main
-codex plugin add t3@gigun
+# そのhostで必要な場合だけ: codex plugin add <plugin>@gigun
 ```
 
 Home Manager は登録を再現するが、取得済み snapshot 自体は更新しない。更新時は
