@@ -114,6 +114,15 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "mcp__.*__wrap_up",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/japanese-guard.py\""
+          }
+        ]
       }
     ],
     "SessionEnd": [
@@ -156,6 +165,14 @@
           {
             "type": "command",
             "command": "test ! -x \"$HOME/.config/iterm2/cc-status\" || \"$HOME/.config/iterm2/cc-status\""
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/hooks/japanese-guard.py\""
           }
         ]
       }

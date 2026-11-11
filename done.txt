@@ -108,3 +108,5 @@ x 2026-11-12 2026-11-12 mini checkoutの不要なclaude/settings.json変更を�
 x 2026-11-12 2026-11-08 miniの役割向け最小shell設定をAnsibleで実適用した。既知の旧5リンクを.before-ansible-20261112T125027Zへ退避し、.zshenv/.zshrcをmini専用設定へ切替。非対話shell、TTYなしlogin shellでbrew/limactl/xcodegen解決、再適用changed=0を確認した。TTYなしloginではfzf/zoxide initのzle警告が出るがrc=0 +mini see:docs/adr/0014-shrink-mini-macos-shell-before-removing-nix.md by:claude id:0126
 x 2026-11-12 2026-11-12 miniで未使用のmugi-clawを退役する。LaunchAgentをunloadしplistリンクと専用Chrome processを除去、~/.mugi-clawとrepoは保持して再発火しないことを確認する +mini @user dep:0127 id:0193
 x 2026-11-12 2026-11-12 +mini Homebrew fd 10.5.0候補の選択リンクだけをAnsibleへ移管するか承認し、check diff・checksum・新規shell・反復適用・Nix fallbackを検証する。formula導入更新は行わない @user dep:0127 id:0195 @dropped miniでfdを使っておらず、Nix撤去前にHomebrew版を選択する必要がないため
+||||||| parent of 047f06c (feat(claude): guard against English responses at turn completion)
+x 2026-11-11 2026-11-11 Claude Code に japanese guard を導入して動作確認する +claude by:me id:0191
