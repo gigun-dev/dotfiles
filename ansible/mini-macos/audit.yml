@@ -44,3 +44,30 @@
       loop: "{{ mini_audit_links.results }}"
       loop_control:
         label: "{{ item.item }}"
+    - name: Audit Nix references without exposing source values
+      ansible.builtin.script: "scripts/audit_nix_refs.py --home {{ mini_home }}"
+      args:
+        executable: /usr/bin/python3
+      register: mini_nix_ref_audit
+      changed_when: false
+      check_mode: false
+    - name: Select the structured sanitized audit result
+      ansible.builtin.set_fact:
+        mini_nix_ref_audit_lines: >-
+          {{ mini_nix_ref_audit.stdout_lines
+             | select('match', '^MINI_NIX_REF_AUDIT=')
+             | list }}
+    - name: Require a structured sanitized audit result
+      ansible.builtin.assert:
+        that:
+          - mini_nix_ref_audit_lines | length == 1
+        fail_msg: Nix reference audit returned no structured result.
+    - name: Decode the structured sanitized audit result
+      ansible.builtin.set_fact:
+        mini_nix_ref_audit_report: >-
+          {{ mini_nix_ref_audit_lines[0]
+             | regex_replace('^MINI_NIX_REF_AUDIT=', '')
+             | from_json }}
+    - name: Show sanitized Nix reference locations
+      ansible.builtin.debug:
+        msg: "{{ mini_nix_ref_audit_report }}"
