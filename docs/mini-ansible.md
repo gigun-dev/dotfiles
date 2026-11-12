@@ -214,8 +214,14 @@ checkout は `main` の `3a258846` で、`claude/settings.json` にClaude Code�
 
 古い追跡参照では129 commit behindに見えたが、live fetch後の実態は326 ahead / 562 behind、
 共通祖先 `3a8a7fa` だった。現在のmainはpublic化時の履歴再構成後にあり、fast-forwardではない。
-`scripts/mini-checkout-sync.py` は設計どおり停止した。mini側の旧履歴に固有の未退避変更がないことを
-確認してから、checkoutを現行mainへ付け替える必要がある。
+`scripts/mini-checkout-sync.py` は設計どおり停止した。旧側固有の非merge patchが0件でworking treeが
+cleanなことを確認し、本人承認後に退避参照を作らず現行`origin/main`へ付け替えた。付け替え後は
+`922c949`でahead / behind 0 / 0、dirtyなし。
+
+再auditは成功し、Homebrew一覧、defaults、watchdog、generation 26の参照は付け替え前と同じだった。
+最小shell切替の`--check --diff`も成功した。予告された差分は、既知の旧5リンクを日時付き名称へ退避し、
+`.zshenv` / `.zshrc` の2件だけを`ansible/mini-macos/files/zsh/`へ張り替えるもの。formula、defaults、
+launchdは対象外で、実適用はまだ行っていない。
 
 Homebrew formula は `cloudflared`, `fd`, `fzf`, `go`, `lima`, `mo`, `pcre2`, `ripgrep`,
 `tailscale`, `xcodegen`, `zoxide`。cask は 2026-10-26 の一覧と同じだった。defaults の2項目と
