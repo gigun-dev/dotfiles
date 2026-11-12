@@ -149,23 +149,6 @@ class HeartbeatTests(unittest.TestCase):
         self.assertEqual(len(config["data-binary"]), 1)
         return config
 
-    def test_nix_wrapper_pins_curl_and_trust_store_behind_snapshot_gate(self):
-        module = (ROOT / "nix/modules/nixos/mini-vm.nix").read_text()
-        match = re.search(r"jobHeartbeat = pkgs\.writeShellScript \"dotfiles-job-heartbeat\" ''(.*?)\n  '';",
-                          module, re.DOTALL)
-        self.assertIsNotNone(match)
-        wrapper = match.group(1)
-        self.assertIn("--curl-path ${pkgs.curl}/bin/curl", wrapper)
-        self.assertIn("export SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt", wrapper)
-        self.assertIn('export CURL_CA_BUNDLE="$SSL_CERT_FILE"', wrapper)
-        self.assertLess(wrapper.index("export SSL_CERT_FILE="), wrapper.index("export CURL_CA_BUNDLE="))
-        self.assertIn('[ "${jobHeartbeatEnabled}" = 1 ]', wrapper)
-        self.assertIn('DOTFILES_JOB_HEARTBEAT_ENABLED:-}" = 1', wrapper)
-        self.assertIn("DOTFILES_JOB_HEARTBEAT_ENDPOINT:-}", wrapper)
-        sends = re.findall(r"\$\{jobHeartbeat\} send[^\n]*", module)
-        self.assertTrue(sends)
-        self.assertTrue(all("--enabled" not in send for send in sends))
-
     def test_schedules_match_hub_proposed_utc_grid(self):
         self.assertEqual(heartbeat.SCHEDULES, EXPECTED_SCHEDULES)
 

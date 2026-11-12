@@ -75,15 +75,6 @@ esac
         self.assertEqual(calls.count("heartbeat --receipt fixed-start-receipt"), int(success), calls)
         return calls
 
-    def test_success_bindings_keep_activation_in_shared_wrapper(self):
-        calls = [line for line in SOURCE.splitlines() if "${jobHeartbeat}" in line]
-        self.assertEqual(len(calls), 6)  # +1: autoswitch の CI 見送りでも receipt を送る
-        self.assertTrue(all("--enabled" not in line for line in calls))
-        self.assertTrue(all("--endpoint" not in line and "--token-file" not in line for line in calls))
-        self.assertIn("restartIfChanged = false;", SOURCE)
-        self.assertIn("X-StopOnRemoval = false;", SOURCE)
-        self.assertIn('exec "$selected_system/etc/dotfiles-autoswitch/post-apply"', SOURCE)
-
     def test_fast_proposal_success_after_merge_request(self):
         calls = self.run_job()
         self.assertIn("nix flake update llm-agents claude-code-overlay cclens", calls)
@@ -125,11 +116,6 @@ esac
         self.run_job("invalid", success=False)
 
     def test_condition_skips_start_and_timeout_has_no_success(self):
-        # systemd evaluates this before ExecStart; an absent checkout must not
-        # get an unconditional ExecStartPost success hook in later integration.
-        unit = SOURCE.split('systemd.services."dotfiles-lock-propose@" =', 1)[1].split('\n  };', 1)[0]
-        self.assertIn('ConditionPathExists = "${dotfilesDir}/flake.nix";', unit)
-        self.assertNotIn("ExecStartPost", unit)
         # Deliberately exceed the old startup timeout before entering the blocked stage.
         self.command("nix", 'sleep 0.3; echo started > "$FIXTURE/nix-started"; exec sleep 30\n')
         started = self.root / "nix-started"

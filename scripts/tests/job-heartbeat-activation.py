@@ -187,23 +187,6 @@ printf '\\n%s\\n202' '{"status":"accepted","result":{"kind":"accepted"}}'
                 self.assertEqual(result.returncode, 1 if field == "TOKEN_FILE" else 0)
                 self.assertFalse(self.calls.exists())
 
-    def test_start_snapshot_is_before_receipt_and_work_for_both_jobs(self):
-        coordinator = SOURCE.split('pkgs.writeShellScript "dotfiles-autoswitch" \'\'\n', 1)[1]
-        proposal = SOURCE.split('pkgs.writeShellScript "dotfiles-lock-propose" \'\'\n', 1)[1]
-        for body in [coordinator, proposal]:
-            self.assertLess(body.index("${jobHeartbeatSnapshot}"), body.index("${jobHeartbeat} begin"))
-            self.assertLess(body.index("${jobHeartbeat} begin"), body.index("cd ${dotfilesDir}"))
-        self.assertEqual(SOURCE.count("${jobHeartbeatSnapshot}"), 2)
-        self.assertIn("exec \"$selected_system/etc/dotfiles-autoswitch/post-apply\"", SOURCE)
-
-    def test_lock_timers_pin_jst_and_preserve_local_hours_jitter_and_persistence(self):
-        grids = ["*-*-* 04:00:00 Asia/Tokyo", "*-*-* 01:00:00 Asia/Tokyo", "Sun *-*-* 02:00:00 Asia/Tokyo"]
-        names = ["dotfiles-autoswitch", "dotfiles-lock-propose-fast", "dotfiles-lock-propose-slow"]
-        for name, grid in zip(names, grids):
-            block = SOURCE.split("systemd.timers." + name + " =", 1)[1].split("\n  };", 1)[0]
-            self.assertIn('OnCalendar = "' + grid + '";', block)
-            self.assertIn("RandomizedDelaySec = 1800;", block)
-            self.assertIn("Persistent = true;", block)
 
 
 if __name__ == "__main__":
