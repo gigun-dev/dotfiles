@@ -49,6 +49,7 @@ in
     extra-substituters = [
       "https://cache.numtide.com"
       "https://gigun.cachix.org"
+      "https://cclens.cachix.org"
     ];
     # numtide は署名鍵を 2 本使う。旧 cache.numtide.com-1 だけでは、現在 narinfo に付く
     # niks3.numtide.com-1 の署名が `not signed by any of the keys` で弾かれ、全部ローカルビルドになる。
@@ -57,6 +58,7 @@ in
       "cache.numtide.com-1:bf1jVIGj3GBKisevCptOlNXMoMnPkKlkh89RqPsNJWo="
       "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
       "gigun.cachix.org-1:jP3ksvzV3coFUQORcYZOR3repURIK+eYtpMiIMaN788="
+      "cclens.cachix.org-1:0QUNU6PuVyf+yXOvg3n1rd3FksBoB3s3/Jty50iKRNQ="
     ];
   };
 
