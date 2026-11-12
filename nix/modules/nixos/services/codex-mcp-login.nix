@@ -99,6 +99,7 @@ in
     # (rmcp-client perform_oauth_login.rs の callback_bind_host、0.163.0)。
     # nixos-fw より前に tailscaled の ts-input が tailscale0 を丸ごと ACCEPT するので、
     # filter 表の規則では tailnet から届いてしまう。raw 表の PREROUTING で loopback 以外を落とす。
+    # firewall の方式を変えるときも、loopback 以外からこの listener へ届かないことは維持する。
     # raw 表は NixOS の firewall が flush しないので、専用 chain を作り直して重複を避ける。
     # ip46tables を使わないのは、-C の判定が ip6tables 側の結果だけになり v4 に二重に挿すため。
     networking.firewall.extraCommands = ''

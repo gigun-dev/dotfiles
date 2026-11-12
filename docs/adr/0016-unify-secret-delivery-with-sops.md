@@ -7,8 +7,6 @@ agenixを導入した時点より暗号文、host、human consumerが増え、�
 
 暗号化秘密の保管と配送をSOPSへ統一し、Nix管理hostではsops-nixを使う。人用秘密のrecipientはprimaryとbackupのYubiKeyに限定し、host用秘密はhostごとの専用identityと両YubiKeyをrecipientにする。人用と無人用のcredentialは暗号文もprovider権限も分ける。Nix管理外のhostはSOPSの暗号文を正本にして明示的に配送し、agenixを残さない。
 
-移行は影響の小さい無人secretで配送、再起動、予備鍵復旧、旧経路へのrollbackを受入してからconsumerごとに進める。全consumer移行後に重要credentialをrotateし、旧credentialの拒否を確認してagenixを撤去する。
-
 Accepting: 移行中は二方式が一時的に共存し、SOPSのrecipient metadataとstructured key名はpublicになる。SOPSは復号後の同一UIDや子processからの読取を隔離しない。
 
 Rejected: agenixとSOPSの恒久併用 — 同じ秘密運用を二系統にしながら、追加のtrust boundaryを作らない。

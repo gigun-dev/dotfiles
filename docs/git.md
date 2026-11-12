@@ -20,7 +20,7 @@ gh run watch                 # 走っている run を待つ
 - main へ直接 push する。手元に pre-push は無く、CI が red なら直すまでが作業 ([ADR 0011](adr/0011-push-without-a-local-gate-and-apply-only-green-commits.md))。
 - mini-vm が `flake.lock` の更新を PR で出し、required CI を通して自動 merge する ([ADR 0003](adr/0003-update-mini-vm-through-lock-proposal-prs.md))。Pro は手動で `git pull` する。
 - mini-vm の `dotfiles-autoswitch` は main の HEAD の CI が green のときだけ適用する。red なら次の push で直す。詳細は [mini-vm.md](mini-vm.md)。
-- mini の checkout 同期候補は `python3 scripts/mini-checkout-sync.py`。サービス登録は行っていない。checkout を参照する既存 symlink があるため、更新は次回の shell 起動などに影響し得る。自動化前に参照先と影響を確認する。
+- mini の checkout 同期候補は `python3 scripts/mini-checkout-sync.py`。checkout の同期は Nix / Ansible の実機適用と分け、作業コピーの遅延を解消しつつ、機械への適用は別に判断する。サービス登録は行っていない。checkout を参照する既存 symlink があるため、更新は次回の shell 起動などに影響し得る。自動化前に参照先と影響を確認する。
 - 手元で lock を更新するなら `nix run .#update` (pull、flake update、switch、lock の commit まで。push は手で)。AI ツールだけなら `nix run .#update-ai-tools`。
 - 溜めない。mini-vm が origin/main へ merge し続けるので、手元に溜めると ahead/behind に分岐する。
 
