@@ -122,7 +122,7 @@ subagent の設定も揺れている。445188c1（2026-09-15）で subagent を 
 | worktree の統合と掃除 | `git wt -d`（trash へ）、T3 のマージ時自動掃除 | `plugins/worktree` の integrate（merge→commit→finish、commit の成立を機械で確認、cc:8a35641）と sweep（3 分類、squash 判定） | gigun の方が厳しい。ただし `worktree@gigun` は現在 `~/.claude/settings.json` の enabledPlugins にも plugin cache にも無い（2026-11-08 確認）。CLAUDE.md も integrate を名指ししていない。今は実際には動いていない可能性が高い |
 | skill 配布 | agent-skills-nix + registry pin。store に固定し、switch で更新 | 別リポジトリの plugin marketplace（`gigun-dev/claude-code`、`.claude-plugin` / `.codex-plugin` / `.antigravity-plugin` を生成）。`enabledPlugins` に約 45 個 | gigun は plugin として bin・tests・version を持ち、他マシンや Codex にも配れる。nix の外にあるので固定と再現は marketplace 任せ |
 | レビュー | `review-loop` + PR ゲート hook | codex plugin と coderabbit plugin はあるが、ループの規約やゲートはない | 持ち込む価値がある |
-| hooks | PR ゲートのみ | 通知（bark・iTerm2 cc-status・afplay）、langfuse OTLP | gigun は観測と通知が厚い |
+| hooks | PR ゲートのみ | 通知（bark・afplay）、langfuse OTLP | gigun は観測と通知が厚い |
 | settings 管理 | Nix で merge し、schema で検証 | repo に置いたファイルと実ファイルが別で、手で同期 | gigun ではずれが起きている（§3） |
 | ADR | なし（コミット本文が理由の置き場） | `docs/adr/`（0003, 0010, 0011, 0013, 0014）。エージェント運用の ADR はまだない | 寄せる判断自体を ADR にする価値がある |
 
