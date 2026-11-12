@@ -1841,12 +1841,15 @@ in
     after = [ "network-online.target" ];
     unitConfig.OnFailure = [ "gigun-marketplace-refresh-notify-failure.service" ];
 
-    # codex plugin add は npm source (rea-agents など) の取得に npm と node を使う。
+    # codex plugin add は npm source (rea-agents など) を `npm pack` で取る。npm は engines.node を
+    # 満たす最新版を選ぶので、node は対話環境 (homeConfigurations mini-vm) と同じ pinned 版にする。
+    # 2026-11-12、pkgs.nodejs (24.21.0) のままでは rea-agents 6.9.0 の `^24.22.1` を満たさず、
+    # 6.7.0 (plugin manifest を持たない) が入って対話で入れた 6.9.0 を置き換えた。
     path = [
       pkgs.git
       pkgs.jq
       pkgs.coreutils
-      pkgs.nodejs
+      (import ../../runtime-security/pinned-linux.nix).node
       llmAgents.codex
     ];
     environment = {
