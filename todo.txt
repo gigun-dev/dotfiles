@@ -82,3 +82,4 @@
 2026-11-10 導入済みCapsomnia公式pkgの更新と設定の正本を決め、現行host-local導入を宣言管理へ移す。helper・sudoers・LaunchAgentの所有権と更新時のsleep復旧を確認する +darwin +security @user by:codex id:0185
 2026-11-10 +cleanup ~/Pictures(2016 3.1G・スクリーンショット 2.3G)と ~/就活 の CleanShot 録画 2 本(6.3G)を見て残すものを決める see:docs/storage-cleanup.md by:me id:0188
 2026-11-10 +cleanup エージェントが用意済みの手順を使わず自作ハーネスで大きい入力を複製する事例が ebook2pdf 以外でも起きたら、agents/AGENTS.md の How to Work に「既存スクリプトを使い足りなければ拡張する」「大きい入力は参照し中間出力は記録後に消す」を足す。2026-11-10 は 1 件のみのためプロジェクトで指摘するに留めた see:docs/storage-cleanup.md by:claude id:0189
+2026-11-12 mini checkoutの不要なclaude/settings.json変更は本人承認後に破棄済み。live fetchで旧mainは現行mainと326 ahead/562 behind（共通祖先3a8a7fa）、旧側固有の非merge patchは0件と確認した。安全なfast-forward同期は設計どおり停止。旧HEADを退避参照へ保存して現行origin/mainへ付け替え、再監査するには本人承認待ち +mini @user see:docs/adr/0014-shrink-mini-macos-shell-before-removing-nix.md by:me id:0192

@@ -207,11 +207,15 @@ system 側の両 watchdog plist は存在しなかった。終了コード 0 だ
 
 ## 2026-11-12 の再監査
 
-mini-vm の controller checkout は `main` の `b28484d` で、dirty なし、`origin/main` と
-ahead / behind 0 / 0。既存 SSH 経路から読んだ mini は Macmini8,1、Intel x86_64、macOS 15.8.3
-(24H241)。mini 側 checkout は `main` の `3a258846` で origin/main より 129 commit behind、
-`claude/settings.json` に未コミット変更がある。このため自動同期の前提を満たさず、pull や checkout
-更新は行っていない。
+mini-vm の controller checkout は `main` で、dirty なし、`origin/main` と同期していた。
+既存 SSH 経路から読んだ mini は Macmini8,1、Intel x86_64、macOS 15.8.3 (24H241)。mini 側
+checkout は `main` の `3a258846` で、`claude/settings.json` にClaude Codeが書いた未コミット変更が
+あった。この変更は本人承認後に破棄した。
+
+古い追跡参照では129 commit behindに見えたが、live fetch後の実態は326 ahead / 562 behind、
+共通祖先 `3a8a7fa` だった。現在のmainはpublic化時の履歴再構成後にあり、fast-forwardではない。
+`scripts/mini-checkout-sync.py` は設計どおり停止した。mini側の旧履歴に固有の未退避変更がないことを
+確認してから、checkoutを現行mainへ付け替える必要がある。
 
 Homebrew formula は `cloudflared`, `fd`, `fzf`, `go`, `lima`, `mo`, `pcre2`, `ripgrep`,
 `tailscale`, `xcodegen`, `zoxide`。cask は 2026-10-26 の一覧と同じだった。defaults の2項目と
