@@ -27,7 +27,7 @@ Guardとworktreeは誤編集・競合を防ぐ運用制御である。同一UID�
 
 network reachabilityとSSH user authorizationは別policyとして扱う。タグ間でpacketが届いても、対象userのSSHを許可したことにはならない。宣言は[Tailscale policy template](../tofu/tailscale/policy.hujson.tftpl)、current stateはproviderで確認し、一時grantは目的終了後に削除する。
 
-SSH login、Git HTTPS credential、Git SSH signing、secret decryptionは別用途である。一つの成功を別用途へ一般化せず、人用と無人用のcredentialも分離する。秘密配送は[ADR 0016](adr/0016-unify-secret-delivery-with-sops.md)に従いSOPSへ移行する。
+SSH login、Git HTTPS credential、Git SSH signing、secret decryptionは別用途である。一つの成功を別用途へ一般化せず、人用と無人用のcredentialも分離する。秘密配送は[ADR 0018](adr/0018-unify-secret-delivery-with-sops-and-allow-device-recipients-for-development.md)に従いSOPSへ移行する。
 
 ## container・Nix・共有file
 

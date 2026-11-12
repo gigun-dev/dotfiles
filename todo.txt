@@ -66,7 +66,7 @@
 (A) 2026-11-09 計画再起動のあと、mini / mini-vm の Tailscale が自動で Running に戻り、SSH・主要 service・Serve が復帰することを受入する +security +mini-vm +tailscale @user see:docs/tailnet.md by:codex id:0171
 (A) 2026-11-09 harness-boundary-probe を同一 commit で direct Codex、direct Claude、T3→Claude、mini-vm native、WSL と承認前後で比較し、profile 生成元・MCP・Keychain・TCC の未確定を分ける +security +claude +codex +t3code see:docs/agent-harness-boundaries.md by:codex id:0169
 (A) 2026-11-09 GitHub の branch 保護の残り 5 項目 (enforce_admins、PR review、署名、ruleset、allowed_actions) を個別に合意して provider へ適用し、通常 PR・bot PR・緊急復旧を受入する +security +ci @user see:docs/publication-audit-2026-11-01.md by:codex dep:0167 id:0173
-(A) 2026-11-09 SOPS への本番 secret 移行、host identity 喪失の復旧、agenix の撤去を進める +security @user see:docs/adr/0016-unify-secret-delivery-with-sops.md by:codex id:0174
+(A) 2026-11-09 SOPS への本番 secret 移行、host identity 喪失の復旧、agenix の撤去を進める +security @user see:docs/adr/0018-unify-secret-delivery-with-sops-and-allow-device-recipients-for-development.md by:codex id:0174
 (A) 2026-11-09 Proの現行gh OAuth tokenから再付与された鍵管理scopeを除き、admin/pushを持たない対話credentialへ更新する。Secure Enclave pushを維持し、旧file SSH keyはGitHub登録を削除して単独認証拒否を確認する。key本体はSSH・agenix・tofu用途をタスク4で移行するまで削除しない +security @user see:docs/credential-inventory.md by:codex id:0176 dep:0174
 (C) 2026-11-09 direct Codex と mini-vm / WSL で T3→Codex と同じ probe 結果と resolved policy を比較してから、standalone 用の sandbox / approval を宣言するか決める +codex +security see:docs/agent-harness-boundaries.md by:claude dep:0169 id:0178
 (C) 2026-11-10 full-access の Pro T3 client から mini-vm へ peer link を張り、外の Claude Code / Codex から delegate_task の target.environmentId で mini-vm に投げられることを確かめる +t3 by:claude id:0180
@@ -80,4 +80,4 @@
 2026-11-13 +test flake の checks の棚卸しの残り。.nix から shell 本文を文字列で切り出す 6 テストを、評価済みスクリプトを渡す形 (developer-checks.nix の SWITCH_BODY と同じ) へ移す。activation-inputs・claude-user-settings・actions-flake-proposal の現在値への結びつきを外す。sops-host-delivery と sops-migration-config の扱いを決める by:me id:0199
 2026-11-13 +mini-vm autoswitch が CI green を待つ関門を残すか決め直す。Nix を変えた commit の build が取り消し・失敗した直後に docs だけの commit が来ると、build skipped のまま green になる。build できない変更は autoswitch 自身の build が止めるので、通り得るのは checks だけが落ちる変更 see:docs/adr/0011-push-without-a-local-gate-and-apply-only-green-commits.md by:me id:0200
 2026-11-13 +claude mini-vm の外部 plugin を Nix のビルドで入れ、gigun-marketplace-refresh timer と claude-code checkout への依存を無くすか決める see:docs/research/agent-skills-nix.md by:claude id:0201
-2026-11-13 +security Apple Ads へ公開鍵を登録し、発行される client ID / team ID / key ID / ad account ID を接続して、Search Term Popularity API の実認証と実 dev server の起動を受入する see:docs/adr/0017-allow-device-recipients-for-development-secrets.md by:me id:0202
+2026-11-13 +security Apple Ads へ公開鍵を登録し、発行される client ID / team ID / key ID / ad account ID を接続して、Search Term Popularity API の実認証と実 dev server の起動を受入する see:docs/adr/0018-unify-secret-delivery-with-sops-and-allow-device-recipients-for-development.md by:me id:0202

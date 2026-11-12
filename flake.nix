@@ -54,7 +54,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # ADR 0016 に従って暗号化fileの配送をSOPSへ統一する。agenixはconsumerを
+    # ADR 0018 に従って暗号化fileの配送をSOPSへ統一する。agenixはconsumerを
     # 一件ずつ移行して旧credentialを失効するまでの一時的なrollback経路だけに残す。
     sops-nix = {
       url = "github:Mic92/sops-nix";

@@ -1,0 +1,19 @@
+# 秘密配送をSOPSへ統一し、開発用秘密にだけMac専用の復号経路を認める
+
+Date: 2026-11-13
+Implementation: pending
+
+agenixを導入した時点より暗号文、host、human consumerが増え、人用秘密ではstructured fileの差分とYubiKeyによる復旧も必要になった。人用だけSOPS、無人用だけagenixという恒久併用は、recipient、rekey、rollback、監査を二系統にする一方、同一UIDからの利用を隔離しない。
+
+暗号化秘密の保管と配送をSOPSへ統一し、Nix管理hostではsops-nixを使う。人用秘密のrecipientはprimaryとbackupのYubiKeyに限定し、host用秘密はhostごとの専用identityと両YubiKeyをrecipientにする。人用と無人用のcredentialは暗号文もprovider権限も分ける。Nix管理外のhostはSOPSの暗号文を正本にして明示的に配送し、agenixを残さない。
+
+毎回のYubiKey操作は低権限のproject開発を中断するため、権限と漏えい時の影響を確認したproject開発用秘密に限り、普段使いにKeychainまたはSecure Enclaveで保護したMac専用の追加認証なしの復号経路を認める。project単位のSOPS暗号文にはprimary / backup YubiKeyによる独立した復旧経路を残す。
+
+Accepting: 移行中は二方式が一時的に共存し、SOPSのrecipient metadataとstructured key名はpublicになる。SOPSは復号後の同一UIDや子processからの読取を隔離しない。
+Accepting: 追加認証なしの復号は利用可能なMac上のprocessによる不正利用を防がず、復号した秘密は起動したprocessと子processから読める。Secure Enclaveのidentityは端末に結びつくため、それだけを復旧経路にしない。
+Rejected: agenixとSOPSの恒久併用 — 同じ秘密運用を二系統にしながら、追加のtrust boundaryを作らない。
+Rejected: agenixを継続する — per-secretのrecipient集合は持てるが、structured secretと人用／無人用の運用をSOPSへ寄せる現方針では、agenixを残すとrekey、rollback、監査が二重になる。
+Rejected: project開発用秘密でも毎回YubiKey操作を必須にする — 今回選んだ低権限の開発用途では操作負担が大きい。
+Rejected: Mac専用の復号経路だけに依存する — 端末の紛失・故障から独立して復旧できない。
+
+Replaces: 0016,0017
