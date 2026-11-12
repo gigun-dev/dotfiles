@@ -72,9 +72,15 @@ ASC runner の保存PATHは system 5要素、home 1要素、Nix user profile 1�
 除く候補では `python3`、`xcodebuild`、`git`、`asc` が残り、`node` と `npm` だけが消える。
 原因はprivate build workflowがhostのNodeを暗黙利用し、check workflowにある
 `actions/setup-node`を欠いていたことだった。2026-11-12に公開templateとprivate control repoの
-両方へ、同じ完全SHAのactionとNode 24.20.0を反映した。固定入力の実buildが成功するまでは
-`.path`を変更しない。成功後もrunner停止中にNix profile要素だけを除去し、他の6要素と
-rollback用の旧値を保持してから再開・再受入する。
+両方へ、同じ完全SHAのactionと、現行`engines`が許す24系の固定版を反映した。現在の固定版は
+24.22.3で、Node 26 LTS対応は依存互換性と`engines`を同時に更新する別作業とする。
+`lts/*`の自動追従は同じworkflow SHAの結果を変えるため使わない。
+
+PATH切替前後の固定source実buildは、どちらもNode setup、`npm ci`、Xcode archiveまで成功し、
+同じ署名export境界で停止した。失敗原因は現GUI runner contextにDistribution identityと有効な
+Xcode accountが無いことで、Node由来ではない。runner停止中にNix profile要素だけを原子的に
+除去し、他の6要素を保持して再開した。runnerはonline/idleへ戻り、値非表示監査でASC runnerの
+Nix参照が消えた。これはarchive工程とPATH移行の受入であり、署名・publish・OTA配布の成功ではない。
 
 `selection.mode: protected_service` は destination 文字列の allowlist だけを検査する。
 これは実際のファイル保護を証明しない。採用前に mini 上で実体と全親の symlink chain をたどり、
