@@ -35,13 +35,16 @@ codex plugin marketplace add gigun-dev/claude-code --ref main
 # そのhostで必要な場合だけ: codex plugin add <plugin>@gigun
 ```
 
-Home Manager は登録を再現するが、取得済み snapshot 自体は更新しない。更新時は
-`codex plugin marketplace upgrade gigun` を先に実行し、必要な plugin を
-`codex plugin add <plugin>@gigun` で再同期する。`codex plugin marketplace list --json` の
-`marketplaceSource.sourceType` が `git`、`codex plugin list --json` で対象 plugin が
-installed / enabled であることを値を限定して確認する。Home Manager activation から毎回
+Home Manager は登録を再現するが、取得済み snapshot 自体は更新しない。Home Manager activation から毎回
 ネットワーク取得は行わない。オフラインの通常 switch と、外部 marketplace の更新・失敗を
-分離するためである。
+分離するためである。更新は mini-vm の `gigun-marketplace-refresh` timer (毎日 05:00) が
+switch とは別に行う。Claude が directory source として読む `~/ghq/github.com/gigun-dev/claude-code`
+を ff-only で main に進め (dirty か main 以外なら止めて Bark 通知)、続けて
+`codex plugin marketplace upgrade gigun` と、入っている gigun plugin の `codex plugin add <plugin>@gigun`
+を実行する。手で揃えるときは `sudo systemctl start gigun-marketplace-refresh` を使い、
+結果は `journalctl -u gigun-marketplace-refresh` で見る。`codex plugin marketplace list --json` の
+`marketplaceSource.sourceType` が `git`、`codex plugin list --json` で対象 plugin が
+installed / enabled であることを値を限定して確認する。
 
 ## mini-vm の自動更新 (2026-09-06 実装)
 

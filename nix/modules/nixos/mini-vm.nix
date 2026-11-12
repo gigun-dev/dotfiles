@@ -1826,6 +1826,102 @@ in
     };
   };
 
+  # gigun marketplace (gigun-dev/claude-code) を mini-vm の Claude と Codex に届ける。
+  # Claude はこの host の作業コピーを directory source として読み (dotfiles.nix の
+  # linuxClaudeSettings)、Codex は Git source の snapshot を読む。どちらも
+  # Home Manager の activation では取得しない (オフラインの switch と外部取得の失敗を
+  # 分けるため、docs/mini-vm.md)。そのため誰も更新せず、push 済みの plugin が
+  # mini-vm に届かなかった (2026-11-12、REA が出てこない形で発覚)。
+  # Why not autoswitch に混ぜる: claude-code には CI ゲートが無く、失敗ドメインも別。
+  # Why not Claude を Git source + autoUpdate にする: 更新は対話セッション中にしか走らず、
+  # Codex 側は別に手当てが要る。1 つの timer で両方を更新して、結果を journal に残す。
+  systemd.services.gigun-marketplace-refresh = {
+    description = "gigun marketplace (claude-code) を Claude と Codex 向けに更新する";
+    wants = [ "network-online.target" ];
+    after = [ "network-online.target" ];
+    unitConfig.OnFailure = [ "gigun-marketplace-refresh-notify-failure.service" ];
+
+    # codex plugin add は npm source (rea-agents など) の取得に npm と node を使う。
+    path = [
+      pkgs.git
+      pkgs.jq
+      pkgs.coreutils
+      pkgs.nodejs
+      llmAgents.codex
+    ];
+    environment = {
+      HOME = "/home/${username}";
+      SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
+      GIT_TERMINAL_PROMPT = "0";
+    };
+
+    # dotfiles-autoswitch と同じく、作業コピーが汚れていたら踏み潰さずに止めて通知する。
+    # 取得は public repo への HTTPS に固定し、host の対話 credential に依存させない。
+    script = ''
+      dir=/home/${username}/ghq/github.com/gigun-dev/claude-code
+      if [ -d "$dir/.git" ]; then
+        if [ -n "$(git -C "$dir" status --porcelain)" ]; then
+          echo "claude-code の作業コピーが dirty。更新を中止する" >&2
+          git -C "$dir" status --short >&2
+          exit 1
+        fi
+        branch=$(git -C "$dir" symbolic-ref --short -q HEAD || true)
+        if [ "$branch" != main ]; then
+          echo "claude-code の作業コピーが main ではない ($branch)。更新を中止する" >&2
+          exit 1
+        fi
+        git -C "$dir" -c credential.helper= fetch --quiet --no-tags \
+          https://github.com/gigun-dev/claude-code.git main
+        git -C "$dir" merge --ff-only --quiet FETCH_HEAD
+        echo "claude-code: $(git -C "$dir" rev-parse --short HEAD)"
+      else
+        echo "claude-code の作業コピーが無い ($dir)。Claude 側の更新を飛ばす" >&2
+      fi
+
+      if [ -f "$HOME/.codex/config.toml" ]; then
+        codex plugin marketplace upgrade gigun
+        # upgrade は snapshot だけを更新する。入っている plugin は add し直して揃える。
+        codex plugin list --json \
+          | jq -r '.installed[] | select(.marketplaceName == "gigun") | .name' \
+          | while read -r plugin; do
+              codex plugin add "$plugin@gigun"
+            done
+      else
+        echo "$HOME/.codex/config.toml が無い。Codex 側の更新を飛ばす" >&2
+      fi
+    '';
+
+    serviceConfig = {
+      Type = "oneshot";
+      # 作業コピーと ~/.codex の所有者で走らせる (safe.directory 保護を踏まない)。
+      User = username;
+      TimeoutStartSec = "30min";
+    };
+  };
+
+  # autoswitch (04:00 + 最大 30 分) とは独立。新しい plugin 宣言を含む switch の後に
+  # 走るよう、それより後ろに置く。
+  systemd.timers.gigun-marketplace-refresh = {
+    description = "gigun-marketplace-refresh を毎日回す";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "*-*-* 05:00:00 Asia/Tokyo";
+      RandomizedDelaySec = 600;
+      Persistent = true;
+    };
+  };
+
+  systemd.services.gigun-marketplace-refresh-notify-failure = {
+    description = "gigun-marketplace-refresh の失敗を Bark へ通知する";
+
+    serviceConfig = {
+      Type = "oneshot";
+      User = "root";
+      EnvironmentFile = "-${barkEnvironmentFile}";
+      ExecStart = "${barkNotifyUnitFailure} gigun-marketplace-refresh.service 'mini-vm gigun marketplace 更新 失敗'";
+    };
+  };
+
   # Rotation時だけoperatorが起動する受入用unit。wantedBy/timerを持たず、通常運用では
   # 発火しない。通知用unitと異なりEnvironmentFileを必須にし、欠落や長さ不正を成功扱いしない。
   systemd.services.bark-notify-smoke = {
