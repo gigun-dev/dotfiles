@@ -149,7 +149,7 @@ class LangfuseProposalTest(unittest.TestCase):
         self.assertEqual(process.returncode, 0, process.stderr)
         self.assertIn("より新しく", process.stdout)
         self.assertEqual(records, {"compose": [], "nix": [], "git": [], "gh": []})
-        self.assertIn("langfuse:4.72.0@sha256:", compose)
+        self.assertEqual(compose, COMPOSE.read_text())
 
     def test_malformed_digest_fails_before_staging(self):
         process, records, _ = self.run_proposal("4.99.0", "digest")
