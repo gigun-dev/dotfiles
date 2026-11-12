@@ -31,7 +31,9 @@ let
     # refresh は network に依存するため activation では行わず、明示的な
     # `codex plugin marketplace upgrade gigun` に分離する。
     marketplaces.gigun = {
-      source = "gigun-dev/claude-code";
+      # codex plugin marketplace add は owner/repo を HTTPS URL に直して保存するが、
+      # config.toml に短縮形を直接書くと upgrade が git ls-remote にそのまま渡して失敗する。
+      source = "https://github.com/gigun-dev/claude-code.git";
       source_type = "git";
       ref = "main";
     };
