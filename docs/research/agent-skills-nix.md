@@ -211,3 +211,14 @@ MCP について agent-skills-nix は何もしない。どの選択肢をとっ�
 3. `~/.claude/skills` にある `ios-device-build` と `synced` を宣言に取り込むか、撤去するか。
 4. Codex 向けに `agents` target（`~/.agents/skills`）を有効にするか。有効にすると marketplace 経由の Codex plugin と同じ skill が重なる。
 5. agy に配るのは marketplace（`~/.gemini/config/plugins.json`）か、`antigravity` target か。
+
+---
+
+## 8. MCP つきの外部 plugin を Nix で置けるか（2026-11-12 検証）
+
+agent-skills-nix は MCP を扱わないので、REA（npm 配布、MCP と skill）を例に、Nix が置いた plugin を Claude Code と Codex が実行時取得なしで読めるかを一時的な設定ディレクトリで確かめた。Claude Code 2.1.322、Codex 0.167.1。
+
+- Nix は `rea-agents` の tarball を、npm registry が返す `integrity` をそのままハッシュにして `fetchurl` で取得できる。展開した store path から launcher を起動し、MCP の tools/list が返った。
+- Claude Code は `extraKnownMarketplaces` の directory source と `enabledPlugins` だけで、読み取り専用のディレクトリから plugin を直接読む。`plugin install` は要らない。
+- Codex は local source の marketplace なら、npm と node が PATH に無くても `plugin add` が通る。`config.toml` の 2 項目と `plugins/cache/<marketplace>/<name>/<version>/` への実体コピーがあれば `plugin add` も要らない。シンボリックリンクでは認識しない。
+- 版の固定そのものは claude-code の marketplace 側で行った（claude-code ADR 0004）。ここで残る論点は、Mac で自作 plugin を編集しながら使う流れとの両立と、Nix の無い host との二系統化である。
