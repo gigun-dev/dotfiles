@@ -79,6 +79,23 @@ let
     sh ${../../../agents/codex-agents-md.sh} ${../../../agents} > $out
   '';
 
+  # agy (Antigravity CLI) に gigun marketplace の plugin を読ませる。Claude で有効にしている
+  # gigun plugin を同じ正本から導き、host 間・harness 間で有効な plugin がずれないようにする。
+  # agy-mcp は agy 自身を呼ぶ MCP、telemetry は Claude / Codex のセッションログを読むものなので
+  # agy には渡さない。macOS 専用の MCP (tableplus-mcp・xcode-mcp) は Claude 側で無効か未登録
+  # なので、Linux 向けに別の除外は要らない。claude-code の plugins/ に無い名前 (rea など外部
+  # source の plugin) は agy が黙って飛ばす。
+  # Why not agy plugin install / import: plugin のコピーを作るので claude-code の更新が届かない。
+  # path は絶対パスで書く。agy 1.5.5 は文書と違って `~/` を展開せず、その entry を
+  # "must be an absolute path" で飛ばす (2026-11-12 実測)。
+  agyPlugins = lib.subtractLists [ "agy-mcp" "telemetry" ] (
+    map (lib.removeSuffix "@gigun") (
+      builtins.filter (name: lib.hasSuffix "@gigun" name && claudeSettings.enabledPlugins.${name}) (
+        builtins.attrNames claudeSettings.enabledPlugins
+      )
+    )
+  );
+
   sfsymbolsWrapper = pkgs.writeShellScript "sfsymbols" ''
     exec "/Applications/SF Symbols.app/Contents/Executables/sfsymbols" "$@"
   '';
@@ -107,6 +124,16 @@ in
 
   # login 専用の PATH 追加も repository を正本にする（既存 .zprofile は HM が退避）。
   home.file.".zprofile".text = builtins.readFile ../../../zsh/.zprofile;
+
+  # agy は plugins.json を読むだけで書き換えない (plugin の install 状態は config.json 側)。
+  home.file.".gemini/config/plugins.json".text = builtins.toJSON {
+    entries = [
+      {
+        path = "${config.home.homeDirectory}/ghq/github.com/gigun-dev/claude-code/plugins";
+        include_only = agyPlugins;
+      }
+    ];
+  };
 
   # launchd-ui: unsigned app — download from GitHub Releases
   # https://github.com/azu/launchd-ui
