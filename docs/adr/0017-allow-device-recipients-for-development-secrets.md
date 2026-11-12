@@ -1,0 +1,12 @@
+# 開発用秘密にMac専用の復号経路を認める
+
+Date: 2026-11-12
+Implementation: pending
+
+毎回のYubiKey操作は低権限のproject開発を中断するため、ADR 0016の人用recipientをYubiKeyだけに限定する規則を、権限と漏えい時の影響を確認したproject開発用秘密について変更する。project単位のSOPS暗号文にはprimary / backup YubiKeyによる独立した復旧経路を残し、普段使いにはKeychainまたはSecure Enclaveで保護したMac専用の追加認証なしの復号経路を認める。
+
+Accepting: 追加認証なしの復号は利用可能なMac上のprocessによる不正利用を防がず、復号した秘密は起動したprocessと子processから読める。Secure Enclaveのidentityは端末に結びつくため、それだけを復旧経路にしない。ADR 0016のSOPS統一、人用と無人用の分離、他の人用秘密のrecipient制限は維持する。
+
+Rejected: project開発用秘密でも毎回YubiKey操作を必須にする — 今回選んだ低権限の開発用途では操作負担が大きい。
+
+Rejected: Mac専用の復号経路だけに依存する — 端末の紛失・故障から独立して復旧できない。

@@ -45,6 +45,7 @@
 | 日付 | 決定 | 理由 |
 |---|---|---|
 | 2026-10-17 | commit 署名は今のまま (Secure Enclave の鍵、Touch ID なし、`nix/modules/darwin/secure-enclave-key.nix`)。YubiKey は署名に使わない | 鍵は持ち出せないので、他のマシンからのなりすましは防げる。署名のたびにタッチを求めるとエージェントの commit が止まる。ryoppippi も同じ選択 (理由はエージェントが止まらないこと) |
+| 2026-11-12 | 権限と漏えい時の影響を確認したproject開発用秘密は、SOPS暗号文を追加認証なしのMac専用Secure Enclave recipientとprimary / backup YubiKeyの両方へ暗号化する。日常起動は`age-plugin-se`と`sops-env`、独立復旧はYubiKeyを使う ([ADR 0017](adr/0017-allow-device-recipients-for-development-secrets.md)) | 毎回のYubiKey操作を避けつつ、Mac故障時の復旧を端末専用鍵だけに依存させない。追加認証なし経路は同じユーザーで動くprocessからの利用を防がないため、高権限・高額課金・顧客データ用秘密へ自動拡張しない |
 | 2026-11-03 | 既存アカウントを使うため、Pro に 1Password アプリと CLI を導入する | 保管先の移行や CLI 連携、SSH agent の利用は別途判断する |
 | 2026-10-17 | Apple ID と Google に YubiKey を 2 本とも登録する。Apple ID はセキュリティキー、Google は高度な保護機能プログラムも有効にする。Nano は Mac に挿したまま、NFC 版は自宅で保管する。証券のパスキーはキーに入れない | 起点のアカウントで、数字コードや SMS などフィッシングできる経路を閉じる。iPhone で要るときは Nano (USB-C) か自宅の NFC 版を使う |
 | 2026-10-22 | Google は普段 Apple の「パスワード」の passkey (Touch ID) でログインし、YubiKey 2 本は passkey として予備と新しい環境用に登録する。認証システム (TOTP) と 2 段階認証の SMS は消した。パスワード・再設定用の電話番号とメールは残す。バックアップコード・自撮り動画・復旧用の連絡先は足さない | ログインの強さは残っている一番弱い経路で決まる。TOTP と SMS は偽サイトでその場で中継でき、SMS は SIM スワップも受ける。Apple から独立した鍵があるので弱い経路を消しても締め出されない。復旧の経路は増やすほど入口が増える |
@@ -72,7 +73,7 @@
 
 3. **push の権限を誰に持たせるか**。 **2026-10-22**: Mac の push を Enclave の SSH 鍵に寄せた (§3)。残りは gh のトークンから push の権限を外すこと、`id_ed25519` を GitHub から外すこと、mini-vm のトークンを必要なリポと権限だけの fine-grained にすること (無人機なので期限の更新を自動化できるかが論点)。候補: push は SSH と Secure Enclave の鍵 (ryoppippi の `type = "both"`、持ち出せない) で行い、gh のトークンは fine-grained にして Contents の書き込みを外す (盗まれても push できない)。未確認: Contents 書き込み無しで gh の普段の操作が回るか、期限管理の手間。あわせて「Github CLI」の鍵の削除、`git_protocol`、36 リポの remote を決める。
 4. **`~/.ssh/id_ed25519` を役割ごとに分ける**。 **試行 (2026-10-22)**: Nano の PIV に age の鍵を作った (PIN は once、タッチは always。ファームウェア 5.7 は管理鍵の初期値が AES で age-plugin-yubikey が未対応 (#92) のため、`ykman piv access change-management-key -a TDES --protect` で PIN 保護の TDES に置き換えてから生成)。ダミーの .env を sops で暗号化し、`sops exec-env` で復号できた。初回は PIN とタッチ、2 回目以降はタッチだけ。dummy復号試験は本番移行や予備鍵復旧の証拠にしない。 **決定 (2026-11-09、[ADR 0016](adr/0016-unify-secret-delivery-with-sops.md))**: agenixとの恒久hybridは採用せず、SOPSへ全面移行する。人用秘密はprimary / backup YubiKeyだけ、host用秘密はhost専用SOPS identity + 両YubiKeyとし、人用暗号文からhost identityを外す。Nix管理hostではsops-nix、Nix管理外hostでは同じSOPS暗号文から明示的に配送する。通知は暗号文だけでなくprovider credentialも人用 / 無人用へ分ける。影響の小さい無人secretをpilotにし、owner / mode、regular-file配送、service継続、reboot、予備鍵復旧、agenix pathへのrollbackを受入してから展開する。全agenix参照をなくし、重要credentialをrotateして旧credential拒否を確認した後にagenixを撤去する。SOPSでもbinaryは構造差分が見えず、structured fileはkey名とrecipient metadataが見えるため、公開境界はtodo 0177で別に扱う。Macのswitch時にYubiKey待ちを持ち込まず、人用秘密は利用時だけ復号する。
-5. **開発プロジェクトの API キー** (長期、todo 0099。当面は平文のまま)。候補 (中間案): .env を SOPS (v3.10 以降で age プラグイン対応) + age-plugin-yubikey で暗号化して平文を消し、秘密を使う開発サーバーはエージェントの外の端末で `sops-env -- <command> [args...]` から起動する。`sops-env`はcwdからGit rootまでの`*.sops.env`だけを探し、複数候補はfzfまたは明示的な`--file`を要求し、`sops exec-env --pristine`へ安全にargvを渡す。dotenvx は鍵の置き場が `.env.keys` か有料の Armor で、YubiKey に非対応。`dotenvx run --redact` は出力の文字列を伏せるだけでエージェントからの隔離にはならない ([docs](https://dotenvx.com/docs/cli/run-redact/))。
+5. **開発プロジェクトの API キー** (todo 0099 / 0202)。[ADR 0017](adr/0017-allow-device-recipients-for-development-secrets.md)に従い、影響を確認したprojectではSOPS暗号文を追加認証なしのSecure Enclave recipientとprimary / backup YubiKeyへ暗号化する。秘密を使うprocessは`sops-env -- <command> [args...]`から起動する。`sops-env`はcwdからGit rootまでの`*.sops.env`だけを探し、複数候補はfzfまたは明示的な`--file`を要求し、`sops exec-env --pristine`へ安全にargvを渡す。2026-11-12にProで`age-plugin-se 0.2.1`の`access-control=none` identity、`age1tag` recipient、非秘密dotenvを使い、SOPS暗号化から`sops-env`の子process注入まで追加認証なしで確認した。さらにApple Ads API用P-256秘密鍵を平文ファイルへ書かず、Secure Enclave / primary / backup YubiKeyの3 recipientを持つproject内SOPS暗号文へ直接生成した。Secure Enclave経路と両YubiKey単独経路で復号した秘密鍵から公開鍵を再導出し、保存した公開鍵との一致を確認した。Intel miniはmacOS 15.8.3・T2搭載で上流要件を満たすが、Nixを凍結してAnsible/Homebrewへ移行中なので導入経路は未採用。Linuxのmini-vmはSecure Enclave identityを生成・復号できないが、`age1tag` recipientへの暗号化は可能で、無人復号には別のhost identityを使う。実API認証とdev server起動は未受入。dotenvx は鍵の置き場が `.env.keys` か有料の ArmorでYubiKeyに非対応であり、`dotenvx run --redact`もエージェントからの隔離にはならない ([docs](https://dotenvx.com/docs/cli/run-redact/))。
 6. **エージェントから秘密を切り離す設定**。Claude Code: `Read(**/.env*)` の deny、sandbox の `filesystem.denyRead` (`~/.ssh`、`.env`)、`allowUnsandboxedCommands: false`、`CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`。deny は `grep -r` や Python が自分で開く場合には効かない ([permissions](https://code.claude.com/docs/en/permissions)、[sandboxing](https://code.claude.com/docs/en/sandboxing))。Codex: 既定で環境変数をすべて子プロセスに渡すので、env policy と `*.env` の deny を足す。
 7. **課金の上限とキーの寿命**。Anthropic: 独自の月額上限、キーの期限 (作成時に選ぶ)、workspace 限定。OpenAI: project のハードリミット、Restricted キー。AWS: ハードキャップは無い。Budget actions で Deny ポリシーを自動適用、長期キーをやめて一時認証情報へ。Cloudflare: 予算アラートは通知のみ。トークンを権限・リソース・IP・TTL で絞る。
 8. **Cloudflare のログインと Access** (別セッションの todo 0097 / 0094 と連携)。Cloudflare アカウントのログインに YubiKey を 2 本登録し、TOTP を外す。Access の IdP は Cloudflare アカウントなので、新規ログインの強さはここで決まる。Access 側でハードウェアキーを要求できるか (independent MFA / AMR) は未確認。 2 段階認証は §3 で決定済み (Apple の passkey)。Access の IdP を Google (passkey) に変える案は、急がない改善として残す。Logpush の扱いは決定済み (§3)。
@@ -85,9 +86,11 @@
 
 ## 6. 残るYubiKey受入
 
-主要サービスへの2本の登録と、primary側PIVによるSOPS dummy復号は完了済みである。これは本番secret移行やbackup復旧の証拠にはしない。
+主要サービスへの2本の登録と、2026-11-10にprimary / backup YubiKeyを物理的に片方ずつ外した同じ非本番SOPS dotenvの単独復号は完了済みである。これは本番secret移行や、Secure Enclaveを含む実project暗号文の3 recipient復旧の証拠にはしない。
 
-- backup YubiKeyにもSOPS用identityを作り、同じ非本番fixtureを各key単独で復号する。
+2026-11-12にProへ`age-plugin-se 0.2.1`をswitchし、Kickstart再構成用の`access-control=none` identity handleを`~/.config/sops/age/kickstart-re-se.txt`へmode 600で生成した。秘密鍵本体はSecure Enclaveから搬出されない。Apple Ads API秘密鍵のproject暗号文はSecure Enclave / primary / backup YubiKeyの3 recipientを持ち、本人のターミナル操作で3経路それぞれの単独復号と公開鍵一致を確認した。
+
+- Apple Ads側へ公開鍵を登録し、発行されたclient ID / team ID / key ID / ad account IDを秘密値と識別子に分けてprojectへ接続し、Search Term Popularity APIの実認証を確認する。
 - primary不在、backup不在、host identity消失の各caseでrekeyとrollbackを確認する。
 - recovery codeとpassword manager recoveryを日常端末・対象providerとは別のfailure domainから再読取する。
 - 決済・クラウドのうちsecurity key対応サービスは、弱いfallback経路を含めて個別に判断する。

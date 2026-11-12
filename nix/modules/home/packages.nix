@@ -103,6 +103,9 @@
     ]
     ++ lib.optionals (pkgs.stdenv.hostPlatform.isDarwin && pkgs.stdenv.hostPlatform.isAarch64) [
       (callPackage ../../packages/ghidra-rea { })
+      # project開発用SOPS暗号文の日常復号。identityはSecure Enclaveに束縛し、
+      # 暗号文には別途YubiKey recipientも残す (ADR 0017)。
+      age-plugin-se
     ]
     ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
       # iOS / Swift 開発 — darwin 限定
