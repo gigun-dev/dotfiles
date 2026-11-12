@@ -9,17 +9,21 @@ import plistlib
 import subprocess
 
 
-REFERENCE_PREFIXES = {
-    "/nix/store/": "nix_store",
-    "/etc/profiles/": "nix_profile",
-    "/run/current-system/": "nix_system",
+REFERENCE_ROOTS = {
+    "/nix/store": "nix_store",
+    "/etc/profiles": "nix_profile",
+    "/run/current-system": "nix_system",
 }
 
 
 def reference_kinds(value):
     if not isinstance(value, str):
         return []
-    return sorted({kind for prefix, kind in REFERENCE_PREFIXES.items() if prefix in value})
+    return sorted({
+        kind
+        for root, kind in REFERENCE_ROOTS.items()
+        if root in value
+    })
 
 
 def inspect_value(value, key_path=""):
@@ -89,9 +93,12 @@ def resolve_commands(names):
     """Resolve selected commands in a login shell without reporting its environment."""
     probe = "for n in gh fd node; do p=$(command -v \"$n\" 2>/dev/null || true); " \
             "printf 'MINI_COMMAND=%s\\t%s\\n' \"$n\" \"$p\"; done"
-    completed = subprocess.run(
-        ["/bin/zsh", "-lic", probe], capture_output=True, text=True, timeout=15, check=False,
-    )
+    try:
+        completed = subprocess.run(
+            ["/bin/zsh", "-lic", probe], capture_output=True, text=True, timeout=15, check=False,
+        )
+    except FileNotFoundError:
+        return {name: {"path": None, "references": []} for name in names}
     resolved = {}
     for line in completed.stdout.splitlines():
         if not line.startswith("MINI_COMMAND="):

@@ -21,7 +21,12 @@ class NixRefAudit(unittest.TestCase):
             secret_marker = "do-not-print-this-marker"
             with (agents / "fixture.plist").open("wb") as stream:
                 plistlib.dump({
-                    "ProgramArguments": ["/nix/store/example/bin/node", secret_marker],
+                    "ProgramArguments": [
+                        "/bin/wait4path",
+                        "/nix/store",
+                        "/nix/store/example/bin/node",
+                        secret_marker,
+                    ],
                     "EnvironmentVariables": {"PATH": "/etc/profiles/per-user/test/bin"},
                 }, stream)
             runner = home / ".local/share/asc-mcp-runner/.path"
@@ -39,7 +44,8 @@ class NixRefAudit(unittest.TestCase):
             plist = report["plists"][0]
             self.assertEqual(plist["findings"], [
                 {"key": "EnvironmentVariables.PATH", "reference": "nix_profile"},
-                {"key": "ProgramArguments[0]", "reference": "nix_store"},
+                {"key": "ProgramArguments[1]", "reference": "nix_store"},
+                {"key": "ProgramArguments[2]", "reference": "nix_store"},
             ])
             runner_report = next(item for item in report["text_files"]
                                  if item["path"] == str(runner))

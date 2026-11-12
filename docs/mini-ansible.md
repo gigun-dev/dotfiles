@@ -49,8 +49,8 @@ x86_64 実行ファイルとして確認した。release の `asc_5.17.1_macOS_a
 
 2026-11-12 の値非表示監査では、login shell の `gh` / `fd` / `node` はいずれも
 `/etc/profiles/per-user/gigun/bin` の Nix profile を解決した。`fd` には検証済み Homebrew
-候補があるが、mini で使っていないため採用しない。`gh` も mini の現在の役割だけを理由に
-新規導入しない。`node` を使っていた mugi-claw は未使用と確認できたため、2026-11-12 に
+候補があるが、mini で使っていないため採用しない。`gh` は global Git credential helper の
+実体でもあり、Nix 撤去前に非 Nix の取得元へ移す必要がある。`node` を使っていた mugi-claw は未使用と確認できたため、2026-11-12 に
 LaunchAgent を unload し、plist リンクと専用 Chrome process だけを除去した。`~/.mugi-claw`
 と owning repo は保持している。
 
@@ -64,8 +64,10 @@ LaunchAgent を unload し、plist リンクと専用 Chrome process だけを�
 | `/etc/zshenv` | 凍結 nix-darwin generation | Nix 撤去時まで監査対象として保持。ユーザー shell cutover とは分離 |
 | Nix の activate / daemon / gc plist | Nix 自身 | 全 consumer の参照解消後の撤去作業だけで扱う |
 
-NotchBar の LaunchAgent は存在するが、同日の構造化監査では Nix 参照を検出しなかった。
-過去の記録を現状の根拠にせず、この監査結果を撤去前に再確認する。監査は plist の値、環境変数、
+NotchBar の LaunchAgent は repo の宣言を削除した後も実機に orphan として残っていた。
+job は loaded だが process は不在で、引数の `/nix/store` を待って checkout の debug build を
+起動する旧設定だった。監査は当初 `/nix/store/` だけを検出し、root そのものを見落としていたため、
+root と子孫の両方を検出する回帰テストを追加した。監査は plist の値、環境変数、
 資格情報を表示しない。ここで確認しただけでは launchd の所有権移管や切替の承認にはならない。
 
 ASC runner の保存PATHは system 5要素、home 1要素、Nix user profile 1要素だった。Nix要素だけを
@@ -75,7 +77,10 @@ ASC runner の保存PATHは system 5要素、home 1要素、Nix user profile 1�
 両方へ同じ完全SHAのactionを反映した。Nodeは現行`engines`が許す24系を指定し、
 `check-latest: true`で各jobが最新security patchを取得する。patch更新で同じworkflow SHAの
 実行環境が変わる代償を受け入れ、majorは自動で越えない。Node 26 LTS対応は依存互換性と
-`engines`を同時に更新する別作業とする。miniホストへNodeを常設しない。
+`engines`を同時に更新する別作業とする。これは ASC runner の host-global Node 依存を外した
+判断であり、mini 上の全ローカル開発が Node を使わないという判断ではない。Xcode project の
+build script などに必要になった場合は、対象 project が版を宣言して実buildを受入してから
+非 Nix の runtime 管理へ移す。用途を確かめず frozen Node 24 を Homebrew へ複写しない。
 
 PATH切替前後の固定source実buildは、どちらもNode setup、`npm ci`、Xcode archiveまで成功し、
 同じ署名export境界で停止した。失敗原因は現GUI runner contextにDistribution identityと有効な
