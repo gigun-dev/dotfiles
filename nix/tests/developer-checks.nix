@@ -154,6 +154,7 @@ in
         "codex-mcp-login"
         "uv-sync-tools"
         "activation-inputs"
+        "worktree-write-guard"
       ]
       {
         TEST_SOPS = lib.getExe pkgs.sops;
