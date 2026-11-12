@@ -18,9 +18,9 @@
   "agent": {
     "default_profile": "write",
     "default_model": {
-      "effort": "high",
+      "effort": "medium",
       "provider": "zed.dev",
-      "model": "claude-sonnet-5",
+      "model": "gpt-6.1-sol",
       "enable_thinking": true
     },
     "dock": "right",
