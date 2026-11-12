@@ -1,0 +1,32 @@
+---
+- name: Prepare an explicitly selected local ASC executor candidate
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    asc_executor_plan_selected: false
+  tasks:
+    - name: Require explicit selection and private caller-supplied paths
+      ansible.builtin.assert:
+        that:
+          - asc_executor_plan_selected | bool
+          - asc_executor_source is defined
+          - asc_executor_revision is defined
+          - asc_executor_output is defined
+        fail_msg: This independent plan entry never installs or executes host code.
+    - name: Validate or generate committed executor bytes and deployment manifest
+      vars:
+        asc_executor_argv:
+          - "{{ ansible_playbook_python }}"
+          - "{{ playbook_dir }}/scripts/asc_executor_plan.py"
+          - --source
+          - "{{ asc_executor_source }}"
+          - --revision
+          - "{{ asc_executor_revision }}"
+          - --output
+          - "{{ asc_executor_output }}"
+      ansible.builtin.command:
+        argv: "{{ asc_executor_argv + (['--check'] if ansible_check_mode else []) }}"
+      changed_when: not ansible_check_mode
+      check_mode: false
