@@ -1,5 +1,5 @@
-(A) 2026-09-10 mini-vm の無人更新認証を dotfiles 専用 GitHub App へ分離する。残りは Actions 側 3 経路の live 受入と schedule 移管のあとに、旧 proposal timer・writer credential・heartbeat を撤去すること +mini-vm +security @unattended @user @wip old:DF-37 see:docs/mini-vm.md id:0002
-(A) 2026-09-10 realbind 用の GitHub 認証を一般 agent の ambient credential と分ける。組織側 GitHub App、member 化後の FGPAT、専用主体へ隔離した classic/OAuth 例外の順で選ぶ +security @user @wip old:DF-37 see:docs/credential-inventory.md dep:0002 id:0003
+(A) 2026-09-10 mini-vm から旧 proposal timer・writer credential・heartbeat を撤去し、autoswitch を匿名 read へ移して旧 host writer credential を失効する +mini-vm +security @unattended @user old:DF-37 see:docs/mini-vm.md dep:0164 id:0002
+(A) 2026-09-10 realbind 用の GitHub 認証を一般 agent の ambient credential と分ける。組織側 GitHub App、member 化後の FGPAT、専用主体へ隔離した classic/OAuth 例外の順で選ぶ +security @user old:DF-37 see:docs/credential-inventory.md dep:0002 id:0003
 (B) 2026-09-10 autoswitch と lock-propose fast/slow の成功 heartbeat の実受入を終える。残りは週次 slow の初回枠、差分なし経路、missed/recovered、計画停止、二重配信防止、個人 Bark 配信と iPhone 表示 +notify see:docs/job-heartbeat-activation.md old:DF-35 id:0005
 (B) 2026-09-10 Cloudflare OS に AI プロバイダを繋ぎ、チャットでモデルが応答して Neurons 消費が実測できる状態にする +cloudflare-os old:DF-13 see:docs/cloudflare-os.md id:0007
 (B) 2026-09-10 Langfuse を codex 経由の推論に挟み、トレースに出るところまで確認する +cloudflare-os old:DF-24 see:docs/cloudflare-os.md id:0008
@@ -12,42 +12,38 @@
 (C) 2026-09-10 cloudflare-os へ gatekeeper-mcp の固定 client_id 対応の issue を投稿する +cloudflare-os old:DF-30 see:docs/drafts/gatekeeper-mcp-static-client-id.md id:0017
 (C) 2026-09-10 Slack 書き込み gatekeeper を、upstream PR #95 の動向を見て着手・見送り・自前実装のどれかに決める +cloudflare-os old:DF-31 see:docs/cloudflare-os.md id:0018
 (C) 2026-09-10 pve の SSD を交換するか再インストールするか決める(データは mini へ退避済み。mini のストレージ整理と連動) @device +infra id:0019
-(C) 2026-09-10 Taildrive(mini の ~/Storage を中央ストレージにする構想)を続けるか畳むか決める +infra id:0021
 (A) 2026-09-11 Claude から Codex への実委譲で prompt-file が選ばれ、日本語・表・引用符・バッククォートが改変されず届くことを確認する +claude @unattended see:docs/agent-execution.md id:0025
 2026-09-11 実際の並列セッションで重い検証が1枠に収まり、単独/重複時の所要時間と失敗を再測定する +claude @unattended see:docs/agent-execution.md id:0029
 2026-09-11 ESP32 ホストテストの無条件再コンパイルによる所要を測定し、対象選択や ccache の導入が必要か決める +claude @unattended see:docs/agent-execution.md id:0030
-2026-09-11 codex に worktree を使わせる。2026-09-11 に codex とみられる別セッションが esp32 の本線ツリーで作業しており、本線からは誰が何を触っているか見えなかった。同じツリーを複数の主体が触ると、本線がビルドして実機で測る対象が汚染される +claude @unattended id:0036
+2026-09-11 codex に worktree を使わせる。同じツリーを複数の主体が触ると、本線がビルドして実機で測る対象が汚染される +claude @unattended id:0036
 2026-09-11 Claude の実 subagent で worktree-write-guard が発火し、本体と兄弟 checkout への Edit/Write を拒否することを確認する +claude @unattended see:docs/agent-execution.md id:0040
 (C) 2026-09-15 brew cask の sf-symbols に sfsymbols CLI が入っているか確かめ、入っていれば cask 宣言へ寄せる(入っていなければ新規ホストは developer.apple.com から手で入れる必要がある旨を残す) +infra @device id:0043
 (B) 2026-09-19 mini-vm を nix.buildMachines に宣言し、M4 Pro から x86_64-linux の変更を remote build で検証できるようにする(nix daemon は root なので root の SSH 鍵・known_hosts も要る。nixosConfigurations.mini-vm のビルドが手元で通ること) +mini-vm @device see:docs/mini-vm.md id:0044
 (A) 2026-10-09 codex ブリッジの prompt_cache_breakpoint 修正 (hotchpotch/openai-api-server-via-codex#25) が merge・リリースされたら mini-vm で `systemctl restart codex-openai-bridge` し、Cloudflare OS の GPT-5.6+ チャットが通ることを確認する。長引くなら fork の rev を buildGoModule で当てる暫定を検討 +cloudflare-os +mini-vm see:docs/cloudflare-os.md id:0082
-(C) 2026-10-10 Codex Cloud + Tailscale (tag:codex を auth key で預ける方式) は見送り。mini-vm 常駐が同じ役を強い権限で担っているため。再検討の引き金: mini-vm 停止中も Codex タスクを回したい、または並列数が mini-vm に収まらない。着手時は policy.hujson.tftpl に tag:codex と HTTP ポート単位の grants、Reusable+Ephemeral+expiry の鍵 +tailscale +codex (参考 https://tailscale.com/blog/codex-cloud-tailscale) id:0083
-(A) 2026-10-15 mini-vm の autoswitch の CI ゲートで、red (適用せず即見送り) と pending (最大 30 分待って判定) の経路と、見送り時の Bark が iPhone に届くことを自然発生で確かめる +mini-vm @unattended 06:18 see:docs/adr/0011-push-without-a-local-gate-and-apply-only-green-commits.md by:claude id:0070
+(A) 2026-10-15 mini-vm の autoswitch の CI ゲートで、red (適用せず即見送り) と pending (最大 30 分待って判定) の経路と、見送り時の Bark が iPhone に届くことを自然発生で確かめる +mini-vm @unattended see:docs/adr/0011-push-without-a-local-gate-and-apply-only-green-commits.md by:claude dep:0200 id:0070
 (B) 2026-10-15 エージェントの git pull --rebase が Nix の変更を取り込んだとき、フックの nix run .#switch が端末なしでも Touch ID / Apple Watch で通るか、通らない場合に pull が成功のまま残るかを確かめる +claude @device see:docs/adr/0011-push-without-a-local-gate-and-apply-only-green-commits.md by:claude id:0071
-(C) 2026-10-15 switch 後に Fork から .ipynb を commit して nbstripout filter が PATH 無しで通り、WSL の ~/.config/git/config にも filter と textconv が入っていることを確認する(mini-vm は 10/15 に filter.nbstripout.clean と diff.ipynb.textconv が nbstripout の store path を指すことを確認済み) +infra @device by:claude id:0081
+(C) 2026-10-15 switch 後に Fork から .ipynb を commit して nbstripout filter が PATH 無しで通ることと、WSL の ~/.config/git/config に filter と textconv が入っていることを確認する +infra @device by:claude id:0081
 (C) 2026-10-16 Windows DSC の script-symlinks (Get/Test/SetScript) に git/ignore → ~/.config/git/ignore の symlink を足す。Mac/Linux は 2026-10-16 に git/ignore へ移した by:claude id:0084
 (C) 2026-10-16 nix なしの Mac/Linux で bootstrap.sh が git/gitconfig を張らず、git 設定が効かない。張るか、Windows 専用と明記するか決める (docs/git.md 設定の置き場所) by:claude id:0085
 2026-10-16 +mini-vm codex 本体 (ChatGPT) と agy (Google) の認可切れを、それと分かる通知で知らせ、健全性ゲートで rollback させない (どちらも稀。MCP は ADR 0013 で対応済み) see:nix/modules/nixos/mini-vm.nix by:me id:0086
 2026-10-16 +mini-vm agy remote-control status が system service 化後も旧ユーザー unit を見て inactive と出る。表示の扱いを docs に書くか回避策を決める by:claude id:0088
 2026-10-16 +mini-vm MCP 再ログイン後に codex-remote-control の再起動が要るか実測し、ADR 0013 と docs/mini-vm.md の未確認を消す see:docs/adr/0013-relogin-codex-mcp-oauth-through-cloudflare-access.md by:claude id:0089
-2026-10-16 callback listener の待受中に、mini-vm の loopback から認可 code を渡せ、mini から callback port へ到達できないことを同時に確認する +mini-vm @wip see:nix/modules/nixos/services/codex-mcp-login.nix by:claude id:0090
+2026-10-16 callback listener の待受中に、mini-vm の loopback から認可 code を渡せ、mini から callback port へ到達できないことを同時に確認する +mini-vm see:nix/modules/nixos/services/codex-mcp-login.nix by:claude id:0090
 2026-10-16 tofu/cloudflare.tf の既存の fmt ずれ (langfuse allowed_idps / app_launcher type) と冒頭の「DNS レコード 2 件」コメントを直す by:claude id:0091
-2026-10-16 Access の記録を Logpush で R2 へ残す。Cloudflare の本人 session か Logpush を読める限定認証を復旧し、access_requests / audit_logs の 2 job が enabled・R2 宛て・error なしで、翌日 prefix に非空 object があることを確認する +mini-vm @user @wip by:claude id:0094
-2026-10-17 +mini-vm mini (macOS) の時計が NTP より約 270ms 遅れている原因を調べる (2026-10-17 sntp で time.apple.com / 162.159.200.123 とも +0.27s、MacBook は +0.01s)。mini-vm は 0093 で mini の時刻に従うので、ここが mini-vm の時刻精度の上限になる by:claude id:0095
+2026-10-16 Access の記録を Logpush で R2 へ残す。Cloudflare の本人 session か Logpush を読める限定認証を復旧し、access_requests / audit_logs の 2 job が enabled・R2 宛て・error なしで、翌日 prefix に非空 object があることを確認する +mini-vm @user by:claude id:0094
+2026-10-17 mini (macOS) の時計が NTP より約 270ms 遅れている原因を調べる。mini-vm は mini の時刻に従うので、ここが mini-vm の時刻精度の上限になる +mini-vm by:claude id:0095
 2026-10-17 +security YubiKey (C NFC + C Nano の 2 本組の予定) が届く前に docs/security.md の未決事項を 1 項目ずつ合意して「決定」へ移す: Apple ID・Google・GitHub・決済・クラウドのログイン、push の権限の持たせ方、~/.ssh/id_ed25519 の役割分解、開発プロジェクトの API キーとエージェントからの隔離、課金上限、IaC の state、Actions の硬化、紛失時の手順書。不便を払うのに別経路が緩いままの構成は避ける see:docs/security.md by:me id:0096
-2026-10-17 本人が選ぶ 1 project で、agent の外から実 dev server を起動し、API key の scope・期限・課金上限と上限超過の拒否を受入する +security @user @wip see:docs/security.md by:me id:0099
-2026-10-17 Cachix の provider 側 writer を確認して失効し、Pro / mini の local writer 設定を削除して、read substituter だけで build を受入する +security @user @wip see:docs/security.md by:codex id:0100
-2026-10-17 実 credential ごとに provider の期限・最終利用・resource・複製先を突合し、Downloads の候補は provider 照合・失効・旧 credential の拒否まで行う。値は残さず、判断・確認日・次操作だけを記録する +security @user @wip see:docs/credential-inventory.md by:me id:0101
-2026-10-18 +security git hook (post-merge / post-rewrite / post-checkout) がエージェントや端末の無いprocessから呼ばれたときはswitchせず、手で打つcommandだけ表示するか決める。現行の自動追従と提案の要求元明確化を比較し、選んだ経路でmainとのずれ検知・失敗後の確認を受入する。ryoppippiはエージェントにもswitchさせるため、違える場合は理由を残す +security @user see:docs/security-recovery.md by:me id:0102 @wip
+2026-10-17 本人が選ぶ 1 project で、両 YubiKey の復号を確かめ、agent の外から実 dev server を起動して、API key の scope・期限・課金上限と上限超過の拒否を受入する +security @user see:docs/security.md by:me id:0099
+2026-10-17 Cachix の provider 側 writer を確認して失効し、Pro / mini の local writer 設定を削除して、read substituter だけで build を受入する +security @user see:docs/security.md by:codex id:0100
+2026-10-17 実 credential ごとに provider の期限・最終利用・resource・複製先を突合し、Downloads の候補は provider 照合・失効・旧 credential の拒否まで行う。値は残さず、判断・確認日・次操作だけを記録する +security @user see:docs/credential-inventory.md by:me id:0101
+2026-10-18 git hook (post-merge / post-rewrite / post-checkout) がエージェントや端末の無い process から呼ばれたとき、switch せず手で打つ command だけ表示するか決める。ryoppippi はエージェントにも switch させるので、違えるなら理由を残す +security @user see:docs/security-recovery.md by:me id:0102
 2026-10-18 JST 深夜のfast/slow timer明示とsender/hub予定枠の修正をレビューし、本番反映の承認後に自然receiptを確認する（修正・境界/重複回帰検証済み、本番未適用） +notify +mini-vm see:docs/job-heartbeat-activation.md by:me id:0103
 2026-10-22 mini の標準 checkout に Guard 共通設定を取り込み、接続承認後に bootstrap --guard-only と読み取り専用検査を行う。macOS の Nix 凍結は維持 +security @user see:docs/guard.md by:codex id:0106
 2026-10-22 Guard の HM 引き継ぎ3試験と新規ファイルのステージを確認済み。Git flake の実評価は Nix daemon socket のアクセス拒否で未確認。許可が得られた場合だけ評価を再開する +security @user by:me id:0107
-2026-10-22 download領域のOAuth/application key削除候補を、値を読まずprovider metadata・consumer・暗号化済みruntime sourceと照合する。利用中は代替受入後にduplicateを削除し、不使用は発行元で失効・旧credential拒否後にlocal/runtime/backup copyを削除する。恒久保存するのは値なしの分類・確認日・結果だけとする +security @user @wip see:docs/credential-inventory.md by:me id:0108
-2026-10-22 sops-env の残りの受入として、本人が選ぶ 1 project で両 YubiKey の復号と実 dev server の起動を確認する +security @user @wip see:docs/security.md by:codex id:0109
-2026-10-27 mini の CLI 管理方針を所有・版・取得元・checksum種別・対話選択・更新方針の共通宣言へ揃え、fzf/zoxide/ripgrep/XcodeGen と検証済み候補の保留状態をテストする +mini by:me id:0114 @wip
-2026-10-29 Linux CI の Nix store cache 復元と短時間ジョブの消費を削減し、実行結果を確認する +dotfiles @ci by:me id:0115 @wip
-2026-10-29 mini の checkout 同期を実機設定の適用と分離し、安全な fast-forward と失敗時の停止を検証する +mini by:me id:0116 @wip
-2026-11-01 mini の iOS build / sign / publish を UID で分ける (asc-build は秘密なしの build、asc-sign は digest 照合後の manual export、publish は mini-vm か hosted)。次は署名所有者 context の値なし inventory と適合 profile の準備。受入は mini-vm から固定 SHA の build/archive、manual Ad Hoc export、ASC private publish、Bark 通知、iPhone の OTA install の経路で行い、確定したら ADR にする +security @user @wip see:docs/security-access-boundaries.md by:codex id:0122
+2026-10-27 mini の CLI 管理方針を所有・版・取得元・checksum種別・対話選択・更新方針の共通宣言へ揃え、fzf/zoxide/ripgrep/XcodeGen と検証済み候補の保留状態をテストする +mini by:me id:0114
+2026-10-29 Linux CI の Nix store cache 復元と短時間ジョブの消費を削減し、実行結果を確認する +dotfiles @ci by:me id:0115
+2026-10-29 mini の checkout 同期を実機設定の適用と分離し、安全な fast-forward と失敗時の停止を検証する +mini by:me id:0116
+2026-11-01 mini の iOS build / sign / publish を UID で分ける (asc-build は秘密なしの build、asc-sign は digest 照合後の manual export、publish は mini-vm か hosted)。次は署名所有者 context の値なし inventory と適合 profile の準備。受入は mini-vm から固定 SHA の build/archive、manual Ad Hoc export、ASC private publish、Bark 通知、iPhone の OTA install の経路で行い、確定したら ADR にする +security @user see:docs/security-access-boundaries.md by:codex id:0122
 2026-11-08 Claude Code のブラウザ系ツール(Claude in Chrome、chrome-devtools-mcp、Playwright、Desktop のブラウザペイン)の使い分けを整理し、不要なら chrome-devtools-mcp を claude/settings.json から外す +claude @user by:me id:0125
 2026-11-08 +mini Homebrew gh 2.103.3を単体source buildし、認証・HTTPS remote読取を確認した。Git global configをhome-manager store symlinkからdotfiles/git/gitconfigへ原子的に切替え、credential helperを非Nix ghへ移管した。NotchBar撤去後の監査では外部consumer 0、残る参照はNix自身のdaemon plistと/etc/zshenv、対話PATH上のnode/fdだけ。次は公式macOS手順とnix-darwin差分に沿い、daemon・/etc生成物・build users・APFS storeを段階撤去する @user see:docs/adr/0014-shrink-mini-macos-shell-before-removing-nix.md by:me dep:0127 id:0128
 2026-11-08 +iterm2 iTerm2 を終了してメモリ上の設定を plist に書き出させ、Bidi・ホットキーの差分を git restore で捨ててから起動し直す。iTerm2 の中のセッションは全部止まるので、T3 Code など別のアプリから行う @user by:me id:0129
@@ -62,23 +58,22 @@
 2026-11-08 +nix 長く残る gc root を整理する: ~/.local/state/esp-idf/nix-profile-1-link (3.5GiB)、direnv の cc-handson / swift-mcp-app、dotfiles と worktree の result symlink。nix run .#build の result を残さない形も検討 see:docs/storage-cleanup.md by:claude id:0155
 2026-11-09 +infra pve が tailnet から 62 日 offline で、LAN の 192.168.11.100 にも届かない (2026-11-08 確認)。電源断か孤立かを物理的に確かめる。0019 の判断の前提 @device see:docs/pve-ssd-failure.md by:claude id:0156
 2026-11-09 miniのTaildriveが現在使えるかを実機クライアントで確認し継続・廃止とtag:storageの要否を決める +tailscale see:docs/tailnet.md by:me id:0158
-2026-11-09 1Password Agentic Autofillを対応エージェントへ接続してログイン要求・本人承認・秘密非表示を検証する。Proのapp・CLIは宣言と導入済み、Chrome拡張も導入済み。miniのapp・CLIは未導入で凍結Nix外の導入経路を確認する。Workとdotsは公式発表済みで利用可否未確認、Claudeは公開手順あり +security by:me id:0159
+2026-11-09 1Password Agentic Autofill を対応エージェントへ接続し、ログイン要求・本人承認・秘密非表示を検証する。mini は app・CLI が未導入なので、凍結 Nix 外の導入経路を確認する +security by:me id:0159
 2026-11-09 +ci 手元 (aarch64-darwin) の sh scripts/verify.sh が nix flake check で codex-agents-md (b2bdd9d で追加) を x86_64-linux 向けに build しようとして platform mismatch で落ちる。darwin で verify.sh が通るよう、Linux 構成の derivation を darwin の check から外すか docs/testing.md の手元手順を直す by:claude id:0161
-2026-11-09 無人更新の提案を GitHub App writer の Actions workflow へ移す。次は GitHub 外の沈黙監視、main 反映後の最初の自然発火 receipt の確認。そのあとに旧 timer・heartbeat・credential の退役、旧 App key の provider 側失効、ADR 0003 の置換 +ci +security @unattended @user @wip see:docs/adr/0003-update-mini-vm-through-lock-proposal-prs.md by:me id:0164
+2026-11-09 無人更新の提案を GitHub App writer の Actions workflow へ移す。次は GitHub 外の沈黙監視、main 反映後の最初の自然発火 receipt の確認、旧 App key の provider 側失効、ADR 0003 の置換 +ci +security @unattended @user see:docs/adr/0003-update-mini-vm-through-lock-proposal-prs.md by:me id:0164
 2026-11-09 +git ローカルブランチを整理する。fix/xdg-in-zshenv は main に入っていて消してよい。chore/public-preparation (9c3e302、公開向けの文書分離) と feat/mini-ansible (2 commits) は未統合で、統合するか捨てるかを決める。feat/mini-ripgrep-adoption は task 0114、chore/dotfiles-security-audit (T3 Code の worktree) は公開前監査の作業 by:claude id:0163
-(A) 2026-11-09 SOPS の復旧経路の残りを受入する。host identity の消失、独立端末、break-glass 材料、限定 state restore +security @user @wip see:docs/security-recovery.md by:codex id:0166
-(A) 2026-11-09 mini-vmは期限切れNeedsLoginから同boot内で再認証済み。mini/mini-vmともbackend Running、Tailscale SSH有効、key expiry無効化済みで、mini-vmの主要remote serviceとServeもactiveをlive確認した。次は計画再起動後に自動でRunningへ戻り、SSH・主要service・Serveが復帰することだけを受入する +security +mini-vm +tailscale @user @wip see:docs/tailnet.md by:codex id:0171
-(A) 2026-11-09 harness-boundary-probe を同一 commit で direct Codex、direct Claude、T3→Claude、mini-vm native、WSL と承認前後で比較し、profile 生成元・MCP・Keychain・TCC の未確定を分ける +security +claude +codex +t3code @wip see:docs/agent-harness-boundaries.md by:codex id:0169
-(A) 2026-11-09 GitHub の branch 保護の残り 5 項目 (enforce_admins、PR review、署名、ruleset、allowed_actions) を個別に合意して provider へ適用し、通常 PR・bot PR・緊急復旧を受入する +security +ci @user @wip see:docs/publication-audit-2026-11-01.md by:codex dep:0167 id:0173
-(A) 2026-11-09 SOPS への本番 secret 移行、host identity 喪失の復旧、agenix の撤去を進める +security @user mainへ導入し、root:root see:docs/adr/0016-unify-secret-delivery-with-sops.md by:codex id:0174
+(A) 2026-11-09 SOPS の復旧経路の残りを受入する。host identity の消失、独立端末、break-glass 材料、限定 state restore +security @user see:docs/security-recovery.md by:codex id:0166
+(A) 2026-11-09 計画再起動のあと、mini / mini-vm の Tailscale が自動で Running に戻り、SSH・主要 service・Serve が復帰することを受入する +security +mini-vm +tailscale @user see:docs/tailnet.md by:codex id:0171
+(A) 2026-11-09 harness-boundary-probe を同一 commit で direct Codex、direct Claude、T3→Claude、mini-vm native、WSL と承認前後で比較し、profile 生成元・MCP・Keychain・TCC の未確定を分ける +security +claude +codex +t3code see:docs/agent-harness-boundaries.md by:codex id:0169
+(A) 2026-11-09 GitHub の branch 保護の残り 5 項目 (enforce_admins、PR review、署名、ruleset、allowed_actions) を個別に合意して provider へ適用し、通常 PR・bot PR・緊急復旧を受入する +security +ci @user see:docs/publication-audit-2026-11-01.md by:codex dep:0167 id:0173
+(A) 2026-11-09 SOPS への本番 secret 移行、host identity 喪失の復旧、agenix の撤去を進める +security @user see:docs/adr/0016-unify-secret-delivery-with-sops.md by:codex id:0174
 (A) 2026-11-09 Proの現行gh OAuth tokenから再付与された鍵管理scopeを除き、admin/pushを持たない対話credentialへ更新する。Secure Enclave pushを維持し、旧file SSH keyはGitHub登録を削除して単独認証拒否を確認する。key本体はSSH・agenix・tofu用途をタスク4で移行するまで削除しない +security @user see:docs/credential-inventory.md by:codex id:0176 dep:0174
-(C) 2026-11-09 direct Codex と mini-vm / WSL で T3→Codex と同じ probe 結果と resolved policy を比較してから、standalone 用の sandbox / approval を宣言するか決める +codex +security @wip see:docs/agent-harness-boundaries.md by:claude id:0178
-(C) 2026-11-10 full-access の Pro T3 client から mini-vm へ peer link を張り、外の Claude Code / Codex から delegate_task の target.environmentId で mini-vm に投げられることを確かめる +t3 @wip by:claude id:0180
+(C) 2026-11-09 direct Codex と mini-vm / WSL で T3→Codex と同じ probe 結果と resolved policy を比較してから、standalone 用の sandbox / approval を宣言するか決める +codex +security see:docs/agent-harness-boundaries.md by:claude dep:0169 id:0178
+(C) 2026-11-10 full-access の Pro T3 client から mini-vm へ peer link を張り、外の Claude Code / Codex から delegate_task の target.environmentId で mini-vm に投げられることを確かめる +t3 by:claude id:0180
 2026-11-10 Barkの一般rotationを、Pro・mini-vm・iPhoneのconsumer inventory、候補生成、値を表示しない配布、両sender smoke、rollback、clipboard clear、旧鍵退役、失敗時cleanupまで一つのrunbook/helperにする。無人化はiPhone側の鍵変更・本人表示確認を承認点として残し、SOPS / 1Password / provider storeの正本分担を決めて非本番鍵で受入する +notify +security @user see:docs/publication-audit-2026-11-01.md by:me id:0182
-2026-11-10 mini の ChatGPT Desktop で Control this Mac の QR pairing、TCC 承認、スマホからの実操作、再起動後の復帰を確認する +mini +chatgpt @device @wip by:me id:0183
+2026-11-10 mini の ChatGPT Desktop で Control this Mac の QR pairing、TCC 承認、スマホからの実操作、再起動後の復帰を確認する +mini +chatgpt @device by:me id:0183
 2026-11-10 導入済みCapsomnia公式pkgの更新と設定の正本を決め、現行host-local導入を宣言管理へ移す。helper・sudoers・LaunchAgentの所有権と更新時のsleep復旧を確認する +darwin +security @user by:codex id:0185
 2026-11-10 +cleanup ~/Pictures(2016 3.1G・スクリーンショット 2.3G)と ~/就活 の CleanShot 録画 2 本(6.3G)を見て残すものを決める see:docs/storage-cleanup.md by:me id:0188
-2026-11-10 +cleanup エージェントが用意済みの手順を使わず自作ハーネスで大きい入力を複製する事例が ebook2pdf 以外でも起きたら、agents/AGENTS.md の How to Work に「既存スクリプトを使い足りなければ拡張する」「大きい入力は参照し中間出力は記録後に消す」を足す。2026-11-10 は 1 件のみのためプロジェクトで指摘するに留めた see:docs/storage-cleanup.md by:claude id:0189
 2026-11-12 miniのorphan NotchBarをbootoutし、LaunchAgent plist・checkout・socket候補を削除して再監査から消えた。repo宣言は既に削除済み。ProはSSH到達不能のため、到達可能な端末でLaunchAgent・app・checkoutの残存確認と同じ撤去が残る +mini +cleanup @user see:docs/mini-ansible.md by:me id:0196
 2026-11-12 asc-mcpのmainへcheck必須・strict・PR必須(承認0)・admin適用・linear history・force push/deletion禁止・会話解決必須を設定し、auto-mergeとbranch削除を有効化した。direct development npm patch・package files限定のworkflowをPR #8で検証中。Codex auto reviewはPR open時に自動起動することを実確認した。代表PR merge後にproduction patchへ広げるか判断する +asc-mcp +ci +security @user by:me id:0197
 2026-11-12 asc-mcp を Node 26 LTSで実buildし、engines・workflow・依存互換性が通れば24から更新する。miniのhost-global Nodeとは分離し、ローカルXcode projectでNodeが必要になった時はproject宣言と実buildを根拠に非Nix runtimeを選ぶ +asc-mcp +mini @unattended by:me id:0198
