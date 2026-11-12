@@ -114,3 +114,4 @@ x 2026-11-12 2026-09-11 Claude の実 subagent で worktree-write-guard が発�
 x 2026-11-12 2026-11-12 worktree書き込みガードを撤去し cc-status の由来を確認する +claude by:me id:0192
 x 2026-11-12 2026-11-12 実体を管理していない cc-status hook を撤去する +claude by:me id:0193
 x 2026-11-12 2026-11-12 yomiyasu を Claude Code と Codex に導入する +claude by:me id:0194
+x 2026-11-12 2026-11-12 文章スキルを必要な場面で使い分ける方針を共通指示に反映する +agents by:me id:0195

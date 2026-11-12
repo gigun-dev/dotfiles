@@ -17,6 +17,10 @@
 - Before stating history or causes ("it used to be X", "Y is the cause"), check with `git log -p`,
   `git show <ref>:<file>` or a minimal reproduction. If unverified, say so.
 
+## Writing
+
+- When available, use `japanese-tech-writing` for the structure and reasoning of Japanese technical manuscripts, and `yomiyasu` (`yomiyasu:yomiyasu` when installed as a Claude plugin) as needed to polish Japanese text intended for publication or sharing. Do not require either for ordinary conversation or short progress reports.
+
 @~/.claude/shared/command-privacy.md
 
 @~/.claude/shared/delegate-work.md
