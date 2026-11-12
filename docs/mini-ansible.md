@@ -60,13 +60,21 @@ LaunchAgent を unload し、plist リンクと専用 Chrome process だけを�
 | 参照 | 現在の所有者 | 次の切り出し |
 |---|---|---|
 | `com.mugi-claw.plist` の program / PATH | mugi-claw repo | 未使用のため退役済み。Node の代替導入はしない |
-| ASC runner の `.path` | runner の運用設定 | runner 停止・rollback を含む別作業。通常 shell の PATH 変更で代用しない |
+| ASC runner の `.path` | runner の運用設定 | build workflowへ固定Nodeを反映済み。実build受入後にrunnerを停止し、Nix profile 1要素だけを除去する |
 | `/etc/zshenv` | 凍結 nix-darwin generation | Nix 撤去時まで監査対象として保持。ユーザー shell cutover とは分離 |
 | Nix の activate / daemon / gc plist | Nix 自身 | 全 consumer の参照解消後の撤去作業だけで扱う |
 
 NotchBar の LaunchAgent は存在するが、同日の構造化監査では Nix 参照を検出しなかった。
 過去の記録を現状の根拠にせず、この監査結果を撤去前に再確認する。監査は plist の値、環境変数、
 資格情報を表示しない。ここで確認しただけでは launchd の所有権移管や切替の承認にはならない。
+
+ASC runner の保存PATHは system 5要素、home 1要素、Nix user profile 1要素だった。Nix要素だけを
+除く候補では `python3`、`xcodebuild`、`git`、`asc` が残り、`node` と `npm` だけが消える。
+原因はprivate build workflowがhostのNodeを暗黙利用し、check workflowにある
+`actions/setup-node`を欠いていたことだった。2026-11-12に公開templateとprivate control repoの
+両方へ、同じ完全SHAのactionとNode 24.20.0を反映した。固定入力の実buildが成功するまでは
+`.path`を変更しない。成功後もrunner停止中にNix profile要素だけを除去し、他の6要素と
+rollback用の旧値を保持してから再開・再受入する。
 
 `selection.mode: protected_service` は destination 文字列の allowlist だけを検査する。
 これは実際のファイル保護を証明しない。採用前に mini 上で実体と全親の symlink chain をたどり、
