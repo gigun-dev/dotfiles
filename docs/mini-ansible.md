@@ -72,9 +72,10 @@ ASC runner の保存PATHは system 5要素、home 1要素、Nix user profile 1�
 除く候補では `python3`、`xcodebuild`、`git`、`asc` が残り、`node` と `npm` だけが消える。
 原因はprivate build workflowがhostのNodeを暗黙利用し、check workflowにある
 `actions/setup-node`を欠いていたことだった。2026-11-12に公開templateとprivate control repoの
-両方へ、同じ完全SHAのactionと、現行`engines`が許す24系の固定版を反映した。現在の固定版は
-24.22.3で、Node 26 LTS対応は依存互換性と`engines`を同時に更新する別作業とする。
-`lts/*`の自動追従は同じworkflow SHAの結果を変えるため使わない。
+両方へ同じ完全SHAのactionを反映した。Nodeは現行`engines`が許す24系を指定し、
+`check-latest: true`で各jobが最新security patchを取得する。patch更新で同じworkflow SHAの
+実行環境が変わる代償を受け入れ、majorは自動で越えない。Node 26 LTS対応は依存互換性と
+`engines`を同時に更新する別作業とする。miniホストへNodeを常設しない。
 
 PATH切替前後の固定source実buildは、どちらもNode setup、`npm ci`、Xcode archiveまで成功し、
 同じ署名export境界で停止した。失敗原因は現GUI runner contextにDistribution identityと有効な
