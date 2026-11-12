@@ -17,7 +17,6 @@
 2026-09-11 実際の並列セッションで重い検証が1枠に収まり、単独/重複時の所要時間と失敗を再測定する +claude @unattended see:docs/agent-execution.md id:0029
 2026-09-11 ESP32 ホストテストの無条件再コンパイルによる所要を測定し、対象選択や ccache の導入が必要か決める +claude @unattended see:docs/agent-execution.md id:0030
 2026-09-11 codex に worktree を使わせる。2026-09-11 に codex とみられる別セッションが esp32 の本線ツリーで作業しており、本線からは誰が何を触っているか見えなかった。同じツリーを複数の主体が触ると、本線がビルドして実機で測る対象が汚染される +claude @unattended id:0036
-2026-09-11 Claude の実 subagent で worktree-write-guard が発火し、本体と兄弟 checkout への Edit/Write を拒否することを確認する +claude @unattended see:docs/agent-execution.md id:0040
 (C) 2026-09-15 brew cask の sf-symbols に sfsymbols CLI が入っているか確かめ、入っていれば cask 宣言へ寄せる(入っていなければ新規ホストは developer.apple.com から手で入れる必要がある旨を残す) +infra @device id:0043
 (B) 2026-09-19 mini-vm を nix.buildMachines に宣言し、M4 Pro から x86_64-linux の変更を remote build で検証できるようにする(nix daemon は root なので root の SSH 鍵・known_hosts も要る。nixosConfigurations.mini-vm のビルドが手元で通ること) +mini-vm @device see:docs/mini-vm.md id:0044
 (A) 2026-10-09 codex ブリッジの prompt_cache_breakpoint 修正 (hotchpotch/openai-api-server-via-codex#25) が merge・リリースされたら mini-vm で `systemctl restart codex-openai-bridge` し、Cloudflare OS の GPT-5.6+ チャットが通ることを確認する。長引くなら fork の rev を buildGoModule で当てる暫定を検討 +cloudflare-os +mini-vm see:docs/cloudflare-os.md id:0082

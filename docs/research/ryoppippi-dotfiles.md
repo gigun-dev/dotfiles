@@ -120,10 +120,9 @@ subagent の設定も揺れている。445188c1（2026-09-15）で subagent を 
 | subagent | custom なし。native と `ask-other-agent` | `implementer`（sonnet）/ `artisan`（opus）/ `architect`（fable）/ `cross-repo-implementer`（sonnet）。どれも `disallowedTools: Agent` | gigun は「モデル選択・再委譲禁止・報告形式・worktree の責任分担」を定義側に固定している（g:ff890e6, g:d6343d4, g:334d74b）。ryoppippi は判断基準を文章で与え、毎回選ばせる（4868bc86） |
 | worktree の作成 | git-wt（人と skill が使う）。Claude の isolation は既定のまま（`.claude/worktrees` を gitignore） | Claude 標準の `isolation: worktree`（親が渡すときだけ、g:c77445e）、`worktree.baseRef=head` | どちらもエージェントの worktree は Claude 標準。git-wt を通す hook は ryoppippi にもない |
 | worktree の統合と掃除 | `git wt -d`（trash へ）、T3 のマージ時自動掃除 | `plugins/worktree` の integrate（merge→commit→finish、commit の成立を機械で確認、cc:8a35641）と sweep（3 分類、squash 判定） | gigun の方が厳しい。ただし `worktree@gigun` は現在 `~/.claude/settings.json` の enabledPlugins にも plugin cache にも無い（2026-11-08 確認）。CLAUDE.md も integrate を名指ししていない。今は実際には動いていない可能性が高い |
-| 書き込みガード | なし | `worktree-write-guard.py`（PreToolUse Write\|Edit で、同じ repo の別 checkout への書き込みを拒否） | 根拠は 24 体中 8 体が本体に書いた実測（`g:docs/agent-execution.md`） |
 | skill 配布 | agent-skills-nix + registry pin。store に固定し、switch で更新 | 別リポジトリの plugin marketplace（`gigun-dev/claude-code`、`.claude-plugin` / `.codex-plugin` / `.antigravity-plugin` を生成）。`enabledPlugins` に約 45 個 | gigun は plugin として bin・tests・version を持ち、他マシンや Codex にも配れる。nix の外にあるので固定と再現は marketplace 任せ |
 | レビュー | `review-loop` + PR ゲート hook | codex plugin と coderabbit plugin はあるが、ループの規約やゲートはない | 持ち込む価値がある |
-| hooks | PR ゲートのみ | 通知（bark・iTerm2 cc-status・afplay）、langfuse OTLP、write guard | gigun は観測と通知が厚い |
+| hooks | PR ゲートのみ | 通知（bark・iTerm2 cc-status・afplay）、langfuse OTLP | gigun は観測と通知が厚い |
 | settings 管理 | Nix で merge し、schema で検証 | repo に置いたファイルと実ファイルが別で、手で同期 | gigun ではずれが起きている（§3） |
 | ADR | なし（コミット本文が理由の置き場） | `docs/adr/`（0003, 0010, 0011, 0013, 0014）。エージェント運用の ADR はまだない | 寄せる判断自体を ADR にする価値がある |
 
@@ -164,7 +163,6 @@ subagent の設定も揺れている。445188c1（2026-09-15）で subagent を 
 
 | 安全装置 | 由来 | 失う条件 |
 |---|---|---|
-| `worktree-write-guard.py`（同じ repo の別 checkout への Write/Edit を拒否） | worktree 割り当て 24 体中 8 体が本体に書いた（`g:docs/agent-execution.md`, g:cf5abaa） | ryoppippi 式の「hook は PR ゲートだけ」に揃えた場合 |
 | integrate の finish 検査（commit の成立を確かめてから消す） | 2026-09-15、親がコミットに失敗したまま worktree とブランチを消した（cc:8a35641） | `git wt -d` か worktree skill に置き換えた場合。ただし今は plugin が未有効 |
 | sweep の squash 判定と 3 分類 | 推測で消さない設計。cf-fireboard での実測（`plugins/worktree/README.md`） | 同上 |
 | `isolation: worktree` は親が渡すときだけ | 常に付けると 43 個・19GB の worktree が残った（g:c77445e） | WorktreeCreate hook で worktree 作成が増えた場合 |

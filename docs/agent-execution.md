@@ -1,6 +1,6 @@
 # エージェントの書き込みと検証
 
-2026-09-12 の変更。同一 repo の並行作業は worktree で分離し、別 repo の仕事は対象 checkout を専有する。cwd だけでは別 checkout への誤書き込みを防げないため、Claude Code の Edit/Write を `claude/hooks/worktree-write-guard.py` でガードする。これは Bash、MCP、Codex や cwd 自体の変更を隔離する sandbox ではない。
+2026-09-12 の変更。同一 repo の並行作業は worktree で分離し、別 repo の仕事は対象 checkout を専有する。書き込み先は worktree の割り当てとスキルで管理する。Claude Code の Write/Edit 専用ガードは撤去した。
 
 ## 調査の訂正
 
@@ -51,21 +51,14 @@ isolation を外した写しの `.claude/agents/` を消した。委譲は ryopp
 `delegate-work.md` と同じく判断基準で書き（`agents/shared/delegate-work.md`）、モデル・再委譲の禁止・
 報告の項目は定義に固定せず、毎回の brief で渡す。定義側の `disallowedTools: Agent` は
 2026-07-13 に `tools` の列挙だけでは子の spawn を塞げなかったため足したもので、廃止後は brief の
-文だけになる。上の書き込みガードと検証の1枠は agent 定義に依らないので残す。
+文だけになる。検証の1枠は agent 定義に依らないので残す。
 
 ## 検証の境界
 
 - インストール済み companion 1.0.6 の `readTaskPrompt` をオフラインで実行し、日本語、表、
   バッククォート、引用符、`$()`、改行を空白入りパスからそのまま読み取ることを確認した。
   Claude からの実際の委譲で、この渡し方が選ばれることは未検証。
-- worktree ガードは [Claude Code の PreToolUse](https://code.claude.com/docs/en/hooks#pretooluse)
-  を使う。Edit/Write の file_path だけを扱い、Bash/MCP/Codex の書込みは対象外。
-- `scripts/tests/` の使い捨て repo による検証と、実 agent の起動時に hook が発火する受入を分ける。
-  実 worktree の削除や、本番設定の switch は行わない。
-- `python3 scripts/tests/worktree-write-guard.py` は5テスト（Write/Edit の24境界ケースを含む）通過、
-  `/bin/bash scripts/tests/worktree-sweep.sh` は11境界通過。実設定の hook コマンドを fixture 入力で実行し、symlink 経由でガードが動いて本体宛てを拒否することも確認した。
-- 使い捨て worktree から実 Claude の Write を試す受入は、週間上限の API 429 で推論前に終了した。
-  hook 発火の成功証拠には数えない。応答のリセット予定は9月15日2時 JST。実委譲の受入は残件。
+- worktree ガードと専用テストは撤去した。過去の検証記録は Git 履歴に残る。
 
 ## Codex全体の作業継続（2026-10-03）
 

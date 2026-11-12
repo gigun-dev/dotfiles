@@ -110,3 +110,5 @@ x 2026-11-12 2026-11-12 miniで未使用のmugi-clawを退役する。LaunchAgen
 x 2026-11-12 2026-11-12 +mini Homebrew fd 10.5.0候補の選択リンクだけをAnsibleへ移管するか承認し、check diff・checksum・新規shell・反復適用・Nix fallbackを検証する。formula導入更新は行わない @user dep:0127 id:0195 @dropped miniでfdを使っておらず、Nix撤去前にHomebrew版を選択する必要がないため
 ||||||| parent of 047f06c (feat(claude): guard against English responses at turn completion)
 x 2026-11-11 2026-11-11 Claude Code に japanese guard を導入して動作確認する +claude by:me id:0191
+x 2026-11-12 2026-09-11 Claude の実 subagent で worktree-write-guard が発火し、本体と兄弟 checkout への Edit/Write を拒否することを確認する +claude @unattended see:docs/agent-execution.md id:0040 @dropped Write/Edit 専用ガードを撤去し worktree の割り当てとスキルに任せるため
+x 2026-11-12 2026-11-12 worktree書き込みガードを撤去し cc-status の由来を確認する +claude by:me id:0192
