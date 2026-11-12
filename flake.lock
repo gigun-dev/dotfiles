@@ -260,6 +260,26 @@
         "type": "github"
       }
     },
+    "gigun-plugins": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1794509992,
+        "narHash": "sha256-pRKh9Ktn1ucXMebD7CxugOzHq80OHHdf3e+L582knok=",
+        "owner": "gigun-dev",
+        "repo": "claude-code",
+        "rev": "ceb142f3505064227a5643879f446d7f8989277c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "gigun-dev",
+        "repo": "claude-code",
+        "type": "github"
+      }
+    },
     "home-manager": {
       "inputs": {
         "nixpkgs": [
@@ -542,6 +562,7 @@
         "cloudflare-os": "cloudflare-os",
         "esp-dev": "esp-dev",
         "flake-parts": "flake-parts",
+        "gigun-plugins": "gigun-plugins",
         "home-manager": "home-manager",
         "llm-agents": "llm-agents",
         "nix-darwin": "nix-darwin",

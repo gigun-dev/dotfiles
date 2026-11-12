@@ -94,6 +94,14 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # gigun-dev/claude-code の flake。marketplace から入らない agy に、外部 npm plugin
+    # (REA) を包んだ agy 版を渡す (claude-code の ADR 0005)。版とハッシュは
+    # claude-code 側の marketplace の固定と同じコミットで動き、ここは rev を進めるだけ。
+    gigun-plugins = {
+      url = "github:gigun-dev/claude-code";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # Cloudflare OS。mini-vm が wrangler dev で常駐させている。
     #
     # **`flake = false` で、ここから運ぶのは rev だけ**。ビルドはしない。
@@ -516,6 +524,7 @@
 
           overlays = [
             inputs.claude-code-overlay.overlays.default
+            inputs.gigun-plugins.overlays.default
             # direnv の doCheck=false override は撤去した: override はハッシュを変えて
             # 素なら upstream キャッシュから fetch できる direnv を毎回ソースビルドさせ、
             # その結果 checkPhase ハングを踏むという自己誘発ループだった。override 無しなら

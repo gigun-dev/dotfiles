@@ -16,7 +16,7 @@ REAはGhidraのshell launcherを経由せず、JVMを直接起動する。その
 with-ghidra npx -y rea-agents@6.8.0 doctor --provider ghidra --format json
 ```
 
-REA本体・skill・MCPはgigun-dev/claude-codeの上流plugin参照で管理する方針で、対応する公開plugin配布は確認待ち。GhidraのNix導入は、そのplugin登録の完了を意味しない。Desktopアプリのpluginがこれらの環境値を継承するかは、その接続元でprovider診断して確認する。端末内の確認をDesktopの接続確認と同一視しない。
+REA本体・skill・MCPはgigun-dev/claude-codeで管理する。Claude CodeとCodexはmarketplaceの上流plugin参照(npm `rea-agents`の固定版)で入る。agyにはmarketplaceから入らないため、flake input `gigun-plugins`のoverlayが包んだagy版を`nix/modules/home/dotfiles.nix`が`~/.gemini/config/plugins.json`の2つ目のentryとして読ませ、このNix版GhidraとJDK21を`mcpEnv`で渡す(claude-codeのADR 0005)。どのhostにも`rea setup`は使わない。GhidraのNix導入は、Claude Code・Codex側のplugin登録の完了を意味しない。Desktopアプリのpluginがこれらの環境値を継承するかは、その接続元でprovider診断して確認する。端末内の確認をDesktopの接続確認と同一視しない。
 
 ## 検証
 
