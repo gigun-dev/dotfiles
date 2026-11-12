@@ -77,6 +77,16 @@ class MigrationFixture:
         self.variables["mini_tool_name"] = name
 
 class Migration(MigrationFixture, unittest.TestCase):
+    def test_homebrew_ownership_is_split_by_formula(self):
+        self.assertEqual(self.variables["mini_owners"]["packages"], "manual")
+        self.assertEqual(self.variables["mini_owners"]["formulae"], "ansible")
+        self.assertEqual(self.variables["mini_formulae"], ["lima"])
+        self.assertEqual(self.variables["mini_formula_policy"], {
+            "lima": {"owner": "ansible", "state": "adopted"},
+            "xcodegen": {"owner": "manual", "state": "pending"},
+            "mo": {"owner": "manual", "state": "pending"},
+        })
+
     def test_adopted_tool_defaults_match_the_pre_refactor_values(self):
         expected = {
             "fzf": ("0.74.5", "/usr/local/Cellar/fzf/0.74.5/bin/fzf",

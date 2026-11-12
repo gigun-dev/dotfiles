@@ -22,9 +22,9 @@
     - name: Manage shell links
       ansible.builtin.include_tasks: tasks/shell.yml
       when: "'shell' in mini_targets"
-    - name: Ensure selected packages are present without upgrading
+    - name: Ensure explicitly transferred formulae are present without upgrading
       ansible.builtin.include_tasks: tasks/packages.yml
-      when: "'packages' in mini_targets"
+      when: "'formulae' in mini_targets"
     - name: Manage selected user defaults
       ansible.builtin.include_tasks: tasks/defaults.yml
       when: "'defaults' in mini_targets"

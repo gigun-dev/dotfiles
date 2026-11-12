@@ -18,10 +18,13 @@ watchdog の観測のみ設定は別途適用済みだが、稼働サービス�
 | 常駐サービス | mini-vm の起動は `lima_daemon` が所有する。watchdog など他の `launchd` は未移管で、候補の staging と稼働サービスの管理を区別する |
 
 `mini_targets` の既定は空。playbook を指定しただけでは管理対象を選ばない。
-`mini_owners` は shell / packages / defaults / launchd など管理グループの所有者を記録する。
+`mini_owners` は shell / packages / formulae / defaults / launchd など管理グループの所有者を記録する。
 個々の CLI は `mini_tool_policy.<name>.adoption` に現在の owner と adoption state を記録し、
 `mini_tool_policy.<name>.target` に希望する版・取得元・checksum 種別・選択先・更新方針をまとめる。
-fzf / zoxide / ripgrep / XcodeGen は現在 `ansible` 所有として採用済み。`packages` / `launchd` は `manual` のまま。
+fzf / zoxide / ripgrep / XcodeGen の選択リンクは現在 `ansible` 所有として採用済み。Homebrew 全体の
+`packages` と `launchd` は `manual` のまま。Lima formula の存在維持と明示更新だけを
+`formulae` として切り出し、`mini_formula_policy` で `ansible` 所有にしている。XcodeGen / mo の
+formula 所有者は監査・移管前の `manual` であり、選択リンクの所有権とは別である。
 通常の変更は所有者を `ansible` へ移管した対象だけ。例外の `launchd_stage` は所有者を
 `manual` のまま保ち、起動対象外の staging ディレクトリに候補だけを置く。
 対象の選択と所有権の移管は別であり、`mini_targets` に追加するだけでは移管にならない。
@@ -87,13 +90,14 @@ uv run --locked --project ansible/mini-macos ansible-playbook -i ansible/mini-ma
 既存の自動更新を無効化する入口でもない。
 
 ```sh
-uv run --locked --project ansible/mini-macos ansible-playbook -i ansible/mini-macos/inventory.yml ansible/mini-macos/update.yml --check --diff -e '{"mini_targets":["packages"],"mini_update_formulae":["xcodegen"]}'
+uv run --locked --project ansible/mini-macos ansible-playbook -i ansible/mini-macos/inventory.yml ansible/mini-macos/update.yml --check --diff -e '{"mini_targets":["formulae"],"mini_update_formulae":["lima"]}'
 ```
 
-実更新は `mini_apply_ack=true` と `mini_update_ack=true`、`mini_owners.packages=ansible` を要する。
-`mini_targets` は `["packages"]` だけとし、`mini_update_formulae` を空でない対象リストにする。
-導入・更新の formula allowlist は `lima` / `xcodegen` / `mo`。更新対象はさらに `mini_formulae` に
-含まれている必要がある。`mini_casks` / `mini_update_casks` は空を要求し、cloudflared / Tailscale は対象外。
+実更新は `mini_apply_ack=true` と `mini_update_ack=true`、`mini_owners.formulae=ansible` を要する。
+`mini_targets` は `["formulae"]` だけとし、`mini_update_formulae` を空でない対象リストにする。
+formula の構造上の allowlist は `lima` / `xcodegen` / `mo` だが、実際の対象はさらに
+`mini_formula_policy` で個別に `ansible` 所有へ移し、`mini_formulae` に含める必要がある。
+現在は Lima だけである。`mini_casks` / `mini_update_casks` は空を要求し、cloudflared / Tailscale は対象外。
 Homebrew metadata 自体は更新せず、既存 metadata に対して適用する。配布最新版の確認とは区別する。
 
 ## Git 署名ツールの配布候補
@@ -127,7 +131,7 @@ Lima 2.2.x では daemon 起動の vz インスタンスが再起動のたびに
 
 ```sh
 # 1. Lima を上げる (稼働中の hostagent はそのまま。新しい版は次の起動から)
-uv run --locked --project ansible/mini-macos ansible-playbook -i ansible/mini-macos/inventory.yml ansible/mini-macos/update.yml -e '{"mini_targets":["packages"],"mini_update_formulae":["lima"],"mini_apply_ack":true,"mini_update_ack":true}'
+uv run --locked --project ansible/mini-macos ansible-playbook -i ansible/mini-macos/inventory.yml ansible/mini-macos/update.yml -e '{"mini_targets":["formulae"],"mini_update_formulae":["lima"],"mini_apply_ack":true,"mini_update_ack":true}'
 # 2. 切り替え (VM を止め、旧 LaunchAgent を .before-ansible-* へ退避し、daemon を bootstrap)。sudo のため -K
 uv run --locked --project ansible/mini-macos ansible-playbook -i ansible/mini-macos/inventory.yml ansible/mini-macos/apply.yml -K -e '{"mini_targets":["lima_daemon"],"mini_lima_daemon_cutover":true,"mini_apply_ack":true}'
 ```
@@ -201,6 +205,21 @@ system 側の両 watchdog plist は存在しなかった。終了コード 0 だ
 別途承認された最小変更として、2026-10-26 に既存user plistへ `NET_WATCHDOG_NO_REMEDIATE=1` を
 追加し同じagentを再読み込みした。script・起動方式・間隔は維持し、Wi-Fi自動操作だけを無効化した。
 
+## 2026-11-12 の再監査
+
+mini-vm の controller checkout は `main` の `b28484d` で、dirty なし、`origin/main` と
+ahead / behind 0 / 0。既存 SSH 経路から読んだ mini は Macmini8,1、Intel x86_64、macOS 15.8.3
+(24H241)。mini 側 checkout は `main` の `3a258846` で origin/main より 129 commit behind、
+`claude/settings.json` に未コミット変更がある。このため自動同期の前提を満たさず、pull や checkout
+更新は行っていない。
+
+Homebrew formula は `cloudflared`, `fd`, `fzf`, `go`, `lima`, `mo`, `pcre2`, `ripgrep`,
+`tailscale`, `xcodegen`, `zoxide`。cask は 2026-10-26 の一覧と同じだった。defaults の2項目と
+user watchdog は宣言どおりで、watchdog の LastExitStatus は 0。ただし回線復旧能力の検証ではない。
+`/run/current-system` は generation 26 を指す。`.zshenv` / `.zshrc` は古い mini checkout 内の共通
+`zsh/` をまだ指し、ADR 0014 の最小 shell への実機切替は未完了である。これは owner 宣言の完了と
+実機適用を同一視できない例なので、target checkout の同期と shell 切替はそれぞれ別承認で扱う。
+
 ## 既存記録の読み方
 
 既存の [mini-vm 運用記録](mini-vm.md) と [セットアップ手順](setup.md) には、macOS 側の
@@ -228,7 +247,8 @@ DNS 失敗だけでは Wi-Fi を操作しない。状態が連続 2 サンプル
 | 対象 | 初期実装の範囲 | 残す管理・依存 |
 |---|---|---|
 | shell | `ansible/mini-macos/files/zsh/` の最小 `.zshenv` / `.zshrc` への2リンク。通常ファイル・別リンク・親リンクを拒否。旧5リンクの撤去は明示フラグ | `.zprofile`、`/etc/zsh*`、login shell は未移管 |
-| packages | Lima / XcodeGen / mo の存在維持。明示更新は別入口 (2026-11-11 に Lima 2.3.0 へ上げるため owner を ansible に移した) | Nix CLI 群・GUI casks・VPN・cloudflared は現状維持 |
+| packages | Homebrew 全体は manual のまま | Nix CLI 群・GUI casks・VPN・cloudflared を含め、包括的には移管しない |
+| formulae | Lima の存在維持。明示更新は別入口 (2026-11-11 の 2.3.0 更新を契機に個別移管) | XcodeGen / mo の formula 所有者は manual。選択リンクの所有権とは別 |
 | lima_daemon | mini-vm の LaunchDaemon 1件と、旧 LaunchAgent の退避 | VM の設定 (`lima.yaml`)・ディスクは Lima のまま |
 | xcodegen | 検証済み 2.46.0 Cellar binary への `/usr/local/bin/xcodegen` 1リンク | Homebrew formula の導入・更新と Nix profile は変更しない |
 | defaults | Dock autohide / KeyRepeat の2項目 | 他のOS設定、電源、認証は未移管 |

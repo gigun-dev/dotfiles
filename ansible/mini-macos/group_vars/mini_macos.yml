@@ -8,7 +8,8 @@ mini_apply_ack: false
 mini_update_ack: false
 mini_owners:
   shell: ansible
-  packages: ansible
+  packages: manual
+  formulae: ansible
   defaults: ansible
   launchd: manual
   lima_daemon: ansible
@@ -26,8 +27,13 @@ mini_shell_legacy_links:
   - {dest: .config/sheldon, target: sheldon}
   - {dest: .config/zeno, target: zeno}
   - {dest: .config/zsh/functions, target: zsh/functions}
-# Existing formulae only; network/auth tools remain outside this migration.
-mini_formulae: [lima, xcodegen, mo]
+# Homebrew as a whole remains manual. Only formulae explicitly transferred below
+# may be selected by the formulae target; network/auth tools and casks stay outside.
+mini_formula_policy:
+  lima: {owner: ansible, state: adopted}
+  xcodegen: {owner: manual, state: pending}
+  mo: {owner: manual, state: pending}
+mini_formulae: [lima]
 mini_casks: []
 mini_update_formulae: []
 mini_update_casks: []

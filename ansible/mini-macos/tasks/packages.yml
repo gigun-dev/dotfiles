@@ -8,8 +8,14 @@
     that:
       - mini_brew.stat.exists
       - mini_formulae | difference(['lima', 'xcodegen', 'mo']) | length == 0
+      - mini_formulae | difference(mini_formula_policy.keys()) | length == 0
+      - mini_formulae | difference(mini_ansible_formulae) | length == 0
       - mini_casks | length == 0
-    fail_msg: Network tools and GUI changes require a separately reviewed expansion of ownership.
+    fail_msg: Homebrew remains manual; only individually transferred formulae may be managed here.
+  vars:
+    mini_ansible_formulae: >-
+      {{ mini_formula_policy | dict2items | selectattr('value.owner', 'equalto', 'ansible')
+      | map(attribute='key') | list }}
 - name: Ensure owned formulae are present
   community.general.homebrew:
     name: "{{ mini_formulae }}"
