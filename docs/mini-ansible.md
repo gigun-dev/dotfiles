@@ -49,16 +49,17 @@ x86_64 実行ファイルとして確認した。release の `asc_5.17.1_macOS_a
 
 2026-11-12 の値非表示監査では、login shell の `gh` / `fd` / `node` はいずれも
 `/etc/profiles/per-user/gigun/bin` の Nix profile を解決した。`fd` には検証済み Homebrew
-候補があるが未採用であり、`gh` は mini の現在の役割だけを理由に新規導入しない。`node` は
-`com.mugi-claw.plist` が直接使うため、host-wide CLI として先に移すのではなく mugi-claw の
-owning repo で runtime と plist を同時に移す。
+候補があるが、mini で使っていないため採用しない。`gh` も mini の現在の役割だけを理由に
+新規導入しない。`node` を使っていた mugi-claw は未使用と確認できたため、2026-11-12 に
+LaunchAgent を unload し、plist リンクと専用 Chrome process だけを除去した。`~/.mugi-claw`
+と owning repo は保持している。
 
 残存参照は `audit_nix_refs.py` が値を出さず、plist はファイル名・key path・参照種別、text は
 ファイル名・行番号・参照種別だけを報告する。実測では次の所有境界だった。
 
 | 参照 | 現在の所有者 | 次の切り出し |
 |---|---|---|
-| `com.mugi-claw.plist` の program / PATH | mugi-claw repo | runtime と LaunchAgent を同じ変更で移し、dotfiles から plist を直接編集しない |
+| `com.mugi-claw.plist` の program / PATH | mugi-claw repo | 未使用のため退役済み。Node の代替導入はしない |
 | ASC runner の `.path` | runner の運用設定 | runner 停止・rollback を含む別作業。通常 shell の PATH 変更で代用しない |
 | `/etc/zshenv` | 凍結 nix-darwin generation | Nix 撤去時まで監査対象として保持。ユーザー shell cutover とは分離 |
 | Nix の activate / daemon / gc plist | Nix 自身 | 全 consumer の参照解消後の撤去作業だけで扱う |
