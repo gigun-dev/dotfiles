@@ -113,3 +113,4 @@ x 2026-11-11 2026-11-11 Claude Code に japanese guard を導入して動作確�
 x 2026-11-12 2026-09-11 Claude の実 subagent で worktree-write-guard が発火し、本体と兄弟 checkout への Edit/Write を拒否することを確認する +claude @unattended see:docs/agent-execution.md id:0040 @dropped Write/Edit 専用ガードを撤去し worktree の割り当てとスキルに任せるため
 x 2026-11-12 2026-11-12 worktree書き込みガードを撤去し cc-status の由来を確認する +claude by:me id:0192
 x 2026-11-12 2026-11-12 実体を管理していない cc-status hook を撤去する +claude by:me id:0193
+x 2026-11-12 2026-11-12 yomiyasu を Claude Code と Codex に導入する +claude by:me id:0194

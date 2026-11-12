@@ -192,7 +192,8 @@
     "t3@gigun": true,
     "cross-agent@gigun": true,
     "edit-skills@gigun": true,
-    "git-workflow@gigun": true
+    "git-workflow@gigun": true,
+    "yomiyasu@yomiyasu": true
   },
   "extraKnownMarketplaces": {
     "agent-browser": {
@@ -283,6 +284,12 @@
       "source": {
         "source": "github",
         "repo": "honojs/skills"
+      }
+    },
+    "yomiyasu": {
+      "source": {
+        "source": "github",
+        "repo": "nanaism/yomiyasu"
       }
     }
   },
