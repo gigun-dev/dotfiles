@@ -223,6 +223,12 @@ cleanなことを確認し、本人承認後に退避参照を作らず現行`or
 `.zshenv` / `.zshrc` の2件だけを`ansible/mini-macos/files/zsh/`へ張り替えるもの。formula、defaults、
 launchdは対象外で、実適用はまだ行っていない。
 
+本人承認後、同じ対象で実適用した。旧5リンクは
+`.before-ansible-20261112T125027Z`へ退避され、`.zshenv` / `.zshrc` はmini専用設定を指す。
+非対話shellは正常起動し、TTYなしのlogin shellでもbrew / limactl / xcodegenを解決した。
+後者ではfzf / zoxideのinitが`zle`警告を出したが終了コードは0で、TTY対話利用とは条件が異なる。
+mini専用2ファイルにはNix profileや旧pluginへの実行時参照はない。再適用はchanged=0だった。
+
 Homebrew formula は `cloudflared`, `fd`, `fzf`, `go`, `lima`, `mo`, `pcre2`, `ripgrep`,
 `tailscale`, `xcodegen`, `zoxide`。cask は 2026-10-26 の一覧と同じだった。defaults の2項目と
 user watchdog は宣言どおりで、watchdog の LastExitStatus は 0。ただし回線復旧能力の検証ではない。
