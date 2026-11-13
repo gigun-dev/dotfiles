@@ -48,6 +48,17 @@ in
       langfuse = source skillSources.langfuse-skills "skills";
       modern-web-guidance = source skillSources.modern-web-guidance "skills";
       yomiyasu = source skillSources.yomiyasu "skills";
+      # twostraws の Swift skill は repo 直下の <name>/SKILL.md が本体。<name>/skills/ の下にも
+      # 同じ SKILL.md の複製があるので、直下の子だけを探す。
+      swift-concurrency = source skillSources.swift-concurrency-skill "." // {
+        filter.maxDepth = 1;
+      };
+      swift-testing = source skillSources.swift-testing-skill "." // {
+        filter.maxDepth = 1;
+      };
+      swiftui = source skillSources.swiftui-skill "." // {
+        filter.maxDepth = 1;
+      };
     };
 
     # plugin 版を同時に有効にしない (agy は plugin の skill に名前の区切りを付けないので、
@@ -67,6 +78,9 @@ in
       "langfuse"
       "modern-web-guidance"
       "yomiyasu"
+      "swift-concurrency"
+      "swift-testing"
+      "swiftui"
     ];
     skills.explicit.commit = {
       from = "ryoppippi";

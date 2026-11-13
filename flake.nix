@@ -133,6 +133,18 @@
       url = "github:nanaism/yomiyasu";
       flake = false;
     };
+    swift-concurrency-skill = {
+      url = "github:twostraws/Swift-Concurrency-Agent-Skill";
+      flake = false;
+    };
+    swift-testing-skill = {
+      url = "github:twostraws/Swift-Testing-Agent-Skill";
+      flake = false;
+    };
+    swiftui-skill = {
+      url = "github:twostraws/SwiftUI-Agent-Skill";
+      flake = false;
+    };
 
     gigun-plugins = {
       url = "github:gigun-dev/claude-code";
@@ -573,6 +585,9 @@
               langfuse-skills
               modern-web-guidance
               yomiyasu
+              swift-concurrency-skill
+              swift-testing-skill
+              swiftui-skill
               ;
           };
 
