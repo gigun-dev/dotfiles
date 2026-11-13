@@ -303,11 +303,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1794576187,
-        "narHash": "sha256-u15qIJPPU59grlnf65rO5oOwva5OPUa4ypL2bZciTFk=",
+        "lastModified": 1794582099,
+        "narHash": "sha256-ytMeGY6VGLx6sQZqixX8Ge5x7xyRk2vJswsBQ3LGqK4=",
         "owner": "gigun-dev",
         "repo": "claude-code",
-        "rev": "d3563645c791203d1d1b91da71f90c1942fdabc2",
+        "rev": "2ea649e758ef02379574f27d89b6aee828c07eba",
         "type": "github"
       },
       "original": {
