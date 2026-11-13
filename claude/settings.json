@@ -269,7 +269,7 @@
     "rea@gigun": true,
     "harness@gigun": true,
     "workers-fetch@gigun": true,
-    "worktree@gigun": true,
+    "worktree@gigun": false,
     "t3@gigun": true,
     "cross-agent@gigun": true,
     "edit-skills@gigun": true,
