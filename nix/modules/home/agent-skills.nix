@@ -1,6 +1,6 @@
 # skill だけでできたものは plugin で包まず、agent-skills-nix で 3 ホストへ直接配る。
 # 版は flake.lock で固定し、ホストに取りに行かせない (plugin の外部参照は host ごとに
-# 更新の仕方が違い、古い版が残った。gigun-dev/claude-code todo 0076)。
+# 更新の仕方が違い、古い版が残った。gigun-dev/claude-code ADR 0006)。
 #
 # 配り先はホストが実際に読む場所 (2026-11-13 に使い捨て skill で実測):
 #   claude → ~/.claude/skills   (Claude は ~/.agents/skills を読まない)
@@ -11,22 +11,67 @@
 # Why not symlink-tree (既定): rsync --delete で配り先を丸ごと持つので、既に手で置いた
 # skill (~/.claude/skills/synced、~/.gemini/skills の cloudflare 群) を消す。link は
 # home-manager が skill ごとに link するので (static な dest が要る)、既存のものと並べて段階的に移せる。
-{ config, skillSources, ... }:
+{
+  config,
+  lib,
+  skillSources,
+  ...
+}:
 let
   home = config.home.homeDirectory;
+
+  # gigun-dev/claude-code の git-workflow plugin が上流の commit skill に当てていた置換。
+  # コミットメッセージを日本語にし、Conventional Commits の type と scope だけ英語に残す。
+  # 上流の文が変わったら黙って素通りさせず評価で止める。
+  commitFrom = "Write the message in English with UK spelling:";
+  commitTo = "Write the message in Japanese, keeping the Conventional Commits type and scope in English:";
+  japaneseCommit =
+    { original, ... }:
+    if lib.hasInfix commitFrom original then
+      builtins.replaceStrings [ commitFrom ] [ commitTo ] original
+    else
+      throw "agent-skills: ryoppippi の commit skill に置換元の文が無い。上流の変更を見て nix/modules/home/agent-skills.nix の commitFrom を直す";
+
+  source = path: subdir: { inherit path subdir; };
 in
 {
   programs.agent-skills = {
     enable = true;
 
-    sources.ryoppippi = {
-      path = skillSources.ryoppippi-dotfiles;
-      subdir = "agents/skills";
+    sources = {
+      ryoppippi = source skillSources.ryoppippi-dotfiles "agents/skills";
+      # gigun-dev/claude-code が正本を持つ skill (pre-push・japanese-tech-writing)。
+      gigun = source skillSources.gigun-plugins "skills";
+      emil = source skillSources.emil-skills "skills";
+      unslop = source skillSources.unslop "skills";
+      hallmark = source skillSources.hallmark "skills";
+      langfuse = source skillSources.langfuse-skills "skills";
+      modern-web-guidance = source skillSources.modern-web-guidance "skills";
+      yomiyasu = source skillSources.yomiyasu "skills";
     };
 
-    # 移行中は plugin 版を同時に有効にしない (agy は plugin の skill に名前の区切りを
-    # 付けないので、同名の skill が 2 つ並ぶ)。
-    skills.enable = [ "worktree" ];
+    # plugin 版を同時に有効にしない (agy は plugin の skill に名前の区切りを付けないので、
+    # 同名の skill が 2 つ並ぶ)。移した plugin は claude-code の marketplace から外してある。
+    skills.enable = [
+      "worktree"
+      "ask-other-agent"
+      "review-loop"
+      "edit-skills"
+    ];
+    # ryoppippi の残りの skill (tdd・vitest など) は選んでいないので配らない。
+    skills.enableAll = [
+      "gigun"
+      "emil"
+      "unslop"
+      "hallmark"
+      "langfuse"
+      "modern-web-guidance"
+      "yomiyasu"
+    ];
+    skills.explicit.commit = {
+      from = "ryoppippi";
+      transform = japaneseCommit;
+    };
 
     targets = {
       claude = {

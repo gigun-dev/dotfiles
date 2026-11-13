@@ -251,25 +251,15 @@
     "swift-lsp@claude-plugins-official": true,
     "telemetry@gigun": true,
     "typescript-lsp@claude-plugins-official": true,
-    "japanese-tech-writing@gigun": true,
     "todo@gigun": true,
-    "langfuse@gigun": true,
-    "hallmark@gigun": true,
     "ota-deploy@gigun": true,
     "asc@rorkai": true,
     "asc-mcp@gigun": true,
     "html-plan@claude-community": true,
-    "modern-web-guidance@gigun": true,
     "mattpocock-skills@claude-plugins-official": true,
     "hono@hono": true,
-    "emil@gigun": true,
-    "unslop@gigun": true,
     "rea@gigun": true,
-    "worktree@gigun": false,
-    "t3@gigun": true,
-    "cross-agent@gigun": true,
-    "edit-skills@gigun": true,
-    "git-workflow@gigun": true
+    "t3@gigun": true
   },
   "extraKnownMarketplaces": {
     "agent-browser": {
