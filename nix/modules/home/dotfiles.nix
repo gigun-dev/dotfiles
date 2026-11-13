@@ -364,14 +364,17 @@ in
 
   # enabledPlugins から落とすだけでは install の記録が残り、Claude は cache を孤立扱い
   # (.orphaned_at、14 日後に削除) にしない。2026-11-13 に移行した 11 個の cache が残った。
-  # marketplace に無い @gigun の記録は uninstall する。失敗は switch を止めず警告にする。
+  # marketplace に無い @gigun の user scope の記録は uninstall する。失敗は switch を止めず警告にする。
+  # Why not project scope も: project scope の記録はそのリポジトリの .claude/settings.json が持ち、
+  # uninstall はそのファイルを書き換える。switch から他のリポジトリを触らない (2026-11-14 に
+  # ebook2pdf の Swift plugin で "installed in project scope, not user" と失敗した)。
   home.activation.uninstallStaleClaudeGigunPlugins =
     lib.hm.dag.entryAfter [ "configureClaudeSettings" ]
       ''
         INSTALLED="${config.home.homeDirectory}/.claude/plugins/installed_plugins.json"
         if [ -f "$INSTALLED" ]; then
           for plugin in $(${lib.getExe pkgs.jq} -r ${gigunJqArgs} \
-            '.plugins // {} | keys[] | select(endswith("@gigun")) | select((rtrimstr("@gigun")) as $n | $names | any(. == $n) | not)' \
+            '.plugins // {} | to_entries[] | select(.key | endswith("@gigun")) | select(any(.value[]; .scope == "user")) | .key | select((rtrimstr("@gigun")) as $n | $names | any(. == $n) | not)' \
             "$INSTALLED"); do
             $DRY_RUN_CMD ${lib.getExe pkgs.claude-code} plugin uninstall "$plugin" >/dev/null \
               || echo "claude: $plugin を uninstall できなかった" >&2
