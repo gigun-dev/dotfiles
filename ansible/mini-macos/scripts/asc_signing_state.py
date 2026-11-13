@@ -11,6 +11,16 @@ import subprocess
 OLD = Path('/tmp/asc-signing-run.1058188874')
 
 
+def same_path(a, b):
+    # security list-keychains は /tmp や /var を /private/tmp・/private/var の実体名で返す。
+    # macOS では resolve() が /tmp -> /private/tmp を辿って一致するが、その symlink が無い
+    # 環境 (CI の Linux) では一致しないので、比べる前に /private を外して揃える。
+    def norm(p):
+        s = str(Path(p).resolve())
+        return s[len('/private'):] if s.startswith('/private/') else s
+    return norm(a) == norm(b)
+
+
 def private_json(path):
     try:
         fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
@@ -66,7 +76,7 @@ def main():
     result['searchListExit'] = run.returncode
     if run.returncode == 0:
         entries = shlex.split(run.stdout.decode())
-        result['oldKeychainInSearchList'] = any(Path(entry).resolve() == (OLD / 'signing.keychain-db').resolve() for entry in entries)
+        result['oldKeychainInSearchList'] = any(same_path(entry, OLD / 'signing.keychain-db') for entry in entries)
     print(json.dumps(result))
 
 
