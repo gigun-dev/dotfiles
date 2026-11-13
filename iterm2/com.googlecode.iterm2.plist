@@ -27,7 +27,7 @@
 	<key>AllowClipboardAccess</key>
 	<true/>
 	<key>ClaudeCodeTriggersInstalled</key>
-	<true/>
+	<false/>
 	<key>ClickToSelectCommand</key>
 	<false/>
 	<key>CodeReviewSavedPrompts</key>
