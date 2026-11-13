@@ -1,0 +1,317 @@
+diff --git a/Sources/CLI.swift b/Sources/CLI.swift
+index 6564c37..789a7cd 100644
+--- a/Sources/CLI.swift
++++ b/Sources/CLI.swift
+@@ -1,6 +1,7 @@
+ import Foundation
+ 
+-let version = "v0.1.4"
++// Local canary candidate; not an upstream release.
++let version = "v0.1.4+asc-accessibility-canary"
+ 
+ @main
+ struct CLI {
+@@ -15,7 +16,8 @@ struct CLI {
+         print(version)
+       case .keygen:
+         let result = try plugin.generateKey(
+-          accessControl: options.accessControl.keyAccessControl, now: Date())
++          accessControl: options.accessControl.keyAccessControl,
++          accessibility: options.accessibility, now: Date())
+         if let outputFile = options.output {
+           FileManager.default.createFile(
+             atPath: outputFile,
+@@ -65,11 +67,13 @@ struct Options {
+     case unknownOption(String)
+     case missingValue(String)
+     case invalidValue(String, String)
++    case requiresKeygen(String)
+ 
+     public var errorDescription: String? {
+       switch self {
+       case .unknownOption(let option): return "unknown option: `\(option)`"
+       case .missingValue(let option): return "missing value for option `\(option)`"
++      case .requiresKeygen(let option): return "\(option) is only valid for keygen"
+       case .invalidValue(let option, let value):
+         return "invalid value for option `\(option)`: `\(value)`"
+       }
+@@ -115,11 +119,12 @@ struct Options {
+     }
+   }
+   var accessControl = AccessControl.anyBiometryOrPasscode
++  var accessibility = KeyAccessibility.whenUnlocked
+ 
+   static let help =
+     """
+     Usage:
+-      age-plugin-se keygen [-o OUTPUT] [--access-control ACCESS_CONTROL]
++      age-plugin-se keygen [-o OUTPUT] [--access-control ACCESS_CONTROL] [--accessibility ACCESSIBILITY]
+       age-plugin-se recipients [-o OUTPUT] [-i INPUT]
+ 
+     Description:
+@@ -144,6 +149,14 @@ struct Options {
+                                           current-biometry-and-passcode
+                                         Default: any-biometry-or-passcode.                          
+ 
++      --accessibility ACCESSIBILITY    Protection class for a newly generated key.
++                                        Supported values: when-unlocked, after-first-unlock.
++                                        Default: when-unlocked.
++                                        after-first-unlock requires --access-control=none;
++                                        it permits use while locked after the first unlock
++                                        following restart. It does not initialize a user session
++                                        or bypass the first unlock requirement.
++
+       -i, --input INPUT                 Read data from the file at path INPUT
+ 
+       -o, --output OUTPUT               Write the result to the file at path OUTPUT
+@@ -158,6 +171,7 @@ struct Options {
+   static func parse(_ args: [String]) throws -> Options {
+     var opts = Options(command: .help)
+     var i = 1
++    var accessibilityWasSet = false
+     while i < args.count {
+       let arg = args[i]
+       if arg == "keygen" {
+@@ -171,7 +185,7 @@ struct Options {
+         opts.command = .version
+         break
+       } else if [
+-        "--age-plugin", "-i", "--input", "-o", "--output", "--access-control",
++        "--age-plugin", "-i", "--input", "-o", "--output", "--access-control", "--accessibility",
+       ].contains(where: {
+         arg == $0 || arg.hasPrefix($0 + "=")
+       }) {
+@@ -195,6 +209,10 @@ struct Options {
+           opts.input = value
+         case "-o", "--output":
+           opts.output = value
++        case "--accessibility":
++          opts.accessibility =
++            try KeyAccessibility(rawValue: value) ?? { throw Error.invalidValue(arg, value) }()
++          accessibilityWasSet = true
+         case "--access-control":
+           opts.accessControl =
+             try AccessControl(rawValue: value) ?? { throw Error.invalidValue(arg, value) }()
+@@ -206,6 +224,11 @@ struct Options {
+       }
+       i += 1
+     }
++    if opts.command == .keygen {
++      try opts.accessibility.validate(accessControl: opts.accessControl.keyAccessControl)
++    } else if accessibilityWasSet && opts.command != .help && opts.command != .version {
++      throw Error.requiresKeygen("--accessibility")
++    }
+     return opts
+   }
+ }
+diff --git a/Sources/Plugin.swift b/Sources/Plugin.swift
+index ac42e15..9ed0d6a 100644
+--- a/Sources/Plugin.swift
++++ b/Sources/Plugin.swift
+@@ -15,7 +15,10 @@ class Plugin {
+     self.stream = stream
+   }
+ 
+-  func generateKey(accessControl: KeyAccessControl, now: Date) throws -> (String, String) {
++  func generateKey(
++    accessControl: KeyAccessControl, accessibility: KeyAccessibility = .whenUnlocked, now: Date
++  ) throws -> (String, String) {
++    try accessibility.validate(accessControl: accessControl)
+     if !crypto.isSecureEnclaveAvailable {
+       throw Error.seUnsupported
+     }
+@@ -39,7 +42,7 @@ class Plugin {
+       var error: Unmanaged<CFError>?
+       guard
+         let secAccessControl = SecAccessControlCreateWithFlags(
+-          kCFAllocatorDefault, kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
++          kCFAllocatorDefault, accessibility.protection,
+           accessControlFlags,
+           &error)
+       else {
+@@ -70,6 +73,7 @@ class Plugin {
+     let contents = """
+       # created: \(createdAt)
+       # access control: \(accessControlStr)
++      # accessibility: \(accessibility.rawValue)
+       # public key: \(recipient)
+       \(identity)
+       """
+@@ -380,6 +384,35 @@ extension Stanza {
+   }
+ }
+ 
++/// Accessibility is encoded in a new Secure Enclave key, never a decryption override.
++enum KeyAccessibility: String {
++  case whenUnlocked = "when-unlocked"
++  case afterFirstUnlock = "after-first-unlock"
++
++  enum Error: LocalizedError, Equatable {
++    case afterFirstUnlockRequiresNone
++
++    var errorDescription: String? {
++      return "after-first-unlock requires --access-control=none"
++    }
++  }
++
++  func validate(accessControl: KeyAccessControl) throws {
++    if self == .afterFirstUnlock && accessControl != .none {
++      throw Error.afterFirstUnlockRequiresNone
++    }
++  }
++
++  #if !os(Linux) && !os(Windows)
++    var protection: CFString {
++      switch self {
++      case .whenUnlocked: return kSecAttrAccessibleWhenUnlockedThisDeviceOnly
++      case .afterFirstUnlock: return kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
++      }
++    }
++  #endif
++}
++
+ enum KeyAccessControl {
+   case none
+   case passcode
+diff --git a/Tests/CLITests.swift b/Tests/CLITests.swift
+index a3a6e1b..82ce993 100644
+--- a/Tests/CLITests.swift
++++ b/Tests/CLITests.swift
+@@ -31,6 +31,56 @@ final class OptionsTests: XCTestCase {
+     }
+   }
+ 
++  func testParse_AccessibilityDefaultsRemainUnchanged() throws {
++    let options = try Options.parse(["_", "keygen"])
++    XCTAssertEqual(.whenUnlocked, options.accessibility)
++    XCTAssertEqual(.anyBiometryOrPasscode, options.accessControl)
++    let explicit = try Options.parse([
++      "_", "keygen", "--accessibility=when-unlocked", "--access-control=any-biometry",
++    ])
++    XCTAssertEqual(.whenUnlocked, explicit.accessibility)
++    XCTAssertEqual(.anyBiometry, explicit.accessControl)
++  }
++
++  func testParse_AfterFirstUnlockRequiresExplicitNoneInEitherOrder() throws {
++    for arguments in [
++      ["_", "keygen", "--accessibility=after-first-unlock", "--access-control=none"],
++      ["_", "keygen", "--access-control", "none", "--accessibility", "after-first-unlock"],
++    ] {
++      let options = try Options.parse(arguments)
++      XCTAssertEqual(.afterFirstUnlock, options.accessibility)
++      XCTAssertEqual(.none, options.accessControl)
++    }
++    for access in [nil, "passcode", "any-biometry", "any-biometry-or-passcode",
++      "any-biometry-and-passcode", "current-biometry", "current-biometry-and-passcode"] {
++      var args = ["_", "keygen", "--accessibility=after-first-unlock"]
++      if let access = access { args.append("--access-control=" + access) }
++      XCTAssertThrowsError(try Options.parse(args)) { error in
++        XCTAssertEqual(KeyAccessibility.Error.afterFirstUnlockRequiresNone,
++          error as! KeyAccessibility.Error)
++      }
++    }
++  }
++
++  func testParse_InvalidOrMissingAccessibility() throws {
++    XCTAssertThrowsError(try Options.parse(["_", "keygen", "--accessibility=always"])) { error in
++      XCTAssertEqual(Options.Error.invalidValue("--accessibility", "always"), error as! Options.Error)
++    }
++    XCTAssertThrowsError(try Options.parse(["_", "keygen", "--accessibility"])) { error in
++      XCTAssertEqual(Options.Error.missingValue("--accessibility"), error as! Options.Error)
++    }
++    XCTAssertThrowsError(try Options.parse(["_", "recipients", "--accessibility=after-first-unlock"])) { error in
++      XCTAssertEqual(Options.Error.requiresKeygen("--accessibility"), error as! Options.Error)
++    }
++  }
++
++  func testHelpDocumentsAccessibilityAndFirstUnlockRequirement() {
++    XCTAssertTrue(Options.help.contains("--accessibility ACCESSIBILITY"))
++    XCTAssertTrue(Options.help.contains("Default: when-unlocked"))
++    XCTAssertTrue(Options.help.contains("requires --access-control=none"))
++    XCTAssertTrue(Options.help.contains("first unlock requirement"))
++  }
++
+   func testParse_Recipients() throws {
+     let options = try Options.parse([
+       "_", "recipients", "--output=recipients.txt", "--input=identity.txt",
+diff --git a/Tests/DummyCrypto.swift b/Tests/DummyCrypto.swift
+index a1dafac..8f7ac23 100644
+--- a/Tests/DummyCrypto.swift
++++ b/Tests/DummyCrypto.swift
+@@ -25,6 +25,7 @@ class DummyCrypto: Crypto {
+ 
+   var isSecureEnclaveAvailable = true
+   var failingOperations = false
++  var generatedKeyCount = 0
+ 
+   func newSecureEnclavePrivateKey(dataRepresentation: Data) throws -> SecureEnclavePrivateKey {
+     return DummySecureEnclavePrivateKey(
+@@ -33,6 +34,7 @@ class DummyCrypto: Crypto {
+ 
+   func newSecureEnclavePrivateKey(accessControl: SecAccessControl) throws -> SecureEnclavePrivateKey
+   {
++    generatedKeyCount += 1
+     return DummySecureEnclavePrivateKey(
+       key: try P256.KeyAgreement.PrivateKey(rawRepresentation: dummyKeys.popLast()!), crypto: self)
+   }
+diff --git a/Tests/PluginTests.swift b/Tests/PluginTests.swift
+index 8a93222..5f39c4b 100644
+--- a/Tests/PluginTests.swift
++++ b/Tests/PluginTests.swift
+@@ -45,3 +45,4 @@ final class GenerateKeyTests: XCTestCase {
+       """
+       # created: 1997-02-02T02:26:51Z
+       # access control: any biometry or passcode
++      # accessibility: when-unlocked
+@@ -61,3 +62,4 @@ final class GenerateKeyTests: XCTestCase {
+       """
+       # created: 1997-02-02T02:26:51Z
+       # access control: any biometry and passcode
++      # accessibility: when-unlocked
+@@ -76,3 +78,4 @@ final class GenerateKeyTests: XCTestCase {
+       """
+       # created: 1997-02-02T02:26:51Z
+       # access control: current biometry
++      # accessibility: when-unlocked
+@@ -83,6 +86,41 @@ final class GenerateKeyTests: XCTestCase {
+       "age1se1qvlvs7x2g83gtaqg0dlstnm3ee8tr49dhtdnxudpfd0sy2gedw20kjmseq4", result.1)
+   }
+ 
++  func testGenerate_AfterFirstUnlockWithNone() throws {
++    let plugin = Plugin(crypto: crypto, stream: stream)
++    let result = try plugin.generateKey(
++      accessControl: .none, accessibility: .afterFirstUnlock,
++      now: Date(timeIntervalSinceReferenceDate: -123456789.0))
++    XCTAssertTrue(result.0.contains("# accessibility: after-first-unlock"))
++    XCTAssertTrue(result.0.contains("# access control: none"))
++    XCTAssertEqual(1, crypto.generatedKeyCount)
++  }
++
++  func testGenerate_AfterFirstUnlockRejectsAuthenticationBeforeKeyCreation() throws {
++    let plugin = Plugin(crypto: crypto, stream: stream)
++    let rejected: [KeyAccessControl] = [
++      .passcode, .anyBiometry, .anyBiometryOrPasscode, .anyBiometryAndPasscode,
++      .currentBiometry, .currentBiometryAndPasscode,
++    ]
++    for access in rejected {
++      XCTAssertThrowsError(try plugin.generateKey(
++        accessControl: access, accessibility: .afterFirstUnlock, now: Date())) { error in
++        XCTAssertEqual(KeyAccessibility.Error.afterFirstUnlockRequiresNone,
++          error as! KeyAccessibility.Error)
++      }
++    }
++    XCTAssertEqual(0, crypto.generatedKeyCount)
++  }
++
++  #if !os(Linux) && !os(Windows)
++    func testAccessibilitySelectsDeviceOnlyProtectionClass() {
++      XCTAssertEqual(KeyAccessibility.whenUnlocked.protection,
++        kSecAttrAccessibleWhenUnlockedThisDeviceOnly)
++      XCTAssertEqual(KeyAccessibility.afterFirstUnlock.protection,
++        kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly)
++    }
++  #endif
++
+   func testGenerate_NoSecureEnclaveSupport() throws {
+     let plugin = Plugin(crypto: crypto, stream: stream)
+     crypto.isSecureEnclaveAvailable = false

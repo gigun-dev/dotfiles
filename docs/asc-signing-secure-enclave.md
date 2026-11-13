@@ -1,0 +1,127 @@
+# miniの署名資材をSecure Enclaveで保護する候補
+
+状態はcanary前の候補。実際の鍵・P12・passwordの暗号化、移動、復号、削除はまだ行っていない。
+
+miniは実測Macmini8,1・T2搭載・macOS15.8.3で、gigun SSH contextのCryptoKit SecureEnclave.isAvailableはtrueだった。asc-sign UID、ロック中、再起動後の利用を証明するものではない。
+
+## 保存時の保護
+
+RSA2048のDistribution鍵はSecure Enclaveへ直接importできない。P12とpasswordをSOPS暗号文にし、その通常の復号recipientをminiのasc-signに属するage-plugin-se identityとする。署名時だけowner-private一時領域へ展開し、一時Keychainで署名後にcleanupする。mini-vmは依頼と状態管理に限定し、SE identity blobや平文鍵・P12・passwordを配送しない。
+
+age-plugin-seのidentity fileは端末封印blobを含むprivateな資材であり、単なる公開recipientではない。owner0600、Git/Nix storeへ入れない。暗号文は別の故障系統の復旧recipientにも同時暗号化し、mini故障後に別hostでSE identityを移植して復旧できるとは考えない。
+
+[dotfiles ADR0018](adr/0018-unify-secret-delivery-with-sops-and-allow-device-recipients-for-development.md)のSOPS統一・host専用identity・primary/backup YubiKeyという分担へ寄せる。ただしDistribution鍵は低権限project開発secretとは扱わず、追加認証なしのMac経路を許す範囲はcanary・脅威範囲を確認後に別途確定する。既存のryoppippi/nix-secure-enclave-key importはaarch64-darwin限定であり、Intel miniへ無条件流用しない。miniの管理方式に合う独立した配置が必要である。
+
+## 互換性と受入
+
+- [age-plugin-se v0.1.4](https://github.com/remko/age-plugin-se/tree/v0.1.4)（commit 3bb554e284d9e685b3f3fb07ae5c294d5ec7c6dd）はmacOS13/Swift5.7 manifestで、mini向け互換候補。最新版v0.2.1/mainとHomebrewはmacOS26要求であり、そのまま導入しない。
+- [access-control=noneの実装](https://github.com/remko/age-plugin-se/blob/v0.1.4/Sources/Plugin.swift)はTouch ID/userPresenceを要求しないが、WhenUnlockedThisDeviceOnly条件は残る。SSH専用UID・ロック・再起動後の動作を仮定しない。
+- [SOPS 3.10.0](https://github.com/getsops/sops/releases/tag/v3.10.0)以降はage plugin対応。plugin/age/SOPSの版を固定し、identity形式を混在させない。
+- 固定の非秘密canaryだけで、asc-sign・TTYなし・ロック/再起動後の復号、asc-build/通常UIDからの利用境界、失敗時cleanup、独立recipientからの復旧を確認する。出力は判定とdigestのみ。
+- 実鍵の移行・既存平文の退役は、canaryと復旧の受入後に具体差分を揃えてから行う。実資材で試行しない。
+
+noneによる無人復号は、そのhost上でidentityを使えるprocessによる不正利用を防ぐ境界ではない。RSA署名もSE外で行われ、復号中はowner processが資材を利用できる。UID分離・信頼済みarchive/digest・短命展開・履歴を残さないcleanupは維持する。
+
+## 一時Keychain promptの独立した原因
+
+ASC5.17.1はsecurity set-key-partition-listへ一時passwordをstdinで渡す。Apple getpassは/dev/ttyを優先するため、制御端末を継承したlauncherでは本人へ解除要求が出る。非対話processを新sessionへ切り離し、親stdinをDEVNULLにする修正が必要である。passwordを引数へ載せたりsudo passwordで解除したりしない。中断時は子process groupへ終了を通知してcleanupを待ち、journalの状態を確認する。
+
+[ASC実装](https://github.com/rorkai/App-Store-Connect-CLI/blob/5.17.1/internal/cli/signing/signing_run_platform.go)、[Apple Security prompt](https://github.com/apple-oss-distributions/Security/blob/main/SecurityTool/macOS/keychain_utilities.c)、[getpass manual](https://github.com/apple-oss-distributions/Libc/blob/main/gen/FreeBSD/getpass.3)。非秘密canaryでは制御端末なしの新sessionでstdin値を消費することを確認した。中断した実jobのKeychain/profile cleanupは未確認で、実署名の再実行はしていない。
+
+## 準備済み候補とcanary入口
+
+2026-11-13、miniでage-plugin-se v0.1.4を固定commitからrelease buildした。binaryはx86_64、minimum macOS13.0、SHA256 8374a5f791c4e6bb6a6290921e01359ebc8f9bd30b6c1a0858119367c4c17ce7。Package.resolvedは変更なし、swift-crypto2.6.0固定。age1.3.2/SOPS3.13.3の公式releaseもtempへ取得し、asset digest/checksumを照合した。Sigsum proof/Sigstore bundle自体の暗号学的検証はまだ行っておらず、実資材の移行へそのまま昇格しない。
+
+`ansible/mini-macos/scripts/asc_se_canary.py`はroot保護したtoolchainを指定し、非root対象UIDのprivate homeに新規canary領域を作る。固定非秘密bytesだけを使用し、SE none identityと独立software canary identityへ同じSOPSデータを暗号化して、それぞれ単独のidentity fileで往復確認する。XDG/SOPS設定をfixtureに限定し、ambientな秘密や実署名資材へfallbackしない。追加認証を待たないようstdinを閉じ、制御端末のないprocess groupで実行する。対象ownerの成功はロック・再起動・別UIDの受入と区別し、次のgateのためfixtureをprivateに保持する。
+
+SOPSの空creation_rulesはCLIの明示recipient指定があってもconfig検証で拒否されるため、fixture専用の明示recipient ruleを生成する。miniでsoftware age/SOPSの固定canary往復は成功し、一時fixtureは削除した。この結果はSE往復の証拠ではない。
+
+`asc_signing_state.py`は中断jobのjournal/receiptと一時pathの存在・search-list一致だけを読む。鍵・password・Keychain内容を読まず、path/UUID/UDIDや任意のmetadata値を出さない。公式ASC RecoverEphemeral APIの回収専用commandは、該当journalを確認した場合だけ本人の管理者操作からasc-signで起動し、実identityを渡さずcleanupを受入する。
+
+## 本人実行の結果
+
+中断jobのauditは旧temp/keychain/journal/search-list参照すべてなし、receiptはoutcome failed・profile not-installed・keychain deletedだった。回収APIの実行は不要で、cleanup済みを受入した。
+
+asc-signでSE/SOPS canaryを開始したがse-keygenで失敗し、実署名資材は未使用。通常gigun SSHの別の非永続Swift canaryでも、同じWhenUnlockedThisDeviceOnly/privateKeyUsage・対話禁止でSecureEnclave.isAvailable=true、key-generationがNSOSStatusErrorDomain -25308となった。SE非対応ではなくセッション/unlock条件を次の切り分け対象とする。保護classを緩めず、default Keychain状態とdirect/asuserの対照を準備する。成功するまで実資材の移行・復号は行わない。
+
+[Apple TN3137](https://developer.apple.com/documentation/technotes/tn3137-on-mac-keychains)は、Secure Enclave保護がData Protection Keychainを必要とし、同Keychainはuser login contextでのみ利用可能、daemon contextでは利用不可と明記している。UID変更だけでそのcontextを作ったとは扱わない。次の同一probeによるdirect/asuser対照はこの条件を切り分けるもので、legacy default Keychainの状態は別の観測として記録する。
+
+## asc-signのcontext対照結果
+
+本人出力でasc-signのuser domain参照はexit0、GUI domainはexit125。direct/asuserともhardwareAvailable=true、非永続canary key-generationはNSOSStatusErrorDomain -25308で失敗した。directではlegacy default Keychainを取得できたがlocked、asuserではdefault取得が-25307だった。このlegacy状態をData Protection Keychainのunlock状態と混同しない。asuserだけでは専用UIDのSE利用は成立せず、保護class変更・legacy unlock・auto-loginは実施しない。
+
+現在のGUIログインなし専用UIDをSE復号主体にする案は未成立。次の候補は、ログインcontext内の限定した復号主体がSOPS canaryを扱い、RSA署名は引き続きasc-signで行う配置である。復号主体とsign主体の受渡し・承認・credential露出範囲は新しい設計の受入が必要で、現時点で実資材を動かさない。ログアウト/再起動後に人のログインが必要なら、完全無人復帰とは報告しない。gigun側の同一probe結果も確認した。GUI domainあり、asuserでlegacy default Keychainがunlock済みでもSE key-generationは-25308だった。したがって専用UIDのGUI domain欠如やlegacy lockだけで失敗を説明せず、現在のsetuid/asuserから実際のGUI Terminalと同等のData Protection contextが得られたとも断定しない。
+
+通常ログインユーザーのGUI Terminalから、同じroot保護済みprobeをsudo/SSHなしで実行する対照を次の最小確認とする。新たなSDK・policy・認証設定変更は不要。既存probeは固定非秘密canaryの一時SE key-generation/ECDHだけを行い、鍵ファイル・dataRepresentationを出力しない。Intel/T2全般が非対応とする根拠はなく、plugin maintainerの[公式issue24](https://github.com/remko/age-plugin-se/issues/24)もIntel source buildを案内している。
+
+## GUI Terminal対照の成功
+
+本人がminiの通常ログインGUI Terminalから同じ保護済みprobeをsudo/SSHなしで実行し、hardwareAvailable=true、keyGenerationSucceeded=true、keyAgreementSucceeded=true、userInteractionAllowed=false、identityPersisted=falseを確認した。非生体のWhenUnlocked/privateKeyUsage条件はminiで利用できる。root/setuid/asuser対照の失敗と比べて実行context差があり、Intel/T2非対応やTouch ID必須とは扱わない。
+
+この成功はgigun GUI contextの非永続canaryだけの結果で、asc-signのheadless利用やSOPS roundtrip、ロック/再起動後の無人復帰、実署名資材のSE保管完了ではない。次は同じGUI contextから既存のroot保護canary toolchainを使ってSOPS/age-plugin-se往復を確認する。SE復号主体を通常ユーザーへ恒久移設する判断はまだ行わない。
+
+## GUI contextのSOPS往復受入
+
+本人のGUI Terminal実行でowner gigun・touchIDPolicy none・SE往復成功・別software canary identityによる復旧成功を確認した。plaintext SHA256は4a403e54484e317646075f5e8d2cecd473391603b6ab83538aaf1be9868a8472、実署名資材未使用。GUI contextから起動した制御端末なしの子processでは成立したが、SSH/system context全般の成功とは扱わない。lock/reboot/crossUIDはこの結果では未評価。
+
+`asc_se_existing_probe.py`は既存の固定canary暗号文SHA256にbindし、鍵を作り直さずSE identity単独で復号する。observation labelは操作者の申告であってOSによるlock状態検出ではなく、結果にもstateObservedByOS=falseを残す。locked対照はGUIから起動後20秒以内に本人がロックし、20秒delay＋90秒tool timeout＋cleanupより長い2分を待ってからunlockする。実際のロック実施の本人確認とJSONを組にして受入する。コード自身はlock/logout/rebootしない。
+
+UID境界はrootがcanary artifactの存在・owner/private modeを確認後、asc-build/asc-signでO_NOFOLLOW openを試し、成功時も内容を読まずcloseする。EACCESとENOENT等を区別し、SE blobを別UIDへ配送しない。これはfile読取境界の証拠であり、同hostへblobを意図的に渡した場合の暗号学的UID隔離は未評価。
+
+## UID境界とロック対照
+
+本人実行でasc-build・asc-signともcanary3 artifactのopenはEACCES、opened0・otherError0、内容読取なしだった。これはfile読取境界の受入であり、blobを渡した場合の暗号学的UID隔離ではない。
+
+本人は画面共有先miniのGUI Terminalからlocked probeを起動し、mini側の画面ロックを行った。こちらが2分待機後に解除を案内し、本人出力はexistingCiphertextMatched=true、seDecryptPassed=false、newKeyGenerated=false、実資材未使用だった。OS lock状態はprobe自体で観測しておらず、操作者の実施と結果を組にした対照である。解除後の同一canary復号を次に確認し、成功した場合にlock状態との対応を評価する。Touch ID不要のnoneでも現在のWhenUnlocked条件がlock後の無人署名要件を満たすとは扱わない。
+
+解除後の同一canary probeはafter-unlock・existingCiphertextMatched=true・seDecryptPassed=true・newKeyGenerated=falseで成功し、plaintext SHA256も元と一致した。本人によるlock→解除の対照で、現行pluginのWhenUnlocked条件ではlock中の継続利用が成立しない。これはTouch ID policy noneと別の条件である。現在の設定をlock中の無人署名へ採用せず、実鍵の保護classは変えない。候補調査としてAfterFirstUnlockThisDeviceOnlyと、正しい専用ユーザーログインcontextからの限定実行を評価する。新しい保護モデルを実資材へ適用する判断は未実施。
+
+## ChatGPT Locked Useとの比較
+
+ユーザーの指摘を受け、[OpenAI公式Locked Use](https://learn.chatgpt.com/docs/computer-use#locked-use)を確認した。authorization plug-inがMacのunlock flowへ参加し、active/trusted Computer Use turnの短命windowだけ一時unlockし、全displayを覆い、local input検出時はrelockする仕組みである。一般のprocessが使えるremote-unlock APIではなく、SE鍵がlock状態のまま利用できるという仕様でもない。公式説明からSE内部の鍵保護classは分からない。
+
+参考にするのは承認範囲・短命window・限定executor・完了時の復帰であり、署名のためにMac全体のunlock hookを新設することは今回の最小案にしない。既存authorization設定やChatGPT設定は変更していない。AfterFirstUnlockと正しい専用login contextの候補を先に非秘密canaryで評価する。
+
+## AfterFirstUnlockの新規canary候補
+
+ユーザーがロック中利用を目標として支持したため、stock pluginを置換せず、v0.1.4への局所patch `ansible/mini-macos/patches/age-plugin-se-0.1.4-accessibility.patch`を作成した。`keygen --accessibility when-unlocked|after-first-unlock`で新規鍵だけを選択し、既定when-unlockedと既定認証flagsは維持する。after-first-unlockは明示的noneの場合だけ許可し、CLI/API両層で他の組合せを鍵生成前に拒否する。既存鍵条件の変更・復号codec・protocol・暗号algorithm変更はない。
+
+固定source commit 3bb554e284d9e685b3f3fb07ae5c294d5ec7c6dd、patch SHA256 d929ed477479db8004cc554b937281fe1536e56aca6c8327a826952999d3a69f。miniでSE実操作のないCLI/Plugin mock限定55 testとrelease buildが通った。候補binary SHA256 4bc5b49dbb679df34e78076a69d7c0b504166cee92aab4a74feb2e02332cdc23、版表示はv0.1.4+asc-accessibility-canary。root保護の別versionへ配置する候補であり、既存stock binaryや実鍵は置換しない。
+
+canary runnerにも明示accessibilityと、新規鍵を作らないprobe modeを追加した。生成したresultにciphertext SHA256を残し、同じownerの同一canary・固定非秘密plaintextにbindして再検証する。probe modeは鍵のclass変更を受け付けない。実資材の復号主体を通常gigun UIDへ移す判断、Distribution鍵の保護変更、ログイン/再起動要件の受入は未実施。専用asc-signの正しいlogin contextは引き続き別の要件である。
+
+## AfterFirstUnlock canaryのロック中成功
+
+本人が別versionのcandidateを配置し、GUI contextで新規canaryのSE往復・software canary recoveryが成功した。accessibilityClassはafter-first-unlock、ciphertext SHA256は9e55e041bb919e5d0186e7466f03a7d274815b9d9f4d8acc8bd05bc4c51f4280。続いて本人がminiをロックし、こちらで2分待機後に解除を案内した結果、locked probeの同一ciphertext・同一鍵でseDecryptPassed=true、newKeyGenerated=false、実資材未使用を確認した。OS lock状態の自動観測はなく、本人の実施とJSONを組にした受入である。
+
+stock WhenUnlockedはlockで失敗/解除で成功、新規AfterFirstUnlock candidateはlock中も成功という対照になった。現時点で実署名資材の条件変更・通常plugin置換は未実施。次は同一canaryのSSH側利用、専用UID/login context、再起動後と独立復旧を分けて評価する。
+
+続けて通常gigun SSHから同じAfterFirstUnlock canaryをprobe-label unlockedで再検証し、同一ciphertext・同一鍵のseDecryptPassed=trueをこちらで確認した。GUI contextで新規作成後、SSHからの利用もこの時点では成立した。ただしasc-signと再起動前後は未評価。専用UIDへ新規AfterFirstUnlock canaryを作る対照を次に行い、実資材を通常gigunへ移さない構成が成立するかを確認する。
+
+専用UIDの次の対照は、同じ保護済みAfterFirstUnlock candidateをasc-signの新規canary outputへ実行する。directで成立しなければ別の新規outputを使ったasuser対照だけを行う。既存fixtureの再実行や実資材のfallbackではない。GUIログインの作成、account設定、通常鍵policyは変更しない。結果はUnix実行UIDと呼出しcontextの証拠として扱い、基盤keybagの主体や再起動前の利用可否まで一般化しない。
+
+## 専用UIDのAfterFirstUnlock成功
+
+本人の管理者仲介でasc-sign-directの新規AfterFirstUnlock canaryが成功した。toolExit0、owner asc-sign、SE往復・software canary recoveryとも成功、ciphertext SHA256 e5178992e813c545dca4bbb8b24cafc754b8588415b45fb61861db78a7f14245。GUIContextCreated=false・通常鍵policy変更なし・実資材未使用である。direct成功のためasuser側の追加canaryは実行していない。
+
+既存のWhenUnlocked失敗を、あらゆるSE操作に対する専用UID/GUI非対応と一般化しない。AfterFirstUnlockのUnix専用UID実行はこの条件下で成立した。root仲介からの呼出しcontextであるため、基盤keybagの主体や、再起動直後・サービス起動順・最初のunlock条件までは確定しない。次はSE identityをasc-signから出さない移行案・復旧recipient・旧平文鍵退役条件を具体化し、実資材への適用を独立した確認点とする。
+
+## 復旧用YubiKeyの独立canary受入
+
+2026-11-13、Pro既存の公開recipient `~/.config/sops/age/kickstart-re-yubikey-{a,b}.recipient` が異なる2本のYubiKey recipientであることを確認した。対応するidentityの内容や実署名資材は読まず、各recipient単独へ固定の非秘密canaryをage暗号化した。本人が片方ずつ接続し、対応する既存identityを利用した検証で、a/bとも recoveryPassed=true・realSigningMaterialUsed=false を報告した。primary/backupの名称割当は未確定だが、両者への暗号化と個別復旧には影響しない。これは既存2本による今回の非秘密canary復旧の受入であり、将来の実資材暗号文の復旧やmini再起動後のSE利用は別途検証する。
+
+## 実資材の暗号化だけを行う候補
+
+`asc_signing_vault_encrypt.py`は`--apply-encryption`を明示した場合だけ、asc-signのprivate home内に新規vaultを作る。新規AfterFirstUnlock SE identityと既存YubiKey a/bの3 recipientへ、元のdistribution.p12・identity-password・distribution.keyをそれぞれSOPS binary暗号化する。A/Bのprimary/backup名称は推定しない。identity参照はminiのasc-sign内に留める。
+
+実資材はowner/mode・regular file・hardlink数・inode等を確認したdescriptorからSOPSのstdinへ渡す。Pythonが平文内容を読み取ったり、平文を引数・環境変数・stdoutへ渡す経路はない。tool stderrも出力しない。固定canaryだけを新SE鍵で復号し、実資材の復号、他UID/hostへの平文移動、原本削除、署名、Apple通信、公開は行わない。途中失敗しても原本は残し、部分vaultへ同じ手順を再実行しない。ciphertext digestと未受入ゲートをprivate receiptに記録する。これは暗号化の実装であり、実資材の復旧・署名・再起動の受入にはならない。
+
+ADR0018は追加認証なしのMac復号経路を低権限project開発秘密に限定しているため、Distribution鍵に対するこの候補の実適用前に範囲変更の承認を得る。再起動条件・実資材復旧・署名が未検証の間は原本を退役しない。現時点でこの候補をminiへ適用していない。
+
+## 2026-11-13 本人決定 — 遠隔署名用SEのaccess-control
+
+本人が「noneにしよう」と明示し、スマホから依頼するmini／MacBook Proの署名用途でaccess-control=noneを採用した。Mac側で毎回Touch IDを要求せず、署名主体またはroot侵害時の不正利用をSE単独で防がないという制約を受け入れる。これはADR0018の低権限開発秘密の許可を一般化するものではなく、今回の専用署名executorに対する明示的な範囲変更である。
+
+実資材の常用は、build/sign主体の分離、固定project・Team・bundle ID・成果物digest等を検査する限定署名入口を完成させてからとする。パスキーによる依頼元承認は別の制御であり、この決定だけで実装済みとは扱わない。復旧先は既存YubiKey A/Bとする。noneはaccess-controlの決定であり、AfterFirstUnlockの再起動条件、Pro側の専用UID・toolchain・SE、実資材暗号化・復旧・署名成功を追加で受入した意味ではない。miniのSE identityをProへ移植せず、必要な実行機ごとに保護を検証する。
+
+この記録操作では実資材・Keychain・SE鍵・サービス・外部公開を変更していない。

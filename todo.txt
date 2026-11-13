@@ -43,7 +43,7 @@
 2026-10-27 mini の CLI 管理方針を所有・版・取得元・checksum種別・対話選択・更新方針の共通宣言へ揃え、fzf/zoxide/ripgrep/XcodeGen と検証済み候補の保留状態をテストする +mini by:me id:0114
 2026-10-29 Linux CI の Nix store cache 復元と短時間ジョブの消費を削減し、実行結果を確認する +dotfiles @ci by:me id:0115
 2026-10-29 mini の checkout 同期を実機設定の適用と分離し、安全な fast-forward と失敗時の停止を検証する +mini by:me id:0116
-2026-11-01 miniのbuild/sign専用UIDで非秘密canaryの相互read/write拒否・管理者仲介後digest一致・一時領域cleanupを本人実行で受入済み。unsigned実buildとmanual exportの照合ゲートはasc-mcpに実装済み。次は恒久executor・信頼済みsource/digest承認・受渡し・rollbackの配置案を確定しADR化、専用UID実build、署名資材供給、publishと実機OTAを順に受入する +security @user see:docs/security-access-boundaries.md by:codex id:0122
+2026-11-01 専用UIDunsigned build・一時Keychain cleanup受入済み。AfterFirstUnlock SE/SOPS canaryはGUIロック中とasc-sign直接実行で成功。既存YubiKey a/b単独の非秘密canary復旧も本人操作で受入済み。本人が遠隔署名用SEのaccess-control=noneを採用。実資材は未移行。限定署名入口・複数Mac対応を整え、再起動条件・実資材復旧・署名・旧平文退役を受入する +security @user see:docs/asc-signing-secure-enclave.md by:codex id:0122
 2026-11-08 Claude Code のブラウザ系ツール(Claude in Chrome、chrome-devtools-mcp、Playwright、Desktop のブラウザペイン)の使い分けを整理し、不要なら chrome-devtools-mcp を claude/settings.json から外す +claude @user by:me id:0125
 2026-11-08 +mini Homebrew gh 2.103.3を単体source buildし、認証・HTTPS remote読取を確認した。Git global configをhome-manager store symlinkからdotfiles/git/gitconfigへ原子的に切替え、credential helperを非Nix ghへ移管した。NotchBar撤去後の監査では外部consumer 0、残る参照はNix自身のdaemon plistと/etc/zshenv、対話PATH上のnode/fdだけ。次は公式macOS手順とnix-darwin差分に沿い、daemon・/etc生成物・build users・APFS storeを段階撤去する @user see:docs/adr/0014-shrink-mini-macos-shell-before-removing-nix.md by:me dep:0127 id:0128
 2026-11-08 +wsl WSL の新しいシェルで home-manager の session 変数 (AGY_CLI_DISABLE_AUTO_UPDATE・SLACK_SKIP_UPDATE・LS_COLORS) が入ることを確かめる。.zshenv は gcroots の hm-session-vars.sh を読む (mini-vm では確認済み) @device by:claude id:0130
