@@ -22,7 +22,10 @@ let
     ];
   };
   activationFixture = inputs.home-manager.lib.homeManagerConfiguration {
-    extraSpecialArgs.shellLinksManagedByAnsible = false;
+    extraSpecialArgs = {
+      shellLinksManagedByAnsible = false;
+      gigunPluginNames = import ../gigun-plugin-names.nix inputs;
+    };
     pkgs = pkgs // {
       uv = pkgs.writeTextDir "bin/uv" "fixture";
       bash = pkgs.writeTextDir "bin/bash" "fixture";

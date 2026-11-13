@@ -3,6 +3,7 @@
   pkgs,
   lib,
   shellLinksManagedByAnsible ? false,
+  gigunPluginNames,
   ...
 }:
 let
@@ -114,11 +115,27 @@ let
   };
   agyExternalNames = lib.attrNames agyExternalPlugins.passthru.sources;
 
+  # marketplace から消えた plugin を enabledPlugins に残すと、Claude は見つからない plugin を
+  # 探し続け、agy の plugins.json にもその名前が流れる。2026-11-13 に harness・workers-fetch
+  # などが marketplace から消えた後も残っていた。名前を消し忘れた時点で評価を止める。
+  staleGigunPlugins = lib.subtractLists gigunPluginNames (
+    map (lib.removeSuffix "@gigun") (
+      builtins.filter (lib.hasSuffix "@gigun") (builtins.attrNames claudeSettings.enabledPlugins)
+    )
+  );
+
   sfsymbolsWrapper = pkgs.writeShellScript "sfsymbols" ''
     exec "/Applications/SF Symbols.app/Contents/Executables/sfsymbols" "$@"
   '';
 in
 {
+  assertions = [
+    {
+      assertion = staleGigunPlugins == [ ];
+      message = "claude/settings.json の enabledPlugins が gigun marketplace に無い plugin を指している: ${lib.concatStringsSep ", " staleGigunPlugins}。消すか、marketplace に戻す。";
+    }
+  ];
+
   xdg.configFile = {
     "ccstatusline".source = mkLink "ccstatusline";
     "mise".source = mkLink "mise";
