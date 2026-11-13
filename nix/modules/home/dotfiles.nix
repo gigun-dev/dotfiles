@@ -9,6 +9,7 @@ let
   dotfilesPath = "${config.home.homeDirectory}/ghq/github.com/gigun-dev/dotfiles";
   mkLink = path: config.lib.file.mkOutOfStoreSymlink "${dotfilesPath}/${path}";
   isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
+  agySettings.toolPermission = "always-proceed";
   claudeSettings = builtins.fromJSON (builtins.readFile ../../../claude/settings.json);
   # Linux hosts need the shared plugin registry, but not Darwin-only permissions,
   # hooks or prose carrying /Users paths. Keep the subset derived from the same
@@ -155,6 +156,39 @@ in
       }
     ];
   };
+
+  # agy の承認方針を Pro と mini-vm で揃える。always-proceed は terminal コマンドに加えて
+  # MCP の tool 呼び出しも確認なしで通す (agy 1.5.x の changelog)。T3 Code の Antigravity
+  # セッション (`agy acp`) もこの値に従う。既定の request-review だと REA などの MCP を
+  # 呼ぶたびに承認待ちで止まり、T3 から任せた作業が進まない。
+  # Why not Auto モード: 安全なコマンドは通すが、MCP の呼び出しは毎回確認する (mini-vm の
+  # agy acp で確認)。Why not mcp(...) の許可ルール: 特定の server だけでなく agy 全体を
+  # 確認なしで動かしたい。
+  # merge の理由は上の Claude settings と同じ: agy も /config の操作で settings.json を
+  # 書き直すので、宣言したキーだけを入れ、他のキー (trustedWorkspaces 等) は残す。
+  home.activation.configureAgySettings = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+    AGY_DIR="${config.home.homeDirectory}/.gemini/antigravity-cli"
+    SETTINGS_FILE="$AGY_DIR/settings.json"
+    SOURCE_FILE="${pkgs.writeText "agy-settings.json" (builtins.toJSON agySettings)}"
+    if [ -n "''${DRY_RUN_CMD:-}" ]; then
+      echo "would merge declarative agy settings into $SETTINGS_FILE"
+    else
+      mkdir -p "$AGY_DIR"
+      TEMP_FILE="$(mktemp "$AGY_DIR/.settings.json.XXXXXX")"
+      if [ -f "$SETTINGS_FILE" ]; then
+        MERGE_INPUT=("$SETTINGS_FILE" "$SOURCE_FILE")
+      else
+        MERGE_INPUT=("$SOURCE_FILE")
+      fi
+      if ! ${lib.getExe pkgs.jq} -s 'reduce .[] as $x ({}; . * $x)' "''${MERGE_INPUT[@]}" > "$TEMP_FILE"; then
+        rm -f "$TEMP_FILE"
+        echo "agy settings: merge failed; $SETTINGS_FILE is unchanged" >&2
+        exit 1
+      fi
+      chmod 600 "$TEMP_FILE"
+      mv "$TEMP_FILE" "$SETTINGS_FILE"
+    fi
+  '';
 
   # launchd-ui: unsigned app — download from GitHub Releases
   # https://github.com/azu/launchd-ui
