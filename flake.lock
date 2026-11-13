@@ -20,6 +20,26 @@
         "type": "github"
       }
     },
+    "agent-skills": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1794456227,
+        "narHash": "sha256-qu7S1arVl+Q6H/yZhJ2VdeDY/kBxY8mK8m6U49M0alk=",
+        "owner": "Kyure-A",
+        "repo": "agent-skills-nix",
+        "rev": "93a02cb60eda167de8c5baa085e4a2bcfc71b885",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Kyure-A",
+        "repo": "agent-skills-nix",
+        "type": "github"
+      }
+    },
     "bun2nix": {
       "inputs": {
         "flake-parts": [
@@ -557,6 +577,7 @@
     "root": {
       "inputs": {
         "agenix": "agenix",
+        "agent-skills": "agent-skills",
         "cclens": "cclens",
         "claude-code-overlay": "claude-code-overlay",
         "cloudflare-os": "cloudflare-os",
@@ -569,6 +590,7 @@
         "nix-secure-enclave-key": "nix-secure-enclave-key",
         "nixos-lima": "nixos-lima",
         "nixpkgs": "nixpkgs_4",
+        "ryoppippi-dotfiles": "ryoppippi-dotfiles",
         "sops-nix": "sops-nix",
         "t3-limits": "t3-limits",
         "treefmt-nix": "treefmt-nix_3"
@@ -592,6 +614,22 @@
       "original": {
         "owner": "oxalica",
         "repo": "rust-overlay",
+        "type": "github"
+      }
+    },
+    "ryoppippi-dotfiles": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1794440752,
+        "narHash": "sha256-iQpS730JqwqheI2Ljfw3GvXnHR11u/JAtX+wZho9wsg=",
+        "owner": "ryoppippi",
+        "repo": "dotfiles",
+        "rev": "bf0a896f602fa4cb91cce9d41603378d6b6d7477",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ryoppippi",
+        "repo": "dotfiles",
         "type": "github"
       }
     },

@@ -97,6 +97,17 @@
     # gigun-dev/claude-code の flake。marketplace から入らない agy に、外部 npm plugin
     # (REA) を包んだ agy 版を渡す (claude-code の ADR 0005)。版とハッシュは
     # claude-code 側の marketplace の固定と同じコミットで動き、ここは rev を進めるだけ。
+    # skill だけのものを plugin で包まず 3 ホストへ配る (nix/modules/home/agent-skills.nix)。
+    agent-skills = {
+      url = "github:Kyure-A/agent-skills-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    # ryoppippi の skill の上流。版は flake.lock で固定する。
+    ryoppippi-dotfiles = {
+      url = "github:ryoppippi/dotfiles";
+      flake = false;
+    };
+
     gigun-plugins = {
       url = "github:gigun-dev/claude-code";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -601,6 +612,7 @@
                       llmAgents = llmAgentsFor system;
                       cclens = cclensFor system;
                       t3Limits = t3LimitsFor system;
+                      skillSources = { inherit (inputs) ryoppippi-dotfiles; };
                     };
                     users.${username} = {
                       # nix-secure-enclave-key の upstream `systems` は aarch64-darwin
@@ -612,6 +624,8 @@
                       # 通らないので mkIf では防げない — import するかどうかのレベルで切る)。
                       imports = [
                         ./nix/modules/home
+                        inputs.agent-skills.homeManagerModules.default
+                        ./nix/modules/home/agent-skills.nix
                       ]
                       ++ inputs.nixpkgs.lib.optionals (system == "aarch64-darwin") [
                         inputs.nix-secure-enclave-key.homeManagerModules.default
@@ -720,8 +734,13 @@
                 llmAgents = llmAgentsFor "x86_64-linux";
                 cclens = cclensFor "x86_64-linux";
                 t3Limits = t3LimitsFor "x86_64-linux";
+                skillSources = { inherit (inputs) ryoppippi-dotfiles; };
               };
-              modules = [ ./nix/modules/home ];
+              modules = [
+                ./nix/modules/home
+                inputs.agent-skills.homeManagerModules.default
+                ./nix/modules/home/agent-skills.nix
+              ];
             };
             # Raw upstream Node requires mini-vm's existing nix-ld; keep WSL unchanged.
             "${username}-mini-vm" =
