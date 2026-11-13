@@ -533,6 +533,10 @@
           # (overlay に混ぜると nixpkgs 全体の評価に input が絡むため)。
           t3LimitsFor = system: inputs.t3-limits.packages.${system}.default;
 
+          # gigun marketplace にある plugin 名。claude/settings.json の enabledPlugins が
+          # marketplace から消えた plugin を指していないかを評価時に確かめる (dotfiles.nix)。
+          gigunPluginNames = import ./nix/gigun-plugin-names.nix inputs;
+
           overlays = [
             inputs.claude-code-overlay.overlays.default
             inputs.gigun-plugins.overlays.default
@@ -613,6 +617,7 @@
                       cclens = cclensFor system;
                       t3Limits = t3LimitsFor system;
                       skillSources = { inherit (inputs) ryoppippi-dotfiles; };
+                      inherit gigunPluginNames;
                     };
                     users.${username} = {
                       # nix-secure-enclave-key の upstream `systems` は aarch64-darwin
@@ -735,6 +740,7 @@
                 cclens = cclensFor "x86_64-linux";
                 t3Limits = t3LimitsFor "x86_64-linux";
                 skillSources = { inherit (inputs) ryoppippi-dotfiles; };
+                inherit gigunPluginNames;
               };
               modules = [
                 ./nix/modules/home
