@@ -660,6 +660,9 @@
         "nixpkgs": "nixpkgs_4",
         "ryoppippi-dotfiles": "ryoppippi-dotfiles",
         "sops-nix": "sops-nix",
+        "swift-concurrency-skill": "swift-concurrency-skill",
+        "swift-testing-skill": "swift-testing-skill",
+        "swiftui-skill": "swiftui-skill",
         "t3-limits": "t3-limits",
         "treefmt-nix": "treefmt-nix_3",
         "unslop": "unslop",
@@ -720,6 +723,54 @@
       "original": {
         "owner": "Mic92",
         "repo": "sops-nix",
+        "type": "github"
+      }
+    },
+    "swift-concurrency-skill": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1779034066,
+        "narHash": "sha256-ECb3m9It8OyAiOvfAAPfUlOVdwP0tYvTv78plbW1o7g=",
+        "owner": "twostraws",
+        "repo": "Swift-Concurrency-Agent-Skill",
+        "rev": "bee3f69ba17142da148d3c5406f148ed62592b69",
+        "type": "github"
+      },
+      "original": {
+        "owner": "twostraws",
+        "repo": "Swift-Concurrency-Agent-Skill",
+        "type": "github"
+      }
+    },
+    "swift-testing-skill": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1779032983,
+        "narHash": "sha256-HqPo0nnLjyX99qBotTgIEzXehnoVAyZDqwJHDfwxodw=",
+        "owner": "twostraws",
+        "repo": "Swift-Testing-Agent-Skill",
+        "rev": "2d6bba14a3c8bf3694f218b92fffe617c41ae43e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "twostraws",
+        "repo": "Swift-Testing-Agent-Skill",
+        "type": "github"
+      }
+    },
+    "swiftui-skill": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1793033598,
+        "narHash": "sha256-HOEP7KiY3gQRuE1ttj55BzuXBzV1ksn5UYRm54bV5HA=",
+        "owner": "twostraws",
+        "repo": "SwiftUI-Agent-Skill",
+        "rev": "f2920b63995263f57b3e198674e89a602efba6d2",
+        "type": "github"
+      },
+      "original": {
+        "owner": "twostraws",
+        "repo": "SwiftUI-Agent-Skill",
         "type": "github"
       }
     },
