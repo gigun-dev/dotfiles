@@ -147,6 +147,22 @@
         "type": "github"
       }
     },
+    "emil-skills": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1794493327,
+        "narHash": "sha256-p8ZITQR99clmNiHjpudCUkBdm++Ri0BkeV9hGuH6nL0=",
+        "owner": "emilkowalski",
+        "repo": "skills",
+        "rev": "f7ce8c02d6e3c8f0d980a44c57bcc41a40254349",
+        "type": "github"
+      },
+      "original": {
+        "owner": "emilkowalski",
+        "repo": "skills",
+        "type": "github"
+      }
+    },
     "esp-dev": {
       "inputs": {
         "flake-utils": "flake-utils_2",
@@ -300,6 +316,22 @@
         "type": "github"
       }
     },
+    "hallmark": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1794398164,
+        "narHash": "sha256-xfHv/bcZcYoqEeX2hCZOADCEJ2m3tRDflKJmyiR5LNk=",
+        "owner": "Nutlope",
+        "repo": "hallmark",
+        "rev": "04977e15f3dfd6ee4b74c887dac3eb52665d6c92",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Nutlope",
+        "repo": "hallmark",
+        "type": "github"
+      }
+    },
     "home-manager": {
       "inputs": {
         "nixpkgs": [
@@ -317,6 +349,22 @@
       "original": {
         "owner": "nix-community",
         "repo": "home-manager",
+        "type": "github"
+      }
+    },
+    "langfuse-skills": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1794318838,
+        "narHash": "sha256-OvM5lt8l+6qWFhaxzogTsg+cVYDba8VgWv5HTdWOCW8=",
+        "owner": "langfuse",
+        "repo": "skills",
+        "rev": "f0bcb13088b490c04b3f4870bace17f6d57b199c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "langfuse",
+        "repo": "skills",
         "type": "github"
       }
     },
@@ -339,6 +387,22 @@
       "original": {
         "owner": "numtide",
         "repo": "llm-agents.nix",
+        "type": "github"
+      }
+    },
+    "modern-web-guidance": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1794280113,
+        "narHash": "sha256-bqsUEI1yaGy1sd8DBJzG5cOv4Yv0RSYac6e9egqYFJU=",
+        "owner": "GoogleChrome",
+        "repo": "modern-web-guidance",
+        "rev": "4dd968349e54ca45a05dd5c818fb035c9054b022",
+        "type": "github"
+      },
+      "original": {
+        "owner": "GoogleChrome",
+        "repo": "modern-web-guidance",
         "type": "github"
       }
     },
@@ -581,11 +645,15 @@
         "cclens": "cclens",
         "claude-code-overlay": "claude-code-overlay",
         "cloudflare-os": "cloudflare-os",
+        "emil-skills": "emil-skills",
         "esp-dev": "esp-dev",
         "flake-parts": "flake-parts",
         "gigun-plugins": "gigun-plugins",
+        "hallmark": "hallmark",
         "home-manager": "home-manager",
+        "langfuse-skills": "langfuse-skills",
         "llm-agents": "llm-agents",
+        "modern-web-guidance": "modern-web-guidance",
         "nix-darwin": "nix-darwin",
         "nix-secure-enclave-key": "nix-secure-enclave-key",
         "nixos-lima": "nixos-lima",
@@ -593,7 +661,9 @@
         "ryoppippi-dotfiles": "ryoppippi-dotfiles",
         "sops-nix": "sops-nix",
         "t3-limits": "t3-limits",
-        "treefmt-nix": "treefmt-nix_3"
+        "treefmt-nix": "treefmt-nix_3",
+        "unslop": "unslop",
+        "yomiyasu": "yomiyasu"
       }
     },
     "rust-overlay": {
@@ -779,6 +849,38 @@
       "original": {
         "owner": "numtide",
         "repo": "treefmt-nix",
+        "type": "github"
+      }
+    },
+    "unslop": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1794172582,
+        "narHash": "sha256-Tb58rBrZQ20SWkvKewIhxS6GDr56y3zZe5EQZbh3UhQ=",
+        "owner": "heydamir",
+        "repo": "unslop",
+        "rev": "97daa3eb365670ea3f87ed85356cbfcee18105a5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "heydamir",
+        "repo": "unslop",
+        "type": "github"
+      }
+    },
+    "yomiyasu": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1794443311,
+        "narHash": "sha256-5CVfVx2cNxOdW8uKOdo3Gjs8zJrNYdBFqwR/qBg/Gpk=",
+        "owner": "nanaism",
+        "repo": "yomiyasu",
+        "rev": "db78b9bc5e868549b517a037df7a4d1c93edac23",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nanaism",
+        "repo": "yomiyasu",
         "type": "github"
       }
     }

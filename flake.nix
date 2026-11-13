@@ -107,6 +107,32 @@
       url = "github:ryoppippi/dotfiles";
       flake = false;
     };
+    # 以下も skill だけでできた上流。plugin で包まず agent-skills-nix で配る
+    # (gigun-dev/claude-code ADR 0006)。版は flake.lock で固定する。
+    emil-skills = {
+      url = "github:emilkowalski/skills";
+      flake = false;
+    };
+    unslop = {
+      url = "github:heydamir/unslop";
+      flake = false;
+    };
+    hallmark = {
+      url = "github:Nutlope/hallmark";
+      flake = false;
+    };
+    langfuse-skills = {
+      url = "github:langfuse/skills";
+      flake = false;
+    };
+    modern-web-guidance = {
+      url = "github:GoogleChrome/modern-web-guidance";
+      flake = false;
+    };
+    yomiyasu = {
+      url = "github:nanaism/yomiyasu";
+      flake = false;
+    };
 
     gigun-plugins = {
       url = "github:gigun-dev/claude-code";
@@ -537,6 +563,20 @@
           # marketplace から消えた plugin を指していないかを評価時に確かめる (dotfiles.nix)。
           gigunPluginNames = import ./nix/gigun-plugin-names.nix inputs;
 
+          # agent-skills-nix に渡す skill の上流 (nix/modules/home/agent-skills.nix)。
+          skillSources = {
+            inherit (inputs)
+              ryoppippi-dotfiles
+              gigun-plugins
+              emil-skills
+              unslop
+              hallmark
+              langfuse-skills
+              modern-web-guidance
+              yomiyasu
+              ;
+          };
+
           overlays = [
             inputs.claude-code-overlay.overlays.default
             inputs.gigun-plugins.overlays.default
@@ -616,7 +656,7 @@
                       llmAgents = llmAgentsFor system;
                       cclens = cclensFor system;
                       t3Limits = t3LimitsFor system;
-                      skillSources = { inherit (inputs) ryoppippi-dotfiles; };
+                      inherit skillSources;
                       inherit gigunPluginNames;
                     };
                     users.${username} = {
@@ -739,7 +779,7 @@
                 llmAgents = llmAgentsFor "x86_64-linux";
                 cclens = cclensFor "x86_64-linux";
                 t3Limits = t3LimitsFor "x86_64-linux";
-                skillSources = { inherit (inputs) ryoppippi-dotfiles; };
+                inherit skillSources;
                 inherit gigunPluginNames;
               };
               modules = [
