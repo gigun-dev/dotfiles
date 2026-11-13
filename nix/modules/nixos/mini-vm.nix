@@ -61,13 +61,13 @@ let
   # 更新手順: version を上げ、`curl -sL https://github.com/pingdotgg/t3code/releases/download/v<ver>/SHA256SUMS`
   # の linux-x64 行 (hex) を `nix hash convert --hash-algo sha256 --to sri <hex>` で SRI にして hash に入れる。
   # Pro の版と揃える。`t3 update` / アプリ内更新は store が読み取り専用なので使えない。
-  t3codeVersion = "0.1.7";
+  t3codeVersion = "0.1.8";
   t3codeOfficial = pkgs.stdenvNoCC.mkDerivation {
     pname = "t3code-official";
     version = t3codeVersion;
     src = pkgs.fetchurl {
       url = "https://github.com/pingdotgg/t3code/releases/download/v${t3codeVersion}/t3-${t3codeVersion}-linux-x64.tar.gz";
-      hash = "sha256-wImJK/eSLi5zxvRKXR6hJcmfcON4wYNhy77S+6GSDmw=";
+      hash = "sha256-ucSdwAwj+7xZYb2v8tiOVW2WyNvWOMRQHik3xwZQqeU=";
     };
     dontBuild = true;
     dontFixup = true;
