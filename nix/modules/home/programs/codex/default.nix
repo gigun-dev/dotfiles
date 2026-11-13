@@ -59,6 +59,9 @@ in
   home.activation.syncCodexGigunPlugins = lib.mkIf (llmAgents ? codex) (
     lib.hm.dag.entryAfter [ "writeCodexConfig" ] ''
       codex=${lib.getExe llmAgents.codex}
+      # 外部 Git source の plugin (visual-explainer など) は add の中で git clone する。
+      # activation の PATH には git が無く "No such file or directory" で失敗した。
+      export PATH="${lib.makeBinPath [ pkgs.git ]}:$PATH"
       config=${lib.escapeShellArg codexConfig}
       if [ -f "$config" ]; then
         for name in ${lib.escapeShellArgs gigunPlugins.autoEnable}; do
