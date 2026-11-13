@@ -19,7 +19,7 @@ class ExecutorPlan(unittest.TestCase):
         for name in plan.FILES:
             (repo / 'scripts' / name).write_text('# fixture ' + name + '\n')
         subprocess.run(['git', '-C', str(repo), 'add', *['scripts/' + name for name in plan.FILES]], check=True)
-        subprocess.run(['git', '-C', str(repo), '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'fixture'], check=True)
+        subprocess.run(['git', '-C', str(repo), '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'fixture'], check=True)
         return repo, plan.git(repo, 'rev-parse', 'HEAD').decode().strip()
 
     def test_committed_candidate_and_existing_output_preserved(self):
