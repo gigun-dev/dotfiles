@@ -362,6 +362,23 @@ in
     fi
   '';
 
+  # enabledPlugins から落とすだけでは install の記録が残り、Claude は cache を孤立扱い
+  # (.orphaned_at、14 日後に削除) にしない。2026-11-13 に移行した 11 個の cache が残った。
+  # marketplace に無い @gigun の記録は uninstall する。失敗は switch を止めず警告にする。
+  home.activation.uninstallStaleClaudeGigunPlugins =
+    lib.hm.dag.entryAfter [ "configureClaudeSettings" ]
+      ''
+        INSTALLED="${config.home.homeDirectory}/.claude/plugins/installed_plugins.json"
+        if [ -f "$INSTALLED" ]; then
+          for plugin in $(${lib.getExe pkgs.jq} -r ${gigunJqArgs} \
+            '.plugins // {} | keys[] | select(endswith("@gigun")) | select((rtrimstr("@gigun")) as $n | $names | any(. == $n) | not)' \
+            "$INSTALLED"); do
+            $DRY_RUN_CMD ${lib.getExe pkgs.claude-code} plugin uninstall "$plugin" >/dev/null \
+              || echo "claude: $plugin を uninstall できなかった" >&2
+          done
+        fi
+      '';
+
   # .zshrc は programs.zsh が管理するため home.file ではなく
   # home.activation で強制シンボリックリンク (ryoppippi パターン)
   home.activation.linkDotfiles = lib.hm.dag.entryAfter [ "linkGeneration" ] (''
