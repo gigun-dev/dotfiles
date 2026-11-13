@@ -24,7 +24,7 @@ let
   activationFixture = inputs.home-manager.lib.homeManagerConfiguration {
     extraSpecialArgs = {
       shellLinksManagedByAnsible = false;
-      gigunPluginNames = import ../gigun-plugin-names.nix inputs;
+      gigunPlugins = import ../gigun-plugins.nix inputs;
     };
     pkgs = pkgs // {
       uv = pkgs.writeTextDir "bin/uv" "fixture";

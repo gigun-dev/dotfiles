@@ -3,7 +3,7 @@
   pkgs,
   lib,
   shellLinksManagedByAnsible ? false,
-  gigunPluginNames,
+  gigunPlugins,
   ...
 }:
 let
@@ -90,13 +90,7 @@ let
   # Why not agy plugin install / import: plugin のコピーを作るので claude-code の更新が届かない。
   # path は絶対パスで書く。agy 1.5.5 は文書と違って `~/` を展開せず、その entry を
   # "must be an absolute path" で飛ばす (2026-11-12 実測)。
-  agyPlugins = lib.subtractLists [ "agy-mcp" "telemetry" ] (
-    map (lib.removeSuffix "@gigun") (
-      builtins.filter (name: lib.hasSuffix "@gigun" name && claudeSettings.enabledPlugins.${name}) (
-        builtins.attrNames claudeSettings.enabledPlugins
-      )
-    )
-  );
+  agyPlugins = lib.subtractLists [ "agy-mcp" "telemetry" ] gigunPlugins.autoEnable;
 
   # marketplace の外部 npm plugin (rea) は claude-code/plugins に実体が無いので、
   # gigun-plugins の flake が包んだ agy 版を別 entry で読ませる。node と skill の分割は
@@ -115,27 +109,27 @@ let
   };
   agyExternalNames = lib.attrNames agyExternalPlugins.passthru.sources;
 
-  # marketplace から消えた plugin を enabledPlugins に残すと、Claude は見つからない plugin を
-  # 探し続け、agy の plugins.json にもその名前が流れる。2026-11-13 に harness・workers-fetch
-  # などが marketplace から消えた後も残っていた。名前を消し忘れた時点で評価を止める。
-  staleGigunPlugins = lib.subtractLists gigunPluginNames (
-    map (lib.removeSuffix "@gigun") (
-      builtins.filter (lib.hasSuffix "@gigun") (builtins.attrNames claudeSettings.enabledPlugins)
+  # gigun plugin は claude/settings.json に書かず、marketplace を正本にして live へ反映する
+  # (gigun-dev/claude-code todo 0070)。未記載のものだけ true で足し、GUI で切り替えた値は
+  # 残す。marketplace から消えたものは落とす。deep merge は宣言から消したキーを live に
+  # 残すので、harness・workers-fetch が消えた後も true のまま残っていた。
+  claudeGigunFilter = pkgs.writeText "claude-gigun-plugins.jq" ''
+    .enabledPlugins = (
+      (.enabledPlugins // {})
+      | with_entries(select(
+          (.key | endswith("@gigun") | not)
+          or ((.key | rtrimstr("@gigun")) as $n | $names | any(. == $n))
+        ))
+      | reduce $auto[] as $n (.; if has($n + "@gigun") then . else .[$n + "@gigun"] = true end)
     )
-  );
+  '';
+  gigunJqArgs = "--argjson names ${lib.escapeShellArg (builtins.toJSON gigunPlugins.names)} --argjson auto ${lib.escapeShellArg (builtins.toJSON gigunPlugins.autoEnable)}";
 
   sfsymbolsWrapper = pkgs.writeShellScript "sfsymbols" ''
     exec "/Applications/SF Symbols.app/Contents/Executables/sfsymbols" "$@"
   '';
 in
 {
-  assertions = [
-    {
-      assertion = staleGigunPlugins == [ ];
-      message = "claude/settings.json の enabledPlugins が gigun marketplace に無い plugin を指している: ${lib.concatStringsSep ", " staleGigunPlugins}。消すか、marketplace に戻す。";
-    }
-  ];
-
   xdg.configFile = {
     "ccstatusline".source = mkLink "ccstatusline";
     "mise".source = mkLink "mise";
@@ -326,7 +320,8 @@ in
   # コピーだけでも UI/CLI が足したキーを switch が消してしまう。
   # merge なら宣言したキーが勝ち、宣言していないキーと書き込みは残る。object (enabledPlugins 等) は
   # キー単位で merge、配列 (permissions.allow, hooks 等) は正本のもので丸ごと置き換わる。
-  # 宣言から消したキーは live から自動では消えない。消すときは live も手で直す。
+  # 宣言から消したキーは live から自動では消えない。消すときは live も手で直す
+  # (gigun plugin だけは下の claudeGigunFilter が marketplace に合わせて足し引きする)。
   # schema 検証 (check-jsonschema) は $schema の取得にネットワークが要り、同梱するとスキーマが
   # 古びて誤検知するため入れず、JSON として壊れていないことだけ確認する。
   # Linux / mini-vm は Mac 固有のpermissions・hooks・proseを除き、plugin宣言とmarketplaceだけを
@@ -346,7 +341,8 @@ in
       fi
       if [ -f "$SETTINGS_FILE" ]; then
         TEMP_FILE="$(mktemp "$CLAUDE_DIR/.settings.json.XXXXXX")"
-        if ! ${lib.getExe pkgs.jq} -s '.[0] * .[1]' "$SETTINGS_FILE" "$SOURCE_FILE" > "$TEMP_FILE"; then
+        if ! ${lib.getExe pkgs.jq} -s '.[0] * .[1]' "$SETTINGS_FILE" "$SOURCE_FILE" \
+          | ${lib.getExe pkgs.jq} ${gigunJqArgs} -f ${claudeGigunFilter} > "$TEMP_FILE"; then
           rm -f "$TEMP_FILE"
           echo "claude settings: merge failed; $SETTINGS_FILE is unchanged" >&2
           exit 1
@@ -355,7 +351,7 @@ in
         mv "$TEMP_FILE" "$SETTINGS_FILE"
       else
         TEMP_FILE="$(mktemp "$CLAUDE_DIR/.settings.json.XXXXXX")"
-        if ! ${lib.getExe pkgs.jq} . "$SOURCE_FILE" > "$TEMP_FILE"; then
+        if ! ${lib.getExe pkgs.jq} ${gigunJqArgs} -f ${claudeGigunFilter} "$SOURCE_FILE" > "$TEMP_FILE"; then
           rm -f "$TEMP_FILE"
           echo "claude settings: initialization failed; $SETTINGS_FILE was not created" >&2
           exit 1

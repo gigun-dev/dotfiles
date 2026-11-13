@@ -220,10 +220,8 @@
     "padding": 0
   },
   "enabledPlugins": {
-    "agy-mcp@gigun": true,
     "auth-skills@better-auth-agent-skills": false,
     "cclens@cclens": true,
-    "chrome-devtools-mcp@gigun": true,
     "clangd-lsp@claude-plugins-official": true,
     "cloudflare@cloudflare": true,
     "cman@cman": true,
@@ -232,7 +230,6 @@
     "codex@openai-codex": true,
     "context7@claude-plugins-official": true,
     "decomposition@kuu-marketplace": true,
-    "deepwiki-mcp@gigun": true,
     "deploy-on-aws@agent-plugins-for-aws": false,
     "deslop@kuu-marketplace": true,
     "dig@kuu-marketplace": true,
@@ -241,25 +238,17 @@
     "frontend-design@claude-plugins-official": true,
     "github@claude-plugins-official": false,
     "gopls-lsp@claude-plugins-official": true,
-    "ios-skills@gigun": true,
     "lua-lsp@claude-plugins-official": false,
-    "markitdown-mcp@gigun": true,
     "postman@claude-plugins-official": false,
     "skill-creator@claude-plugins-official": true,
     "stripe@claude-plugins-official": true,
     "supabase@claude-plugins-official": false,
     "swift-lsp@claude-plugins-official": true,
-    "telemetry@gigun": true,
     "typescript-lsp@claude-plugins-official": true,
-    "todo@gigun": true,
-    "ota-deploy@gigun": true,
     "asc@rorkai": true,
-    "asc-mcp@gigun": true,
     "html-plan@claude-community": true,
     "mattpocock-skills@claude-plugins-official": true,
-    "hono@hono": true,
-    "rea@gigun": true,
-    "t3@gigun": true
+    "hono@hono": true
   },
   "extraKnownMarketplaces": {
     "agent-browser": {
