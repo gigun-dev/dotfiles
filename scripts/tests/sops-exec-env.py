@@ -288,6 +288,46 @@ class ExecEnvFixture(unittest.TestCase):
 
         self.assertFalse(root.exists())
 
+    def test_mac_only_project_denies_vm_until_explicitly_added(self):
+        marker = "nonsecret-project-scope-" + secrets.token_hex(12)
+        plaintext = f"PROJECT_MARKER={marker}\n"
+        expected_digest = hashlib.sha256(plaintext.encode()).hexdigest()
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            identities = {
+                name: self.create_identity(root, name)
+                for name in ("primary", "backup", "mac-se", "mini-vm-user")
+            }
+            source = root / "project.env"
+            mac_only_encrypted = root / "mac-only.sops.env"
+            shared_encrypted = root / "shared.sops.env"
+            source.write_text(plaintext)
+            source.chmod(0o600)
+
+            primary, primary_recipient = identities["primary"]
+            backup, backup_recipient = identities["backup"]
+            mac_se, mac_se_recipient = identities["mac-se"]
+            vm_user, vm_user_recipient = identities["mini-vm-user"]
+
+            self.encrypt_dotenv(
+                source,
+                mac_only_encrypted,
+                [primary_recipient, backup_recipient, mac_se_recipient],
+            )
+            self.encrypt_dotenv(
+                source,
+                shared_encrypted,
+                [primary_recipient, backup_recipient, mac_se_recipient, vm_user_recipient],
+            )
+            source.unlink()
+
+            self.assert_plaintext_matches(mac_only_encrypted, mac_se, expected_digest, root, "mac-se")
+            self.assert_cannot_decrypt(mac_only_encrypted, vm_user, root / "vm-denied.env")
+            self.assert_plaintext_matches(shared_encrypted, vm_user, expected_digest, root, "vm-allowed")
+
+        self.assertFalse(root.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

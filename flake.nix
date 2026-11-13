@@ -822,7 +822,28 @@
                     p;
               in
               base.extendModules {
-                modules = [ { home.packages = base.pkgs.lib.mkForce (map replace base.config.home.packages); } ];
+                modules = [
+                  (
+                    { config, lib, ... }:
+                    let
+                      ensureSopsUserIdentity = base.pkgs.writeShellApplication {
+                        name = "ensure-sops-user-identity";
+                        runtimeInputs = [
+                          base.pkgs.age
+                          base.pkgs.coreutils
+                        ];
+                        text = builtins.readFile ./scripts/ensure-sops-host-identity.sh;
+                      };
+                      sopsUserIdentityPath = "${config.xdg.configHome}/sops/age/keys.txt";
+                    in
+                    {
+                      home.packages = base.pkgs.lib.mkForce (map replace base.config.home.packages);
+                      home.activation.ensureSopsUserIdentity = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+                        $DRY_RUN_CMD ${ensureSopsUserIdentity}/bin/ensure-sops-user-identity ${lib.escapeShellArg sopsUserIdentityPath}
+                      '';
+                    }
+                  )
+                ];
               };
           };
         };
