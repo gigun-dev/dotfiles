@@ -106,24 +106,37 @@ let
           }
           // instance
         )
-        {
-          claudeAgent = {
-            displayName = "Claude";
-            config.binaryPath = lib.getExe pkgs.claude-code;
-          };
-          codex = {
-            displayName = "Codex";
-            config.binaryPath = lib.getExe llmAgents.codex;
-          };
-          opencode = {
-            displayName = "OpenCode";
-            config.binaryPath = lib.getExe llmAgents.opencode;
-          };
-          pi = {
-            displayName = "Pi";
-            config.binaryPath = lib.getExe llmAgents.pi;
-          };
-        };
+        (
+          {
+            claudeAgent = {
+              displayName = "Claude";
+              config.binaryPath = lib.getExe pkgs.claude-code;
+            };
+            codex = {
+              displayName = "Codex";
+              config.binaryPath = lib.getExe llmAgents.codex;
+            };
+            opencode = {
+              displayName = "OpenCode";
+              config.binaryPath = lib.getExe llmAgents.opencode;
+            };
+            pi = {
+              displayName = "Pi";
+              config.binaryPath = lib.getExe llmAgents.pi;
+            };
+          }
+          # agy を指すと T3 Code は `agy acp` を起動し、~/.gemini/config/plugins.json の
+          # plugin (MCP と skill) が T3 のセッションにも届く。
+          # Why not 空 (T3 が落とす agy_acp_server): plugin の仕組みを持たず、読む MCP は
+          # T3 の profile 内の config/mcp_config.json だけ。REA などの plugin が見えない。
+          # 条件は packages.nix の llmAgents.antigravity-cli と同じ (Intel Mac には入らない)。
+          // lib.optionalAttrs (!(isDarwin && pkgs.stdenv.hostPlatform.isx86_64)) {
+            antigravity = {
+              displayName = "Antigravity";
+              config.binaryPath = lib.getExe llmAgents.antigravity-cli;
+            };
+          }
+        );
 
     # agent は nix で固定しているので、上流の更新通知はノイズ。
     enableProviderUpdateChecks = false;
