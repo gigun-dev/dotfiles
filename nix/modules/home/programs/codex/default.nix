@@ -8,6 +8,8 @@
   pkgs,
   lib,
   config,
+  llmAgents,
+  gigunPlugins,
   ...
 }:
 let
@@ -26,8 +28,8 @@ let
 
     features.memories = true;
 
-    # 自作 plugin の取得元は全 host で再現可能にする。plugin の有効化は利用する
-    # harness / host ごとに異なるため、ここでは一律に宣言しない。snapshot
+    # 自作 plugin の取得元は全 host で再現可能にする。plugin の有効化は下の
+    # syncCodexGigunPlugins が marketplace に合わせる。snapshot
     # refresh は network に依存するため activation では行わず、明示的な
     # `codex plugin marketplace upgrade gigun` に分離する。
     marketplaces.gigun = {
@@ -38,6 +40,7 @@ let
       ref = "main";
     };
   };
+  codexConfig = "${config.home.homeDirectory}/.codex/config.toml";
 in
 {
   # merge-config.nu に merge する理由を書いている。
@@ -46,4 +49,34 @@ in
       ${tomlFormat.generate "codex-config" settings} \
       "${config.home.homeDirectory}/.codex/config.toml"
   '';
+
+  # gigun plugin を marketplace に合わせる (gigun-dev/claude-code todo 0070)。Codex は
+  # [plugins."x@gigun"] enabled = true を書くだけでは plugin を入れず、`codex plugin add` が要る。
+  # add は既存の enabled = false を true に戻すので、表がまだ無いものだけ add する
+  # (GUI で切った値を残す)。marketplace から消えた plugin は remove する。
+  # add / remove の失敗 (marketplace の snapshot が古い、外部 plugin の取得に失敗した等) は
+  # switch を止めず警告に留める。snapshot の更新は `codex plugin marketplace upgrade gigun`。
+  home.activation.syncCodexGigunPlugins = lib.mkIf (llmAgents ? codex) (
+    lib.hm.dag.entryAfter [ "writeCodexConfig" ] ''
+      codex=${lib.getExe llmAgents.codex}
+      config=${lib.escapeShellArg codexConfig}
+      if [ -f "$config" ]; then
+        for name in ${lib.escapeShellArgs gigunPlugins.autoEnable}; do
+          if ! grep -qF "[plugins.\"$name@gigun\"]" "$config"; then
+            $DRY_RUN_CMD "$codex" plugin add "$name@gigun" >/dev/null \
+              || echo "codex: $name@gigun を add できなかった" >&2
+          fi
+        done
+        for name in $(grep -o '^\[plugins\."[^"]*@gigun"\]' "$config" | sed 's/^\[plugins\."//; s/@gigun"\]$//'); do
+          case " ${toString gigunPlugins.names} " in
+            *" $name "*) ;;
+            *)
+              $DRY_RUN_CMD "$codex" plugin remove "$name@gigun" >/dev/null \
+                || echo "codex: $name@gigun を remove できなかった" >&2
+              ;;
+          esac
+        done
+      fi
+    ''
+  );
 }

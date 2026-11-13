@@ -559,9 +559,8 @@
           # (overlay に混ぜると nixpkgs 全体の評価に input が絡むため)。
           t3LimitsFor = system: inputs.t3-limits.packages.${system}.default;
 
-          # gigun marketplace にある plugin 名。claude/settings.json の enabledPlugins が
-          # marketplace から消えた plugin を指していないかを評価時に確かめる (dotfiles.nix)。
-          gigunPluginNames = import ./nix/gigun-plugin-names.nix inputs;
+          # gigun marketplace の plugin 一覧。各ホストで未記載のものを有効にし、消えたものを落とす。
+          gigunPlugins = import ./nix/gigun-plugins.nix inputs;
 
           # agent-skills-nix に渡す skill の上流 (nix/modules/home/agent-skills.nix)。
           skillSources = {
@@ -657,7 +656,7 @@
                       cclens = cclensFor system;
                       t3Limits = t3LimitsFor system;
                       inherit skillSources;
-                      inherit gigunPluginNames;
+                      inherit gigunPlugins;
                     };
                     users.${username} = {
                       # nix-secure-enclave-key の upstream `systems` は aarch64-darwin
@@ -780,7 +779,7 @@
                 cclens = cclensFor "x86_64-linux";
                 t3Limits = t3LimitsFor "x86_64-linux";
                 inherit skillSources;
-                inherit gigunPluginNames;
+                inherit gigunPlugins;
               };
               modules = [
                 ./nix/modules/home
