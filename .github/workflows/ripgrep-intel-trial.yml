@@ -1,0 +1,47 @@
+name: ripgrep Intel bounded trial
+on:
+  workflow_dispatch:
+  push:
+    branches: [build/ripgrep-intel-bottle]
+    paths: [ci/homebrew-ripgrep/**, .github/workflows/ripgrep-intel-trial.yml]
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: ripgrep-intel-trial
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: macos-15-intel
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: |
+          bash -n ci/homebrew-ripgrep/recipe.sh
+          python3 -m unittest discover -s ci/homebrew-ripgrep -p 'test_*.py'
+          bash ci/homebrew-ripgrep/recipe.sh prepare-ci "$RUNNER_TEMP/pcre2" --execute
+          bash ci/homebrew-ripgrep/recipe.sh build "$RUNNER_TEMP/pcre2" --execute
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pcre2-build
+          path: ${{ runner.temp }}/pcre2/
+          retention-days: 14
+          if-no-files-found: error
+  verify:
+    needs: build
+    runs-on: macos-15-intel
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name pcre2-build --dir "$RUNNER_TEMP/pcre2"
+      - run: |
+          bash ci/homebrew-ripgrep/recipe.sh prepare-ci "$RUNNER_TEMP/pcre2" --execute
+          bash ci/homebrew-ripgrep/recipe.sh verify "$RUNNER_TEMP/pcre2" --execute
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pcre2-verified
+          path: ${{ runner.temp }}/pcre2/
+          retention-days: 14
+          if-no-files-found: error
