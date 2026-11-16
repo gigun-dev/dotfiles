@@ -103,12 +103,15 @@
     ]
     ++ lib.optionals (pkgs.stdenv.hostPlatform.isDarwin && pkgs.stdenv.hostPlatform.isAarch64) [
       (callPackage ../../packages/ghidra-rea { })
+      # setup は Apple Silicon 上の FairPlay enrollment を使う。
+      (callPackage ../../packages/unfairplay { })
       # project開発用SOPS暗号文の日常復号。identityはSecure Enclaveに束縛し、
       # 暗号文には別途YubiKey recipientも残す (ADR 0018)。
       age-plugin-se
     ]
     ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
       # iOS / Swift 開発 — darwin 限定
+      ipatool # App Store の iPhone / iPad 用 IPA 取得。認証は実行時に行う。
       cocoapods
       xcodegen # project.yml から .xcodeproj 生成
       swiftformat # Swift フォーマッタ
