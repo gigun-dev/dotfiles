@@ -50,6 +50,13 @@ GitHub の `gigun-dev/ipatool` にアクセスできる SSH 鍵をホスト側�
 トークンや秘密鍵を Nix 式・URL・derivation に書かない。ソース取得は Darwin 用の
 このパッケージを評価するときに必要となり、Linux の通常ビルドには要求しない。
 ビルドされたソース・成果物はローカル Nix store に置かれる。
+Darwin switch は root で再評価するため、共有 switch 本体が Git の SSH transport にだけ
+元ユーザーで動く wrapper を指定する。ユーザーの SSH 設定・known_hosts・agent を使い、
+root 用の秘密鍵や known_hosts のコピーは作らない。通常の profile 更新・rollback 引数は
+公式 darwin-rebuild に渡したままにする。
+この transport による private repo の取得、Darwin の隔離 routing 検査、全体 build は確認した。
+実適用は管理者認証を扱える手元の対話端末で `nix run .#switch` を実行して確認する。
+エージェントの非対話実行は sudo の端末要求で停止し、適用完了とは扱っていない。
 
 通常版とはコマンド名・Keychain サービス・セッション保存先を分ける。
 認証時は Apple Account に登録した USB セキュリティキーを接続し、対話端末で実行する。

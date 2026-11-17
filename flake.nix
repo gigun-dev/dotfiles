@@ -249,6 +249,14 @@
               }
             '';
 
+          # darwin-rebuild evaluates as root; only its Git SSH transport needs the
+          # invoking user's SSH config, known_hosts and agent. Keep activation and
+          # profile/rollback handling in the official privileged switch command.
+          darwinGitSSH = pkgs.writeShellScript "darwin-git-user-ssh" ''
+            exec /usr/bin/sudo --user=${pkgs.lib.escapeShellArg username} --set-home \
+              --preserve-env=SSH_AUTH_SOCK -- /usr/bin/ssh "$@"
+          '';
+
           # switch と update 系が共有する適用本体。
           # darwin: darwin-rebuild で system + home 両方適用
           # linux:  Linux は 2 種類ある: WSL (home-manager standalone のみ) と
@@ -264,7 +272,9 @@
                 ${brewCleanupGuard}
                 apply_switch() {
                   brew_cleanup_guard || return
-                  sudo ${inputs.nix-darwin.packages.${system}.darwin-rebuild}/bin/darwin-rebuild \
+                  /usr/bin/sudo --preserve-env=SSH_AUTH_SOCK \
+                    GIT_SSH_COMMAND=${darwinGitSSH} \
+                    ${inputs.nix-darwin.packages.${system}.darwin-rebuild}/bin/darwin-rebuild \
                     switch --flake ".#${username}-${system}" "$@" || return
                 }
               ''
