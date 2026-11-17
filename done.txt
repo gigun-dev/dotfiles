@@ -122,3 +122,4 @@ x 2026-11-17 2026-11-17 iOS解析ツールの宣言を main に統合・push し
 x 2026-11-17 2026-11-17 ipatool のセキュリティキー対応 fork を監査し、別コマンドで Nix ビルド・合成テスト・実認証の準備を検証する +ios +nix by:me id:0206
 x 2026-11-17 2026-11-17 セキュリティキー実認証は成功。保存済み Store 状態の復元を検証し、対象 IPA を取得して取得経路を受入する +ios see:docs/ios-re-tools.md by:codex id:0207
 x 2026-11-17 2026-11-17 セキュリティキー対応 ipatool を private 派生リポジトリへ移し、上流更新検知・CIとdotfilesのcommit固定を検証する +ios see:docs/adr/0019-private-ipatool-downstream.md by:me id:0208
+x 2026-11-17 2026-11-17 共有switchのSSHユーザー委譲は実装・テスト済み。手元の対話端末でmainのswitchを実行しprivate版の実適用を受入する +ios +nix @user see:docs/ios-re-tools.md by:codex id:0210
