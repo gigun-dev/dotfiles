@@ -68,7 +68,12 @@ in
       # gh CLI を git の credential helper として使用 (Mac/Linux 共通)
       # 新マシンでは `gh auth login` 1 回で git push/pull が動く
       # Windows は GCM (Git Credential Manager) が標準、別途
-      credential.helper = "!${pkgs.gh}/bin/gh auth git-credential";
+      # 先頭の空値で継承した helper 一覧を消す。nix の git は system gitconfig に
+      # osxkeychain を持ち、gh より先に呼ばれて git 更新のたびにキーチェーンの許可を求める
+      credential.helper = [
+        ""
+        "!${pkgs.gh}/bin/gh auth git-credential"
+      ];
 
       filter.nbstripout = {
         clean = "${nbstripout} ${nbstripoutArgs}";
