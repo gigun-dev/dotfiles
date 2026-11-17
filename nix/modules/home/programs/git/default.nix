@@ -69,11 +69,19 @@ in
       # 新マシンでは `gh auth login` 1 回で git push/pull が動く
       # Windows は GCM (Git Credential Manager) が標準、別途
       # 先頭の空値で継承した helper 一覧を消す。nix の git は system gitconfig に
-      # osxkeychain を持ち、gh より先に呼ばれて git 更新のたびにキーチェーンの許可を求める
-      credential.helper = [
-        ""
-        "!${pkgs.gh}/bin/gh auth git-credential"
-      ];
+      # osxkeychain を持ち、gh より先に呼ばれて git 更新のたびにキーチェーンの許可を求める。
+      # gh が扱えるのは GitHub だけなので、他ホストは継承した helper のまま残す (ryoppippi と同じ形)
+      credential =
+        let
+          gh = [
+            ""
+            "!${pkgs.gh}/bin/gh auth git-credential"
+          ];
+        in
+        {
+          "https://github.com".helper = gh;
+          "https://gist.github.com".helper = gh;
+        };
 
       filter.nbstripout = {
         clean = "${nbstripout} ${nbstripoutArgs}";

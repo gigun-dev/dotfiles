@@ -392,7 +392,6 @@
     ]
   },
   "voiceEnabled": true,
-  "model": "opus",
   "subagentPromptCacheTtl": "1h",
   "autoMemoryEnabled": false
 }
