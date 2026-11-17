@@ -56,11 +56,15 @@ fi
 : "${GITHUB_OUTPUT:?GITHUB_OUTPUT is required during preparation}"
 
 cutoff=$(( $(date +%s) - 7 * 24 * 60 * 60 ))
-release=$(curl -fsSL 'https://api.github.com/repos/langfuse/langfuse/releases?per_page=100' \
+# Hosted runners share the low anonymous API quota. Use only the workflow's
+# read-only token here; the separate writer token is still created after build.
+: "${GH_TOKEN:?GH_TOKEN must contain the read-only workflow token during preparation}"
+release=$(gh api --hostname github.com 'repos/langfuse/langfuse/releases?per_page=100' \
   | jq -r --argjson cutoff "$cutoff" \
     '[.[] | select(.draft == false and .prerelease == false)
       | select(.tag_name | test("^v4\\.[0-9]+\\.[0-9]+$"))
       | select((.published_at | fromdateiso8601) <= $cutoff)][0].tag_name // empty')
+unset GH_TOKEN
 if [[ -z "$release" ]]; then
   echo '7日経過したLangfuse v4 releaseはありません'
   printf 'changed=false\n' >>"$GITHUB_OUTPUT"
