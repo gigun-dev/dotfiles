@@ -119,3 +119,6 @@ x 2026-11-13 2026-11-10 +cleanup エージェントが用意済みの手順を�
 x 2026-11-13 2026-11-08 +iterm2 iTerm2 を終了してメモリ上の設定を plist に書き出させ、Bidi・ホットキーの差分を git restore で捨ててから起動し直す。iTerm2 の中のセッションは全部止まるので、T3 Code など別のアプリから行う @user by:me id:0129
 x 2026-11-17 2026-11-17 ipatool と UnfairPlay を宣言管理し、ビルドと CLI 起動を検証する +ios +nix see:docs/ios-re-tools.md by:me id:0203
 x 2026-11-17 2026-11-17 iOS解析ツールの宣言を main に統合・push し、Pro に適用して CI と CLI を確認する +ios +nix see:docs/ios-re-tools.md by:me id:0205
+x 2026-11-17 2026-11-17 ipatool のセキュリティキー対応 fork を監査し、別コマンドで Nix ビルド・合成テスト・実認証の準備を検証する +ios +nix by:me id:0206
+x 2026-11-17 2026-11-17 セキュリティキー実認証は成功。保存済み Store 状態の復元を検証し、対象 IPA を取得して取得経路を受入する +ios see:docs/ios-re-tools.md by:codex id:0207
+x 2026-11-17 2026-11-17 セキュリティキー対応 ipatool を private 派生リポジトリへ移し、上流更新検知・CIとdotfilesのcommit固定を検証する +ios see:docs/adr/0019-private-ipatool-downstream.md by:me id:0208

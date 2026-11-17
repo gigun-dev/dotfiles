@@ -360,6 +360,11 @@
           # 比較用 Arduino core は ESP-IDF 6.1 と別の SDK/cache を使う。
           devShells.esp32drop = import ./nix/devshells/esp32drop.nix { inherit pkgs; };
 
+          # Expose the pinned private downstream for explicit builds as well as Home Manager.
+          packages = pkgs.lib.optionalAttrs (system == "aarch64-darwin") {
+            ipatool-security-key = pkgs.callPackage ./nix/packages/ipatool-security-key { };
+          };
+
           # Keep false-success and credential-leak regressions in the CI gate (scripts/verify.sh).
           checks = {
             dotfiles-autoswitch = pkgs.runCommand "dotfiles-autoswitch-tests" { } ''

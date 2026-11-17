@@ -105,6 +105,7 @@
       (callPackage ../../packages/ghidra-rea { })
       # setup は Apple Silicon 上の FairPlay enrollment を使う。
       (callPackage ../../packages/unfairplay { })
+      (callPackage ../../packages/ipatool-security-key { })
       # project開発用SOPS暗号文の日常復号。identityはSecure Enclaveに束縛し、
       # 暗号文には別途YubiKey recipientも残す (ADR 0018)。
       age-plugin-se

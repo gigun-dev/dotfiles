@@ -81,3 +81,4 @@
 2026-11-13 +claude mini-vm の外部 plugin を Nix のビルドで入れ、gigun-marketplace-refresh timer と claude-code checkout への依存を無くすか決める see:docs/research/agent-skills-nix.md by:claude id:0201
 2026-11-13 +security Apple Ads へ公開鍵を登録し、発行される client ID / team ID / key ID / ad account ID を接続して、Search Term Popularity API の実認証と実 dev server の起動を受入する see:docs/adr/0018-unify-secret-delivery-with-sops-and-allow-device-recipients-for-development.md by:me id:0202
 2026-11-17 Darwin の dotfiles-autoswitch check が複数箇所の subprocess timeout で失敗する原因を調べる。main と同一 derivation で今回の IPA ツール追加に依存しない +test +nix by:codex id:0204
+2026-11-17 GitHub private Actions の billing/spending 制限を解消し、ipatool downstream CI と upstream-check を実行して受入する +ios @user see:docs/ios-re-tools.md by:codex id:0209
