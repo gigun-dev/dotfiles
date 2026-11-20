@@ -1,11 +1,11 @@
 {
   "schema": 1,
   "name": "fzf",
-  "version": "0.74.5",
+  "version": "0.75.0",
   "revision": 0,
-  "core_revision": "f8967c7840b2c8af6d0df4a47aaf01140307e725",
-  "formula_sha256": "f4cae1e193a4c2a5a01cbeed469f26931b3b067cf22f5f505b97de46574128d7",
-  "source_sha256": "5529d08897b85ae773695787c811ff9c9eeee32419c8a297fa1dbe586ed0a27e",
+  "core_revision": "0320d5a7ac3d7470022ac0bd0a855f485adab24f",
+  "formula_sha256": "e81dc482ba88af93d2365362651e5d404af9eebe3ed09c9b59cd57fb8fbfffdb",
+  "source_sha256": "165f6e0c1b9ba082346233681e3f1d1374e37f9fd3c1d7b6dfe09659ab893faa",
   "go": {
     "version": "1.27.3",
     "revision": 0,
@@ -29,5 +29,5 @@
     "prefix": "/usr/local"
   },
   "parallelism": 2,
-  "build_sha256": "185ed8505025b4b634ef1aa0f3344ffee6af9c0abc01e494e3b2f46e1aa44d4b"
+  "build_sha256": "2a12f70f5c05e61990e46c0acee52f0970d72500a7df572970699cca50ac87c9"
 }
