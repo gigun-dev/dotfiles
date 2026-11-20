@@ -6,6 +6,9 @@ MacBook Pro（M4 Pro、SSD 460GB）の空き容量が逼迫したときの手順
 どちらも数か月で埋まっており、大きいのは毎回「再生成できるキャッシュ」「リポジトリのビルド成果物」「Nix の古い世代」である。
 2026-11-10 は 2 日で約 57GB 減って 11GB になった。主因はエージェントのスクラッチパッド（`/private/tmp/claude-501`、35GB）で、ホーム配下だけを測る手順では見えなかった。
 ebook2pdf の実験セッションが同じ 283MB の入力 PDF を実験ごとに普通のコピーで複製していた（83 個）。リポジトリの `reanalyze-library` は `clonefile` を使っており、自作の実験手順がそれを迂回していた。そのセッションに指摘して片付けさせ、全体で 71GB まで戻した。全体指示への追加は 1 件だけでは見送った（todo に昇格条件を置いた）。
+2026-11-21 は 3.7GB → 約 38GB。13 日で約 56GB 増えていた。主因は、worktree に残った `result` が古いシステム世代を固定していたこと（約 10GB、下記「Nix」）、iOS DeviceSupport の再取得、Paste のスクリーンショット履歴、Codex の session だった。
+
+定型の掃除（キャッシュ、マージ済み worktree、Nix GC の確認）は ryoppippi の `clean-storage` スキルで行う（`nix/modules/home/agent-skills.nix` で配布）。この手順書は、その後に残る大物を測って判断するためのもの。
 
 ## 現状を測る
 
@@ -97,6 +100,8 @@ git -C <repo> worktree prune                               # フォルダを直�
 
 2026-11-08 は clean かつ未 push なしの worktree だけ消し、dirty か ahead の 8 つを残した。
 
+dirty な worktree は、変更が main に入っているかを調べてから扱う（esp32-airdrop-poc の `.claude/worktrees` と `-worktrees/` で 22 個、2026-11-21）。main に無い作業は、patch ではなく、そのブランチに WIP commit として積み、`keep/<内容>` に改名してから worktree を消す。patch は基点を失って埋もれ、main が進むと当たらなくなる。
+
 ### (d) 残すもの
 
 - Claude Code / Codex のセッション記録（`~/.claude`、`~/.codex/sessions`、thread_history）。
@@ -110,9 +115,17 @@ git -C <repo> worktree prune                               # フォルダを直�
 
 ### Nix
 
-古いシステム世代は root 所有なので、GC は `sudo nix-collect-garbage -d` で行う。
-事前に `nix-store --gc --print-dead` で回収量の目安が出る（2026-11-08 は約 10.3GB と見積もり、実際は 14.2GiB）。
-`nix/modules/darwin/system.nix` に `nix.gc`（毎日 12:00、7 日より古い世代）があり launchd に載っているが、これで間に合わず手動 GC で大きく減った。理由は未調査（todo 0142）。
+定期 GC は `nix/modules/darwin/nh-clean.nix` の daemon（`nh clean all --keep-since 7d --keep 3 --optimise`、AC 電源時に 1 日 1 回、ログは `/var/log/nh-clean.log`）。
+2026-11-21 までは `nix.gc`（`nix-collect-garbage --delete-older-than 7d`）だったが、これは GC root を外さない。エージェントが worktree ごとに `nix run .#build` すると、各 worktree の `result` が当時のシステム closure を固定する。`.wt/` の 9 個と本体の `result` が 10 世代・約 10GB を残し、手動 GC でも 1GB しか減らなかった。`nh clean` は 7 日より古い `result` や direnv の root も外す。
+
+GC が効かないときは、まず root を見る。
+
+```bash
+nix-store --gc --print-roots | grep -v -E '\{lsof\}|\{censored\}'   # result や .direnv が並ぶ
+sudo nh clean all --keep-since 7d --keep 3 --optimise              # daemon と同じ手動実行
+```
+
+古いシステム世代は root 所有なので、手で GC するときは sudo が要る。
 2026-03 には、コード署名付き `.app` が chmod エラーで GC を止めた。
 
 ```bash
@@ -140,6 +153,19 @@ Finder の iPhone の Wi-Fi 自動バックアップが中断を繰り返すと�
 
 AVD 実体 `~/.android/avd`、SDK の system-images と emulator、`~/.gradle` で合計 12GB 級。Android Studio が入れ直す。
 `~/.android` は `avd` だけ消す。直下の `debug.keystore`（デバッグ署名鍵）と `adbkey`（ADB 認証鍵）を巻き込むと、既存デバッグアプリの再インストールと実機の再認証が要る。
+
+### Paste（クリップボード履歴）
+
+`~/Library/Application Support/com.wiheads.paste-setapp/.db_SUPPORT/_EXTERNAL_DATA` が増える。スクリーンショットをコピーすると、macOS は同じ画像を無圧縮の TIFF（1 件約 32MB）でも載せ、Paste は全表現を保存する。2026-11-08〜21 に 6.5GB 増えた。大半は Kickstart や ebook2pdf などの検証中にアプリからコピーした画像だった。
+コピー元アプリ別の量は、DB を読み取り専用で開いて数える（`ZITEMDATAENTITY.ZRAWPASTEBOARDITEMS` が外部ファイルの UUID を持つ）。消すときは Paste アプリから消す。`_EXTERNAL_DATA` を直接消すと DB との整合が壊れる。増やさないには、Paste の設定の「無視するアプリ」に検証対象のアプリを入れる。
+
+### Codex の session
+
+`~/.codex/sessions` は残す。シミュレータやブラウザのスクリーンショットを base64 で埋め込むため、画像の多い作業で急に増える（2026-11 は 1 か月で 7.4GB、1 行 23MB の例）。
+
+### Hugging Face
+
+hub キャッシュは、モデル間で blob を共有する構造（`hub/blobs/<2 文字>/<hash>`）に変わった。モデルディレクトリを消すだけでは共有側の blob が残る。他のモデルから参照されていない blob だけを `realpath` で突き合わせて消す。`du -L` のモデル別集計は重複を数えるので当てにしない。
 
 ### 手で消さないもの
 
