@@ -661,6 +661,7 @@
                   networking.computerName = hostName;
                 }
                 ./nix/modules/darwin/system.nix
+                ./nix/modules/darwin/nh-clean.nix
                 ./nix/modules/darwin/homebrew.nix
                 ./nix/modules/darwin/apple-container.nix
               ]

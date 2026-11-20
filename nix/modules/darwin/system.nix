@@ -14,21 +14,7 @@ in
     nerd-fonts.jetbrains-mono
   ];
 
-  # Nix settings (ryoppippi pattern)
-  nix.gc = {
-    automatic = true;
-    interval = {
-      Hour = 12;
-      Minute = 0;
-    };
-    options = "--delete-older-than 7d";
-  };
-  # nix-darwin の既定ではログの出先が無く、日次の GC が走ったかも終了コードも残らない
-  # (2026-11-08 の調査で、手動 GC で 14.2GiB 回収できた理由を確かめられなかった)。
-  launchd.daemons.nix-gc.serviceConfig = {
-    StandardOutPath = "/var/log/nix-gc.log";
-    StandardErrorPath = "/var/log/nix-gc.log";
-  };
+  # Nix settings (ryoppippi pattern)。定期 GC は nh-clean.nix。
   nix.settings = {
     # 日次の GC だけでは、評価のたびに増えるゴミ (path: で store に写ったリポジトリ全体など、
     # 1 個 816MB) に追いつかない日がある。空きが 20GiB を切ったら daemon がビルド中に
