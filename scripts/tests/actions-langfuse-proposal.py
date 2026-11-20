@@ -45,13 +45,11 @@ class LangfuseProposalTest(unittest.TestCase):
                     }
                 ]
             )
-            (tools / "curl").write_text(
-                shebang + f"printf '%s\\n' '{release}'\n"
-            )
             (tools / "skopeo").write_text(
                 shebang
                 + textwrap.dedent(
                     """\
+                    [[ -z "${GH_TOKEN:-}" ]] || exit 43
                     case "$*" in
                       *langfuse-worker*)
                         [[ "$FAILURE" = digest ]] && printf 'invalid\n' || printf 'sha256:%064d\n' 2
@@ -65,7 +63,7 @@ class LangfuseProposalTest(unittest.TestCase):
                 shebang + 'printf \'%s\\n\' "$*" >> "$AUDIT/compose"\n'
             )
             (tools / "nix").write_text(
-                shebang + 'printf \'%s\\n\' "$*" >> "$AUDIT/nix"\n'
+                shebang + '[[ -z "${GH_TOKEN:-}" ]] || exit 43\nprintf \'%s\\n\' "$*" >> "$AUDIT/nix"\n'
             )
             (tools / "git").write_text(
                 shebang
@@ -84,6 +82,13 @@ class LangfuseProposalTest(unittest.TestCase):
                 + textwrap.dedent(
                     """\
                     printf '%s\n' "$*" >> "$AUDIT/gh"
+                    if [[ "$1" = api ]]; then
+                      [[ "${GH_TOKEN:-}" = fixture-token ]] || exit 41
+                      [[ "$*" = 'api --hostname github.com repos/langfuse/langfuse/releases?per_page=100' ]] || exit 42
+                      [[ "$FAILURE" = api ]] && { echo 'HTTP 403 fixture' >&2; exit 1; }
+                      printf '%s\n' "$RELEASE_FIXTURE"
+                      exit 0
+                    fi
                     if [[ "$1 $2" = "pr view" && "$*" = *"--json number"* ]]; then
                       printf '42\n'
                     fi
@@ -95,6 +100,7 @@ class LangfuseProposalTest(unittest.TestCase):
 
             environment = os.environ | {
                 "AUDIT": str(audit),
+                "RELEASE_FIXTURE": release,
                 "GH_TOKEN": "fixture-token",
                 "GITHUB_REPOSITORY": "gigun-dev/dotfiles",
                 "GIT_ASKPASS": str(tools / "git"),
@@ -148,7 +154,17 @@ class LangfuseProposalTest(unittest.TestCase):
         process, records, compose = self.run_proposal("4.1.0")
         self.assertEqual(process.returncode, 0, process.stderr)
         self.assertIn("より新しく", process.stdout)
-        self.assertEqual(records, {"compose": [], "nix": [], "git": [], "gh": []})
+        self.assertEqual(records, {"compose": [], "nix": [], "git": [], "gh": ["api --hostname github.com repos/langfuse/langfuse/releases?per_page=100"]})
+        self.assertEqual(compose, COMPOSE.read_text())
+
+    def test_api_failure_stops_before_writes_or_publish(self):
+        process, records, compose = self.run_proposal("4.99.0", "api")
+        self.assertNotEqual(process.returncode, 0)
+        self.assertIn("HTTP 403 fixture", process.stderr)
+        self.assertEqual(records["compose"], [])
+        self.assertEqual(records["nix"], [])
+        self.assertEqual(records["git"], [])
+        self.assertEqual(len(records["gh"]), 1)
         self.assertEqual(compose, COMPOSE.read_text())
 
     def test_malformed_digest_fails_before_staging(self):
