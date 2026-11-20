@@ -68,6 +68,9 @@ in
       "ask-other-agent"
       "review-loop"
       "edit-skills"
+      # 前提の nh-clean daemon は nix/modules/darwin/nh-clean.nix。手で判断する整理は
+      # docs/storage-cleanup.md。
+      "clean-storage"
     ];
     # ryoppippi の残りの skill (tdd・vitest など) は選んでいないので配らない。
     skills.enableAll = [
