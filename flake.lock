@@ -119,11 +119,11 @@
     "cloudflare-os": {
       "flake": false,
       "locked": {
-        "lastModified": 1795218209,
-        "narHash": "sha256-vFDfKmuXJngEg+bKomqVs55AT5hENbF3JZ0VlH5/qBY=",
+        "lastModified": 1795282191,
+        "narHash": "sha256-+6PfSp+91wfIrIKc3UZ/2DGQwshTxE6l+/YgY7M8o5o=",
         "owner": "cloudflare",
         "repo": "cloudflare-os",
-        "rev": "b84d584292446c3a0dc8e3bf4bed794aac67e504",
+        "rev": "27888f048a4278cce3a71c462924a5435dab614d",
         "type": "github"
       },
       "original": {
@@ -624,11 +624,11 @@
     },
     "nixpkgs_4": {
       "locked": {
-        "lastModified": 1795217999,
-        "narHash": "sha256-Z5mAFcY8XTAaWe+RwTchz4Fx1gwaeQ2WD8A8bKX7njY=",
+        "lastModified": 1795249095,
+        "narHash": "sha256-8JDgyVvWUZg5m9hNlL8Ge9aT647ng3Ukc8NPMiKNTPQ=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "680275f0bb6afce84fbac3e75fc47c5f2272400b",
+        "rev": "93a9ed0a866099a230ed5146a5bb7d16fd5c9b14",
         "type": "github"
       },
       "original": {
@@ -693,11 +693,11 @@
     "ryoppippi-dotfiles": {
       "flake": false,
       "locked": {
-        "lastModified": 1795269922,
-        "narHash": "sha256-kQwOIe8FN+OH9OXCbxKe9S/FLZ1ECBKrMjmNwbgj94o=",
+        "lastModified": 1795295721,
+        "narHash": "sha256-6QDIBqV8lUkX6zFC+zGhdfqmnFdFlPxOKfLXUkcKh58=",
         "owner": "ryoppippi",
         "repo": "dotfiles",
-        "rev": "d93ef62984f093ea02fabfb185a46fa3989bf534",
+        "rev": "ceb2694e8c50db97bf8d7a16fbb6486601303fe1",
         "type": "github"
       },
       "original": {
