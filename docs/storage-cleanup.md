@@ -139,7 +139,14 @@ sudo nix-collect-garbage -d    # 再試行
 `uv cache clean` と `uv cache prune` は `~/.cache/uv/.lock` を取る。
 Claude Code のセッションごとに `uv run --script`（agy-mcp、cman）と `uv tool uvx markitdown-mcp` が親プロセスとして常駐し、ロックを握り続けるため、300 秒でタイムアウトする（2026-11-08 に 17 プロセスを観測）。
 `uv run` と `uvx` が実行中ずっとロックを持つのは、実行中の環境を消させないための uv の意図した挙動（astral-sh/uv#15990）。
-再起動の直後、Claude Code と Codex を開く前に `uv cache prune`（公式が定期実行を勧める方）を流す。`--force` は動作中の MCP サーバーの環境を壊しうるので使わない。経緯と uv 側の改善待ちは todo 0141。
+再起動しても、Claude Code・Codex・T3 Code を開けば MCP がまた立ち上がりロックが戻るので、再起動は条件にならない。他のエージェントが動いていないときに、自分のセッションの `uv run` を止めてから `uv cache prune`（公式が定期実行を勧める方）を流す。止めたセッションでは cman と agy が使えなくなり、新しいセッションで戻る。
+
+```bash
+pkill -f 'uv run --script' && sleep 1 && uv cache prune
+```
+
+2026-11-21 はこれで 10.1GiB 消えた。`--force` は動作中の MCP サーバーの環境を壊しうるので使わない。経緯と uv 側の改善待ちは todo 0141。
+11-01〜11-08 の増加の大半は、`uvx markitdown-mcp` が同じ中身の venv（約 341MB）を 10 個作ったもの（3.3GB）。gigun-dev/claude-code の 881d9ca（11-09）で nix の markitdown-mcp を直接起動するようにして止まった。
 過去に、`environments-v2` と `~/.local/share/uv/tools` の symlink / `.pth` から参照される `archive-v0/<id>` だけを残して他を `rm` したことがある（568 件中 527 件を消して 16GB から 10GB）。ただし公式は「キャッシュを直接変更するのは決して安全ではない」としており、実行中のプロセスが参照するエントリを消しうるので、手順としては勧めない。
 キャッシュの大半は `archive-v0`（6.9GB）と `environments-v2`（0.9GB）。
 
