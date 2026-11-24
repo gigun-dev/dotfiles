@@ -11,14 +11,12 @@ in
   homebrew = {
     enable = true;
     onActivation.cleanup = "uninstall";
-    # 自己更新しない cask (azooKey・tailscale など auto_updates の無いもの) と brews は、
-    # 既定 (false) だと入れた版のまま止まる (2026-11-25 に azooKey 0.1.3 のままだった)。
-    # switch のたびに brew update + 宣言分の upgrade を回す。auto_updates 付きの cask は
-    # brew bundle が greedy でない限り触らないので、アプリ自身の更新と衝突しない。
+    # 更新は onActivation.upgrade ではなく switch app の brew_upgrade_outdated (flake.nix) が行う。
+    # 2026-11-25 に upgrade = true を試したところ、brew bundle が auto_updates 付きの cask
+    # (Discord・Chrome・iTerm2・Zed など 7 個) まで upgrade し、どれも中身の空な .app を残して
+    # 壊れた。auto_updates の無いもの (azooKey・1password-cli・slack-cli) と brews は無事だった。
     # Why not brew-nix (ryoppippi): azooKey は /Library/Input Methods へ入れる署名済み pkg で、
     # nix store から配る形にできない。
-    onActivation.autoUpdate = true;
-    onActivation.upgrade = true;
 
     taps = [
       "fayazara/tap" # screendrop の cask

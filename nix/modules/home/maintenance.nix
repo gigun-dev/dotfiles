@@ -1,5 +1,5 @@
 # Pro の手入れを人が居ない時間に回す user agent (Darwin だけ)。
-# どちらも 1 時間ごとに起きて AC 電源のときだけ動く。nh-clean (nix/modules/darwin/nh-clean.nix) と同じ形。
+# どれも 1 時間ごとに起きて AC 電源のときだけ動く。nh-clean (nix/modules/darwin/nh-clean.nix) と同じ形。
 {
   config,
   lib,
@@ -57,6 +57,30 @@ let
     touch "$stamp"
   '';
 
+  # switch の brew_upgrade_outdated (flake.nix) が上げるものを先に download しておく。
+  # 上げるのは switch のときだけで、ここは cache (~/Library/Caches/Homebrew) に置くまで。
+  # 一覧の条件 (greedy なしの brew outdated) は switch 側と揃える。
+  brewPrefetch = pkgs.writeShellScript "brew-prefetch" ''
+    set -u
+    ${onAcPower}
+    brew=/opt/homebrew/bin/brew
+    [ -x "$brew" ] || exit 0
+    mkdir -p ${stateDir}
+    stamp=${stateDir}/brew-prefetch.stamp
+    # brew update は API の取得を伴うので 6 時間に 1 回。
+    [ -z "$(/usr/bin/find "$stamp" -mmin -360 2>/dev/null)" ] || exit 0
+    "$brew" update --quiet >/dev/null 2>&1 || exit 0
+    formulae=$("$brew" outdated --formula --quiet 2>/dev/null)
+    casks=$("$brew" outdated --cask --quiet 2>/dev/null)
+    if [ -n "$formulae$casks" ]; then
+      date
+      echo "fetch:" $formulae $casks
+      [ -z "$formulae" ] || HOMEBREW_NO_AUTO_UPDATE=1 "$brew" fetch --formula $formulae
+      [ -z "$casks" ] || HOMEBREW_NO_AUTO_UPDATE=1 "$brew" fetch --cask $casks
+    fi
+    touch "$stamp"
+  '';
+
   hourlyAgent = program: log: {
     enable = true;
     config = {
@@ -72,4 +96,5 @@ in
 lib.mkIf pkgs.stdenv.hostPlatform.isDarwin {
   launchd.agents.dotfiles-prefetch = hourlyAgent prefetch "dotfiles-prefetch.log";
   launchd.agents.uv-cache-prune = hourlyAgent uvCachePrune "uv-cache-prune.log";
+  launchd.agents.brew-prefetch = hourlyAgent brewPrefetch "brew-prefetch.log";
 }

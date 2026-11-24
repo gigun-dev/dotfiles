@@ -257,6 +257,34 @@
               }
             '';
 
+          # switch の後に、宣言した brew 項目のうち自分で更新しないもの (azooKey・tailscale・
+          # cloudflared など) だけを上げる。`brew outdated` は greedy でなければ auto_updates 付きの
+          # cask を出さないので、その一覧を名指しで upgrade する。auto_updates 付きはアプリ自身に任せる
+          # (onActivation.upgrade が壊した経緯は nix/modules/darwin/homebrew.nix)。
+          # download は dotfiles-prefetch agent が先に済ませておく (nix/modules/home/maintenance.nix)。
+          # 失敗しても system は適用済みなので switch は失敗にせず、警告だけ出す。
+          brewUpgradeOutdated = ''
+            brew_upgrade_outdated() {
+              local brew_bin="" outdated
+              for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+                if [ -x "$b" ]; then brew_bin="$b"; break; fi
+              done
+              [ -n "$brew_bin" ] || return 0
+              "$brew_bin" update --quiet >/dev/null 2>&1 || true
+              outdated=$("$brew_bin" outdated --quiet 2>/dev/null) || true
+              [ -n "$outdated" ] || return 0
+              echo "brew upgrade:" $outdated >&2
+              # shellcheck disable=SC2086
+              if ! HOMEBREW_NO_AUTO_UPDATE=1 "$brew_bin" upgrade $outdated; then
+                echo "warning: brew upgrade が失敗した。brew outdated で残りを確かめる。" >&2
+              fi
+              if printf '%s\n' "$outdated" | grep -qx azookey; then
+                echo "azooKey を更新した。ログアウトしてログインし直すまで、アプリで入力できない。" >&2
+              fi
+              return 0
+            }
+          '';
+
           # darwin-rebuild evaluates as root; only its Git SSH transport needs the
           # invoking user's SSH config, known_hosts and agent. Keep activation and
           # profile/rollback handling in the official privileged switch command.
@@ -278,12 +306,14 @@
             if pkgs.stdenv.hostPlatform.isDarwin then
               ''
                 ${brewCleanupGuard}
+                ${brewUpgradeOutdated}
                 apply_switch() {
                   brew_cleanup_guard || return
                   /usr/bin/sudo --preserve-env=SSH_AUTH_SOCK \
                     GIT_SSH_COMMAND=${darwinGitSSH} \
                     ${inputs.nix-darwin.packages.${system}.darwin-rebuild}/bin/darwin-rebuild \
                     switch --flake ".#${username}-${system}" "$@" || return
+                  brew_upgrade_outdated
                 }
               ''
             else
