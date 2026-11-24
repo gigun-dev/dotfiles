@@ -140,6 +140,7 @@ in
     run "developer-tools"
       [
         "ci-required-gate"
+        "actions-flake-candidates"
         "actions-flake-proposal"
         "actions-github-app-push"
         "actions-langfuse-proposal"

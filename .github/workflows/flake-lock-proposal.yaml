@@ -1,10 +1,28 @@
 name: 'Bot: Propose flake.lock update'
 
+# fast: the AI tool inputs, every day, to their latest revision in one PR.
+# inputs: every other root input, every day, one PR each, pinned to the newest
+#   first-parent commit that is at least MINIMUM_RELEASE_AGE_DAYS old. A broken
+#   or compromised upstream commit usually gets reverted within that window.
+# refresh: main requires branches to be up to date, so each merge leaves the
+#   other proposals behind and their auto-merge waits forever. After every push
+#   to main, rebuild just those from the new main and force-push them.
+#
+# Rejected: rebasing the bot branches like ryoppippi/dotfiles auto-rebase.yaml.
+# A rebase merges flake.lock as text: updates that touch shared node keys
+# (nixpkgs_4 and the like) either conflict and wait for a human, or merge into a
+# lock that no `nix flake update` produced and this job never built. Moving a
+# branch across workflow changes also needs the Workflows permission the App
+# deliberately lacks. Recreating runs the same update against the new lock and
+# builds it before any token exists.
 on:
   schedule:
-    # GitHub cron is UTC. fast: every day 01:00 JST; slow: Sunday 02:00 JST.
+    # GitHub cron is UTC. fast: 01:00 JST; inputs: 02:00 JST.
     - cron: '0 16 * * *'
-    - cron: '0 17 * * 6'
+    - cron: '0 17 * * *'
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       lane:
@@ -13,25 +31,60 @@ on:
         type: choice
         options:
           - fast
-          - slow
+          - inputs
+      input:
+        description: Only this root input (inputs lane, empty for all)
+        required: false
+        default: ''
 
-# The default token only reads the checkout. Every write uses the short-lived,
-# one-repository GitHub App token issued inside the job.
+# The default token only reads. Every write uses the short-lived, one-repository
+# GitHub App token issued inside the propose job.
 permissions:
   contents: read
 
+env:
+  FAST_INPUTS: llm-agents claude-code-overlay cclens
+  MINIMUM_RELEASE_AGE_DAYS: '3'
+
 jobs:
-  propose:
+  discover:
     if: github.ref == 'refs/heads/main'
+    # No Nix, no build, no secrets: only flake.lock and read-only GitHub metadata.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      matrix: ${{ steps.discover.outputs.matrix }}
+      count: ${{ steps.discover.outputs.count }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Choose proposals
+        id: discover
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LANE: ${{ github.event_name == 'push' && 'refresh' || github.event_name == 'schedule' && (github.event.schedule == '0 16 * * *' && 'fast' || 'inputs') || inputs.lane }}
+          ONLY_INPUT: ${{ inputs.input }}
+        run: python3 scripts/ci/flake-lock-candidates.py "$LANE" --input "$ONLY_INPUT"
+
+  propose:
+    needs: discover
+    if: needs.discover.outputs.count != '0'
     strategy:
-      matrix:
-        lane: ${{ fromJSON(github.event_name == 'schedule' && (github.event.schedule == '0 16 * * *' && '["fast"]' || '["slow"]') || format('["{0}"]', inputs.lane)) }}
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.discover.outputs.matrix) }}
     concurrency:
-      group: flake-lock-proposal-${{ matrix.lane }}
+      group: flake-lock-proposal-${{ matrix.name }}
       cancel-in-progress: false
     environment: github-app-updater
-    # Schedule is always GitHub-hosted. The self-hosted escape hatch is only a
-    # reviewed, manually dispatched emergency path.
+    # Schedule and push are always GitHub-hosted. The self-hosted escape hatch is
+    # only a reviewed, manually dispatched emergency path.
     runs-on: ${{ fromJSON(github.event_name == 'workflow_dispatch' && vars.DOTFILES_LINUX_CI == 'self-hosted' && vars.DOTFILES_CI_REVIEWED_SHA != '' && github.sha == vars.DOTFILES_CI_REVIEWED_SHA && '["self-hosted", "linux", "x64", "dotfiles-reviewed"]' || '["ubuntu-latest"]') }}
     timeout-minutes: 90
     steps:
@@ -57,8 +110,12 @@ jobs:
       - name: Prepare and build candidate
         id: candidate
         env:
-          UPDATE_LANE: ${{ matrix.lane }}
-        run: scripts/ci/propose-flake-lock.sh prepare "$UPDATE_LANE"
+          PROPOSAL_KIND: ${{ matrix.kind }}
+          PROPOSAL_NAME: ${{ matrix.name }}
+          TARGET_REV: ${{ matrix.target }}
+        run: >-
+          nix shell --inputs-from . nixpkgs#jq
+          -c scripts/ci/propose-flake-lock.sh prepare "$PROPOSAL_KIND" "$PROPOSAL_NAME"
 
       - name: Configure GitHub App bot
         if: steps.candidate.outputs.changed == 'true'
@@ -74,5 +131,6 @@ jobs:
           GH_TOKEN: ${{ steps.bot.outputs.token }}
           GIT_ASKPASS: ${{ runner.temp }}/github-app-askpass
           GIT_TERMINAL_PROMPT: '0'
-          UPDATE_LANE: ${{ matrix.lane }}
-        run: scripts/ci/propose-flake-lock.sh publish "$UPDATE_LANE"
+          PROPOSAL_KIND: ${{ matrix.kind }}
+          PROPOSAL_NAME: ${{ matrix.name }}
+        run: scripts/ci/propose-flake-lock.sh publish "$PROPOSAL_KIND" "$PROPOSAL_NAME"
