@@ -32,9 +32,15 @@ on:
 permissions:
   contents: read
 
+# main への push は commit ごとの group にして取り消さない。push の changes は直前の push との
+# 差分しか見ないので、途中の run を取り消すと、その push の nix 変更はどの run でもビルドされない
+# まま次の run (docs だけなら check/build skipped) の gate が green になり autoswitch が適用する
+# (2026-11-25 に todo だけの push が mini-vm 変更の run を取り消して実際に起きた)。
+# Why not cancel-in-progress だけ false: 同じ group の pending は 1 つまでで、3 連続 push の
+# 真ん中は取り消される。
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Keep routing and the required gate on the same hosted runner pool as the checks.
 # ubuntu-slim failed runner acquisition before either job could start (run 44124226563).
