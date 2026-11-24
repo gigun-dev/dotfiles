@@ -16,7 +16,7 @@ Mac/VMの生存報告と公開Codex・Langfuseの検査、停止・復旧履歴�
 適用を確認し、2026-10-05のautoswitch 04:00 UTC枠で自然成功receiptをD1で確認した。
 同時に送っていた `dotfiles-lock-propose@fast`・`@slow` は、lock提案をGitHub Actionsへ移したため
 2026-11-24にsenderごと撤去した。hub側の `mini-vm-lock-fast`／`mini-vm-lock-slow` の予定枠と
-受付credentialは別repository（gigun-dev/hub）で撤去する。
+受付credentialも2026-11-25に撤去した（gigun-dev/hub #13）。
 [配備記録・自然受付・残る受入](job-heartbeat-activation.md)を参照。
 `todo.txt` の0005は未完了で、途絶・復旧・計画停止・二重配信防止・本人iPhone表示の実受入が残る。
 D1の初期healthyは成功receiptの証拠ではなく、自然receiptもBark/APNs受付・端末表示を代替しない。

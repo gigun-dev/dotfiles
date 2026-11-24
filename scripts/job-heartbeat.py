@@ -10,14 +10,10 @@ import time
 import urllib.parse
 import uuid
 
-# UTC grids shared with hub/src/heartbeat/config.ts. Autoswitch 04:00 JST =
-# previous-day 19:00 UTC. mini-vm no longer sends the lock sources (their timers
-# were removed when proposals moved to GitHub Actions); keep their rows only
-# until the hub drops the same schedules, so the two tables stay identical.
+# UTC grid shared with hub/src/heartbeat/config.ts. Autoswitch 04:00 JST =
+# previous-day 19:00 UTC.
 SCHEDULES = {
     "mini-vm-autoswitch": (68_400_000, 86_400_000),
-    "mini-vm-lock-fast": (57_600_000, 86_400_000),
-    "mini-vm-lock-slow": (234_000_000, 604_800_000),
 }
 RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:@/-]{0,127}\Z")
 

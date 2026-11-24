@@ -26,11 +26,8 @@ CLI_CODE = compile(SCRIPT.read_text(), str(SCRIPT), "exec")
 ENDPOINT = "https://hub.example/heartbeat"
 TOKEN = "fixture-bearer-secret-never-print"
 DAY = 86_400_000
-WEEK = 7 * DAY
 EXPECTED_SCHEDULES = {
     "mini-vm-autoswitch": (68_400_000, DAY),
-    "mini-vm-lock-fast": (57_600_000, DAY),
-    "mini-vm-lock-slow": (234_000_000, WEEK),
 }
 POST_ARGS = [
     "--disable", "--silent", "--show-error", "--globoff", "--proto", "=https", "--noproxy", "*",
@@ -153,36 +150,14 @@ class HeartbeatTests(unittest.TestCase):
         self.assertEqual(heartbeat.SCHEDULES, EXPECTED_SCHEDULES)
 
     def test_daily_slots_before_at_and_after_anchor(self):
-        for source, hour in [("mini-vm-autoswitch", "19"), ("mini-vm-lock-fast", "16")]:
-            with self.subTest(source=source):
-                anchor = milliseconds(f"2026-10-04T{hour}:00:00")
-                for delta, expected in [(-1, anchor - DAY), (0, anchor), (1, anchor),
-                                        (DAY - 1, anchor), (DAY, anchor + DAY)]:
-                    receipt = heartbeat.begin(source, now_ms=anchor + delta, run_id="fixed-run")
-                    self.assertEqual(receipt, {"source": source, "runId": "fixed-run",
-                                               "scheduledFor": expected})
-
-    def test_weekly_slots_before_at_and_after_saturday_utc_sunday_jst_anchor(self):
-        anchor = milliseconds("2026-10-17T17:00:00")
-        for delta, expected in [(-1, anchor - WEEK), (0, anchor), (1, anchor),
-                                (WEEK - 1, anchor), (WEEK, anchor + WEEK)]:
+        source = "mini-vm-autoswitch"
+        anchor = milliseconds("2026-10-04T19:00:00")
+        for delta, expected in [(-1, anchor - DAY), (0, anchor), (1, anchor),
+                                (DAY - 1, anchor), (DAY, anchor + DAY)]:
             with self.subTest(delta=delta):
-                receipt = heartbeat.begin("mini-vm-lock-slow", now_ms=anchor + delta,
-                                           run_id="weekly-run")
-                self.assertEqual(receipt["scheduledFor"], expected)
-
-    def test_actual_october_18_jst_runs_select_their_october_17_utc_slots(self):
-        # Timer jitter and the complete 135-minute grace stay within the same slot.
-        for source, slot, start in [
-            ("mini-vm-lock-fast", "2026-10-17T16:00:00", "2026-10-17T16:03:37"),
-            ("mini-vm-lock-slow", "2026-10-17T17:00:00", "2026-10-17T17:15:26"),
-        ]:
-            anchor = milliseconds(slot)
-            for instant in [milliseconds(start), anchor + 30 * 60_000,
-                            anchor + 135 * 60_000]:
-                with self.subTest(source=source, instant=instant):
-                    receipt = heartbeat.begin(source, now_ms=instant, run_id="jst-run")
-                    self.assertEqual(receipt["scheduledFor"], anchor)
+                receipt = heartbeat.begin(source, now_ms=anchor + delta, run_id="fixed-run")
+                self.assertEqual(receipt, {"source": source, "runId": "fixed-run",
+                                           "scheduledFor": expected})
 
     def test_autoswitch_0400_jst_selects_previous_day_1900_utc_slot(self):
         slot = milliseconds("2026-10-21T19:00:00")
@@ -191,18 +166,6 @@ class HeartbeatTests(unittest.TestCase):
                 receipt = heartbeat.begin("mini-vm-autoswitch", now_ms=slot + delta,
                                           run_id="autoswitch-jst")
                 self.assertEqual(receipt["scheduledFor"], slot)
-
-    def test_lock_jst_receipts_deliver_with_accepted_and_duplicate_responses(self):
-        for source, instant in [
-            ("mini-vm-lock-fast", "2026-10-17T16:03:37"),
-            ("mini-vm-lock-slow", "2026-10-17T17:15:26"),
-        ]:
-            receipt = heartbeat.begin(source, now_ms=milliseconds(instant), run_id="jst-retry")
-            for kind in ["accepted", "duplicate"]:
-                with self.subTest(source=source, kind=kind):
-                    runner = Runner(response(body=accepted(kind)))
-                    self.assertTrue(self.deliver(runner, receipt=receipt))
-                    self.assertEqual(json.loads(self.config(runner.posts[0])["data-binary"][0]), receipt)
 
     @unittest.skipUnless(hasattr(time, "tzset"), "tzset is unavailable")
     def test_slot_calculation_is_independent_of_local_timezone_and_dst(self):
@@ -216,13 +179,6 @@ class HeartbeatTests(unittest.TestCase):
                             receipt = heartbeat.begin("mini-vm-autoswitch", now_ms=now,
                                                        run_id="dst-run")
                             self.assertEqual(receipt["scheduledFor"], now)
-                    for source, instant in [
-                        ("mini-vm-lock-fast", "2026-10-17T16:00:00"),
-                        ("mini-vm-lock-slow", "2026-10-17T17:00:00"),
-                    ]:
-                        with self.subTest(zone=zone, source=source):
-                            now = milliseconds(instant)
-                            self.assertEqual(heartbeat.begin(source, now_ms=now)["scheduledFor"], now)
         finally:
             time.tzset()
 
@@ -515,12 +471,12 @@ class HeartbeatTests(unittest.TestCase):
                 self.assertEqual(stdout + stderr, "")
 
     def test_begin_cli_emits_receipt_without_token_or_subprocess_access(self):
-        status, stdout, stderr = self.run_cli("begin", "--source", "mini-vm-lock-slow", no_reads=True)
+        status, stdout, stderr = self.run_cli("begin", "--source", "mini-vm-autoswitch", no_reads=True)
         self.assertEqual(status, 0, stderr)
         self.assertEqual(stderr, "")
         receipt = json.loads(stdout)
         self.assertEqual(set(receipt), {"source", "runId", "scheduledFor"})
-        self.assertEqual(receipt["source"], "mini-vm-lock-slow")
+        self.assertEqual(receipt["source"], "mini-vm-autoswitch")
         self.assertEqual(uuid.UUID(receipt["runId"]).version, 4)
 
     def test_enabled_cli_success_with_default_and_pinned_curl(self):

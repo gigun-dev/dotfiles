@@ -718,7 +718,7 @@ in
   };
 
   # 送るのは autoswitch だけ。lock 提案は GitHub Actions へ移り、mini-vm-lock-fast/slow の
-  # sender は 2026-11-24 に timer ごと撤去した (hub 側の schedule 撤去は gigun-dev/hub)。
+  # sender は 2026-11-24 に timer ごと撤去した (hub 側の schedule は 2026-11-25 に撤去済み)。
   services.dotfiles-job-heartbeat = {
     enable = true;
     endpoint = "https://hub-monitor.097969.xyz/heartbeat";
