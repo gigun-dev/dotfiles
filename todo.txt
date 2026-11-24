@@ -1,4 +1,4 @@
-(A) 2026-09-10 mini-vm の旧 host writer credential を、最後の利用者 langfuse-update-propose の撤去後に provider 側で失効する。あわせて mini-vm の /var/lib/dotfiles-lock-trial を整理する。旧 lock timer・lock heartbeat (hub の予定枠を含む) の撤去と autoswitch の匿名 read は済み +mini-vm +security @unattended @user old:DF-37 see:docs/mini-vm.md dep:0164 id:0002
+(A) 2026-09-10 mini-vm の旧 host writer credential を、最後の利用者 langfuse-update-propose の撤去後に provider 側で失効する。旧 lock timer・lock heartbeat (hub の予定枠を含む)・/var/lib/dotfiles-lock-trial の撤去と autoswitch の匿名 read は済み +mini-vm +security @unattended @user old:DF-37 see:docs/mini-vm.md dep:0164 id:0002
 (A) 2026-09-10 realbind 用の GitHub 認証を一般 agent の ambient credential と分ける。組織側 GitHub App、member 化後の FGPAT、専用主体へ隔離した classic/OAuth 例外の順で選ぶ +security @user old:DF-37 see:docs/credential-inventory.md dep:0002 id:0003
 (B) 2026-09-10 autoswitch の成功 heartbeat の実受入を終える。残りは missed/recovered、計画停止、二重配信防止、個人 Bark 配信と iPhone 表示。lock-propose fast/slow は sender ごと撤去した +notify see:docs/job-heartbeat-activation.md old:DF-35 id:0005
 (B) 2026-09-10 Cloudflare OS に AI プロバイダを繋ぎ、チャットでモデルが応答して Neurons 消費が実測できる状態にする +cloudflare-os old:DF-13 see:docs/cloudflare-os.md id:0007
