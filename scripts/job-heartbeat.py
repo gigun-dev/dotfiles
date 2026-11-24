@@ -10,9 +10,10 @@ import time
 import urllib.parse
 import uuid
 
-# UTC grids shared with hub/src/heartbeat/config.ts. Lock timers explicitly use
-# Asia/Tokyo: daily 01:00 JST = 16:00 UTC, Sunday 02:00 JST = Saturday 17:00 UTC.
-# Autoswitch 04:00 JST = previous-day 19:00 UTC.
+# UTC grids shared with hub/src/heartbeat/config.ts. Autoswitch 04:00 JST =
+# previous-day 19:00 UTC. mini-vm no longer sends the lock sources (their timers
+# were removed when proposals moved to GitHub Actions); keep their rows only
+# until the hub drops the same schedules, so the two tables stay identical.
 SCHEDULES = {
     "mini-vm-autoswitch": (68_400_000, 86_400_000),
     "mini-vm-lock-fast": (57_600_000, 86_400_000),

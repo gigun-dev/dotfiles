@@ -1,5 +1,8 @@
 # 3定期ジョブの受付資格情報候補を準備する
 
+2026-10の3 source登録に使った記録。`mini-vm-lock-fast`／`mini-vm-lock-slow` は2026-11-24に
+送信側を撤去したので、このwrapperを再実行するとhubから消したlock登録を戻してしまう。再実行しない。
+
 `prepare-job-heartbeat-registration.py` は既存の `prepare-host-heartbeat-registration.py` の `prepare()` と検証を再利用する薄いローカルwrapper。発行、暗号化、アップロード、Worker配備、通知送信は行わない。
 
 対象は `mini-vm-autoswitch` / `mini-vm-lock-fast` / `mini-vm-lock-slow` の3 sourceのみ。既存登録の `mini-vm` が一意で、owner `homelab` / destination `bark` と一致することを確認してroutingを継承する。新規entryに `monitorControl` は付けない。既存の他entryは値・順序・追加fieldを保持する。同じjob sourceが既にあれば、token・owner・destination・field集合まで完全一致する場合だけそのまま残す。不一致や重複sourceは上書きせず拒否する。

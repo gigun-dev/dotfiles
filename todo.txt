@@ -1,6 +1,6 @@
-(A) 2026-09-10 mini-vm から旧 proposal timer・writer credential・heartbeat を撤去し、autoswitch を匿名 read へ移して旧 host writer credential を失効する +mini-vm +security @unattended @user old:DF-37 see:docs/mini-vm.md dep:0164 id:0002
+(A) 2026-09-10 mini-vm の旧 host writer credential を、最後の利用者 langfuse-update-propose の撤去後に provider 側で失効する。あわせて hub の mini-vm-lock-fast/slow 予定枠と受付 credential を撤去し (gigun-dev/hub)、mini-vm の /var/lib/dotfiles-lock-trial を整理する。旧 lock timer・lock heartbeat の撤去と autoswitch の匿名 read は済み +mini-vm +security @unattended @user old:DF-37 see:docs/mini-vm.md dep:0164 id:0002
 (A) 2026-09-10 realbind 用の GitHub 認証を一般 agent の ambient credential と分ける。組織側 GitHub App、member 化後の FGPAT、専用主体へ隔離した classic/OAuth 例外の順で選ぶ +security @user old:DF-37 see:docs/credential-inventory.md dep:0002 id:0003
-(B) 2026-09-10 autoswitch と lock-propose fast/slow の成功 heartbeat の実受入を終える。残りは週次 slow の初回枠、差分なし経路、missed/recovered、計画停止、二重配信防止、個人 Bark 配信と iPhone 表示 +notify see:docs/job-heartbeat-activation.md old:DF-35 id:0005
+(B) 2026-09-10 autoswitch の成功 heartbeat の実受入を終える。残りは missed/recovered、計画停止、二重配信防止、個人 Bark 配信と iPhone 表示。lock-propose fast/slow は sender ごと撤去した +notify see:docs/job-heartbeat-activation.md old:DF-35 id:0005
 (B) 2026-09-10 Cloudflare OS に AI プロバイダを繋ぎ、チャットでモデルが応答して Neurons 消費が実測できる状態にする +cloudflare-os old:DF-13 see:docs/cloudflare-os.md id:0007
 (B) 2026-09-10 Langfuse を codex 経由の推論に挟み、トレースに出るところまで確認する +cloudflare-os old:DF-24 see:docs/cloudflare-os.md id:0008
 (B) 2026-09-10 codex.097969.xyz に、認証失敗が続く送信元へのレート制限を入れる +cloudflare-os old:DF-22 see:docs/cloudflare-os.md id:0009
@@ -37,7 +37,6 @@
 2026-10-17 Cachix の provider 側 writer を確認して失効し、Pro / mini の local writer 設定を削除して、read substituter だけで build を受入する +security @user see:docs/security.md by:codex id:0100
 2026-10-17 実 credential ごとに provider の期限・最終利用・resource・複製先を突合し、Downloads の候補は provider 照合・失効・旧 credential の拒否まで行う。値は残さず、判断・確認日・次操作だけを記録する +security @user see:docs/credential-inventory.md by:me id:0101
 2026-10-18 git hook (post-merge / post-rewrite / post-checkout) がエージェントや端末の無い process から呼ばれたとき、switch せず手で打つ command だけ表示するか決める。ryoppippi はエージェントにも switch させるので、違えるなら理由を残す +security @user see:docs/security-recovery.md by:me id:0102
-2026-10-18 JST 深夜のfast/slow timer明示とsender/hub予定枠の修正をレビューし、本番反映の承認後に自然receiptを確認する（修正・境界/重複回帰検証済み、本番未適用） +notify +mini-vm see:docs/job-heartbeat-activation.md by:me id:0103
 2026-10-22 mini の標準 checkout に Guard 共通設定を取り込み、接続承認後に bootstrap --guard-only と読み取り専用検査を行う。macOS の Nix 凍結は維持 +security @user see:docs/guard.md by:codex id:0106
 2026-10-22 Guard の HM 引き継ぎ3試験と新規ファイルのステージを確認済み。Git flake の実評価は Nix daemon socket のアクセス拒否で未確認。許可が得られた場合だけ評価を再開する +security @user by:me id:0107
 2026-10-27 mini の CLI 管理方針を所有・版・取得元・checksum種別・対話選択・更新方針の共通宣言へ揃え、fzf/zoxide/ripgrep/XcodeGen と検証済み候補の保留状態をテストする +mini by:me id:0114
@@ -59,7 +58,7 @@
 2026-11-09 miniのTaildriveが現在使えるかを実機クライアントで確認し継続・廃止とtag:storageの要否を決める +tailscale see:docs/tailnet.md by:me id:0158
 2026-11-09 1Password Agentic Autofill を対応エージェントへ接続し、ログイン要求・本人承認・秘密非表示を検証する。mini は app・CLI が未導入なので、凍結 Nix 外の導入経路を確認する +security by:me id:0159
 2026-11-09 +ci 手元 (aarch64-darwin) の sh scripts/verify.sh が nix flake check で codex-agents-md (b2bdd9d で追加) を x86_64-linux 向けに build しようとして platform mismatch で落ちる。darwin で verify.sh が通るよう、Linux 構成の derivation を darwin の check から外すか docs/testing.md の手元手順を直す by:claude id:0161
-2026-11-09 無人更新の提案を GitHub App writer の Actions workflow へ移す。次は GitHub 外の沈黙監視、main 反映後の最初の自然発火 receipt の確認、旧 App key の provider 側失効、ADR 0003 の置換 +ci +security @unattended @user see:docs/adr/0003-update-mini-vm-through-lock-proposal-prs.md by:me id:0164
+2026-11-09 無人更新の提案を GitHub App writer の Actions workflow へ移し終える。flake.lock は移行済みで mini-vm の旧 lock timer も撤去した。残りは GitHub 外の沈黙監視、Actions の最初の自然発火の確認、Langfuse 提案の受入と mini-vm の langfuse-update-propose 撤去、旧 App key の provider 側失効、ADR 0003 の置換 +ci +security @unattended @user see:docs/adr/0003-update-mini-vm-through-lock-proposal-prs.md by:me id:0164
 2026-11-09 +git ローカルブランチを整理する。fix/xdg-in-zshenv は main に入っていて消してよい。chore/public-preparation (9c3e302、公開向けの文書分離) と feat/mini-ansible (2 commits) は未統合で、統合するか捨てるかを決める。feat/mini-ripgrep-adoption は task 0114、chore/dotfiles-security-audit (T3 Code の worktree) は公開前監査の作業 by:claude id:0163
 (A) 2026-11-09 SOPS の復旧経路の残りを受入する。host identity の消失、独立端末、break-glass 材料、限定 state restore +security @user see:docs/security-recovery.md by:codex id:0166
 (A) 2026-11-09 計画再起動のあと、mini / mini-vm の Tailscale が自動で Running に戻り、SSH・主要 service・Serve が復帰することを受入する +security +mini-vm +tailscale @user see:docs/tailnet.md by:codex id:0171

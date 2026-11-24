@@ -61,12 +61,13 @@ timer の時刻(autoswitch 04:00 など)はすべて JST。mini-vm のシステ�
   設定まで進め、required CI の成功で merge する。AI ツールの fast は毎日最新へ 1 PR、他の root
   input は毎日 input ごとに `bot/flake-lock-<input>` の PR を出し、first-parent 履歴で 3 日以上前の
   commit に固定する（現在の lock より古い・別系統なら出さない）。main は up-to-date を要求するので、
-  main への push ごとに遅れた bot PR を新しい main から作り直す。旧 `dotfiles-lock-propose@fast`
-  (毎日) / `@slow`(日曜、全 input を待ちなしで更新) は撤去（todo 0002）まで mini-vm で並走している。
+  main への push ごとに遅れた bot PR を新しい main から作り直す。mini-vm で並走していた旧
+  `dotfiles-lock-propose@fast`(毎日) / `@slow`(日曜、全 input を待ちなしで更新) は、slow が 3 日待ちを
+  素通りさせ fast が Actions と重複するため 2026-11-24 に timer・service・heartbeat ごと撤去した。
   人の lock 差分レビューは前提にしない。`dotfiles-autoswitch` 自体は lock を更新せず、
   merge 済みの変更を fetch → CI ゲート → ff → switch → 健全性確認する。失敗時の復帰先は今回の
   開始時に稼働していた構成だけとし、Langfuse の image pair が変わる場合は戻さない。
-- **proposalのGit状態を稼働用から分ける。** fast / slow / Langfuseは上流mainから
+- **proposalのGit状態を稼働用から分ける。** mini-vmに残るLangfuseの提案は上流mainから
   StateDirectory内の一意な専用directoryへ独立cloneする。worktreeやlocal cloneの共有objectを
   使わず、稼働checkoutのfetch・refs・worktree登録を触らない。Langfuseの比較元も取得した
   mainのComposeとする。候補をcommitしてからVMでbuildし、その同じHEADを提案する流れは維持する。
@@ -84,17 +85,18 @@ timer の時刻(autoswitch 04:00 など)はすべて JST。mini-vm のシステ�
   失敗通知時は既存Beszelのdisk使用率と各StateDirectoryの保持候補数・容量を確認する。
   自動削除や保存期限は追加しない。job静止と候補の所有者・対象pathを確認し、必要な候補とlogを
   保全してから不要な専用cloneだけを人が整理する。容量不足なら再試行前に整理し、稼働checkoutや
-  旧worktree登録を一括削除しない。レーン共通の既存logは次回実行で更新され得るため先に保全する。
+  旧worktree登録を一括削除しない。
 - **CI green の commit だけを適用する**(2026-10-15、`docs/adr/0011-push-without-a-local-gate-and-apply-only-green-commits.md`)。
   手元の pre-push 関門を外したので、main には CI 前の commit が直接入る。autoswitch は fetch した
-  `@{upstream}` の commit について `gh api repos/gigun-dev/dotfiles/commits/<sha>/check-runs` を
-  gigun の gh 認証で読み、GitHub Actions の check run が全て success / skipped / neutral で終わり、
+  main の commit について `repos/gigun-dev/dotfiles/commits/<sha>/check-runs` を認証なしの REST API で
+  読み(fetch も credential helper を外した HTTPS。host の gh 認証には依存しない)、GitHub Actions の
+  check run が全て success / skipped / neutral で終わり、
   required の `nix-ci-gate` が success なら green としてその commit へ `merge --ff-only` する。
   paths-filter で nix 以外の commit の check/build が skipped でも、常時実行する gate が整合性を検証する。
   gate 自体は success 以外を green にせず、未出現・実行中は pending、skipped / neutral / failure 等は red にする。
   他jobの red(失敗・cancelled 等)も即座に、pending(未完了)は
   60 秒ごとに fetch し直して最大 30 分待ち、それでも終わらなければ**見送り**: unit は成功で終わり、理由を `dotfiles-autoswitch-notify-skip` が Bark へ送り、
-  成功 heartbeat も送る。翌日の timer が判定し直す。API が引けない(認証切れ等)は見送りではなく
+  成功 heartbeat も送る。翌日の timer が判定し直す。API が引けない(rate limit・GitHub 障害等)は見送りではなく
   失敗として既存の失敗通知へ流す。作業コピーが upstream より先行していても止める。
 - **`system.autoUpgrade` は使わない。** home 層が視野の外(`nixos-rebuild` しか叩かない)で、
   unit の pre/post 拡張は可能だが、共有 standalone home と Langfuse の世代比較を同じ
@@ -169,9 +171,10 @@ mini-vm への適用は上記の CI ゲートで塞いだが、main 自体には
 Contents / Pull requests、check読取等の必要操作だけに限定し、Administration、workflow変更、key管理を
 与えない。current scope、期限、owner、最終利用はGitHub providerで確認し、この文書へ複写しない。
 
-public化後にlock提案をActionsへ移す場合は、host専用credentialを残さない。短命installation tokenを
-使うGitHub Appまたは移行用selected-repository credentialを候補とし、PR作成、CI状態判定、auto-merge、
-拒否すべき管理操作を受入してから旧credentialを失効する。
+提案をActionsへ移したら、host専用credentialを残さない。lock提案はGitHub App名義の
+`flake-lock-proposal.yaml` へ移し、mini-vmの旧lock timerは撤去済み。autoswitchは認証なしで読む。
+mini-vmでgigunのgh credentialを使う無人処理は `langfuse-update-propose` だけが残っており、
+`langfuse-update-proposal.yaml` の受入後にこれも撤去してから旧credentialをprovider側で失効する。
 
 個人開発checkoutは同じtrust domainとして扱う。別checkoutはcredentialやhomeの隔離ではない。
 

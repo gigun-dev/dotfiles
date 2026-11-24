@@ -23,8 +23,6 @@ let
   };
   timerNames = [
     "dotfiles-autoswitch"
-    "dotfiles-lock-propose-fast"
-    "dotfiles-lock-propose-slow"
     "codex-openai-bridge-refresh"
     "langfuse-update-propose"
   ];

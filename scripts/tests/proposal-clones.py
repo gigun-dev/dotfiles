@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise shipped proposal shells against real, isolated Git repositories."""
+"""Exercise the shipped Langfuse proposal shell against real, isolated Git repositories."""
 import hashlib
 import json
 import os
@@ -58,17 +58,15 @@ class CloneTests(unittest.TestCase):
         self.objects = {self.identity(p) for p in (self.remote / "objects").rglob("*") if p.is_file()}
         self.install_commands()
         self.scripts = {}
-        for kind in ("fast", "slow", "langfuse"):
-            module = ROOT / "nix/modules/nixos" / ("services/langfuse.nix" if kind == "langfuse" else "mini-vm.nix")
-            name = "langfuse-update-propose" if kind == "langfuse" else "dotfiles-lock-propose"
+        # The flake.lock proposals moved to GitHub Actions; Langfuse is the remaining host proposal.
+        for kind in ("langfuse",):
+            module = ROOT / "nix/modules/nixos/services/langfuse.nix"
+            name = "langfuse-update-propose"
             body = module.read_text().split(f'pkgs.writeShellScript "{name}" \'\'\n', 1)[1].split("\n  '';", 1)[0]
             body = textwrap.dedent(body).replace("''${", "${")
             # A local transport makes omitted --no-hardlinks detectable by inode checks.
-            body = body.replace("https://github.com/${dotfilesRepo}.git", shlex.quote(str(self.remote)))
             body = body.replace("https://github.com/gigun-dev/dotfiles.git", shlex.quote(str(self.remote)))
             body = body.replace("${dotfilesDir}", shlex.quote(str(self.native)))
-            body = body.replace("${jobHeartbeatSnapshot}", "export DOTFILES_JOB_HEARTBEAT_ENABLED=0")
-            body = body.replace("${jobHeartbeat}", "heartbeat")
             body = body.replace("${environmentFile}", shlex.quote(str(self.root / "synthetic.env")))
             body = re.sub(r"\$\{pkgs\.[^}]+\}/bin/([\w-]+)", r"\1", body)
             self.scripts[kind] = self.root / (kind + ".sh")
@@ -132,21 +130,11 @@ class CloneTests(unittest.TestCase):
                 fields = dict(s.split('=', 1) for s in credential.stdout.splitlines() if '=' in s)
                 assert fields.get('username') == 'synthetic-global'
                 assert fields.get('password') == 'fixed-fake-global-password'
-            (root / (kind + '.ready')).touch()
-            if os.environ.get('BARRIER') == '1':
-                deadline = time.monotonic() + 15
-                while not all((root/(k+'.ready')).exists() for k in ['fast','slow','langfuse']):
-                    if time.monotonic() > deadline: raise RuntimeError('proposal concurrency barrier timed out')
-                    time.sleep(.01)
             if os.environ.get('FAIL_BUILD') == '1': sys.exit(19)
         """)
         self.command("gh", """
             import sys
             if sys.argv[1:3] == ['pr','view']: print('off')
-        """)
-        self.command("heartbeat", """
-            import sys
-            if sys.argv[1] == 'begin': print('synthetic-receipt')
         """)
         self.command("curl", "print('[]')\n")
         self.command("jq", "import os, sys; sys.stdin.read(); print(os.environ.get('RELEASE', 'v4.2.0'))\n")
@@ -165,22 +153,21 @@ class CloneTests(unittest.TestCase):
     def start(self, kind, **extra):
         state = self.root / ("state-" + kind)
         state.mkdir(exist_ok=True)
-        legacy = state / ("worktree" if kind == "langfuse" else kind)
+        legacy = state / "worktree"
         legacy.mkdir(exist_ok=True)
         (legacy / "preserve.txt").write_text("legacy candidate\n")
         env = dict(self.env, KIND=kind, STATE_DIRECTORY=str(state), **extra)
         args = ["bash", str(self.scripts[kind])]
-        if kind != "langfuse": args.append(kind)
         return subprocess.Popen(args, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
     def events(self, kind):
         path = self.audit / (kind + ".events")
         return [json.loads(x) for x in path.read_text().splitlines()] if path.exists() else []
 
-    def test_parallel_proposals_have_independent_refs_and_leave_runtime_untouched(self):
-        processes = {k: self.start(k, BARRIER="1") for k in ("fast", "slow", "langfuse")}
+    def test_proposal_has_independent_ref_and_leaves_runtime_untouched(self):
+        processes = {k: self.start(k) for k in ("langfuse",)}
         try:
-            # Emulate the runtime updater fetching while all proposal builds overlap.
+            # Emulate the runtime updater fetching while the proposal runs.
             self.git(self.native, "fetch", "--quiet", "origin")
             for kind, process in processes.items():
                 stdout, stderr = process.communicate(timeout=25)
@@ -192,35 +179,33 @@ class CloneTests(unittest.TestCase):
         for kind in processes:
             events = self.events(kind); builds = [e for e in events if e['type'] == 'build']
             push = next(e for e in events if e['type'] == 'push')
-            self.assertEqual(len(builds), 1 if kind == "langfuse" else 2)
+            self.assertEqual(len(builds), 1)
             self.assertTrue(all(e['head'] == push['head'] and e['clean'] and not e['alternates'] for e in builds))
             self.assertTrue(all(tuple(i) not in self.objects for i in builds[0]['objects']))
             self.assertLess(max(i for i, e in enumerate(events) if e['type'] == 'build'), events.index(push))
             common.append(builds[0]['common'])
-            branch = "auto/langfuse-v4" if kind == "langfuse" else "auto/lock-" + kind
-            self.assertEqual(self.git(self.remote, 'rev-parse', 'refs/heads/' + branch).stdout.strip(), push['head'])
+            self.assertEqual(self.git(self.remote, 'rev-parse', 'refs/heads/auto/langfuse-v4').stdout.strip(), push['head'])
             state = self.root / ("state-" + kind)
-            self.assertEqual(list(state.glob('clone.*' if kind == "langfuse" else kind + '-clone.*')), [])
-            self.assertTrue((state / ("worktree" if kind == "langfuse" else kind) / "preserve.txt").exists())
-        self.assertEqual(len(set(common)), 3)
+            self.assertEqual(list(state.glob('clone.*')), [])
+            self.assertTrue((state / "worktree" / "preserve.txt").exists())
         self.assertTrue(all(p != str(self.native / '.git') for p in common))
         self.assertEqual(self.snapshot(self.native), self.before)
         self.assertEqual(self.git(self.remote, 'rev-parse', 'main').stdout.strip(), self.base)
 
     def test_failed_build_keeps_candidate_and_does_not_publish(self):
-        for kind in ('fast', 'langfuse'):
+        for kind in ('langfuse',):
             with self.subTest(kind=kind):
                 process = self.start(kind, FAIL_BUILD='1')
                 stdout, stderr = process.communicate(timeout=10)
                 self.assertNotEqual(process.returncode, 0, (stdout, stderr))
-                pattern = 'clone.*' if kind == 'langfuse' else 'fast-clone.*'
+                pattern = 'clone.*'
                 retained = list((self.root / ('state-' + kind)).glob(pattern))
                 self.assertEqual(len(retained), 1)
                 self.assertTrue((retained[0] / '.git').is_dir())
                 self.assertNotEqual(self.git(retained[0], 'rev-parse', 'HEAD').stdout.strip(), self.base)
                 self.assertIn('retained clone:', stderr)
                 self.assertFalse(any(e['type'] == 'push' for e in self.events(kind)))
-                branch = 'auto/langfuse-v4' if kind == 'langfuse' else 'auto/lock-fast'
+                branch = 'auto/langfuse-v4'
                 self.assertEqual(self.git(self.remote, 'show-ref', '--verify', 'refs/heads/' + branch, check=False).returncode, 128)
                 self.assertEqual(self.snapshot(self.native), self.before)
 
@@ -234,11 +219,11 @@ class CloneTests(unittest.TestCase):
         self.assertEqual(self.snapshot(self.native), self.before)
 
     def test_clone_and_commit_failures_keep_candidates_without_publish(self):
-        for kind in ('fast', 'langfuse'):
+        for kind in ('langfuse',):
             for failure in ('clone', 'commit'):
                 with self.subTest(kind=kind, failure=failure):
                     state = self.root / ('state-' + kind)
-                    pattern = 'clone.*' if kind == 'langfuse' else 'fast-clone.*'
+                    pattern = 'clone.*'
                     previous = set(state.glob(pattern))
                     process = self.start(kind, FAIL_GIT=failure)
                     stdout, stderr = process.communicate(timeout=10)
@@ -253,7 +238,7 @@ class CloneTests(unittest.TestCase):
                         self.assertEqual(self.git(candidate, 'diff', '--cached', '--quiet', check=False).returncode, 1)
                     self.assertIn('retained clone:', stderr)
                     self.assertFalse(any(e['type'] == 'push' for e in self.events(kind)))
-                    branch = 'auto/langfuse-v4' if kind == 'langfuse' else 'auto/lock-fast'
+                    branch = 'auto/langfuse-v4'
                     self.assertEqual(self.git(self.remote, 'show-ref', '--verify', 'refs/heads/' + branch, check=False).returncode, 128)
                     self.assertEqual(self.snapshot(self.native), self.before)
 
@@ -293,7 +278,7 @@ class CloneTests(unittest.TestCase):
         native_credential = self.git(self.native, 'credential', 'fill', input='protocol=https\nhost=synthetic.invalid\n\n').stdout
         self.assertIn('username=synthetic-runtime', native_credential)
         self.before = self.snapshot(self.native)
-        for kind in ('fast', 'langfuse'):
+        for kind in ('langfuse',):
             with self.subTest(kind=kind):
                 process = self.start(kind, CHECK_CREDENTIALS='1')
                 stdout, stderr = process.communicate(timeout=10)

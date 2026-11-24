@@ -4,6 +4,13 @@
 2026-10-05にはfast・autoswitchの自然成功receiptをD1で確認した。週次slowは初回枠待ち。
 `todo.txt` の0005は未完了。配備・初期化の確認と、自然実行・実通知の受入を区別する。
 
+**2026-11-24 にlock 2 sourceのsenderを撤去した。** lock提案はGitHub Actions
+（`flake-lock-proposal.yaml`）へ移り、mini-vmの `dotfiles-lock-propose@fast`／`@slow`、
+その送信設定、fast/slowのagenix credentialを削除した。hub側の `mini-vm-lock-fast`／
+`mini-vm-lock-slow` の予定枠と受付credentialはgigun-dev/hubで撤去するまで残り、
+その間は予定枠ごとに欠測として扱われ得る。以下のlockに関する記録は撤去前の履歴。
+残る受入はautoswitchだけを対象とする。
+
 ## 2026-10-18 の時刻不一致修正（レビュー待ち・未適用）
 
 2026-10-16からVMのtimezoneはAsia/Tokyoだが、lock timerはtimezone未指定、

@@ -28,7 +28,7 @@ on:
   workflow_dispatch:
 
 # repository は read-only。成功した main の Nix store だけ Actions cache に保存する。
-# lock 更新の PR は flake-lock-proposal.yaml（と撤去待ちの mini-vm 旧 timer）が出す。
+# lock 更新の PR は flake-lock-proposal.yaml が出す。
 permissions:
   contents: read
 

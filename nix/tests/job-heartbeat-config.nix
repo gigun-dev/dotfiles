@@ -6,8 +6,6 @@ let
     endpoint = "https://hub.example/heartbeat";
     tokenFiles = {
       mini-vm-autoswitch = "/run/agenix/job-autoswitch";
-      mini-vm-lock-fast = "/run/agenix/job-lock-fast";
-      mini-vm-lock-slow = "/run/agenix/job-lock-slow";
     };
   };
   moduleDefaults =
@@ -48,7 +46,7 @@ let
   invalid = [
     { enable = true; }
     (valid // { endpoint = null; })
-    (valid // { tokenFiles = builtins.removeAttrs valid.tokenFiles [ "mini-vm-lock-slow" ]; })
+    (valid // { tokenFiles = { }; })
     (
       valid
       // {
@@ -57,11 +55,12 @@ let
         };
       }
     )
+    # The lock-propose senders were removed; their sources must not come back silently.
     (
       valid
       // {
         tokenFiles = valid.tokenFiles // {
-          mini-vm-lock-slow = valid.tokenFiles.mini-vm-lock-fast;
+          mini-vm-lock-fast = "/run/agenix/job-lock-fast";
         };
       }
     )
@@ -126,25 +125,14 @@ assert disabled.services.dotfiles-job-heartbeat.tokenFiles == { };
 assert !configuredOff.services.dotfiles-job-heartbeat.enable;
 assert accepts valid;
 assert lib.all (settings: !(accepts settings)) invalid;
-assert lib.all unchangedUnit [
-  "dotfiles-autoswitch"
-  "dotfiles-lock-propose@"
-];
-assert !(enabled.systemd.services ? "dotfiles-lock-propose@fast");
-assert !(enabled.systemd.services ? "dotfiles-lock-propose@slow");
+assert unchangedUnit "dotfiles-autoswitch";
+# flake.lock proposals moved to GitHub Actions; mini-vm must not run them again.
+assert !(enabled.systemd.services ? "dotfiles-lock-propose@");
+assert !(enabled.systemd.timers ? "dotfiles-lock-propose-fast");
+assert !(enabled.systemd.timers ? "dotfiles-lock-propose-slow");
 assert
-  enabled.systemd.timers.dotfiles-lock-propose-fast.timerConfig.OnCalendar
-  == "*-*-* 01:00:00 Asia/Tokyo";
-assert
-  enabled.systemd.timers.dotfiles-lock-propose-slow.timerConfig.OnCalendar
-  == "Sun *-*-* 02:00:00 Asia/Tokyo";
-assert lib.all
-  (name: disabled.systemd.timers.${name}.timerConfig == enabled.systemd.timers.${name}.timerConfig)
-  [
-    "dotfiles-autoswitch"
-    "dotfiles-lock-propose-fast"
-    "dotfiles-lock-propose-slow"
-  ];
+  disabled.systemd.timers.dotfiles-autoswitch.timerConfig
+  == enabled.systemd.timers.dotfiles-autoswitch.timerConfig;
 pkgs.runCommand "job-heartbeat-config-tests" { } ''
   touch "$out"
 ''

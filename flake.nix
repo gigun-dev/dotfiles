@@ -302,10 +302,10 @@
               ${applySwitch}
               cd "$(git rev-parse --show-toplevel)"
 
-              # mini-vm の lock は dotfiles-lock-propose の PR からだけ入る。ここで commit すると
+              # mini-vm の lock は flake-lock-proposal.yaml の PR からだけ入る。ここで commit すると
               # 作業コピーが origin より先行し、dotfiles-autoswitch が毎朝止まる。
               if [ -e /etc/NIXOS ]; then
-                echo "error: NixOS (mini-vm) では update しない。lock は dotfiles-lock-propose の PR 経由で入る" >&2
+                echo "error: NixOS (mini-vm) では update しない。lock は flake-lock-proposal.yaml の PR 経由で入る" >&2
                 exit 1
               fi
               if ! git diff --quiet || ! git diff --cached --quiet; then
@@ -381,7 +381,6 @@
               mkdir -p nix/modules/nixos scripts/tests infra/langfuse/scripts
               cp ${./nix/modules/nixos/mini-vm.nix} nix/modules/nixos/mini-vm.nix
               cp ${./scripts/tests/dotfiles-autoswitch.py} scripts/tests/dotfiles-autoswitch.py
-              cp ${./scripts/tests/lock-propose-heartbeat.py} scripts/tests/lock-propose-heartbeat.py
               cp ${./scripts/job-heartbeat.py} scripts/job-heartbeat.py
               cp ${./scripts/tests/job-heartbeat.py} scripts/tests/job-heartbeat.py
               cp ${./scripts/tests/job-heartbeat-activation.py} scripts/tests/job-heartbeat-activation.py
@@ -395,7 +394,6 @@
                 ]
               }
               ${pkgs.python3}/bin/python3 -B scripts/tests/dotfiles-autoswitch.py
-              ${pkgs.python3}/bin/python3 -B scripts/tests/lock-propose-heartbeat.py
               ${pkgs.python3}/bin/python3 -B -W error scripts/tests/job-heartbeat.py
               ${pkgs.python3}/bin/python3 -B -W error scripts/tests/job-heartbeat-activation.py
               touch "$out"
@@ -520,7 +518,7 @@
               lane = "local";
             };
 
-            # mini-vm の fast レーン (dotfiles-lock-propose@fast) と同じ input を手元で先取りする。
+            # flake-lock-proposal.yaml の fast レーンと同じ input を手元で先取りする。
             update-ai-tools = mkUpdate "update-ai-tools" {
               targets = "llm-agents claude-code-overlay cclens";
               lane = "local fast";

@@ -261,12 +261,6 @@ let
         mini-vm-autoswitch) DOTFILES_JOB_HEARTBEAT_TOKEN_FILE=${
           lib.escapeShellArg (jobHeartbeatConfig.tokenFiles.mini-vm-autoswitch or "")
         } ;;
-        mini-vm-lock-fast) DOTFILES_JOB_HEARTBEAT_TOKEN_FILE=${
-          lib.escapeShellArg (jobHeartbeatConfig.tokenFiles.mini-vm-lock-fast or "")
-        } ;;
-        mini-vm-lock-slow) DOTFILES_JOB_HEARTBEAT_TOKEN_FILE=${
-          lib.escapeShellArg (jobHeartbeatConfig.tokenFiles.mini-vm-lock-slow or "")
-        } ;;
       esac
     fi
   '';
@@ -496,85 +490,6 @@ let
       ${barkSmokeBody}
   '';
 
-  # flake.lock の更新を「提案」する本体。$1 がレーン名で、更新する input が変わる。
-  # 呼ぶのは dotfiles-lock-propose@<lane>.service (下の unit にレーンの設計を書いてある)。
-  dotfilesLockPropose = pkgs.writeShellScript "dotfiles-lock-propose" ''
-    set -eu
-    set -o pipefail
-
-    lane=$1
-    case "$lane" in
-      # AI ツール。上流が速く動くので日次で追う (codex を早く受け取るのがこの仕組みの動機)。
-      fast) targets="llm-agents claude-code-overlay cclens" ;;
-      # 引数を渡さない `nix flake update` は全 input が対象。
-      slow) targets="" ;;
-      *)
-        echo "未知のレーン: $lane" >&2
-        exit 1
-        ;;
-    esac
-
-    heartbeat_source="mini-vm-lock-$lane"
-    ${jobHeartbeatSnapshot}
-    heartbeat_receipt=$(${jobHeartbeat} begin --source "mini-vm-lock-$lane") || heartbeat_receipt=
-
-    # systemd が StateDirectory で用意する。手で叩くときのために既定値も持たせる。
-    state=''${STATE_DIRECTORY:-/var/lib/dotfiles-lock-trial}
-    log="$state/$lane.log"
-    branch="auto/lock-$lane"
-
-    # Clone from upstream so proposal refs never share the runtime checkout's .git.
-    # Keep failed candidates for inspection; never prune legacy runtime worktrees.
-    trial=$(mktemp -d "$state/$lane-clone.XXXXXX")
-    trap 'status=$?; if [ "$status" -eq 0 ]; then rm -rf "$trial"; else echo "proposal failed; retained clone: $trial" >&2; fi' EXIT
-    git clone --quiet --no-hardlinks --single-branch --branch main \
-      https://github.com/${dotfilesRepo}.git "$trial"
-    cd "$trial"
-    # shellcheck disable=SC2086  # 空なら「全 input」の意味なので、あえて分割展開させる
-    nix flake update $targets 2>&1 | tee "$log"
-
-    if git diff --quiet -- flake.lock; then
-      echo "$lane: lock に差分なし"
-      ${jobHeartbeat} send --receipt "$heartbeat_receipt" || true
-      exit 0
-    fi
-
-    # ビルドの**前**に commit する。dirty なまま build すると nix が見るのは作業ツリー
-    # だが、merge されるのは commit の中身。検証対象と提案物を同一にする。
-    git add flake.lock
-    git commit --quiet -m "chore(deps): flake.lock を更新 ($lane)" -m "$(cat "$log")"
-
-    # 本番と同じ機械・同じ構成で検証する。これがこの設計の主な利点で、GitHub Actions の
-    # ubuntu runner でのビルドに勝る点。
-    nix build --no-link '.#nixosConfigurations.mini-vm.config.system.build.toplevel'
-    nix build --no-link '.#homeConfigurations.gigun-mini-vm.activationPackage'
-
-    # 毎回 origin/main から作り直すので force で上書きする。PR が開いていれば
-    # この push だけで中身が入れ替わる (作り直さない)。
-    git push --quiet --force origin "HEAD:refs/heads/$branch"
-
-    body=$(printf '%s\n\n```\n%s\n```\n' \
-      "mini-vm がこの lock で nixosConfigurations.mini-vm と homeConfigurations.gigun-mini-vm のビルドを確認済み。" \
-      "$(cat "$log")")
-
-    # `.[0].number` ではなく `.[].number`。前者は PR が無いとき空ではなく "null" を出す。
-    open_prs=$(gh pr list --head "$branch" --state open --json number --jq '.[].number')
-    if [ -n "$open_prs" ]; then
-      gh pr edit "$branch" --body "$body"
-    else
-      gh pr create --base main --head "$branch" \
-        --title "chore(deps): flake.lock を更新 ($lane)" --body "$body"
-    fi
-
-    # CI (.github/workflows/nix-build.yaml) が green になったら GitHub が squash merge する。
-    # 有効化済みの PR に再度掛けると gh がエラーを返すので、状態を見てから叩く。
-    auto_merge=$(gh pr view "$branch" --json autoMergeRequest --jq '.autoMergeRequest // "off"')
-    if [ "$auto_merge" = "off" ]; then
-      gh pr merge --auto --squash "$branch"
-    fi
-    ${jobHeartbeat} send --receipt "$heartbeat_receipt" || true
-  '';
-
   # codex-openai-bridge が実際に起動した openai-api-server-via-codex の版を
   # /run/codex-bridge/version へ記録する。ExecStartPost として本体の直後に呼ぶ。
   #
@@ -802,15 +717,12 @@ in
     paths.agenix-rollback = config.age.secrets.host-heartbeat-vm.path;
   };
 
-  # Apply only after hub registration and all three schedule definitions are initialized.
+  # 送るのは autoswitch だけ。lock 提案は GitHub Actions へ移り、mini-vm-lock-fast/slow の
+  # sender は 2026-11-24 に timer ごと撤去した (hub 側の schedule 撤去は gigun-dev/hub)。
   services.dotfiles-job-heartbeat = {
     enable = true;
     endpoint = "https://hub-monitor.097969.xyz/heartbeat";
-    tokenFiles = {
-      mini-vm-autoswitch = config.age.secrets.job-heartbeat-autoswitch.path;
-      mini-vm-lock-fast = config.age.secrets.job-heartbeat-fast.path;
-      mini-vm-lock-slow = config.age.secrets.job-heartbeat-slow.path;
-    };
+    tokenFiles.mini-vm-autoswitch = config.age.secrets.job-heartbeat-autoswitch.path;
   };
 
   # Cloudflare MCP の OAuth を通知のタップで張り直す (ADR 0013)。Access アプリと DNS は
@@ -1464,18 +1376,6 @@ in
       group = "root";
       mode = "0400";
     };
-    job-heartbeat-fast = {
-      file = ../../../secrets/job-heartbeat-fast.age;
-      owner = username;
-      group = "users";
-      mode = "0400";
-    };
-    job-heartbeat-slow = {
-      file = ../../../secrets/job-heartbeat-slow.age;
-      owner = username;
-      group = "users";
-      mode = "0400";
-    };
 
     # Pilot移行まではrollback sourceとしてagenix側を維持する。consumer moduleは
     # delivery backendを宣言せず、このhost構成がtokenFileを選ぶ。
@@ -1986,8 +1886,9 @@ in
   # 何週間も届かないまま気づけない (cloudflare-os で実際に 106 コミット遅れた)。
   #
   # 自動化するのは**適用だけ**。`nix flake update` はここでは絶対にやらない —
-  # lock の更新はレビューを通す (手元で update → commit/push) 経路に閉じる。
-  # ここが破られると、無人機がレビュー無しで世界の変化を取り込むことになる。
+  # lock の更新は PR と CI を通る経路 (GitHub Actions の flake-lock-proposal.yaml、
+  # 手元の `nix run .#update`) に閉じる。ここが破られると、無人機が CI を通さずに
+  # 世界の変化を取り込むことになる。
   #
   # 却下案:
   #   - system.autoUpgrade → unit の pre/post 拡張は可能だが、共有 standalone home
@@ -2072,7 +1973,7 @@ in
         # 通る前の commit が直接入る。適用してよいのは CI が green と判定した commit だけ。
         # pull ではなく fetch → 判定 → その commit へ ff にして、判定した commit と
         # 適用する commit を同一にする (pull だと判定後に進んだ main を拾い得る)。
-        # pending (CI 実行中・未出現) は待つ。slow レーンの PR が merge された直後の定時実行で
+        # pending (CI 実行中・未出現) は待つ。lock 提案の PR が merge された直後の定時実行で
         # 1 日遅れと見送り通知が出るのを防ぐため。毎回 fetch し直して、待つ間に merge された
         # 新しい commit も拾う。red は待っても変わらないので即見送り。
         # 30 回 x 60 秒 = 最大 29 分待つ。TimeoutStartSec はその分を足してある。
@@ -2206,120 +2107,6 @@ in
       User = "root";
       EnvironmentFile = "-${barkEnvironmentFile}";
       ExecStart = "${barkNotifyUnitFailure} dotfiles-autoswitch.service 'mini-vm 自動更新 見送り' ${autoswitchSkipReason}";
-    };
-  };
-
-  # flake.lock の更新を提案する。**適用はしない** — PR を出して CI に通し、merge されたら
-  # 翌朝の dotfiles-autoswitch が普通の main の変更として拾う。
-  #
-  # 何を埋めるか: dotfiles-autoswitch は main を適用するだけなので、`nix flake update` を
-  # 誰も叩かない限り上流の新版 (codex 等) は永久に届かない。実測で lock の更新は 2〜4 週間
-  # 空いていた。ここは「更新を提案する側」を無人機に持たせて、判断 (merge) は CI と人に残す。
-  #
-  # 却下案:
-  #   - GitHub Actions の update-flake-lock + PAT → 既存 workflow は secrets ゼロ・token
-  #     read-only。そこへ書き込み可能な秘密を置くのは量ではなく質の変化。加えて ubuntu
-  #     runner でのビルドは、実際に適用される機械そのもので検証するのに劣る。
-  #   - mini-vm が main へ直接 commit/push → 共有 lock の生産者が無人機になり、M4 Pro が
-  #     「無人機が決めた lock」を pull する側に回る。
-  #   - dotfilesDir の作業コピーで直接 `nix flake update` → autoswitch が恒久停止する
-  #     (スクリプト側のコメント参照)。
-  #
-  # テンプレート unit にしたのは、fast/slow の差が「更新対象の input」と「発火間隔」だけで、
-  # 手順が完全に同じため。instance 名がそのままレーン名になる。
-  systemd.services."dotfiles-lock-propose@" = {
-    description = "flake.lock を更新・検証して PR を出す (%i レーン)";
-    wants = [ "network-online.target" ];
-    after = [
-      "network-online.target"
-      "tailscaled.service"
-    ];
-
-    unitConfig = {
-      ConditionPathExists = "${dotfilesDir}/flake.nix";
-      OnFailure = [ "dotfiles-lock-propose-notify-failure@%i.service" ];
-    };
-
-    # 対話 shell の PATH は継承されない。2026-09-06 に autoswitch で nixos-rebuild と
-    # getent の欠落を踏んでいるので、ここは実際に使うものを全部並べる。
-    path = with pkgs; [
-      git
-      openssh
-      nix
-      gh
-      coreutils
-      gnugrep
-      jq
-      curl
-      openssl
-      cacert
-      # git が内部で `env bash` を起動する (2026-09-06 に commit の段で
-      # `env: 'bash': No such file or directory` を踏んだ)。差分が無い日は
-      # commit まで到達しないので、実際に更新がある日まで表面化しなかった。
-      bash
-    ];
-
-    environment = {
-      # git の user.* と gh の認証情報は gigun の home にしか無い。
-      HOME = "/home/${username}";
-      SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
-      NIX_SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
-    };
-
-    serviceConfig = {
-      Type = "oneshot";
-      # root は要らない (ビルドと git 操作だけ)。リポジトリの所有者で走らせれば
-      # autoswitch が踏んだ safe.directory / libgit2 の所有者検証も起きない。
-      User = username;
-      # 使い捨て worktree の置き場。systemd が作って STATE_DIRECTORY で渡す。
-      StateDirectory = "dotfiles-lock-trial";
-      # 全 input 更新 (slow) は substituter が効かず素のビルドになることがある。
-      TimeoutStartSec = "90min";
-      ExecStart = "${dotfilesLockPropose} %i";
-    };
-  };
-
-  systemd.services."dotfiles-lock-propose-notify-failure@" = {
-    description = "dotfiles-lock-propose@%i の失敗を Bark へ通知する";
-
-    serviceConfig = {
-      Type = "oneshot";
-      User = "root";
-      EnvironmentFile = "-${barkEnvironmentFile}";
-      ExecStart = "${barkNotifyUnitFailure} 'dotfiles-lock-propose@%i.service' 'mini-vm lock 更新 (%i) 失敗'";
-    };
-  };
-
-  # 発火は autoswitch (04:00 + 最大 30 分) より前に置く。同時刻に回すと switch 中の nix と
-  # 競合する上、その日に出した PR が翌日まで適用されない。propose → CI → merge を先に
-  # 済ませ、04:00 の autoswitch がその結果を拾う流れにする。
-  # 遅延を足しても 03:00 を越えない値にしてあるので、間隔を詰めるときはここを見ること。
-  #
-  # timer 名に `@` を入れていないのは、`foo@fast.timer` という実体ファイルが
-  # テンプレート `foo@.timer` の instance と紛らわしいため。対象は Unit= で明示する。
-  systemd.timers.dotfiles-lock-propose-fast = {
-    description = "AI ツールの lock 更新提案を毎日回す";
-    wantedBy = [ "timers.target" ];
-    timerConfig = {
-      Unit = "dotfiles-lock-propose@fast.service";
-      # sender / hub の UTC grid は前日 16:00。manager の timezone に依存させない。
-      OnCalendar = "*-*-* 01:00:00 Asia/Tokyo";
-      RandomizedDelaySec = 1800;
-      Persistent = true;
-    };
-  };
-
-  # 全 input はビルドが重く、壊れたときの原因切り分けも広い。日次で回すと fast の PR と
-  # 毎日衝突するので週次に留める (衝突した側は次回 origin/main から作り直されて解消する)。
-  systemd.timers.dotfiles-lock-propose-slow = {
-    description = "全 input の lock 更新提案を毎週回す";
-    wantedBy = [ "timers.target" ];
-    timerConfig = {
-      Unit = "dotfiles-lock-propose@slow.service";
-      # 日曜 02:00 JST は土曜 17:00 UTC。曜日も sender / hub と揃える。
-      OnCalendar = "Sun *-*-* 02:00:00 Asia/Tokyo";
-      RandomizedDelaySec = 1800;
-      Persistent = true;
     };
   };
 

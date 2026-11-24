@@ -61,7 +61,7 @@ printf '\\n%s\\n202' '{"status":"accepted","result":{"kind":"accepted"}}'
             "${../../../scripts/job-heartbeat.py}": shlex.quote(str(SCRIPT)),
             "${pkgs.curl}/bin/curl": shlex.quote(str(self.bin / "curl")),
         }
-        for source in ["mini-vm-autoswitch", "mini-vm-lock-fast", "mini-vm-lock-slow"]:
+        for source in ["mini-vm-autoswitch"]:
             pattern = (r'\$\{\s*lib\.escapeShellArg\s+\(jobHeartbeatConfig\.tokenFiles\.'
                        + re.escape(source) + r'\s+or\s+""\)\s*\}')
             value = shlex.quote(str(token_file or self.credentials / source))
@@ -122,18 +122,24 @@ printf '\\n%s\\n202' '{"status":"accepted","result":{"kind":"accepted"}}'
         self.assertIn("start-run", calls)
         self.assertEqual(result.stdout + result.stderr, "")
 
-    def test_each_source_selects_its_own_configured_path(self):
-        for source in ["mini-vm-autoswitch", "mini-vm-lock-fast", "mini-vm-lock-slow"]:
+    def test_autoswitch_selects_its_own_configured_path(self):
+        result = self.run_flow(source="mini-vm-autoswitch")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(self.token.read_text(), self.calls.read_text())
+        self.assertIn("mini-vm-autoswitch", self.calls.read_text())
+
+    def test_retired_lock_sources_get_no_credential(self):
+        # The lock-propose senders moved to GitHub Actions. Even if their tokens are
+        # still on disk, the snapshot must not hand them to a sender.
+        for source in ["mini-vm-lock-fast", "mini-vm-lock-slow"]:
             with self.subTest(source=source):
                 token = self.credentials / source
-                if source != "mini-vm-autoswitch":
-                    token.write_text("public-fixture-" + source + "-1234567890")
-                    token.chmod(0o400)
+                token.write_text("public-fixture-" + source + "-1234567890")
+                token.chmod(0o400)
                 result = self.run_flow(source=source)
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertIn(token.read_text(), self.calls.read_text())
-                self.assertIn(source, self.calls.read_text())
-                self.calls.unlink()
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stderr, "job-heartbeat: receipt preparation or delivery failed\n")
+                self.assertFalse(self.calls.exists())
 
     def test_agenix_directory_rotation_keeps_logical_path_usable(self):
         generation = self.root / "next-generation"
