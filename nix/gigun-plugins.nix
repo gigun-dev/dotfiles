@@ -13,5 +13,7 @@ let
 in
 {
   inherit names;
-  autoEnable = names;
+  # agy-mcp: ほぼ使っていない上、`uv run --script` の親がセッション中ずっと ~/.cache/uv の
+  # lock を握り uv cache prune を止める (2026-11-21)。入れたいホストでは手で有効にする。
+  autoEnable = builtins.filter (n: n != "agy-mcp") names;
 }
