@@ -240,6 +240,14 @@
                   | while read -r n; do XDG_CONFIG_HOME="$tmp" "$brew_bin" trust --cask "$n" >/dev/null 2>&1 || true; done
                 out=$(XDG_CONFIG_HOME="$tmp" HOMEBREW_NO_AUTO_UPDATE=1 "$brew_bin" bundle cleanup --file=${brewfile} 2>&1) || true
                 rm -rf "$tmp"
+                # brew bundle cleanup の dry-run は `brew cleanup` (キャッシュ・古い portable-ruby の削除)
+                # の予定も出す。宣言外の項目ではないので、その節と末尾の案内行は判定から外す
+                # (2026-11-25 にキャッシュだけで switch が止まった)。
+                out=$(printf '%s\n' "$out" | awk '
+                  /^Would `brew cleanup`:/ { skip = 1; next }
+                  /^Would (uninstall|untap)/ { skip = 0 }
+                  /^Run `brew bundle cleanup --force`/ { next }
+                  !skip && NF { print }')
                 if [ -n "$out" ] && [ "''${DOTFILES_ALLOW_BREW_CLEANUP:-}" != 1 ]; then
                   echo "error: この switch は Brewfile に無い brew 項目を uninstall / untap する:" >&2
                   echo "$out" >&2
