@@ -145,7 +145,7 @@ Claude Code のセッションごとに `uv run --script`（agy-mcp、cman）と
 pkill -f 'uv run --script' && sleep 1 && uv cache prune
 ```
 
-2026-11-21 はこれで 10.1GiB 消えた。`--force` は動作中の MCP サーバーの環境を壊しうるので使わない。経緯と uv 側の改善待ちは todo 0141。
+2026-11-21 はこれで 10.1GiB 消えた。普段は `nix/modules/home/maintenance.nix` の `uv-cache-prune` agent が、AC 電源のときに毎時 60 秒だけ lock を待って試し、成功したら 20 時間休む（ログは `~/Library/Logs/uv-cache-prune.log`）。agy-mcp は 2026-11-24 に自動有効化から外したので、lock を握るのは cman だけ。`--force` は動作中の MCP サーバーの環境を壊しうるので使わない。経緯と uv 側の改善待ちは todo 0141。
 11-01〜11-08 の増加の大半は、`uvx markitdown-mcp` が同じ中身の venv（約 341MB）を 10 個作ったもの（3.3GB）。gigun-dev/claude-code の 881d9ca（11-09）で nix の markitdown-mcp を直接起動するようにして止まった。
 過去に、`environments-v2` と `~/.local/share/uv/tools` の symlink / `.pth` から参照される `archive-v0/<id>` だけを残して他を `rm` したことがある（568 件中 527 件を消して 16GB から 10GB）。ただし公式は「キャッシュを直接変更するのは決して安全ではない」としており、実行中のプロセスが参照するエントリを消しうるので、手順としては勧めない。
 キャッシュの大半は `archive-v0`（6.9GB）と `environments-v2`（0.9GB）。

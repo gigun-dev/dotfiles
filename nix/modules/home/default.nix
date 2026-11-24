@@ -13,6 +13,7 @@
     ./packages.nix
     ./dotfiles.nix
     ./guard.nix
+    ./maintenance.nix
     ./programs/zsh
     ./programs/git
     ./programs/ssh
