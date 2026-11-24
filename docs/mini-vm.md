@@ -56,8 +56,13 @@ timer の時刻(autoswitch 04:00 など)はすべて JST。mini-vm のシステ�
 
 **設計の要点**(実装は `nix/modules/nixos/mini-vm.nix`):
 
-- **lock 更新の提案と適用を分ける。** `dotfiles-lock-propose@fast`(毎日) / `@slow`(日曜)が
-  lock 更新 → 実機ビルド → PR・auto-merge 設定まで行い、required CI の成功で merge する。
+- **lock 更新の提案と適用を分ける。** 提案は GitHub Actions の `flake-lock-proposal.yaml` が
+  ubuntu-latest で行う。lock 更新 → mini-vm 構成のビルド → GitHub App token で PR・auto-merge
+  設定まで進め、required CI の成功で merge する。AI ツールの fast は毎日最新へ 1 PR、他の root
+  input は毎日 input ごとに `bot/flake-lock-<input>` の PR を出し、first-parent 履歴で 3 日以上前の
+  commit に固定する（現在の lock より古い・別系統なら出さない）。main は up-to-date を要求するので、
+  main への push ごとに遅れた bot PR を新しい main から作り直す。旧 `dotfiles-lock-propose@fast`
+  (毎日) / `@slow`(日曜、全 input を待ちなしで更新) は撤去（todo 0002）まで mini-vm で並走している。
   人の lock 差分レビューは前提にしない。`dotfiles-autoswitch` 自体は lock を更新せず、
   merge 済みの変更を fetch → CI ゲート → ff → switch → 健全性確認する。失敗時の復帰先は今回の
   開始時に稼働していた構成だけとし、Langfuse の image pair が変わる場合は戻さない。
