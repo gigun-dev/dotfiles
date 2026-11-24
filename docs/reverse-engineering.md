@@ -1,12 +1,10 @@
 # REAとGhidra
 
-Apple Silicon MacではHome Managerが`nix/packages/ghidra-rea`のGhidra12.1.4を導入する。公式release ZIPのSHA-256を固定し、同梱ソースからarm64 decompilerをNixのC++ toolchainでビルドする。GUI入口は`ghidra`、headless入口は`ghidra-analyzeHeadless`。
+Apple Silicon MacではHome Managerが`nix/packages/ghidra-rea`のGhidra 12.2を導入する。公式release ZIPのSHA-256を固定し、同梱ソースからarm64 decompilerをNixのC++ toolchainでビルドする。GUI入口は`ghidra`、headless入口は`ghidra-analyzeHeadless`。
 
 ## 版を固定する理由
 
-公開REA6.8.0のGhidraReleasePolicyは12.1.xだけを受け付け、検証済み版は12.1.4。現在のnixpkgsのGhidra12.2は拒否されるため、基盤パッケージのoverlayを変えず、この用途のpackageだけ固定する。REAが対応版を広げたら、実際の公開版で確認して通常のnixpkgs packageへの移行を検討する。
-
-12.1.4と対応JDK21で今回のArt4解析を行った。新しいGhidraで既存プロジェクトを開くときは、プロジェクトのコピーで互換性を確認する。
+REA 6.10.1 向けに Ghidra 12.2 と JDK 25 を使用する。既存プロジェクトを開くときは、プロジェクトのコピーで互換性を確認する。
 
 ## REAへ環境を渡す
 

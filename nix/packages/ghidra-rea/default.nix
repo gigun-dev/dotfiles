@@ -4,18 +4,17 @@
   fetchurl,
   unzip,
   makeWrapper,
-  openjdk21,
+  openjdk25,
   coreutils,
 }:
 
 stdenv.mkDerivation {
   pname = "ghidra-rea";
-  version = "12.1.4";
+  version = "12.2";
 
-  # REA 6.8 only accepts Ghidra 12.1.x; nixpkgs currently supplies 12.2.
   src = fetchurl {
-    url = "https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_12.1.4_build/ghidra_12.1.4_PUBLIC_20260921.zip";
-    hash = "sha256-3axJ+QPanVusgz5cx5OVCYucM8/TJ5vl8xvQA4fS1Ns=";
+    url = "https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_12.2_build/ghidra_12.2_PUBLIC_20261016.zip";
+    hash = "sha256-LCzXdts8H2oJe6QYkiN4rDZJyt1ehEpvXwiK5iinvmc=";
   };
 
   nativeBuildInputs = [
@@ -42,18 +41,18 @@ stdenv.mkDerivation {
     install -Dm755 Ghidra/Features/Decompiler/src/decompile/cpp/ghidra_opt \
       "$out/lib/ghidra/Ghidra/Features/Decompiler/os/mac_arm_64/decompile"
     wrapProgram "$out/lib/ghidra/support/launch.sh" \
-      --set JAVA_HOME "${openjdk21.home}" \
-      --prefix PATH : "${lib.makeBinPath [ openjdk21 ]}"
+      --set JAVA_HOME "${openjdk25.home}" \
+      --prefix PATH : "${lib.makeBinPath [ openjdk25 ]}"
     ln -s "$out/lib/ghidra/ghidraRun" "$out/bin/ghidra"
     makeWrapper "$out/lib/ghidra/support/analyzeHeadless" "$out/bin/ghidra-analyzeHeadless"
     # REA starts the JVM directly, so scope its engine/JDK environment to the command.
     makeWrapper "${coreutils}/bin/env" "$out/bin/with-ghidra" \
       --set GHIDRA_INSTALL_DIR "$out/lib/ghidra" \
-      --set JAVA_HOME "${openjdk21.home}"
+      --set JAVA_HOME "${openjdk25.home}"
     runHook postInstall
   '';
 
-  passthru.jdk = openjdk21;
+  passthru.jdk = openjdk25;
   meta = {
     description = "Ghidra release compatible with the published REA bridge";
     homepage = "https://ghidra-sre.org/";
