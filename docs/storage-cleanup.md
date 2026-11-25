@@ -8,6 +8,8 @@ MacBook Pro（M4 Pro、SSD 460GB）の空き容量が逼迫したときの手順
 ebook2pdf の実験セッションが同じ 283MB の入力 PDF を実験ごとに普通のコピーで複製していた（83 個）。リポジトリの `reanalyze-library` は `clonefile` を使っており、自作の実験手順がそれを迂回していた。そのセッションに指摘して片付けさせ、全体で 71GB まで戻した。全体指示への追加は 1 件だけでは見送った（todo に昇格条件を置いた）。
 2026-11-21 は 3.7GB → 約 38GB。13 日で約 56GB 増えていた。主因は、worktree に残った `result` が古いシステム世代を固定していたこと（約 10GB、下記「Nix」）、iOS DeviceSupport の再取得、Paste のスクリーンショット履歴、Codex の session だった。
 
+2026-11-26 は 9.4GB まで減っていた（5 日で約 50GB 増）。大物は無く分散していたが、仕組みとして溜まり続けていたのは `git wt -d` の削除先だった。`wt.remover` が macOS でも trash-cli を使い、消した worktree が `.build` ごと XDG のゴミ箱（`~/.local/share/Trash`、5.1GB）に入っていた。ここは Finder に出ず自動削除も効かない。macOS は標準の `/usr/bin/trash`（Finder のゴミ箱）に替えた（ryoppippi と同じ）。測るときは `du` の見かけのサイズに注意する。SwiftPM の `CompilationCache.noindex` はスパースファイルで、`stat -f %z` では 12〜25GB に見えるが実際は数 KB。`find -newermt` で期間の増加を集計するときは `stat -f %b`（512 バイトのブロック数）で数える。
+
 定型の掃除（キャッシュ、マージ済み worktree、Nix GC の確認）は ryoppippi の `clean-storage` スキルで行う（`nix/modules/home/agent-skills.nix` で配布）。この手順書は、その後に残る大物を測って判断するためのもの。
 
 ## 現状を測る

@@ -62,9 +62,8 @@
       # Git
       gh
       ghq
-      # git worktree。`git wt` の cd 連携は zsh/.zshrc、削除は trash 経由 (programs/git)
+      # git worktree。`git wt` の cd 連携は zsh/.zshrc、削除はゴミ箱経由 (programs/git)
       git-wt
-      trash-cli
       # PR を git-wt の worktree で開く (ryoppippi/dotfiles より移植)
       (callPackage ../../packages/git-wtpr { })
 
@@ -109,6 +108,8 @@
       # 暗号文には別途YubiKey recipientも残す (ADR 0018)。
       age-plugin-se
     ]
+    # ゴミ箱の CLI。macOS は標準の /usr/bin/trash があるので Linux だけ入れる (programs/git の wt.remover)。
+    ++ lib.optional (!pkgs.stdenv.hostPlatform.isDarwin) trash-cli
     ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
       # iOS / Swift 開発 — darwin 限定
       ipatool # App Store の iPhone / iPad 用 IPA 取得。認証は実行時に行う。

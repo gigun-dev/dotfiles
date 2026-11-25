@@ -37,10 +37,14 @@ in
         email = "117321963+gigun-dev@users.noreply.github.com";
       };
       ghq.user = "gigun-dev";
-      # git-wt が worktree を消すときに rm ではなく trash-cli (packages.nix) へ送る。
-      # nix 側だけに置く: trash は nix 管理の CLI なので、nix の無い環境 (git/gitconfig 共有先)
-      # に書くと `git wt -d` が存在しないコマンドを呼んで壊れる。
-      wt.remover = "trash";
+      # git-wt が worktree を消すときに rm ではなく ゴミ箱へ送る。macOS は標準の /usr/bin/trash で
+      # Finder のゴミ箱 (~/.Trash) に入れる (ryoppippi/dotfiles の trashCommand と同じ)。
+      # Why not trash-cli を macOS でも使う: XDG のゴミ箱 (~/.local/share/Trash) に入り、Finder に
+      # 出ず自動削除も効かないので、消した worktree が .build ごと溜まり続けた (2026-11-26 に 5.1GB)。
+      # nix 側だけに置く: Linux の trash は nix 管理の CLI なので、nix の無い環境
+      # (git/gitconfig 共有先) に書くと `git wt -d` が存在しないコマンドを呼んで壊れる。
+      wt.remover =
+        if pkgs.stdenv.hostPlatform.isDarwin then "/usr/bin/trash" else lib.getExe' pkgs.trash-cli "trash";
       init.defaultBranch = "main";
       pull.rebase = true;
       push = {
