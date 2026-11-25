@@ -3,9 +3,14 @@
   hosts: mini_macos
   gather_facts: false
   become: false
+  # 通常の apply は欠けたものを入れるだけ。install に付く upgrade・依存元の入れ直し・
+  # 定期 cleanup (宣言外の古い keg や依存を消しうる) を止める。更新は update.yml で行う。
   environment:
     HOMEBREW_NO_AUTO_UPDATE: '1'
     HOMEBREW_NO_ANALYTICS: '1'
+    HOMEBREW_NO_INSTALL_CLEANUP: '1'
+    HOMEBREW_NO_INSTALL_UPGRADE: '1'
+    HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: '1'
   pre_tasks:
     - name: Validate host and requested transfer
       ansible.builtin.import_tasks: tasks/preflight.yml

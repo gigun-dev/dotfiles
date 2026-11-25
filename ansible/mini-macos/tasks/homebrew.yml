@@ -1,8 +1,9 @@
 ---
 # 宣言したものが入っていることだけを保つ。upgrade・宣言外の削除・Homebrew 本体の導入はしない。
+# install に付く upgrade と cleanup は apply.yml の environment が止める。
 - name: Require existing Homebrew without bootstrapping it
   ansible.builtin.stat:
-    path: /usr/local/bin/brew
+    path: "{{ mini_brew_bin }}/brew"
   register: mini_brew
 - name: Validate Homebrew declarations
   ansible.builtin.assert:
@@ -14,16 +15,52 @@
       - mini_formulae | unique | length == mini_formulae | length
       - mini_casks | unique | length == mini_casks | length
     fail_msg: Declare taps, formulae and casks as lists without duplicates.
+- name: Read installed formulae
+  ansible.builtin.command:
+    argv: ["{{ mini_brew_bin }}/brew", list, --formula, "-1"]
+  register: mini_brew_installed
+  changed_when: false
+  check_mode: false
+# 欠けた formula を入れると、brew は古くなった依存を先に upgrade する (env では止められない)。
+# 稼働中の Lima などを巻き込むので、その場合は入れずに止め、update.yml での明示更新へ回す。
+- name: Check dependencies of missing formulae against outdated ones
+  when: mini_brew_missing | length > 0
+  vars:
+    mini_brew_missing: "{{ mini_formulae | difference(mini_brew_installed.stdout_lines) }}"
+  block:
+    - name: Read outdated formulae
+      ansible.builtin.command:
+        argv: ["{{ mini_brew_bin }}/brew", outdated, --formula, --quiet]
+      register: mini_brew_outdated
+      changed_when: false
+      check_mode: false
+    - name: Read dependencies of missing formulae
+      ansible.builtin.command:
+        argv: ["{{ mini_brew_bin }}/brew", deps, --formula, "{{ item }}"]
+      loop: "{{ mini_brew_missing }}"
+      register: mini_brew_missing_deps
+      changed_when: false
+      check_mode: false
+    - name: Refuse installs that would upgrade an existing dependency
+      ansible.builtin.assert:
+        that: item.stdout_lines | intersect(mini_brew_outdated.stdout_lines) | length == 0
+        fail_msg: >-
+          Installing {{ item.item }} would upgrade
+          {{ item.stdout_lines | intersect(mini_brew_outdated.stdout_lines) | join(', ') }}.
+          Update those first through update.yml, then re-run the homebrew target.
+      loop: "{{ mini_brew_missing_deps.results }}"
+      loop_control:
+        label: "{{ item.item }}"
 - name: Ensure declared taps are present
   community.general.homebrew_tap:
     name: "{{ mini_taps }}"
-    path: /usr/local/bin
+    path: "{{ mini_brew_bin }}"
     state: present
   when: mini_taps | length > 0
 - name: Ensure declared formulae are present without upgrading
   community.general.homebrew:
     name: "{{ mini_formulae }}"
-    path: /usr/local/bin
+    path: "{{ mini_brew_bin }}"
     state: present
     update_homebrew: false
     upgrade_all: false
@@ -31,7 +68,7 @@
 - name: Ensure declared casks are present without upgrading
   community.general.homebrew_cask:
     name: "{{ mini_casks }}"
-    path: /usr/local/bin
+    path: "{{ mini_brew_bin }}"
     state: present
     update_homebrew: false
   when: mini_casks | length > 0

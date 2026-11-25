@@ -742,6 +742,14 @@
             };
         in
         {
+          # Intel Mac 用の ESP-IDF shell だけを perSystem の外で出す。esp-dev 自身の nixpkgs
+          # (x86_64-darwin を持つ版) で組むので、dotfiles の nixpkgs が x86_64-darwin を
+          # 外しても評価できる。ホスト構成と switch は出さない (docs/esp-idf.md)。
+          devShells.x86_64-darwin.esp-idf = import ./nix/devshells/esp-idf.nix {
+            system = "x86_64-darwin";
+            espDev = inputs.esp-dev;
+          };
+
           # system 別の darwinConfiguration を生成
           # nix run .#switch が perSystem の system で自動選択
           # ⭐️ キーの形 (`${username}-${system}`) は変えないこと。役割は第 2 引数で渡す。

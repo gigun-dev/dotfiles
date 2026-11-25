@@ -1,7 +1,29 @@
 ---
 # 番人 (network-watchdog) の user agent を宣言どおりに保つ。
 # script だけの変更は次の起動 (30 秒以内) から効くので job に触らない。plist が変わった
-# ときだけ入れ直し、未ロードなら読み込む。check mode では launchctl を読むだけ。
+# ときだけ入れ直し、未ロードなら読み込む。check mode では id と launchctl print を読むだけ。
+- name: Read the executing user's UID for the GUI domain
+  ansible.builtin.command:
+    argv: [/usr/bin/id, -u]
+  register: mini_watchdog_uid
+  changed_when: false
+  check_mode: false
+- name: Name the GUI domain and job
+  ansible.builtin.set_fact:
+    mini_watchdog_domain: "gui/{{ mini_watchdog_uid.stdout }}"
+- name: Read whether the GUI domain exists
+  ansible.builtin.command:
+    argv: ["{{ mini_launchctl }}", print, "{{ mini_watchdog_domain }}"]
+  register: mini_watchdog_gui
+  changed_when: false
+  failed_when: false
+  check_mode: false
+# user agent は GUI ログインのドメインにしか読み込めない。無いまま書くと、ファイルだけ置いて
+# bootstrap で落ちる。初回は gigun が GUI にログインしている (自動ログイン後の) 状態で流す。
+- name: Require a GUI login session before writing anything
+  ansible.builtin.assert:
+    that: mini_watchdog_gui.rc == 0
+    fail_msg: "{{ mini_watchdog_domain }} does not exist; log in to the GUI as the target user first."
 - name: Check conflicting system watchdog declarations
   ansible.builtin.stat:
     path: "{{ item }}"
@@ -31,28 +53,72 @@
     src: "{{ mini_controller_repo }}/nix/modules/darwin/network-watchdog.sh"
     dest: "{{ mini_watchdog_app_dir }}/network-watchdog.sh"
     mode: '0755'
-- name: Declare the watchdog user agent
-  ansible.builtin.template:
-    src: "{{ mini_controller_repo }}/ansible/mini-macos/templates/network-watchdog.plist.j2"
-    dest: "{{ mini_watchdog_plist }}"
-    mode: '0644'
-    validate: /usr/bin/plutil -lint %s
-  register: mini_watchdog_plist_result
 - name: Read whether the watchdog job is loaded
   ansible.builtin.command:
-    argv: ["{{ mini_launchctl }}", print, "gui/{{ mini_uid }}/{{ mini_watchdog_label }}"]
+    argv: ["{{ mini_launchctl }}", print, "{{ mini_watchdog_domain }}/{{ mini_watchdog_label }}"]
   register: mini_watchdog_loaded
   changed_when: false
   failed_when: false
   check_mode: false
-# bootstrap は読み込み済みの label には EALREADY で失敗するので、変わったときだけ bootout する。
-- name: Unload the watchdog job whose plist changed
-  ansible.builtin.command:
-    argv: ["{{ mini_launchctl }}", bootout, "gui/{{ mini_uid }}/{{ mini_watchdog_label }}"]
-  when: mini_watchdog_loaded.rc == 0 and mini_watchdog_plist_result is changed
-  changed_when: true
-- name: Load the watchdog job
-  ansible.builtin.command:
-    argv: ["{{ mini_launchctl }}", bootstrap, "gui/{{ mini_uid }}", "{{ mini_watchdog_plist }}"]
-  when: mini_watchdog_loaded.rc != 0 or mini_watchdog_plist_result is changed
-  changed_when: true
+# 旧 plist は backup に残し、入れ直しに失敗したら戻す。先に plist だけ替えて失敗すると、
+# 次の apply は「plist は同じ・読み込み済み」と見て旧設定の job を残してしまう。
+- name: Declare the watchdog user agent and load it
+  block:
+    - name: Declare the watchdog user agent
+      ansible.builtin.template:
+        src: "{{ mini_controller_repo }}/ansible/mini-macos/templates/network-watchdog.plist.j2"
+        dest: "{{ mini_watchdog_plist }}"
+        mode: '0644'
+        backup: true
+        validate: /usr/bin/plutil -lint %s
+      register: mini_watchdog_plist_result
+    # bootstrap は読み込み済みの label には EALREADY で失敗するので、変わったときだけ bootout する。
+    - name: Unload the watchdog job whose plist changed
+      ansible.builtin.command:
+        argv: ["{{ mini_launchctl }}", bootout, "{{ mini_watchdog_domain }}/{{ mini_watchdog_label }}"]
+      when: mini_watchdog_loaded.rc == 0 and mini_watchdog_plist_result is changed
+      changed_when: true
+    - name: Load the watchdog job
+      ansible.builtin.command:
+        argv: ["{{ mini_launchctl }}", bootstrap, "{{ mini_watchdog_domain }}", "{{ mini_watchdog_plist }}"]
+      when: mini_watchdog_loaded.rc != 0 or mini_watchdog_plist_result is changed
+      changed_when: true
+    - name: Drop the backup of the replaced plist
+      ansible.builtin.file:
+        path: "{{ mini_watchdog_plist_result.backup_file }}"
+        state: absent
+      when: mini_watchdog_plist_result.backup_file is defined
+  rescue:
+    # template 自体 (plutil の検査) で落ちた場合は result が無く、plist も替わっていない。
+    - name: Find the backup of the replaced plist
+      ansible.builtin.set_fact:
+        mini_watchdog_backup: "{{ (mini_watchdog_plist_result | default({})).backup_file | default('') }}"
+    - name: Restore the previous plist
+      ansible.builtin.copy:
+        src: "{{ mini_watchdog_backup }}"
+        dest: "{{ mini_watchdog_plist }}"
+        remote_src: true
+        mode: '0644'
+      when: mini_watchdog_backup | length > 0
+    - name: Drop the restored backup
+      ansible.builtin.file:
+        path: "{{ mini_watchdog_backup }}"
+        state: absent
+      when: mini_watchdog_backup | length > 0
+    - name: Read whether the previous job is still loaded
+      ansible.builtin.command:
+        argv: ["{{ mini_launchctl }}", print, "{{ mini_watchdog_domain }}/{{ mini_watchdog_label }}"]
+      register: mini_watchdog_after_failure
+      changed_when: false
+      failed_when: false
+    # bootout だけ通って bootstrap が落ちたときは監視が止まっているので、旧 plist で戻す。
+    - name: Reload the previous job that was unloaded
+      ansible.builtin.command:
+        argv: ["{{ mini_launchctl }}", bootstrap, "{{ mini_watchdog_domain }}", "{{ mini_watchdog_plist }}"]
+      when: mini_watchdog_loaded.rc == 0 and mini_watchdog_after_failure.rc != 0
+      changed_when: true
+    - name: Report the failed reload
+      ansible.builtin.fail:
+        msg: >-
+          Reloading {{ mini_watchdog_label }} failed; the previous plist was restored
+          {{ 'and its job reloaded' if mini_watchdog_loaded.rc == 0 else '' }}. Fix the cause and re-run.

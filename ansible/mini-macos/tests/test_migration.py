@@ -92,7 +92,7 @@ class Migration(MigrationFixture, unittest.TestCase):
                 self.assertNotIn("upgrade_all", {k for k, v in module.items() if v})
         update = (ROOT / "update.yml").read_text()
         self.assertNotIn("homebrew_cask", update)
-        self.assertIn("mini_update_formulae | difference(mini_formulae)", update)
+        self.assertIn("tasks/validate_update.yml", update)
 
     def test_adopted_tool_defaults_match_the_pre_refactor_values(self):
         expected = {

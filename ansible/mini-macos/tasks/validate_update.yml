@@ -1,0 +1,23 @@
+---
+- name: Check update request
+  ansible.builtin.assert:
+    that:
+      - mini_targets == ['homebrew']
+      - ansible_check_mode or mini_update_ack | bool
+      - mini_update_formulae | length > 0
+      - mini_update_formulae | difference(mini_formulae) | length == 0
+    fail_msg: Name declared formulae in mini_update_formulae and acknowledge the update.
+# 選択リンクは Cellar のパスと SHA-256 で版を固定している。名指しで上げると relink や
+# 旧 keg の cleanup で次の CLI apply が検証に落ちるので、policy の版・checksum・リンクと一緒に変える。
+- name: Refuse formulae whose version is pinned by a CLI selection
+  ansible.builtin.assert:
+    that: mini_update_formulae | intersect(mini_pinned_formulae) | length == 0
+    fail_msg: >-
+      {{ mini_update_formulae | intersect(mini_pinned_formulae) | join(', ') }} is pinned by
+      mini_tool_policy; change its version, checksum and selection together instead.
+  vars:
+    mini_pinned_formulae: >-
+      {{ mini_tool_policy | dict2items
+         | selectattr('value.target.selection.state', 'equalto', 'selected')
+         | selectattr('value.target.source.formula', 'defined')
+         | map(attribute='value.target.source.formula') | list }}

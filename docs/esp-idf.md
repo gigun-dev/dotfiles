@@ -29,7 +29,8 @@ Nixはホスト用のcompilerバイナリを選択する。ファームの対象
 `idf.py set-target esp32s3` などで選ぶ。ビルドディレクトリは各ホストで作り直す。
 
 対象は `aarch64-darwin` / `x86_64-darwin` / `x86_64-linux` / `aarch64-linux`。
-Intel MacのOS設定が凍結されていても、この開発shellは上流の25.11 nixpkgsを使う。
+Intel MacはflakeにOS構成を持たないが、この開発shellは上流の25.11 nixpkgsを使うので
+`devShells.x86_64-darwin.esp-idf` だけをperSystemの外で出している (flake.nix)。
 ARM Linux用の開発shellを追加したが、Home Managerのホスト設定を追加したわけではない。
 
 LinuxのUSBアクセスはホスト側のdialout/udev等で設定する。WSL/LimaではUSB転送も

@@ -37,6 +37,11 @@ apply がそれに揃えることを指す。宣言しただけで実機へ適�
 
 ### Homebrew で要るもの・要らないもの
 
+通常の apply は `HOMEBREW_NO_INSTALL_CLEANUP` / `HOMEBREW_NO_INSTALL_UPGRADE` /
+`HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK` を付け、欠けたものを入れるときの upgrade・依存元の入れ直し・
+定期 cleanup (宣言外の古い keg や依存を消しうる) を止める。欠けた formula の依存に古くなったものが
+あると brew はそれを先に upgrade するので、その場合は入れずに止まる。先に `update.yml` で上げる。
+
 宣言 (`group_vars/mini_macos.yml`) は mini の役割 (iPhone バックアップ・画面共有・Xcode・Lima のホスト・
 常駐サービス) と、画面共有で mini の前に座るときに今使っている道具に限る。
 
@@ -171,7 +176,9 @@ uv run --locked --project ansible/mini-macos ansible-playbook -i ansible/mini-ma
 
 実更新は `mini_apply_ack=true` と `mini_update_ack=true`、`mini_owners.homebrew=ansible` を要する。
 `mini_targets` は `["homebrew"]` だけとし、`mini_update_formulae` を `mini_formulae` に宣言した
-formula の空でないリストにする。cask は選べない: 宣言した cask はどれも auto_updates で、brew で
+formula の空でないリストにする。fzf / zoxide / ripgrep / xcodegen は選べない: CLI の選択リンクが
+Cellar のパスと SHA-256 で版を固定しているので、名指しで上げると relink や旧 keg の cleanup で次の
+apply が検証に落ちる。版を変えるときは `mini_tool_policy` の版・checksum・リンクと一緒に変える。cask も選べない: 宣言した cask はどれも auto_updates で、brew で
 上げると中身の空な .app が残る (Pro で 2026-11-25 に起きた。`nix/modules/darwin/homebrew.nix`)。
 tailscale を上げると tailscaled が入れ替わり SSH が一度切れるので、別経路 (画面共有) を確保してから行う。
 Homebrew metadata 自体は更新せず、既存 metadata に対して適用する。配布最新版の確認とは区別する。
@@ -234,7 +241,11 @@ Lima 2.3.0 は停止要求が通らなければ SSH で `shutdown -h now` を送
 - script (`nix/modules/darwin/network-watchdog.sh`) は checkout へのリンクではなくコピーで
   `~/Library/Application Support/net-watchdog/` に置く。script だけの変更は次の起動 (30 秒以内) から効くので job に触らない。
 - plist は plutil の正規形で書いてあり、稼働中のものと bytes が一致する。変わったときだけ `bootout` → `bootstrap` し、
-  未ロードなら `bootstrap` する。check mode では `launchctl print` で読むだけ。
+  未ロードなら `bootstrap` する。check mode では `id -u` と `launchctl print` で読むだけ。
+- `gui/<実行ユーザーの UID>` のドメインが無ければ何も書かずに止まる。**初回の導入は gigun が GUI に
+  ログインしている状態 (自動ログインの後) で流す**。SSH だけのセッションには user agent を読み込めない。
+- 旧 plist は backup に取ってから置き換え、`bootout` が失敗したら旧 plist に戻す (次の apply が再び差分を見る)。
+  `bootout` が通って `bootstrap` が失敗したら、旧 plist で job を読み込み直して監視を止めない。
 - `NET_WATCHDOG_NO_REMEDIATE=1` (観測のみ)、30 秒間隔、`RunAtLoad`、標準 PATH を維持する。
 - watchdog は Wi-Fi の復旧操作を持つため、確認目的で本体スクリプトを実行しない。
 
