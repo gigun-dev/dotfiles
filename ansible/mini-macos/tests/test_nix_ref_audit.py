@@ -15,7 +15,8 @@ SCRIPT = Path(__file__).resolve().parents[1] / "scripts/audit_nix_refs.py"
 class NixRefAudit(unittest.TestCase):
     def test_reports_reference_kind_without_value(self):
         with tempfile.TemporaryDirectory(prefix="mini-nix-ref-audit-") as temporary:
-            home = Path(temporary)
+            # The script reports resolved paths; macOS TMPDIR /var resolves to /private/var.
+            home = Path(temporary).resolve()
             agents = home / "Library/LaunchAgents"
             agents.mkdir(parents=True)
             secret_marker = "do-not-print-this-marker"
