@@ -255,8 +255,15 @@
                     switch --flake ".#${username}-${system}" ...$args)
                 }
 
+                # --rollback / --switch-generation で brew-bundle を持たない前の世代へ戻ったときは
+                # 飛ばす。system の切り替えは成功しているので、ここで失敗にしない。
                 def after-switch [] {
-                  ^/run/current-system/brew-bundle
+                  let bundle = "/run/current-system/brew-bundle"
+                  if ($bundle | path exists) {
+                    ^$bundle
+                  } else {
+                    print --stderr $"note: この世代には ($bundle) が無いので、Homebrew は揃えない"
+                  }
                 }
               ''
             else
@@ -273,12 +280,25 @@
                 def after-switch [] {}
               '';
 
+          # darwin-rebuild は世代の一覧や切り替え (--list-generations / --rollback /
+          # --switch-generation) でも 0 で終わる。これらは宣言した新しい構成を適用しないので、
+          # switch は after-switch を呼ばず、update 系は lock を触る前に断る (適用していない
+          # lock を commit しない)。
+          generationOnly = ''
+            const generation_only = ["--list-generations", "--rollback", "--switch-generation", "-G", "--help"]
+
+            def applies-new-config [args: list<string>] {
+              $args | all {|arg| $arg not-in $generation_only }
+            }
+          '';
+
           switchApp = writeNu "switch" ''
             ${applySwitch}
+            ${generationOnly}
 
             def --wrapped main [...args: string] {
               apply-system $args
-              after-switch
+              if (applies-new-config $args) { after-switch }
             }
           '';
 
@@ -291,8 +311,21 @@
             { targets, lane }:
             mkApp name ''
               ${applySwitch}
+              ${generationOnly}
+
+              # 一時ログを消してから、元の終了コードで終わる (bash 版の EXIT trap の代わり)。
+              def or-remove [log: path, job: closure] {
+                try { do $job } catch {|e|
+                  rm --force $log
+                  exit ($e.exit_code? | default 1)
+                }
+              }
 
               def --wrapped main [...args: string] {
+                if not (applies-new-config $args) {
+                  print --stderr $"error: update は世代の一覧・切り替えの引数を受け付けない: ($args | str join ' ')"
+                  exit 1
+                }
                 cd (^git rev-parse --show-toplevel | str trim)
 
                 # mini-vm の lock は flake-lock-proposal.yaml の PR からだけ入る。ここで commit すると
@@ -315,7 +348,7 @@
                 with-env { DOTFILES_SKIP_AUTO_SWITCH: "1" } { ^git pull --rebase }
 
                 let log = (mktemp --tmpdir flake-update.XXXXXX)
-                ^nix flake update ...${builtins.toJSON targets} o+e>| tee { save --force $log }
+                or-remove $log { ^nix flake update ...${builtins.toJSON targets} o+e>| tee { save --force $log } }
 
                 # 適用に失敗した lock は commit しない。pull 済みの版へ戻し、dirty のまま残さない。
                 try {
@@ -331,7 +364,7 @@
                   print "flake.lock に差分なし"
                 } else {
                   ^git add flake.lock
-                  ^git commit --quiet -m "chore(deps): flake.lock を更新 (${lane})" -m (open --raw $log)
+                  or-remove $log { ^git commit --quiet -m "chore(deps): flake.lock を更新 (${lane})" -m (open --raw $log) }
                   print "flake.lock を commit した。push は手で行う: git push"
                 }
                 rm $log

@@ -74,7 +74,7 @@ docs/                          # 現行運用・ADR
 
 - **Nushell** — 新しいスクリプトの既定。Nix から配るものは `writeNu` (flake app) か `pkgs.writers.writeNu` で書き、ビルド時に構文を検査させる。
 - **Python (uv)** — ライブラリが要るとき（`docs/python.md`）。
-- **Bash** — 環境がこちらのものでない所: Nix の build phase、bootstrap.sh、git hooks、bash で動く前提の launchd / systemd unit。
+- **Bash** — 環境がこちらのものでない所: Nix の build phase、bootstrap.sh、git hooks、bash で動く前提の launchd / systemd unit。nix-darwin / NixOS の module が system 出力へ置くスクリプト（`brew-bundle` など）もこちらに数える（ryoppippi の brewBundle と同じ）。
 - **zsh** — 対話用の設定（`zsh/`）だけ。新しいスクリプトには使わない。
 
 ## Code Review Rules

@@ -37,9 +37,15 @@ let
     preview=$(mktemp -d)
     trap 'rm -rf "$preview"' EXIT
     mkdir -p "$preview/homebrew"
-    # brew は XDG_CONFIG_HOME があれば $XDG_CONFIG_HOME/homebrew、無ければ ~/.homebrew を読む。
-    config_home=''${XDG_CONFIG_HOME:+$XDG_CONFIG_HOME/homebrew}
-    cp "''${config_home:-$HOME/.homebrew}/trust.json" "$preview/homebrew/" 2>/dev/null || true
+    # brew (bin/brew の HOMEBREW_USER_CONFIG_HOME) と同じ優先順で本物の trust store を探す。
+    if [ -n "''${XDG_CONFIG_HOME-}" ]; then
+      config_home=$XDG_CONFIG_HOME/homebrew
+    elif [ -n "''${HOMEBREW_XDG_CONFIG_HOME-}" ]; then
+      config_home=$HOMEBREW_XDG_CONFIG_HOME/homebrew
+    else
+      config_home=$HOME/.homebrew
+    fi
+    cp "$config_home/trust.json" "$preview/homebrew/" 2>/dev/null || true
     ${lib.concatMapStrings (
       n:
       "XDG_CONFIG_HOME=\"$preview\" brew trust --formula ${lib.escapeShellArg n} >/dev/null 2>&1 || true\n"

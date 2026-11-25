@@ -109,6 +109,41 @@ exec "$@"
                             expected.append(f'home-manager:switch --flake .#gigun-{target} --option fixture value')
                     self.assertEqual(log.read_text().splitlines(), expected)
 
+    def test_brew_bundle_follows_only_a_new_darwin_configuration(self):
+        if not self.darwin:
+            self.skipTest('Only Darwin runs brew-bundle after the switch')
+        # (arguments, brew-bundle present, darwin-rebuild status) -> brew-bundle called, note printed
+        cases = [
+            (['--list-generations'], True, 0, False, False),
+            (['--switch-generation', '3'], True, 0, False, False),
+            ([], False, 0, False, True),
+            ([], False, 42, False, False),
+        ]
+        for args, present, status, called, noted in cases:
+            with self.subTest(args=args, present=present, status=status), tempfile.TemporaryDirectory() as temp:
+                base = Path(temp)
+                bin = base / 'bin'
+                bin.mkdir()
+                log = base / 'calls'
+                bundle = base / 'current-system' / 'brew-bundle'
+                body = re.sub(r'/nix/store/[^\s"\']+/bin/([A-Za-z0-9_-]+)', lambda m: str(bin / m[1]), self.source)
+                body = body.replace('/usr/bin/sudo', str(bin / 'sudo'))
+                body = body.replace('/run/current-system/brew-bundle', str(bundle))
+                self.executable(bin / 'sudo', 'shift 2\nexec "$@"\n')
+                self.executable(bin / 'darwin-rebuild', 'printf "%s\\n" "darwin-rebuild:$*" >> "$CALL_LOG"\nexit "$STATUS"\n')
+                if present:
+                    bundle.parent.mkdir()
+                    self.executable(bundle, 'printf "%s\\n" brew-bundle >> "$CALL_LOG"\n')
+                app = base / 'switch.nu'
+                app.write_text(body)
+                result = subprocess.run([os.environ['TEST_NU'], '--no-config-file', str(app), *args],
+                                        env={'HOME': str(base), 'PATH': str(bin), 'CALL_LOG': str(log),
+                                             'STATUS': str(status)},
+                                        capture_output=True, text=True, timeout=30)
+                self.assertEqual(result.returncode, status, result.stderr)
+                self.assertEqual('brew-bundle' in log.read_text().splitlines(), called)
+                self.assertEqual('note:' in result.stderr, noted, result.stderr)
+
     def test_git_ssh_transport_runs_native_ssh_as_the_declared_user(self):
         if not self.darwin:
             self.skipTest('Only Darwin has a privileged evaluator with user SSH transport')
