@@ -274,6 +274,8 @@
               "$brew_bin" update --quiet >/dev/null 2>&1 || true
               outdated=$("$brew_bin" outdated --quiet 2>/dev/null) || true
               [ -n "$outdated" ] || return 0
+              # 改行区切りの名前を 1 行に並べて出すため、ここも分割させる。
+              # shellcheck disable=SC2086
               echo "brew upgrade:" $outdated >&2
               # shellcheck disable=SC2086
               if ! HOMEBREW_NO_AUTO_UPDATE=1 "$brew_bin" upgrade $outdated; then
