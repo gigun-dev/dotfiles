@@ -64,8 +64,8 @@
     # Secure Enclave の中に SSH 鍵を作り、それを Git のコミット署名鍵として使う。
     # 秘密鍵はチップから一切出ない (~/.ssh/id_enclave_key はスタブで、実体は
     # Secure Enclave 内)。upstream の `systems` が aarch64-darwin のみなので
-    # 事実上 M4 Pro 専用。Intel Mac / Linux (mini-vm, WSL) には homeManagerModules
-    # を足さない (flake.nix の mkDarwinSystem 参照)。
+    # darwin 構成 (mkDarwinSystem) だけが homeManagerModules を足し、Linux
+    # (mini-vm, WSL) の homeConfigurations には足さない。
     # follows を付けてよい理由: llm-agents / cclens と違いこちらは中身が Nushell
     # スクリプト (package.nix 参照) でビルドが軽く、専用キャッシュに当たるかを
     # 気にする必要が無い。follows してもソースビルドのコストが無視できる。
@@ -179,7 +179,6 @@
     inputs.flake-parts.lib.mkFlake { inherit inputs; } {
       systems = [
         "aarch64-darwin"
-        "x86_64-darwin"
         "x86_64-linux"
         "aarch64-linux"
       ];
@@ -656,24 +655,18 @@
             # キャッシュヒットでビルドが走らず、ハングも起きない。
           ];
 
-          # 両アーキテクチャで同一モジュールを共有。
-          #
           # 第 2 引数は**役割**。アーキテクチャとは別の軸として明示的に渡す。
-          #   alwaysOn: 24/365 で置きっぱなしにする拠点か (現状は Mac Mini だけ)。
-          #             人が前に座っていないので、落ちても誰も気づかない。だから
-          #             証拠を残す番人 (network-watchdog) を入れる対象になる。
+          #   alwaysOn: 24/365 で置きっぱなしにする拠点か。人が前に座っていないので、
+          #             落ちても誰も気づかない。だから証拠を残す番人 (network-watchdog)
+          #             を入れる対象になる。
           #
-          # ⚠️ いま「x86_64-darwin = mini = alwaysOn」が 1:1 なのは**偶然**。mini が
-          # Intel なのは買った時期の話で、常時起動であることとは何の関係も無い。
-          # だから番人の有無を `system == "x86_64-darwin"` では分岐させない
-          # (そう書くと mini を Apple Silicon に置き換えた日に、誰にも気づかれずに
-          # 番人が消える)。機械を入れ替えるときは、arch ではなくこの alwaysOn を
-          # 新しいホストへ付け替えること。
-          #
-          # Why not ホスト名で分岐: darwinConfigurations のキーは
-          # `${username}-${system}` で、nix run .#switch がこの形で自動選択している
-          # (下のコメント参照)。キーにホスト名を入れると switch が壊れるため、
-          # キーの形は変えずに、生成側の引数で役割を渡す形にした。
+          # 今の darwin ホストは Pro だけで、alwaysOn のホストは無い。Intel mini の
+          # macOS は Nix から外して Ansible が持つ (docs/mini-ansible.md)。常時起動の
+          # Apple Silicon 機を足す日は、新しい aarch64-darwin ホストとして alwaysOn を
+          # 付ける。番人の有無を arch で分岐させないのはこのため (常時起動かどうかは
+          # 買った機械の CPU と関係が無い)。
+          # ⚠️ そのホストを足すときは switch の自動選択も見直す。キーは
+          # `${username}-${system}` なので、2 台目の aarch64-darwin は Pro と衝突する。
           mkDarwinSystem =
             system:
             {
@@ -685,11 +678,8 @@
               # 理由: 新ホストを足すときに書き忘れたら評価エラーで気づけるように。
               hostName,
               alwaysOn ? false,
-              shellLinksManagedByAnsible ? false,
-              userDefaultsManagedByAnsible ? false,
             }:
             inputs.nix-darwin.lib.darwinSystem {
-              specialArgs = { inherit userDefaultsManagedByAnsible; };
               modules = [
                 {
                   # プラットフォームは darwinSystem の `system` 引数ではなく
@@ -723,7 +713,6 @@
                     useUserPackages = true;
                     backupFileExtension = "backup";
                     extraSpecialArgs = {
-                      inherit shellLinksManagedByAnsible;
                       llmAgents = llmAgentsFor system;
                       cclens = cclensFor system;
                       t3Limits = t3LimitsFor system;
@@ -732,19 +721,12 @@
                     };
                     users.${username} = {
                       # nix-secure-enclave-key の upstream `systems` は aarch64-darwin
-                      # のみ (packages.default が aarch64-darwin でしかビルドされない)。
-                      # x86_64-darwin (Intel Mac Mini) で homeManagerModules.default を
-                      # 無条件 import すると `self.packages.${pkgs.system}.default` の
-                      # 評価自体が存在しない attr で落ちる。optionals で system 分岐して
-                      # Intel Mac ではこの import 自体を評価させない (`nix eval` すら
-                      # 通らないので mkIf では防げない — import するかどうかのレベルで切る)。
+                      # のみ。darwin 構成は aarch64-darwin だけなので無条件に import する。
                       imports = [
                         ./nix/modules/home
                         inputs.agent-skills.homeManagerModules.default
                         ./nix/modules/home/agent-skills.nix
                         ./nix/modules/home/agent-plugins.nix
-                      ]
-                      ++ inputs.nixpkgs.lib.optionals (system == "aarch64-darwin") [
                         inputs.nix-secure-enclave-key.homeManagerModules.default
                         ./nix/modules/darwin/secure-enclave-key.nix
                       ];
@@ -796,15 +778,6 @@
                     })
                   ];
                 };
-            # Mac Mini (Intel)。Lima ゲスト (mini-vm) を載せた 24/365 の拠点。
-            # macOS 側は nix 管理を凍結中なのでこの hostName 宣言は当たらない。
-            # network-watchdog / homebrew の brews と同じ「M チップ化した日に効く予約」。
-            "${username}-x86_64-darwin" = mkDarwinSystem "x86_64-darwin" {
-              hostName = "mini";
-              alwaysOn = true;
-              shellLinksManagedByAnsible = true;
-              userDefaultsManagedByAnsible = true;
-            };
           };
 
           # Mac Mini (Intel) 上の Lima ゲスト。
@@ -848,7 +821,6 @@
                 config.allowUnfree = true;
               };
               extraSpecialArgs = {
-                shellLinksManagedByAnsible = false;
                 llmAgents = llmAgentsFor "x86_64-linux";
                 cclens = cclensFor "x86_64-linux";
                 t3Limits = t3LimitsFor "x86_64-linux";

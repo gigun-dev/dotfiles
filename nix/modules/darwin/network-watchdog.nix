@@ -7,10 +7,6 @@ let
   #      手で叩けることが、番人にとっては本質的に重要 (switch できない状態でも走らせたい)。
   #   2. nix 文字列に埋めると ''${...} のエスケープが要り、shellcheck も掛からなくなる。
   #
-  # Why not pkgs.writeShellApplication: ビルド時に shellcheck を要求する。
-  # x86_64-darwin は nixpkgs 26.11 で drop されており (CLAUDE.md 参照)、
-  # このホストでビルド可能な derivation は少ないほど良い。検証は手元 (aarch64) で
-  # shellcheck を掛けて担保する。
   # Why not pkgs.writeShellScriptBin: nixpkgs の bash 5 で動くことになるが、
   # 実測したのは macOS 標準の /bin/bash (3.2)。**試した形のまま**動かしたいので
   # 素のファイルを store に置き、/bin/bash で起動する。
@@ -18,21 +14,17 @@ let
   watchdogScript = ./network-watchdog.sh;
 in
 {
-  # 常時起動ホスト (mini) 専用。⭐️ このモジュールを import するかどうかは
-  # flake.nix の mkDarwinSystem の `alwaysOn` が決める。
-  # ⛔️ system == "x86_64-darwin" で分岐しないこと: mini が Intel なのは偶然で、
-  # 「常時起動の拠点である」という事実とは無関係。詳細は flake.nix のコメント。
+  # 常時起動ホスト専用。⭐️ このモジュールを import するかどうかは
+  # flake.nix の mkDarwinSystem の `alwaysOn` が決める。arch では分岐しない
+  # (理由は flake.nix のコメント)。
   #
-  # ⚠️ ただし 2026-09-03 現在、このモジュールは唯一の常時起動ホストである実機
-  # mini には**届いていない**。mini の macOS は nix 管理を凍結中 (CLAUDE.md の
-  # 凍結の節) で、x86_64-darwin の darwin 構成は評価できない。実機には
-  # `bootstrap.sh --net-watchdog` が**同じ network-watchdog.sh** を user agent
-  # (label: dev.gigun.net-watchdog / 出力先: ~/Library/Logs/net-watchdog) として
-  # 当てている。sudo 1 回で system daemon へ昇格するのは
-  # net-watchdog-system-install.sh。
-  # ⛔️ 「使われていないから」とこのモジュールを消さないこと: mini を
-  # Apple Silicon に替えた日、alwaysOn を付け替えるだけでこの system daemon
-  # (/var/log/net-watchdog) がそのまま効く。消すと同じ設計をやり直すことになる。
+  # ⚠️ 今の darwin 構成に alwaysOn のホストは無く、このモジュールはどの機械にも
+  # 当たっていない。Intel mini の macOS は Nix から外して Ansible へ移しており
+  # (docs/mini-ansible.md)、実機では `bootstrap.sh --net-watchdog` が
+  # **同じ network-watchdog.sh** を user agent (label: dev.gigun.net-watchdog /
+  # 出力先: ~/Library/Logs/net-watchdog) として据えている。
+  # 常時起動の Apple Silicon 機を新しい aarch64-darwin ホスト
+  # として足す日に、alwaysOn を付ければこの system daemon (/var/log/net-watchdog) が効く。
 
   # 出力先ディレクトリは activation で先に作る。
   # なお apple-container.nix も postActivation.text を書くが、この option は

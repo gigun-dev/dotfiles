@@ -1,10 +1,10 @@
 # M4 Pro 専用: Secure Enclave 内の SSH 鍵で Git コミットを署名する。
 #
 # upstream モジュール本体 (options.nix / home-manager-module.nix) の import は
-# ここではやらない。flake.nix の mkDarwinSystem が aarch64-darwin のときだけ
+# ここではやらない。flake.nix の mkDarwinSystem (aarch64-darwin のみ) が
 # `inputs.nix-secure-enclave-key.homeManagerModules.default` を足す形にしている
-# (Intel Mac / Linux では upstream の systems が aarch64-darwin のみで評価不能
-# なので、この import 自体を条件から外している)。ここは設定値だけを持つ。
+# (Linux では upstream の systems が aarch64-darwin のみで評価不能なので、
+# homeConfigurations には足さない)。ここは設定値だけを持つ。
 #
 # なぜ共通の nix/modules/home/programs/git に置かないか:
 # そこは Linux (mini-vm / WSL) と共用のモジュールで、Linux 側には Secure Enclave も

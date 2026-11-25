@@ -1,7 +1,6 @@
 {
   config,
   pkgs,
-  lib,
   ...
 }:
 let
@@ -22,8 +21,8 @@ in
   # 更新は同梱の update-container.sh を使わず version と hash を上げること。
   # self-update させると宣言と実体が乖離する。
   #
-  # Apple Silicon 専用 (macOS 26 以降)。Intel Mac には入れない。
-  system.activationScripts.postActivation.text = lib.optionalString pkgs.stdenv.hostPlatform.isAarch64 ''
+  # Apple Silicon 専用 (macOS 26 以降)。darwin 構成は aarch64-darwin だけ。
+  system.activationScripts.postActivation.text = ''
     if ! /usr/local/bin/container --version 2>/dev/null | grep -q "${version}"; then
       echo "installing apple/container ${version}..."
       installer -pkg ${installerPkg} -target / >/dev/null

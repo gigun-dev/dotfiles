@@ -23,7 +23,6 @@ let
   };
   activationFixture = inputs.home-manager.lib.homeManagerConfiguration {
     extraSpecialArgs = {
-      shellLinksManagedByAnsible = false;
       gigunPlugins = import ../gigun-plugins.nix inputs;
     };
     pkgs = pkgs // {
@@ -72,7 +71,7 @@ let
   );
   # Homebrew は activation (root) ではなく switch 後の brew-bundle (利用者) が揃える。
   # 評価だけで確かめるので、darwin を作れない Linux の CI でも回る。
-  # mini (gigun-x86_64-darwin) は nixpkgs が x86_64-darwin を落としたので評価できず、含めない。
+  # darwin 構成は Pro の 2 つだけ (mini の macOS は Ansible が持つ。docs/mini-ansible.md)。
   homebrewFailures =
     let
       darwin = inputs.self.darwinConfigurations;

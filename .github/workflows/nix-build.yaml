@@ -158,8 +158,8 @@ jobs:
         run: sh scripts/verify.sh
 
   # ビルドするのは x86_64-linux だけ。**無人で適用されるのがそこだけ**だから。
-  # M4 Pro (aarch64-darwin) は人が前に座って switch するので失敗はその場で見えるし、
-  # x86_64-darwin は nix 管理を凍結済みで switch しない (CLAUDE.md 参照)。
+  # M4 Pro (aarch64-darwin) は人が前に座って switch するので失敗はその場で見える。
+  # Intel mini の macOS は Nix の構成を持たない (Ansible が持つ。docs/mini-ansible.md)。
   #
   # substituter は flake.nix の nixConfig にあるものを使う。llm-agents / cclens は
   # あえて nixpkgs.follows を付けていないので、上流の専用 cachix に直ヒットして

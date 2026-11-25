@@ -127,14 +127,10 @@
       yubikey-manager # ykman: Yubico 公式 CLI。型番確認・OTP 無効化・OATH (TOTP)・PIV の設定
       age-plugin-yubikey # age / sops の受信者に YubiKey (PIV) を使う。docs/security.md
     ]
-    ++ lib.optionals (!(pkgs.stdenv.hostPlatform.isDarwin && pkgs.stdenv.hostPlatform.isx86_64)) [
-      llmAgents.codex # Intel Mac のみ brew cask (Rust build 回避)、それ以外は nix
-      # agy (Google Antigravity CLI)。公式バイナリを $out/bin/agy に置くだけでソースビルド無し。
-      # 同じ条件だが理由は別: llm-agents が x86_64-darwin を未収録のため Intel Mac Mini では入らない
-      # (上流 Google には darwin-x64 バイナリが存在するので、必要になったら llm-agents へ PR)
-      llmAgents.antigravity-cli
-    ]
     ++ [
+      llmAgents.codex
+      # agy (Google Antigravity CLI)。公式バイナリを $out/bin/agy に置くだけでソースビルド無し。
+      llmAgents.antigravity-cli
 
       # Font
       nerd-fonts.jetbrains-mono

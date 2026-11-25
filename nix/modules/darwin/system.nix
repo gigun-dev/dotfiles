@@ -2,7 +2,6 @@
   config,
   pkgs,
   lib,
-  userDefaultsManagedByAnsible ? false,
   ...
 }:
 let
@@ -50,11 +49,10 @@ in
 
   # TouchID sudo。reattach (pam_reattach) は tmux / zellij 内でも Touch ID を通すため。
   # watchIdAuth は蓋を閉じた clamshell で Touch ID が使えないときの代替。
-  # pam-watchid は aarch64-darwin 専用 (meta.platforms) なので Intel mini では評価させない。
   security.pam.services.sudo_local = {
     touchIdAuth = true;
     reattach = true;
-    watchIdAuth = pkgs.stdenv.hostPlatform.isAarch64;
+    watchIdAuth = true;
   };
 
   # Xcode CLT auto-install + Tailscale Magic DNS resolver
@@ -90,7 +88,7 @@ in
     # `brew shellenv` の path_helper fork を静的 export で代替。
     shellInit =
       let
-        prefix = if pkgs.stdenv.hostPlatform.isAarch64 then "/opt/homebrew" else "/usr/local";
+        prefix = "/opt/homebrew";
       in
       ''
         export HOMEBREW_PREFIX="${prefix}"
@@ -107,7 +105,7 @@ in
   system.defaults = {
     # Dock
     dock = {
-      autohide = lib.mkIf (!userDefaultsManagedByAnsible) true;
+      autohide = true;
       show-recents = true;
     };
 
@@ -124,7 +122,7 @@ in
     # Global
     NSGlobalDomain = {
       # Keyboard (ryoppippi pattern)
-      KeyRepeat = lib.mkIf (!userDefaultsManagedByAnsible) 2;
+      KeyRepeat = 2;
       InitialKeyRepeat = 25;
 
       # Disable auto-correct and substitutions
@@ -157,15 +155,6 @@ in
       LoadPrefsFromCustomFolder = true;
       PrefsCustomFolder = "/Users/${username}/ghq/github.com/gigun-dev/dotfiles/iterm2";
     };
-  };
-
-  # Mac Mini (Intel) — サーバー用途のためスリープ無効化
-  power = lib.mkIf pkgs.stdenv.hostPlatform.isx86_64 {
-    sleep.computer = "never";
-    sleep.display = "never";
-    sleep.harddisk = "never";
-    restartAfterPowerFailure = true;
-    restartAfterFreeze = true;
   };
 
   # Required for darwin-rebuild

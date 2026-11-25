@@ -5,7 +5,6 @@
   ...
 }:
 let
-  isAarch64 = pkgs.stdenv.hostPlatform.isAarch64;
   cfg = config.homebrew;
   inherit (cfg) onActivation;
   brew = "${cfg.prefix}/bin/brew";
@@ -165,8 +164,6 @@ in
       "fayazara/tap" # screendrop の cask
       "k1LoW/tap"
       "manaflow-ai/cmux"
-    ]
-    ++ lib.optionals isAarch64 [
       "rudrankriyam/tap"
     ];
 
@@ -175,8 +172,6 @@ in
       "cloudflared"
       "k1LoW/tap/mo"
       "tailscale"
-    ]
-    ++ lib.optionals isAarch64 [
       "rudrankriyam/tap/afm"
     ];
 
@@ -187,15 +182,8 @@ in
       "claude"
       "claude-devtools" # Claude Code のセッション transcript を可視化する Electron アプリ。実体は GUI なので nix ではなく cask
       "cmux"
-    ]
-    ++ lib.optionals isAarch64 [
       "1password"
       "1password-cli" # 公式の macOS 配布経路。Nix の CLI は unfree。
-    ]
-    ++ lib.optionals (!isAarch64) [
-      "codex" # Intel Mac のみ brew cask (Rust build 回避)。aarch64 + Linux は packages.nix で nix install
-    ]
-    ++ [
       "discord"
       "drawio" # GUI + headless export CLI (drawio -x ...) を同梱。CLI 目的でも実体は desktop app のため cask
       "figma"

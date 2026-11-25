@@ -2,7 +2,6 @@
   config,
   pkgs,
   lib,
-  shellLinksManagedByAnsible ? false,
   gigunPlugins,
   ...
 }:
@@ -110,8 +109,6 @@ in
     # Langfuse の非秘密接続先。鍵は ~/.config/claude-code/langfuse.env に分離する。
     "claude-code/langfuse-endpoints.env".text =
       builtins.readFile ../../../claude/langfuse-endpoints.env;
-  }
-  // lib.optionalAttrs (!shellLinksManagedByAnsible) {
     "sheldon".source = mkLink "sheldon";
     "zeno".source = mkLink "zeno";
     "zsh/functions".source = mkLink "zsh/functions";
@@ -351,10 +348,8 @@ in
       [ -e "$dst" ] && mv "$dst" "$dst.backup"
       ln -sf "$src" "$dst"
     }
-    ${lib.optionalString (!shellLinksManagedByAnsible) ''
-      link_force "${dotfilesPath}/zsh/.zshrc" "${config.home.homeDirectory}/.zshrc"
-      link_force "${dotfilesPath}/zsh/.zshenv" "${config.home.homeDirectory}/.zshenv"
-    ''}
+    link_force "${dotfilesPath}/zsh/.zshrc" "${config.home.homeDirectory}/.zshrc"
+    link_force "${dotfilesPath}/zsh/.zshenv" "${config.home.homeDirectory}/.zshenv"
 
     # Claude Code (~/.claude/ は memory/log 等があるので個別リンク)
     # 指示の正本は agents/。Claude は AGENTS.md の `@~/.claude/shared/*.md` で断片を読むので、

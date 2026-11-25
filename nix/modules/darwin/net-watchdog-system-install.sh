@@ -13,9 +13,10 @@
 # 設置には sudo が要る。エージェント経由の手当てではパスワードを扱えないため、
 # ここだけ人が打つ 1 コマンドに切り出してある。
 #
-# nix 管理下の機械 (mini を M チップに替えた日) では network-watchdog.nix が
-# 同じ内容の daemon (label は org.nixos.network-watchdog) を作るので、これは不要。
-# ⚠️ その日が来たら、この手当て分 (dev.gigun.net-watchdog) は label が違うので
+# nix 管理下の常時起動機 (alwaysOn を付けた aarch64-darwin ホスト) では
+# network-watchdog.nix が同じ内容の daemon (label は org.nixos.network-watchdog) を
+# 作るので、これは不要。
+# ⚠️ 手当て済みの機械をそちらへ移すときは、この分 (dev.gigun.net-watchdog) は label が違うので
 # darwin-rebuild では消えない。手で bootout + rm すること (番人 2 匹は Wi-Fi の
 # 電源 off/on を二重に撃つ)。
 #

@@ -417,18 +417,18 @@ uv run --locked --project ansible/mini-macos ansible-playbook -i ansible/mini-ma
 復元は新リンクが想定どおりであることを確認し、その2リンクを外して `.before-ansible-*` を
 元の名前へ戻す (自動復元しない)。
 
-HM とbootstrap は mini で共通の5リンクを作らない。mini の新しい HM 構成では
-`shellLinksManagedByAnsible = true` により生成を除外し、bootstrap fallback は macOS の
+HM とbootstrap は mini で共通の5リンクを作らない。flake に mini の darwin 構成は無く
+(x86_64-darwin は評価できないため削除した)、bootstrap fallback は macOS の
 `LocalHostName=mini` の場合のみ除外する。Pro・他ホストの設定は維持する。
 ホスト名を変更するときはこの所有権判定も見直す。凍結済みの HM generation は書き換わらないため、
-その activation を直接再実行しない。この変更のために mini の Nix/Darwin switch は行わない。
+その activation を直接再実行しない。mini で Nix/Darwin switch は行わない。
 
 ### user defaults の管理
 
 miniのDock `autohide=true` と `NSGlobalDomain.KeyRepeat=2` はAnsibleが所有する。
 `--check --diff -e '{"mini_targets":["defaults"],"mini_apply_ack":true}'` で現在値を確認し、
 同じ引数でcheckを外して適用する。他のdefaults、アプリ再起動、packagesは対象外。
-新しいmini用Nix宣言はこの2項目だけを除外し、Proには従来値を残す。
+Pro の nix-darwin は同じ2項目を従来値のまま宣言する。
 凍結済みDarwin activationは変更しないため直接再実行しない。
 
 miniのsource同期は、作業差分を保全し、確認済みmainへのfast-forwardで行う。
