@@ -36,7 +36,9 @@ in
 {
   launchd.daemons.nh-clean.serviceConfig = {
     ProgramArguments = [ "${nhClean}" ];
-    EnvironmentVariables.PATH = "${config.nix.package}/bin:/usr/bin:/bin";
+    # /usr/sbin は lsof のため。Nix の GC は実行中のプロセスが開いている store のパスを
+    # lsof で拾って root にする。無いと "executing lsof" で失敗し、使用中のパスまで消しうる。
+    EnvironmentVariables.PATH = "${config.nix.package}/bin:/usr/bin:/bin:/usr/sbin";
     StartInterval = 3600;
     StandardOutPath = "/var/log/nh-clean.log";
     StandardErrorPath = "/var/log/nh-clean.log";
