@@ -79,7 +79,7 @@ Intel mini は [Ansible への段階移行](mini-ansible.md)を準備中。既�
 最新Intel構成が評価不能なため Nix 導入済み Intel Mac の bootstrap は引き続き停止する。
 移管済み対象には旧bootstrapを重ねず、対象別の管理者を確認する。
 Guard 限定は `bash bootstrap.sh --guard-only`、読取検査は `bash scripts/check.sh`。
-旧包括経路を意図して使う場合だけ `--legacy`、番人も必要なら `--net-watchdog`。
+旧包括経路を意図して使う場合だけ `--legacy`。mini の番人 (network-watchdog) は Ansible の `net_watchdog` target が持つ。
 Nix 未導入の場合もこの包括経路に入り、CLT/Homebrew/uv tools の導入やリンク・launchd変更を伴う。
 Guard の正本が欠けた checkout では、これらを始める前に停止する。
 今回 mini と VM には接続・適用していない。

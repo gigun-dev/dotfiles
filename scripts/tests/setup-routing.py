@@ -42,7 +42,7 @@ class Routing(unittest.TestCase):
             file.write_text('DOTFILES_DIR="' + str(self.repo) + '"\n' +
                             '. "$DOTFILES_DIR/scripts/bootstrap-route.sh"\n' +
                             'dotfiles_bootstrap_route "$@"\n' +
-                            'printf "fallback:%s\\n" "$WITH_NET_WATCHDOG" >> "$LOG"\n')
+                            'printf "fallback\\n" >> "$LOG"\n')
         return subprocess.run([os.environ.get("TEST_BASH", "/bin/bash"), str(file), *args], cwd=self.repo, env=self.env, capture_output=True, text=True)
 
     def commands(self):
@@ -97,15 +97,11 @@ class Routing(unittest.TestCase):
     def test_no_nix_preserves_legacy_route(self):
         (self.bin / "nix").unlink()
         self.assertEqual(self.run_script(prefix=True).returncode, 0)
-        self.assertEqual(self.commands(), "fallback:0\n")
+        self.assertEqual(self.commands(), "fallback\n")
 
     def test_explicit_legacy_preserves_route(self):
         self.assertEqual(self.run_script("--legacy", prefix=True).returncode, 0)
-        self.assertEqual(self.commands(), "fallback:0\n")
-
-    def test_watchdog_preserves_route(self):
-        self.assertEqual(self.run_script("--net-watchdog", prefix=True).returncode, 0)
-        self.assertEqual(self.commands(), "fallback:1\n")
+        self.assertEqual(self.commands(), "fallback\n")
 
     def test_missing_guard_source_stops_legacy(self):
         (self.repo / "uv/uv.toml").unlink()

@@ -34,7 +34,6 @@ class MigrationFixture:
         (self.repo / "zsh/.zshenv").write_text("export XDG_CACHE_HOME=${HOME}/.cache\n")
         self.variables = yaml.safe_load((ROOT / "group_vars/mini_macos.yml").read_text())
         self.variables.update(mini_controller_repo=str(ROOT.parent.parent),
-                              mini_stage_dir=str(self.home / "Library/Application Support/dotfiles-migration/network-watchdog"),
                               mini_home=str(self.home), mini_repo=str(self.repo),
                               mini_shell_links=[{"src": "zsh/.zshenv", "dest": ".zshenv"}])
 
@@ -77,15 +76,23 @@ class MigrationFixture:
         self.variables["mini_tool_name"] = name
 
 class Migration(MigrationFixture, unittest.TestCase):
-    def test_homebrew_ownership_is_split_by_formula(self):
-        self.assertEqual(self.variables["mini_owners"]["packages"], "manual")
-        self.assertEqual(self.variables["mini_owners"]["formulae"], "ansible")
-        self.assertEqual(self.variables["mini_formulae"], ["lima"])
-        self.assertEqual(self.variables["mini_formula_policy"], {
-            "lima": {"owner": "ansible", "state": "adopted"},
-            "xcodegen": {"owner": "manual", "state": "pending"},
-            "mo": {"owner": "manual", "state": "pending"},
-        })
+    def test_homebrew_declares_only_what_the_mini_role_needs(self):
+        self.assertEqual(self.variables["mini_owners"]["homebrew"], "ansible")
+        self.assertEqual(self.variables["mini_taps"], [])
+        self.assertEqual(self.variables["mini_formulae"],
+                         ["lima", "tailscale", "gh", "xcodegen", "fzf", "zoxide", "ripgrep"])
+        self.assertEqual(self.variables["mini_casks"],
+                         ["google-chrome", "karabiner-elements", "monitorcontrol", "aqua-voice"])
+        self.assertEqual(self.variables["mini_update_formulae"], [])
+        for task in yaml.safe_load((ROOT / "tasks/homebrew.yml").read_text()):
+            module = task.get("community.general.homebrew") or task.get("community.general.homebrew_cask")
+            if module:
+                self.assertEqual(module["state"], "present")
+                self.assertFalse(module["update_homebrew"])
+                self.assertNotIn("upgrade_all", {k for k, v in module.items() if v})
+        update = (ROOT / "update.yml").read_text()
+        self.assertNotIn("homebrew_cask", update)
+        self.assertIn("mini_update_formulae | difference(mini_formulae)", update)
 
     def test_adopted_tool_defaults_match_the_pre_refactor_values(self):
         expected = {
@@ -373,33 +380,31 @@ class Migration(MigrationFixture, unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(config.stat().st_mode & 0o777, 0o700)
 
-    def test_staging_never_follows_live_directory_link(self):
-        stage = Path(self.variables["mini_stage_dir"])
-        stage.parent.mkdir(parents=True)
-        live = self.home / "live"
-        live.mkdir()
-        script = live / "network-watchdog.sh"
-        script.write_text("live sentinel")
-        stage.symlink_to(live, target_is_directory=True)
-        result = self.run_tasks("launchd.yml")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("TASK [Refuse staging through links", result.stdout)
-        self.assertEqual(script.read_text(), "live sentinel")
-
-    def test_plist_preserves_user_service_and_no_staging_activation(self):
+    def test_watchdog_plist_matches_the_running_user_agent(self):
         template = (ROOT / "templates/network-watchdog.plist.j2").read_text()
-        rendered = Environment(undefined=StrictUndefined).from_string(template).render(mini_home="/Users/gigun")
+        home = "/Users/gigun"
+        # Ansible の template module と同じく末尾の改行を残す。
+        rendered = Environment(undefined=StrictUndefined, keep_trailing_newline=True).from_string(template).render(
+            mini_watchdog_label="dev.gigun.net-watchdog",
+            mini_watchdog_app_dir=f"{home}/Library/Application Support/net-watchdog",
+            mini_watchdog_log_dir=f"{home}/Library/Logs/net-watchdog")
         plist = plistlib.loads(rendered.encode())
-        self.assertEqual(plist["Label"], "dev.gigun.net-watchdog")
-        self.assertEqual(plist["EnvironmentVariables"]["NET_WATCHDOG_NO_REMEDIATE"], "1")
-        self.assertEqual(plist["StartInterval"], 30)
-        self.assertTrue(plist["RunAtLoad"])
-        self.assertEqual(plist["ProgramArguments"], ["/bin/bash", "/Users/gigun/Library/Application Support/net-watchdog/network-watchdog.sh"])
-        self.assertEqual(plist["EnvironmentVariables"]["PATH"], "/usr/bin:/bin:/usr/sbin:/sbin")
-        for task in yaml.safe_load((ROOT / "tasks/launchd.yml").read_text()):
-            self.assertFalse(any(k in task for k in ["ansible.builtin.command", "ansible.builtin.shell", "community.general.launchd", "notify"]))
+        # 2026-11-26 に mini から読んだ稼働中の plist と同じ値。plutil の正規形 (key 順・tab) で
+        # 書いてあるので、bytes も一致して apply は plist を書き換えず job を入れ直さない。
+        self.assertEqual(plist, {
+            "EnvironmentVariables": {
+                "NET_WATCHDOG_DIR": f"{home}/Library/Logs/net-watchdog",
+                "NET_WATCHDOG_NO_REMEDIATE": "1",
+                "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+            },
+            "Label": "dev.gigun.net-watchdog",
+            "ProgramArguments": ["/bin/bash", f"{home}/Library/Application Support/net-watchdog/network-watchdog.sh"],
+            "RunAtLoad": True,
+            "StandardErrorPath": f"{home}/Library/Logs/net-watchdog/daemon.err",
+            "StartInterval": 30,
+        })
+        self.assertEqual(rendered.encode(), plistlib.dumps(plist))
         self.assertNotIn("handlers:", (ROOT / "apply.yml").read_text())
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -56,9 +56,11 @@ fi''',
             self.assertFalse(forbidden.exists(), "Wi-Fi operation must never be attempted")
 
     def test_every_shipped_service_declaration_disables_remediation(self):
-        for relative in ["bootstrap.sh", "nix/modules/darwin/net-watchdog-system-install.sh",
-                         "ansible/mini-macos/templates/network-watchdog.plist.j2"]:
+        for relative in ["nix/modules/darwin/net-watchdog-system-install.sh"]:
             self.assertIn('<key>NET_WATCHDOG_NO_REMEDIATE</key><string>1</string>',
                           (ROOT / relative).read_text())
+        # Ansible の template は plutil の正規形 (key と値が別の行) で書いてある。
+        self.assertIn('<key>NET_WATCHDOG_NO_REMEDIATE</key>\n\t\t<string>1</string>',
+                      (ROOT / "ansible/mini-macos/templates/network-watchdog.plist.j2").read_text())
         self.assertIn('EnvironmentVariables.NET_WATCHDOG_NO_REMEDIATE = "1";',
                       (ROOT / "nix/modules/darwin/network-watchdog.nix").read_text())

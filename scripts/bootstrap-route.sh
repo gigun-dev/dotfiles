@@ -6,14 +6,12 @@ dotfiles_bootstrap_route() {
   fi
 
   # Pro は Nix/Home Manager に委譲し、未導入時・凍結ホストの互換経路を残す。
-  WITH_NET_WATCHDOG=0
   LEGACY=0
   for arg in "$@"; do
     case "$arg" in
     --legacy) LEGACY=1 ;;
-    --net-watchdog) WITH_NET_WATCHDOG=1; LEGACY=1 ;;
     --help|-h)
-      echo "usage: $0 [--guard-only | --legacy [--net-watchdog]]"
+      echo "usage: $0 [--guard-only | --legacy]"
       echo "default: Nix 導入済みなら通常 switch、未導入なら従来の導入・リンク経路。"
       exit 0 ;;
     *) echo "unknown argument: $arg (see --help)" >&2; exit 2 ;;
@@ -22,7 +20,7 @@ dotfiles_bootstrap_route() {
   if [ "$LEGACY" = 0 ] && command -v nix >/dev/null 2>&1; then
     if [ "$(uname -s)" = Darwin ] && [ "$(uname -m)" = x86_64 ]; then
       echo "Intel Mac の Nix 適用は凍結中。Guard のみ: bash bootstrap.sh --guard-only" >&2
-      echo "旧導入経路が必要な場合のみ --legacy / --net-watchdog を明示する。" >&2
+      echo "旧導入経路が必要な場合のみ --legacy を明示する。" >&2
       exit 1
     fi
     # HM のライブリンクも同じ固定 checkout を参照する。隔離 worktree を誤適用しない。

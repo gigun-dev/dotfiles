@@ -1,33 +1,66 @@
-# Intel mini の macOS を段階的に管理する
+# Intel mini の macOS を Ansible で管理する
 
-Intel mini の macOS は Ansible への移行中で、既存 Nix generation 26 と未移管の管理を残す。
-Ansible は fzf / zoxide / ripgrep / XcodeGen の選択リンク、mini 専用の最小 shell 設定のリンク、選択した user defaults を管理する。
-NixOS の mini-vm、Pro の nix-darwin、既存の自動更新・監視は別の所有者のままとする。
-watchdog の観測のみ設定は別途適用済みだが、稼働サービスの所有権は移していない。
+Intel mini の macOS は Nix から外し、Ansible (`ansible/mini-macos`) が正本を持つ (ADR 0014)。
+flake に mini の darwin 構成は無い。実機には凍結 generation 27 (`/nix/var/nix/profiles/system-27-link`) が
+Nix 撤去まで移行中の依存として残り、一部 CLI と `/etc` の生成物を供給している。
+NixOS の mini-vm、Pro の nix-darwin は別の所有者のままとする。Pro が Ansible controller。
 
-## 所有者と移行の順序
+## 所有者の一覧
 
-2026-10-29 の mini 読み取り時点の整理。Pro が Ansible controller、mini が管理対象。
-導入された実体と、選択リンク・設定の所有者は別に扱う。
+2026-11-26 に mini を読み取り専用で調べた結果 (macOS 15.8.3、`brew list`、`launchctl print`、
+LaunchAgents / LaunchDaemons の plist、login shell の解決先)。「Ansible」は宣言が repo にあり、
+apply がそれに揃えることを指す。宣言しただけで実機へ適用したことにはならない。
 
-| 対象 | 現在の管理元・確認範囲 |
-|---|---|
-| Nix | macOS の新規適用は凍結中。既存 generation と user profile は残り、一部 CLI の実体を供給している |
-| Homebrew | Lima / Tailscale や GUI cask 等の導入元。パッケージの導入・更新は手動管理のまま |
-| Ansible | shell・defaults と採用済み CLI 選択リンクの所有を宣言。4 CLI の Homebrew 実体へのリンクと shell リンクは実機で確認した。既定では対象を選択しない |
-| 常駐サービス | mini-vm の起動は `lima_daemon` が所有する。watchdog など他の `launchd` は未移管で、候補の staging と稼働サービスの管理を区別する |
+| 対象 | 所有者 | 現在地・残り |
+|---|---|---|
+| 最小 shell (`.zshenv` / `.zshrc`) | Ansible `shell` | 2026-11-12 に適用済み |
+| CLI 選択リンク (fzf / zoxide / rg / xcodegen) | Ansible (`mini_tool_policy`) | 適用済み。fd / vivid / asc は pending |
+| user defaults 2 項目 | Ansible `defaults` | 適用済み |
+| Homebrew の formula / cask / tap | Ansible `homebrew` (宣言したものの存在だけ) | 2026-11-26 に宣言。check で変更 0。宣言外は消さない (下の一覧) |
+| formula の更新 | Ansible `update.yml` (formula を名指し) | cask は auto_updates に任せる |
+| 番人 `dev.gigun.net-watchdog` (user agent) | Ansible `net_watchdog` | 2026-11-26 に宣言。plist は稼働中と bytes 一致、script は repo 版との差 (コメント 9 行) だけ。未適用 |
+| mini-vm の起動 | Ansible `lima_daemon` (宣言) | **未切替**。実機はまだ LaunchAgent `io.lima-vm.autostart.mini-vm` (Lima が生成) で動く |
+| `com.gigun-dev.pve-watch` (user agent) | manual | 本体 `~/.local/bin/pve-watch.sh` と plist は mini にしか無い。残すなら script を repo へ取り込んでから宣言する。pve は 2026-11-09 から offline (todo 0156) |
+| `dev.gigun.ota-deploy` (user agent) | manual (asc-mcp 側の配布経路) | `~/.ota-deploy/public` を 127.0.0.1:18787 で配り、tailscale serve が tailnet にだけ出す。repo に source が無い |
+| `actions.runner.gigun-dev-asc-mcp-control.mini-asc-mcp` | manual (runner の `svc.sh`) | runner が自己更新で `bin` / `runsvc.sh` を書き換え、plist も `svc.sh install` が作る。Ansible が書くと writer が二つになる |
+| `dev.gigun.host-heartbeat` (system daemon) | manual (`scripts/install-host-heartbeat-mac.sh`) | sudo と token を扱う installer が正本。Ansible へ移すなら token の配送を別に決める |
+| `homebrew.mxcl.tailscale` (system daemon) | manual (`brew services`) | formula は Ansible が宣言。service の登録は brew が持つ |
+| 電源設定 (sleep 0 / displaysleep 0 / disksleep 0 / autorestart 1) | **未宣言** | 凍結 generation が書いた値が残っている。Ansible で宣言するのは残課題 (sudo が要る) |
+| Karabiner / Zed / ccstatusline の設定リンク | **凍結 HM** | `~/.config/karabiner` などは HM の store を経由して repo を指す。Nix 撤去の前に repo への直リンクへ移す |
+| Nix 本体・nix-darwin の `/etc` 生成物 | 凍結 generation | 撤去手順は別 (残存参照の監査は `audit.yml`) |
 
 `mini_targets` の既定は空。playbook を指定しただけでは管理対象を選ばない。
-`mini_owners` は shell / packages / formulae / defaults / launchd など管理グループの所有者を記録する。
+`mini_owners` は shell / homebrew / defaults / net_watchdog / lima_daemon / signing_tools の所有者を記録する。
 個々の CLI は `mini_tool_policy.<name>.adoption` に現在の owner と adoption state を記録し、
 `mini_tool_policy.<name>.target` に希望する版・取得元・checksum 種別・選択先・更新方針をまとめる。
-fzf / zoxide / ripgrep / XcodeGen の選択リンクは現在 `ansible` 所有として採用済み。Homebrew 全体の
-`packages` と `launchd` は `manual` のまま。Lima formula の存在維持と明示更新だけを
-`formulae` として切り出し、`mini_formula_policy` で `ansible` 所有にしている。XcodeGen / mo の
-formula 所有者は監査・移管前の `manual` であり、選択リンクの所有権とは別である。
-通常の変更は所有者を `ansible` へ移管した対象だけ。例外の `launchd_stage` は所有者を
-`manual` のまま保ち、起動対象外の staging ディレクトリに候補だけを置く。
 対象の選択と所有権の移管は別であり、`mini_targets` に追加するだけでは移管にならない。
+
+### Homebrew で要るもの・要らないもの
+
+宣言 (`group_vars/mini_macos.yml`) は mini の役割 (iPhone バックアップ・画面共有・Xcode・Lima のホスト・
+常駐サービス) と、画面共有で mini の前に座るときに今使っている道具に限る。
+
+- formula: `lima` (mini-vm)、`tailscale` (SSH と serve の経路)、`gh` (checkout の credential helper)、
+  `xcodegen`、`fzf` / `zoxide` / `ripgrep` (最小 shell。`pcre2` は ripgrep の依存として入る)
+- cask: `google-chrome` (起動中)、`karabiner-elements` (daemon が常駐)、`monitorcontrol` (起動中)、
+  `aqua-voice` (2026-11-25 に使用)
+- tap: 無し
+
+入っているが要らないと判断したもの (消してはいない。消すかは本人が決める):
+
+| 種別 | 名前 | 理由 |
+|---|---|---|
+| formula | `cloudflared` | service 未登録・設定 (`~/.cloudflared`) 無し。OTA は tailscale serve で出している |
+| formula | `fd` | login shell は Nix の fd を使い、Homebrew 版は未採用の候補のまま。mini の役割で使わない |
+| formula | `mo` (`k1low/tap`) | Markdown viewer。mini の役割に無い。tap が untrusted で `brew info` も拒否される |
+| formula | `go` | gh / lima を source build したときの build 依存で、実行時には要らない。Intel bottle が無い版を再 build するときは brew が入れ直す |
+| formula | `tailscale` 1.96.4 の古い keg | 1.104.2 が link 済み。`brew cleanup tailscale` の対象 |
+| tap | `k1low/tap`、`manaflow-ai/cmux` | 要らない mo / cmux のためだけの tap |
+| cask | `cmux`、`discord`、`fork`、`postman`、`proxyman`、`slack`、`tableplus`、`ollama-app` | 一度も開かれていない (`kMDItemLastUsedDate` 無し) |
+| cask | `iterm2`、`zed`、`claude` | 最後の使用が 2026-09 / 04 / 06。mini での作業は SSH と mini-vm で行う |
+| cask | `codex` | ChatGPT.app 同梱の codex を使っており、cask の CLI は PATH に無い |
+| cask | `azookey` | 入力ソースに登録されていない (ことえりを使用) |
+| cask | `figma` | 起動しているが、デザイン作業は mini の役割に無い。本人が使うなら宣言へ移す |
 
 ## CLI の共通宣言
 
@@ -101,7 +134,7 @@ Nix参照が消えた。これはarchive工程とPATH移行の受入であり、
 4. 適用後に対象を検証する。サービスの所有権・起動方式の移行はさらに別の段階で扱う。
 
 `shell` から始めても、既存 Nix のリンク、bootstrap の生成物、手編集のファイルを
-無条件に上書きする許可にはならない。`packages` の導入と更新も区別する。
+無条件に上書きする許可にはならない。Homebrew の存在維持 (`homebrew`) と更新 (`update.yml`) も区別する。
 移管した対象に旧 bootstrap / home-manager を再実行して、管理を二重化しない。
 認証、sudo、trusted-users、ネットワーク設定、SecretOps / 1Password の再設計はこの移行に混ぜない。
 
@@ -122,7 +155,7 @@ uv run --locked --project ansible/mini-macos ansible-playbook -i ansible/mini-ma
 
 check mode でも、選んだ通常対象の所有者は `ansible` である必要がある。例えば shell の
 移管レビュー後に `mini_owners.shell` を変更してから上記を実行する。
-実適用は追加の acknowledgement を要する（`launchd_stage` の staging 書き込みも含む）。
+実適用は追加の acknowledgement を要する。
 これは実行時の誤操作防止であり、ユーザーの適用承認を代替しない。
 
 ```sh
@@ -133,14 +166,14 @@ uv run --locked --project ansible/mini-macos ansible-playbook -i ansible/mini-ma
 既存の自動更新を無効化する入口でもない。
 
 ```sh
-uv run --locked --project ansible/mini-macos ansible-playbook -i ansible/mini-macos/inventory.yml ansible/mini-macos/update.yml --check --diff -e '{"mini_targets":["formulae"],"mini_update_formulae":["lima"]}'
+uv run --locked --project ansible/mini-macos ansible-playbook -i ansible/mini-macos/inventory.yml ansible/mini-macos/update.yml --check --diff -e '{"mini_targets":["homebrew"],"mini_update_formulae":["lima"]}'
 ```
 
-実更新は `mini_apply_ack=true` と `mini_update_ack=true`、`mini_owners.formulae=ansible` を要する。
-`mini_targets` は `["formulae"]` だけとし、`mini_update_formulae` を空でない対象リストにする。
-formula の構造上の allowlist は `lima` / `xcodegen` / `mo` だが、実際の対象はさらに
-`mini_formula_policy` で個別に `ansible` 所有へ移し、`mini_formulae` に含める必要がある。
-現在は Lima だけである。`mini_casks` / `mini_update_casks` は空を要求し、cloudflared / Tailscale は対象外。
+実更新は `mini_apply_ack=true` と `mini_update_ack=true`、`mini_owners.homebrew=ansible` を要する。
+`mini_targets` は `["homebrew"]` だけとし、`mini_update_formulae` を `mini_formulae` に宣言した
+formula の空でないリストにする。cask は選べない: 宣言した cask はどれも auto_updates で、brew で
+上げると中身の空な .app が残る (Pro で 2026-11-25 に起きた。`nix/modules/darwin/homebrew.nix`)。
+tailscale を上げると tailscaled が入れ替わり SSH が一度切れるので、別経路 (画面共有) を確保してから行う。
 Homebrew metadata 自体は更新せず、既存 metadata に対して適用する。配布最新版の確認とは区別する。
 
 ## Git 署名ツールの配布候補
@@ -174,7 +207,7 @@ Lima 2.2.x では daemon 起動の vz インスタンスが再起動のたびに
 
 ```sh
 # 1. Lima を上げる (稼働中の hostagent はそのまま。新しい版は次の起動から)
-uv run --locked --project ansible/mini-macos ansible-playbook -i ansible/mini-macos/inventory.yml ansible/mini-macos/update.yml -e '{"mini_targets":["formulae"],"mini_update_formulae":["lima"],"mini_apply_ack":true,"mini_update_ack":true}'
+uv run --locked --project ansible/mini-macos ansible-playbook -i ansible/mini-macos/inventory.yml ansible/mini-macos/update.yml -e '{"mini_targets":["homebrew"],"mini_update_formulae":["lima"],"mini_apply_ack":true,"mini_update_ack":true}'
 # 2. 切り替え (VM を止め、旧 LaunchAgent を .before-ansible-* へ退避し、daemon を bootstrap)。sudo のため -K
 uv run --locked --project ansible/mini-macos ansible-playbook -i ansible/mini-macos/inventory.yml ansible/mini-macos/apply.yml -K -e '{"mini_targets":["lima_daemon"],"mini_lima_daemon_cutover":true,"mini_apply_ack":true}'
 ```
@@ -191,33 +224,36 @@ Lima 2.3.0 は停止要求が通らなければ SSH で `shutdown -h now` を送
 戻すときは daemon を `launchctl bootout system/io.lima-vm.daemon.mini-vm` して plist を消し、
 退避した LaunchAgent を元の名前へ戻して `launchctl bootstrap gui/501` する。
 
-## launchd はまず配置候補だけ
+## 番人 (`net_watchdog`)
 
-初期段階は `mini_targets=["launchd_stage"]` で staging のみとし、稼働中の plist の差し替え、load / unload、
-`bootstrap` / `bootout` / `kickstart` は行わない。staging の成功を監視の移行完了とは扱わない。
+`mini_targets: [net_watchdog]` は user agent `dev.gigun.net-watchdog` を宣言どおりに保つ。
+導入時の writer だった `bootstrap.sh --net-watchdog` は撤去したので、writer はこの target だけ。
 
-watchdog は Wi-Fi の復旧操作を持つため、確認目的で本体スクリプトを実行しない。
-既存の `bootstrap.sh --net-watchdog` や system installer も呼び出さない。
-将来の移管では次を維持・確認する。
+- system domain に `dev.gigun.net-watchdog` か `org.nixos.network-watchdog` の plist があれば何も変えずに止まる
+  (番人 2 匹は Wi-Fi の off/on を撃ち合う)。`net-watchdog-system-install.sh` で昇格したら owner を manual に戻す。
+- script (`nix/modules/darwin/network-watchdog.sh`) は checkout へのリンクではなくコピーで
+  `~/Library/Application Support/net-watchdog/` に置く。script だけの変更は次の起動 (30 秒以内) から効くので job に触らない。
+- plist は plutil の正規形で書いてあり、稼働中のものと bytes が一致する。変わったときだけ `bootout` → `bootstrap` し、
+  未ロードなら `bootstrap` する。check mode では `launchctl print` で読むだけ。
+- `NET_WATCHDOG_NO_REMEDIATE=1` (観測のみ)、30 秒間隔、`RunAtLoad`、標準 PATH を維持する。
+- watchdog は Wi-Fi の復旧操作を持つため、確認目的で本体スクリプトを実行しない。
 
-- user agent の `dev.gigun.net-watchdog` と system daemon の同名ラベル、Nix 側の
-  `org.nixos.network-watchdog` を調べる。二重起動は Wi-Fi 復旧操作を競合させる。
-- スクリプトは checkout へのリンクではなくコピー。30 秒間隔、`RunAtLoad`、標準 PATH を維持する。
-- user 側の `~/Library/Logs/net-watchdog` と system 側の `/var/log/net-watchdog` の過去ログを保存する。
-- script だけの変更と plist の変更を区別する。既存 bootstrap は script だけなら再ロードしない。
-- GUI セッション、Lima の自動起動、自動ログインの前提を勝手に変更しない。
+2026-11-26 の check (`homebrew` / `net_watchdog` / `shell` / `defaults` / 4 CLI を同時に選択) は changed=1 で、
+差分は script のコメント 9 行 (稼働中の 2026-09-03 版に無い「`ts` の間隔が空いたら番人が死んでいた」の説明) だけ。
+plist は変わらないので job は入れ直さない。Homebrew・shell・defaults・CLI リンクの変更は 0。
 
 ## 検証の限界
 
 `--check --diff` は実機適用の成功保証ではない。command が skip される場合や、まだ作成されていない
 ディレクトリに後続処理が依存する場合がある。`check_mode: false` のタスクは check mode でも実行される。
-現実装の例外実行は `uname` / `id` と audit の読み取りコマンドだけ。サービス handler はない。
+現実装の例外実行は `uname` / `id`、`launchctl print`、`limactl --version` / `list` と audit の読み取りコマンドだけ。サービス handler はない。
 Homebrew / defaults モジュールは check mode を持つが diff を返さないため、`--diff` だけで
-変更内容をすべて確認できるとは限らない。staging ディレクトリが存在しない場合、check mode では
-作成が予測されるだけなので、後続 copy / template の検証は実適用と同じにはならない。
+変更内容をすべて確認できるとは限らない (homebrew target は formula / cask が入っているかだけを見る)。
+ディレクトリが存在しない場合、check mode では作成が予測されるだけなので、後続 copy / template の検証は
+実適用と同じにはならない。launchctl の bootout / bootstrap は check mode では実行されない。
 
 ローカルでは YAML / playbook の構文、template の plist 構造、対象未選択時の挙動、所有権・acknowledgement
-のゲート、staging の差分を検証する。mini の接続性、GitHub 認証、パッケージ導入、稼働サービスの正常性は
+のゲート、偽の launchctl / limactl を使った service の入れ直しの条件を検証する。mini の接続性、GitHub 認証、パッケージ導入、稼働サービスの正常性は
 その検証結果に含めない。`gh` コマンドの存在だけでは認証の有効性は分からない。
 
 ## 2026-10-26 の実機 snapshot
@@ -306,12 +342,11 @@ DNS 失敗だけでは Wi-Fi を操作しない。状態が連続 2 サンプル
 | 対象 | 初期実装の範囲 | 残す管理・依存 |
 |---|---|---|
 | shell | `ansible/mini-macos/files/zsh/` の最小 `.zshenv` / `.zshrc` への2リンク。通常ファイル・別リンク・親リンクを拒否。旧5リンクの撤去は明示フラグ | `.zprofile`、`/etc/zsh*`、login shell は未移管 |
-| packages | Homebrew 全体は manual のまま | Nix CLI 群・GUI casks・VPN・cloudflared を含め、包括的には移管しない |
-| formulae | Lima の存在維持。明示更新は別入口 (2026-11-11 の 2.3.0 更新を契機に個別移管) | XcodeGen / mo の formula 所有者は manual。選択リンクの所有権とは別 |
+| homebrew | 宣言した formula / cask / tap の存在。formula の明示更新は `update.yml` | 宣言外は消さない (cleanup しない)。cask の更新はアプリ自身 |
 | lima_daemon | mini-vm の LaunchDaemon 1件と、旧 LaunchAgent の退避 | VM の設定 (`lima.yaml`)・ディスクは Lima のまま |
 | xcodegen | 検証済み 2.46.0 Cellar binary への `/usr/local/bin/xcodegen` 1リンク | Homebrew formula の導入・更新と Nix profile は変更しない |
 | defaults | Dock autohide / KeyRepeat の2項目 | 他のOS設定、電源、認証は未移管 |
-| launchd | 起動検索対象外へ候補2ファイルを配置 | 稼働 user watchdog、heartbeat、Lima等のサービスは現状維持 |
+| net_watchdog | user agent の script コピーと plist。plist が変わった時だけ入れ直す | system daemon への昇格は `net-watchdog-system-install.sh` (sudo) |
 
 `mini_owners` と CLI ごとの `adoption.owner` は移管の記録であり、旧管理者を自動停止するコードではない。
 変更前にその対象の旧writerを特定し、miniの旧bootstrap/HMを併用しない運用を確認してから記録を変更する。
@@ -320,7 +355,8 @@ DNS 失敗だけでは Wi-Fi を操作しない。状態が連続 2 サンプル
 
 復旧は対象別に行う。今回のshell実装は既存オブジェクトを上書きしないため、新規リンクだけならその作成を
 取り消せる。defaultsは事前のread結果へ戻す。Homebrew更新の巻き戻しは保証されないので、Lima更新前には
-互換性とVM復旧手順を別途確認する。launchd stagingは稼働対象外なので既存サービスを触らず破棄できる。
+互換性とVM復旧手順を別途確認する。net_watchdog は旧 script を残さないので、戻すときは repo の旧版を
+同じ場所へコピーし、plist を変えた場合は `launchctl bootout` / `bootstrap gui/501` で入れ直す。
 Nixの削除は、残存CLI・shell・launchdからのstore参照がなくなったことを棚卸ししてからの最終段階とする。
 
 ## ローカル検証
@@ -331,12 +367,12 @@ sh ansible/mini-macos/verify.sh
 
 uv.lock で controller の Ansible / ansible-lint を固定する。初回はツール取得のネットワークアクセスがある。
 Python 3.12 はcontroller用、miniのPython 3.9はこの固定Ansible coreの対象実行に使う。
-verify はlint、3 playbookのsyntax、実Ansibleを使う一時ディレクトリのリンク・staging検証を実行する。
+verify はlint、3 playbookのsyntax、実Ansibleを使う一時ディレクトリのリンク・service検証を実行する。
 SSHは実行しない。CIもmacOS runnerの一時領域だけを使い、inventoryのminiには接続しない。
 `verify.sh portable` は lint・syntax と macOS 固有ツールを使わない fixture を実行し、
 `verify.sh native` は macOS の `plutil` が必要な fixture を実行する。引数なしは両方を含み、native の前提がなければ失敗する。
 2026-10-29 に NixOS x86_64 の固定依存で portable 24 件が成功した。native や macOS 固有の動作の検証には代わらない。
-stagingの親シンボリックリンクは拒否し、既存shellディレクトリのpermissionは維持する。
+既存shellディレクトリのpermissionは維持する。
 
 controller は project の `pyproject.toml` / `uv.lock` / `.python-version` を使う。
 2026-10-29 の Intel mini では lock 中の `cryptography` 50.0.2 に対応 wheel がなく、

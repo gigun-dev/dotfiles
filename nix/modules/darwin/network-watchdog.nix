@@ -19,10 +19,9 @@ in
   # (理由は flake.nix のコメント)。
   #
   # ⚠️ 今の darwin 構成に alwaysOn のホストは無く、このモジュールはどの機械にも
-  # 当たっていない。Intel mini の macOS は Nix から外して Ansible へ移しており
-  # (docs/mini-ansible.md)、実機では `bootstrap.sh --net-watchdog` が
+  # 当たっていない。Intel mini の macOS は Ansible が持ち、`net_watchdog` target が
   # **同じ network-watchdog.sh** を user agent (label: dev.gigun.net-watchdog /
-  # 出力先: ~/Library/Logs/net-watchdog) として据えている。
+  # 出力先: ~/Library/Logs/net-watchdog) として据える (docs/mini-ansible.md)。
   # 常時起動の Apple Silicon 機を新しい aarch64-darwin ホスト
   # として足す日に、alwaysOn を付ければこの system daemon (/var/log/net-watchdog) が効く。
 

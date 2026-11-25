@@ -1,0 +1,58 @@
+---
+# 番人 (network-watchdog) の user agent を宣言どおりに保つ。
+# script だけの変更は次の起動 (30 秒以内) から効くので job に触らない。plist が変わった
+# ときだけ入れ直し、未ロードなら読み込む。check mode では launchctl を読むだけ。
+- name: Check conflicting system watchdog declarations
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ mini_watchdog_conflicts }}"
+  register: mini_watchdog_conflict_stats
+# 番人が 2 匹いると、障害時に Wi-Fi の off/on を二重に撃ち合う (今は観測のみだが、宣言を戻した日に効く)。
+- name: Reject a second watchdog in the system domain
+  ansible.builtin.assert:
+    that: not item.stat.exists
+    fail_msg: "{{ item.item }} exists; retire the system watchdog before declaring the user agent."
+  loop: "{{ mini_watchdog_conflict_stats.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+# launchd は ProgramArguments を起動する前に StandardErrorPath を開くので、log dir が先に要る。
+- name: Ensure watchdog directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ mini_watchdog_app_dir }}"
+    - "{{ mini_watchdog_log_dir }}"
+    - "{{ mini_watchdog_plist | dirname }}"
+# checkout へのリンクにしない: rebase や checkout の途中でも番人は動き続ける必要がある。
+- name: Install the watchdog script as a copy
+  ansible.builtin.copy:
+    src: "{{ mini_controller_repo }}/nix/modules/darwin/network-watchdog.sh"
+    dest: "{{ mini_watchdog_app_dir }}/network-watchdog.sh"
+    mode: '0755'
+- name: Declare the watchdog user agent
+  ansible.builtin.template:
+    src: "{{ mini_controller_repo }}/ansible/mini-macos/templates/network-watchdog.plist.j2"
+    dest: "{{ mini_watchdog_plist }}"
+    mode: '0644'
+    validate: /usr/bin/plutil -lint %s
+  register: mini_watchdog_plist_result
+- name: Read whether the watchdog job is loaded
+  ansible.builtin.command:
+    argv: ["{{ mini_launchctl }}", print, "gui/{{ mini_uid }}/{{ mini_watchdog_label }}"]
+  register: mini_watchdog_loaded
+  changed_when: false
+  failed_when: false
+  check_mode: false
+# bootstrap は読み込み済みの label には EALREADY で失敗するので、変わったときだけ bootout する。
+- name: Unload the watchdog job whose plist changed
+  ansible.builtin.command:
+    argv: ["{{ mini_launchctl }}", bootout, "gui/{{ mini_uid }}/{{ mini_watchdog_label }}"]
+  when: mini_watchdog_loaded.rc == 0 and mini_watchdog_plist_result is changed
+  changed_when: true
+- name: Load the watchdog job
+  ansible.builtin.command:
+    argv: ["{{ mini_launchctl }}", bootstrap, "gui/{{ mini_uid }}", "{{ mini_watchdog_plist }}"]
+  when: mini_watchdog_loaded.rc != 0 or mini_watchdog_plist_result is changed
+  changed_when: true

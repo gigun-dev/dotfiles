@@ -22,15 +22,15 @@
     - name: Manage shell links
       ansible.builtin.include_tasks: tasks/shell.yml
       when: "'shell' in mini_targets"
-    - name: Ensure explicitly transferred formulae are present without upgrading
-      ansible.builtin.include_tasks: tasks/packages.yml
-      when: "'formulae' in mini_targets"
+    - name: Ensure declared Homebrew taps, formulae and casks are present without upgrading
+      ansible.builtin.include_tasks: tasks/homebrew.yml
+      when: "'homebrew' in mini_targets"
     - name: Manage selected user defaults
       ansible.builtin.include_tasks: tasks/defaults.yml
       when: "'defaults' in mini_targets"
     - name: Start mini-vm at boot from a LaunchDaemon
       ansible.builtin.include_tasks: tasks/lima_daemon.yml
       when: "'lima_daemon' in mini_targets"
-    - name: Stage launchd candidates without activating them
-      ansible.builtin.include_tasks: tasks/launchd.yml
-      when: "'launchd_stage' in mini_targets"
+    - name: Keep the network watchdog user agent as declared
+      ansible.builtin.include_tasks: tasks/net_watchdog.yml
+      when: "'net_watchdog' in mini_targets"

@@ -1,0 +1,37 @@
+---
+# 宣言したものが入っていることだけを保つ。upgrade・宣言外の削除・Homebrew 本体の導入はしない。
+- name: Require existing Homebrew without bootstrapping it
+  ansible.builtin.stat:
+    path: /usr/local/bin/brew
+  register: mini_brew
+- name: Validate Homebrew declarations
+  ansible.builtin.assert:
+    that:
+      - mini_brew.stat.exists
+      - mini_taps is sequence and mini_taps is not string
+      - mini_formulae is sequence and mini_formulae is not string
+      - mini_casks is sequence and mini_casks is not string
+      - mini_formulae | unique | length == mini_formulae | length
+      - mini_casks | unique | length == mini_casks | length
+    fail_msg: Declare taps, formulae and casks as lists without duplicates.
+- name: Ensure declared taps are present
+  community.general.homebrew_tap:
+    name: "{{ mini_taps }}"
+    path: /usr/local/bin
+    state: present
+  when: mini_taps | length > 0
+- name: Ensure declared formulae are present without upgrading
+  community.general.homebrew:
+    name: "{{ mini_formulae }}"
+    path: /usr/local/bin
+    state: present
+    update_homebrew: false
+    upgrade_all: false
+  when: mini_formulae | length > 0
+- name: Ensure declared casks are present without upgrading
+  community.general.homebrew_cask:
+    name: "{{ mini_casks }}"
+    path: /usr/local/bin
+    state: present
+    update_homebrew: false
+  when: mini_casks | length > 0

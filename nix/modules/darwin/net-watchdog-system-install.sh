@@ -1,12 +1,12 @@
 #!/bin/bash
 #
 # net-watchdog-system-install — 番人 (network-watchdog) を user agent から
-# system daemon へ昇格させる。凍結ホスト (mini) で **sudo を 1 回**打つ用:
+# system daemon へ昇格させる。mini で **sudo を 1 回**打つ用:
 #
 #   sudo bash nix/modules/darwin/net-watchdog-system-install.sh
 #
 # ── なぜこのスクリプトが要るか ──────────────────────────────────────────
-# bootstrap.sh --net-watchdog は sudo 無しで届く user agent として番人を入れる。
+# Ansible の net_watchdog target は sudo 無しで届く user agent として番人を据える。
 # その弱点は「OS 起動から自動ログインまでの数秒は走らない」こと
 # ([実測 2026-09-03 mini] autoLoginUser=gigun / FileVault Off。自動ログイン後に
 # agent が上がるはず(未検証))。この窓を消すには root の launchd daemon が要り、
@@ -58,7 +58,7 @@ DAEMON_PLIST="/Library/LaunchDaemons/${LABEL}.plist"
 mkdir -p "$APP_DIR" "$LOG_DIR"
 install -m 755 -o root -g wheel "$SRC" "${APP_DIR}/network-watchdog.sh"
 
-# plist の中身は bootstrap.sh の user agent 版と対。違いは上の「変更点」のとおり
+# plist の中身は ansible/mini-macos/templates/network-watchdog.plist.j2 の user agent 版と対。違いは上の「変更点」のとおり
 # NET_WATCHDOG_DIR を渡さない (スクリプト既定の /var/log/net-watchdog を使う) ことと
 # StandardErrorPath だけ。StartInterval=30 / PATH の根拠は network-watchdog.nix 参照。
 cat >"$DAEMON_PLIST" <<EOF
@@ -92,8 +92,9 @@ chmod 644 "$DAEMON_PLIST"
 # (両方が同じ障害を観測すると Wi-Fi の電源 off/on を二重に撃ち合う)。
 # 監視の空白は最大 StartInterval の 30 秒だけで、7 時間級の障害を相手にする
 # 番人にとっては無視できる。agent の plist とスクリプトのコピーも消すのは、
-# bootstrap.sh の「daemon_plist があれば agent は入れない」ガードと突き合わせて
-# 「daemon が正・agent の残骸なし」という 1 つの状態に収束させるため。
+# Ansible の net_watchdog target の「system daemon があれば止まる」ガードと突き合わせて
+# 「daemon が正・agent の残骸なし」という 1 つの状態に収束させるため。昇格したら
+# ansible/mini-macos の mini_owners.net_watchdog を manual に戻す (宣言とずれるので)。
 if [[ -n "$SUDO_USER" ]]; then
   uid=$(id -u "$SUDO_USER")
   user_home=$(dscl . -read "/Users/${SUDO_USER}" NFSHomeDirectory | awk '{print $2}')
