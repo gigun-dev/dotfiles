@@ -197,15 +197,24 @@
         let
           username = "gigun";
 
-          # mkApp helper (mozumasu pattern)
-          mkApp = name: script: {
+          # flake app は Nushell で書き、ビルド時に nu-check を当てる (ryoppippi/dotfiles の
+          # nix/flake/writers.nix と同じ)。構文の誤りはビルドで落ちる。switch-routing check が
+          # switch app そのものをビルドして動かすので、`nix flake check` でも落ちる
+          # (a9b4f08 の bash の誤りは、CI が darwin の app をビルドしないので
+          # `nix run .#switch` で初めて出た)。外部コマンド名の誤りまでは nu-check も見ない。
+          # makeScriptWriter は check を `<check> $out` の形で呼ぶので、対象は引数で届く。
+          # `--debug` を付けないと nu-check は false を出すだけで 0 で終わる。
+          # `--no-config-file` は writeNu が shebang に入れるので、対話用の設定は読まない。
+          nu = pkgs.lib.getExe pkgs.nushell;
+          nuCheck = pkgs.writeShellScript "nu-check" ''
+            exec ${nu} --no-config-file --commands "nu-check --debug '$1'"
+          '';
+          writeNu = name: body: pkgs.writers.writeNu name { check = nuCheck; } body;
+          # 引数をそのまま渡す app は `def --wrapped main [...args: string]` で受ける。
+          # 素の `...args` だと未知のフラグを main のフラグとして解釈して落ちる。
+          mkApp = name: body: {
             type = "app";
-            program = "${
-              pkgs.writeShellApplication {
-                inherit name;
-                text = script;
-              }
-            }/bin/${name}";
+            program = toString (writeNu name body);
           };
 
           # darwin-rebuild evaluates as root; only its Git SSH transport needs the
@@ -216,50 +225,62 @@
               --preserve-env=SSH_AUTH_SOCK -- /usr/bin/ssh "$@"
           '';
 
+          homeManager = "${inputs.home-manager.packages.${system}.home-manager}/bin/home-manager";
+
+          # Linux は 2 種類ある: WSL (home-manager standalone のみ) と Mac Mini の Lima ゲスト
+          # (NixOS なので OS 層も管理する)。/etc/NIXOS の有無で判別し、darwin の switch が
+          # system + home をまとめて適用するのと同じ挙動に揃える。どの機械でも
+          # `nix run .#switch` だけ覚えていれば済むようにするための分岐。
+          linuxHomeTarget = ''
+            def home-target [] {
+              if ("/etc/NIXOS" | path exists) { "${username}-mini-vm" } else { "${username}-${system}" }
+            }
+          '';
+
           # switch と update 系が共有する適用本体。
-          # darwin: darwin-rebuild で system + home 両方適用
-          # linux:  Linux は 2 種類ある: WSL (home-manager standalone のみ) と
-          #   Mac Mini の Lima ゲスト (NixOS なので OS 層も管理する)。
-          #   /etc/NIXOS の有無で判別し、darwin の switch が system + home を
-          #   まとめて適用するのと同じ挙動に揃える。どの機械でも
-          #   `nix run .#switch` だけ覚えていれば済むようにするための分岐。
-          # 各行の `|| return`: update 系は `if ! apply_system` で呼ぶので
-          # 関数内では set -e が効かず、system の失敗後に home へ進んでしまう。
-          # after_switch: darwin は Homebrew を activation の後に利用者として揃える
+          # 外部コマンドが失敗すると Nushell はそこでエラーを投げるので、system の失敗後に
+          # home へ進むことは無い (bash 版は各行の `|| return` で止めていた)。update 系は
+          # apply-system を try で包み、失敗したら lock を戻す。
+          # after-switch: darwin は Homebrew を activation の後に利用者として揃える
           # (理由は nix/modules/darwin/homebrew.nix の brewBundle)。update 系は lock を
           # commit してから呼ぶ。system は新しい lock で適用済みなので、brew の失敗で
           # lock を戻すと、動いている system と lock が食い違う。
           applySwitch =
             if pkgs.stdenv.hostPlatform.isDarwin then
               ''
-                apply_system() {
-                  /usr/bin/sudo --preserve-env=SSH_AUTH_SOCK \
-                    GIT_SSH_COMMAND=${darwinGitSSH} \
-                    ${inputs.nix-darwin.packages.${system}.darwin-rebuild}/bin/darwin-rebuild \
-                    switch --flake ".#${username}-${system}" "$@" || return
+                def apply-system [args: list<string>] {
+                  (^/usr/bin/sudo --preserve-env=SSH_AUTH_SOCK
+                    "GIT_SSH_COMMAND=${darwinGitSSH}"
+                    ${inputs.nix-darwin.packages.${system}.darwin-rebuild}/bin/darwin-rebuild
+                    switch --flake ".#${username}-${system}" ...$args)
                 }
-                after_switch() {
-                  /run/current-system/brew-bundle
-                }
-                apply_switch() {
-                  apply_system "$@" || return
-                  after_switch
+
+                def after-switch [] {
+                  ^/run/current-system/brew-bundle
                 }
               ''
             else
               ''
-                after_switch() { :; }
-                apply_switch() { apply_system "$@"; }
-                apply_system() {
-                  home_target="${username}-${system}"
-                  if [ -e /etc/NIXOS ]; then
-                    home_target="${username}-mini-vm"
-                    sudo nixos-rebuild switch --flake ".#mini-vm" "$@" || return
-                  fi
-                  ${inputs.home-manager.packages.${system}.home-manager}/bin/home-manager \
-                    switch --flake ".#$home_target" "$@" || return
+                ${linuxHomeTarget}
+
+                def apply-system [args: list<string>] {
+                  if ("/etc/NIXOS" | path exists) {
+                    ^sudo nixos-rebuild switch --flake ".#mini-vm" ...$args
+                  }
+                  ^${homeManager} switch --flake $".#(home-target)" ...$args
                 }
+
+                def after-switch [] {}
               '';
+
+          switchApp = writeNu "switch" ''
+            ${applySwitch}
+
+            def --wrapped main [...args: string] {
+              apply-system $args
+              after-switch
+            }
+          '';
 
           # lock を更新して適用し、変わっていれば commit まで行う。push はしない
           # (共有 main への公開は、人が commit を見てから打つ一手に残す)。
@@ -270,44 +291,52 @@
             { targets, lane }:
             mkApp name ''
               ${applySwitch}
-              cd "$(git rev-parse --show-toplevel)"
 
-              # mini-vm の lock は flake-lock-proposal.yaml の PR からだけ入る。ここで commit すると
-              # 作業コピーが origin より先行し、dotfiles-autoswitch が毎朝止まる。
-              if [ -e /etc/NIXOS ]; then
-                echo "error: NixOS (mini-vm) では update しない。lock は flake-lock-proposal.yaml の PR 経由で入る" >&2
-                exit 1
-              fi
-              if ! git diff --quiet || ! git diff --cached --quiet; then
-                echo "error: 未コミットの変更がある。commit か stash してから再実行する" >&2
-                git status --short >&2
-                exit 1
-              fi
+              def --wrapped main [...args: string] {
+                cd (^git rev-parse --show-toplevel | str trim)
 
-              # 更新前に main へ追いつく。古い lock から update すると、mini-vm が merge 済みの
-              # lock と分岐した commit を作ってしまう。この後で自分で switch するので、
-              # pull が起こす post-merge / post-rewrite の switch は止める。
-              DOTFILES_SKIP_AUTO_SWITCH=1 git pull --rebase
+                # mini-vm の lock は flake-lock-proposal.yaml の PR からだけ入る。ここで commit すると
+                # 作業コピーが origin より先行し、dotfiles-autoswitch が毎朝止まる。
+                if ("/etc/NIXOS" | path exists) {
+                  print --stderr "error: NixOS (mini-vm) では update しない。lock は flake-lock-proposal.yaml の PR 経由で入る"
+                  exit 1
+                }
+                let unstaged = (^git diff --quiet | complete).exit_code != 0
+                let staged = (^git diff --cached --quiet | complete).exit_code != 0
+                if $unstaged or $staged {
+                  print --stderr "error: 未コミットの変更がある。commit か stash してから再実行する"
+                  print --stderr --no-newline (^git status --short)
+                  exit 1
+                }
 
-              log=$(mktemp)
-              trap 'rm -f "$log"' EXIT
-              nix flake update ${targets} 2>&1 | tee "$log"
+                # 更新前に main へ追いつく。古い lock から update すると、mini-vm が merge 済みの
+                # lock と分岐した commit を作ってしまう。この後で自分で switch するので、
+                # pull が起こす post-merge / post-rewrite の switch は止める。
+                with-env { DOTFILES_SKIP_AUTO_SWITCH: "1" } { ^git pull --rebase }
 
-              # 適用に失敗した lock は commit しない。pull 済みの版へ戻し、dirty のまま残さない。
-              if ! apply_system "$@"; then
-                git checkout -- flake.lock
-                echo "error: switch に失敗したので flake.lock を pull 済みの版へ戻した" >&2
-                exit 1
-              fi
+                let log = (mktemp --tmpdir flake-update.XXXXXX)
+                ^nix flake update ...${builtins.toJSON targets} o+e>| tee { save --force $log }
 
-              if git diff --quiet -- flake.lock; then
-                echo "flake.lock に差分なし"
-              else
-                git add flake.lock
-                git commit --quiet -m "chore(deps): flake.lock を更新 (${lane})" -m "$(cat "$log")"
-                echo "flake.lock を commit した。push は手で行う: git push"
-              fi
-              after_switch
+                # 適用に失敗した lock は commit しない。pull 済みの版へ戻し、dirty のまま残さない。
+                try {
+                  apply-system $args
+                } catch {
+                  ^git checkout -- flake.lock
+                  rm $log
+                  print --stderr "error: switch に失敗したので flake.lock を pull 済みの版へ戻した"
+                  exit 1
+                }
+
+                if (^git diff --quiet -- flake.lock | complete).exit_code == 0 {
+                  print "flake.lock に差分なし"
+                } else {
+                  ^git add flake.lock
+                  ^git commit --quiet -m "chore(deps): flake.lock を更新 (${lane})" -m (open --raw $log)
+                  print "flake.lock を commit した。push は手で行う: git push"
+                }
+                rm $log
+                after-switch
+              }
             '';
         in
         {
@@ -431,7 +460,7 @@
               pkgs
               system
               inputs
-              applySwitch
+              switchApp
               ;
           }
           // inputs.nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
@@ -461,37 +490,45 @@
               meta.description = "Scan repository content for secrets";
             };
 
-            switch = mkApp "switch" ''
-              ${applySwitch}
-              apply_switch "$@"
-            '';
+            switch = {
+              type = "app";
+              program = toString switchApp;
+            };
 
             build = mkApp "build" (
               if pkgs.stdenv.hostPlatform.isDarwin then
                 ''
-                  ${inputs.nix-darwin.packages.${system}.darwin-rebuild}/bin/darwin-rebuild \
-                    build --flake ".#${username}-${system}" "$@"
+                  def --wrapped main [...args: string] {
+                    ^${
+                      inputs.nix-darwin.packages.${system}.darwin-rebuild
+                    }/bin/darwin-rebuild build --flake ".#${username}-${system}" ...$args
+                  }
                 ''
               else
                 ''
-                  home_target="${username}-${system}"
-                  if [ -e /etc/NIXOS ]; then
-                    home_target="${username}-mini-vm"
-                    nixos-rebuild build --flake ".#mini-vm" "$@"
-                  fi
-                  ${inputs.home-manager.packages.${system}.home-manager}/bin/home-manager \
-                    build --flake ".#$home_target" "$@"
+                  ${linuxHomeTarget}
+
+                  def --wrapped main [...args: string] {
+                    if ("/etc/NIXOS" | path exists) {
+                      ^nixos-rebuild build --flake ".#mini-vm" ...$args
+                    }
+                    ^${homeManager} build --flake $".#(home-target)" ...$args
+                  }
                 ''
             );
 
             update = mkUpdate "update" {
-              targets = "";
+              targets = [ ];
               lane = "local";
             };
 
             # flake-lock-proposal.yaml の fast レーンと同じ input を手元で先取りする。
             update-ai-tools = mkUpdate "update-ai-tools" {
-              targets = "llm-agents claude-code-overlay cclens";
+              targets = [
+                "llm-agents"
+                "claude-code-overlay"
+                "cclens"
+              ];
               lane = "local fast";
             };
 
@@ -506,32 +543,34 @@
             # Workers Scripts) とは別のトークン。名前が同じなので、間違えて同じ .age に
             # 混ぜないこと (権限も用途も違う)。
             tofu = mkApp "tofu" ''
-              root=$(${pkgs.git}/bin/git rev-parse --show-toplevel)
-              key="$HOME/.ssh/id_ed25519"
+              def --wrapped main [...args: string] {
+                let root = (^${pkgs.git}/bin/git rev-parse --show-toplevel | str trim)
+                let key = ($env.HOME | path join ".ssh" "id_ed25519")
 
-              if [ ! -f "$key" ]; then
-                echo "error: $key が無い。secrets/secrets.nix の受信者鍵が必要" >&2
-                exit 1
-              fi
+                if not ($key | path exists) {
+                  print --stderr $"error: ($key) が無い。secrets/secrets.nix の受信者鍵が必要"
+                  exit 1
+                }
 
-              # コマンド置換なので age が失敗すれば set -e でここで止まる。
-              # `< <(age ...)` だと復号失敗でも空を読んで素通りしてしまうため避けている。
-              env_content=$(${pkgs.age}/bin/age -d -i "$key" "$root/secrets/tofu-env.age")
-              # here-string を使う (here-doc だと nix のインデント文字列剥がしと
-              # 終端マーカーの位置がぶつかって壊れやすい)。
-              while IFS='=' read -r k v; do
-                [ -n "$k" ] || continue
-                # shellcheck disable=SC2163  # "k=v" の形なので正しく export される
-                export "$k=$v"
-              done <<< "$env_content"
+                # 復号に失敗すると age の非 0 終了でここで止まる。空の環境で tofu へ進まない。
+                let env_content = (^${pkgs.age}/bin/age -d -i $key $"($root)/secrets/tofu-env.age")
+                # 1 行 1 つの KEY=VALUE。値に = が入ってもよいよう、最初の = だけで分ける。
+                $env_content
+                | lines
+                | each {|line| $line | split row --number 2 "=" }
+                | where {|kv| ($kv | first) != "" }
+                | each {|kv| { ($kv | first): ($kv | get --optional 1 | default "") } }
+                | reduce --fold {} {|it, acc| $acc | merge $it }
+                | load-env
 
-              # R2 にリージョンは無いが S3 バックエンドが必須項目として要求する。
-              # versions.tf の `region = "auto"` と揃えておく。
-              export AWS_REGION=auto
-              export AWS_DEFAULT_REGION=auto
+                # R2 にリージョンは無いが S3 バックエンドが必須項目として要求する。
+                # versions.tf の `region = "auto"` と揃えておく。
+                $env.AWS_REGION = "auto"
+                $env.AWS_DEFAULT_REGION = "auto"
 
-              cd "$root/tofu" || exit 1
-              exec ${pkgs.opentofu}/bin/tofu "$@"
+                cd $"($root)/tofu"
+                exec ${pkgs.opentofu}/bin/tofu ...$args
+              }
             '';
           };
         };

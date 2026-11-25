@@ -70,6 +70,13 @@ docs/                          # 現行運用・ADR
 - **`~/.local/bin` は例外レーン**: PATH 末尾に追加（nix/brew が常に優先）。self-update 前提のツールなど宣言管理できないものだけ許容する。nixpkgs にない Python CLI は `uv/tools.txt` に宣言し、`uv/sync-tools.sh`（home.activation と bootstrap.sh が呼ぶ）が未導入分だけ入れる。更新は Pro の週次 launchd agent（`uv-tool-upgrade`、`sync-tools.sh --upgrade`、失敗は Bark）、宣言外は警告のみ
 - **Python は uv に一本化**: 再現が要るものは uv プロジェクト（pyproject.toml + uv.lock + .python-version を commit）、使い捨ては素の `python3` か PEP 723 スクリプト。グローバル pip・pyenv・nix devShell での依存管理はしない。詳細は `docs/python.md`
 
+## スクリプトの言語
+
+- **Nushell** — 新しいスクリプトの既定。Nix から配るものは `writeNu` (flake app) か `pkgs.writers.writeNu` で書き、ビルド時に構文を検査させる。
+- **Python (uv)** — ライブラリが要るとき（`docs/python.md`）。
+- **Bash** — 環境がこちらのものでない所: Nix の build phase、bootstrap.sh、git hooks、bash で動く前提の launchd / systemd unit。
+- **zsh** — 対話用の設定（`zsh/`）だけ。新しいスクリプトには使わない。
+
 ## Code Review Rules
 
 ### 秘密と公開境界

@@ -2,7 +2,7 @@
   pkgs,
   system,
   inputs,
-  applySwitch,
+  switchApp,
 }:
 let
   inherit (pkgs) lib;
@@ -218,7 +218,8 @@ in
   );
   setup-routing = run "setup-routing" [ "setup-routing" ] { };
   switch-routing = run "switch-routing" [ "switch-routing" ] {
-    SWITCH_BODY = pkgs.writeText "apply-switch.sh" applySwitch;
+    SWITCH_APP = switchApp;
+    TEST_NU = lib.getExe pkgs.nushell;
   };
   developer-tools =
     run "developer-tools"

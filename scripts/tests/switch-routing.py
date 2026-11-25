@@ -1,4 +1,4 @@
-"""Execute evaluated switch and SSH transport bodies using only fixture commands."""
+"""Execute the built switch app and SSH transport using only fixture commands."""
 import os
 from pathlib import Path
 import re
@@ -9,10 +9,11 @@ import unittest
 
 class Switch(unittest.TestCase):
     def setUp(self):
-        self.source = Path(os.environ['SWITCH_BODY']).read_text()
+        # The app is a Nushell script; drop its store shebang and run it with TEST_NU.
+        self.source = Path(os.environ['SWITCH_APP']).read_text().split('\n', 1)[1]
         self.system = os.environ['TEST_SYSTEM']
         self.darwin = self.system.endswith('darwin')
-        self.transport = re.search(r'GIT_SSH_COMMAND=(/nix/store/[^\s\\]+)', self.source)
+        self.transport = re.search(r'GIT_SSH_COMMAND=(/nix/store/[^\s"\\]+)', self.source)
         if self.darwin:
             self.assertIsNotNone(self.transport)
 
@@ -84,9 +85,11 @@ exec "$@"
                         'UNRELATED_SECRET': 'synthetic-do-not-preserve',
                         'GIT_SSH_COMMAND': 'synthetic-untrusted-inherited-command',
                     }
-                    result = subprocess.run([os.environ['TEST_BASH'], '-c', body + '\napply_switch "$@"',
-                                             'fixture', '--option', 'fixture value'], env=env,
-                                            capture_output=True, text=True, timeout=10)
+                    app = base / 'switch.nu'
+                    app.write_text(body)
+                    result = subprocess.run([os.environ['TEST_NU'], '--no-config-file', str(app),
+                                             '--option', 'fixture value'], env=env,
+                                            capture_output=True, text=True, timeout=30)
                     self.assertEqual(result.returncode, status, result.stderr)
                     expected = []
                     if self.darwin:
