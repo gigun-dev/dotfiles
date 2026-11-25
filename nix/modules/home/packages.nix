@@ -102,7 +102,6 @@
       litecli
     ]
     ++ lib.optionals (pkgs.stdenv.hostPlatform.isDarwin && pkgs.stdenv.hostPlatform.isAarch64) [
-      (callPackage ../../packages/ghidra-rea { })
       # setup は Apple Silicon 上の FairPlay enrollment を使う。
       (callPackage ../../packages/unfairplay { })
       (callPackage ../../packages/ipatool-security-key { })

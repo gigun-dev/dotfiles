@@ -132,6 +132,48 @@ in
   guard-handoff = run "guard-handoff" [ "guard-handoff" ] {
     HM_TEST_ACTIVATION = "${fixture.activationPackage}/activate";
   };
+  # 宣言した mcp_servers.<name> は live の同名の表と混ぜずに置き換え、宣言していない
+  # server とキーは残す (暫定の REA 設定が残した args が新しい command に渡らないこと)。
+  codex-merge-config =
+    pkgs.runCommand "codex-merge-config-tests"
+      {
+        nativeBuildInputs = [
+          pkgs.nushell
+          pkgs.gnugrep
+        ];
+      }
+      ''
+        cat > template.toml <<'EOF'
+        [mcp_servers.rea]
+        command = "/nix/store/new-rea-mcp"
+        tool_timeout_sec = 420
+        EOF
+        cat > live.toml <<'EOF'
+        model = "kept"
+
+        [mcp_servers.node_repl]
+        command = "/app/node_repl"
+
+        # BEGIN dotfiles Codex REA
+        [mcp_servers.rea]
+        command = "/bin/bash"
+        args = ["/nix/store/old-launcher.sh"]
+        env = { STALE = "1" }
+        tool_timeout_sec = 60
+        # END dotfiles Codex REA
+        EOF
+        nu ${../modules/home/programs/codex/merge-config.nu} template.toml live.toml
+        cp live.toml once.toml
+        nu ${../modules/home/programs/codex/merge-config.nu} template.toml live.toml
+        cmp once.toml live.toml
+        grep -qx 'command = "/nix/store/new-rea-mcp"' live.toml
+        grep -qx 'tool_timeout_sec = 420' live.toml
+        grep -qx 'command = "/app/node_repl"' live.toml
+        grep -qx 'model = "kept"' live.toml
+        # `! cmd` is exempt from errexit, so a match must fail explicitly.
+        if grep -q 'old-launcher\|STALE\|/bin/bash\|dotfiles Codex REA' live.toml; then exit 1; fi
+        touch "$out"
+      '';
   setup-routing = run "setup-routing" [ "setup-routing" ] { };
   switch-routing = run "switch-routing" [ "switch-routing" ] {
     SWITCH_BODY = pkgs.writeText "apply-switch.sh" applySwitch;

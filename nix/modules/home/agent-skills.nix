@@ -100,6 +100,7 @@ in
       # ディレクトリごとの symlink と実ファイルは読む。2026-11-13 実測)。link は
       # ファイル単位で張るので、ここだけ skill ごとのディレクトリ symlink になる
       # symlink-tree にする。~/.agents/skills は空なので丸ごと持っても何も消えない。
+      # 外部 plugin の skill (REA) は agent-plugins.nix が excludePatterns で同期から外して置く。
       agents.enable = true;
       gemini = {
         enable = true;

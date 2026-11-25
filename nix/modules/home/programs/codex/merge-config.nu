@@ -29,11 +29,28 @@ def deep-merge [overlay: record]: record -> record {
     }
 }
 
+# 宣言した mcp_servers.<name> は live の同名の表を捨ててから入れる。表 1 つが 1 つの
+# 起動定義なので、deep-merge で混ぜると宣言に無い args・env が live から残り、別の
+# command に渡ってしまう (暫定の REA 設定は command = "/bin/bash" と launcher の args を
+# 書いていた)。宣言していない server (アプリが書く node_repl など) には触らない。
+def replace-declared-mcp-servers [overlay: record]: record -> record {
+    let base = $in
+    let declared = $overlay | get --optional mcp_servers | default {} | columns
+    let live = $base | get --optional mcp_servers
+    if ($declared | is-empty) or not ($live | describe | str starts-with 'record') {
+        return $base
+    }
+    $base | upsert mcp_servers ($live | reject --optional ...$declared)
+}
+
 def main [template: path, live: path]: nothing -> nothing {
     let template_settings = open --raw $template | from toml
 
     let merged = if ($live | path exists) {
-        open --raw $live | from toml | deep-merge $template_settings
+        open --raw $live
+        | from toml
+        | replace-declared-mcp-servers $template_settings
+        | deep-merge $template_settings
     } else {
         $template_settings
     }

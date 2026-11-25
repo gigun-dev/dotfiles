@@ -94,9 +94,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # gigun-dev/claude-code の flake。marketplace から入らない agy に、外部 npm plugin
-    # (REA) を包んだ agy 版を渡す (claude-code の ADR 0005)。版とハッシュは
-    # claude-code 側の marketplace の固定と同じコミットで動き、ここは rev を進めるだけ。
     # skill だけのものを plugin で包まず 3 ホストへ配る (nix/modules/home/agent-skills.nix)。
     agent-skills = {
       url = "github:Kyure-A/agent-skills-nix";
@@ -146,6 +143,10 @@
       flake = false;
     };
 
+    # gigun-dev/claude-code の flake。marketplace の一覧 (nix/gigun-plugins.nix) と、版を固定して
+    # 1 回だけビルドした外部 plugin (overlay の external-plugins。claude-code の ADR 0007) を渡す。
+    # 置き場所は nix/modules/home/agent-plugins.nix。版とハッシュは claude-code 側で動き、
+    # ここは rev を進めるだけ。
     gigun-plugins = {
       url = "github:gigun-dev/claude-code";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -737,6 +738,7 @@
                         ./nix/modules/home
                         inputs.agent-skills.homeManagerModules.default
                         ./nix/modules/home/agent-skills.nix
+                        ./nix/modules/home/agent-plugins.nix
                       ]
                       ++ inputs.nixpkgs.lib.optionals (system == "aarch64-darwin") [
                         inputs.nix-secure-enclave-key.homeManagerModules.default
@@ -852,6 +854,7 @@
                 ./nix/modules/home
                 inputs.agent-skills.homeManagerModules.default
                 ./nix/modules/home/agent-skills.nix
+                ./nix/modules/home/agent-plugins.nix
               ];
             };
             # Raw upstream Node requires mini-vm's existing nix-ld; keep WSL unchanged.

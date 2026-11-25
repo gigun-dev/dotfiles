@@ -81,34 +81,6 @@ let
     sh ${../../../agents/codex-agents-md.sh} ${../../../agents} > $out
   '';
 
-  # agy (Antigravity CLI) に gigun marketplace の plugin を読ませる。Claude で有効にしている
-  # gigun plugin を同じ正本から導き、host 間・harness 間で有効な plugin がずれないようにする。
-  # agy-mcp は agy 自身を呼ぶ MCP、telemetry は Claude / Codex のセッションログを読むものなので
-  # agy には渡さない。macOS 専用の MCP (tableplus-mcp・xcode-mcp) は Claude 側で無効か未登録
-  # なので、Linux 向けに別の除外は要らない。外部 npm plugin (rea) は下の agyExternalPlugins
-  # の entry で読ませ、Git source の外部 plugin は agy 版が無いので agy が黙って飛ばす。
-  # Why not agy plugin install / import: plugin のコピーを作るので claude-code の更新が届かない。
-  # path は絶対パスで書く。agy 1.5.5 は文書と違って `~/` を展開せず、その entry を
-  # "must be an absolute path" で飛ばす (2026-11-12 実測)。
-  agyPlugins = lib.subtractLists [ "agy-mcp" "telemetry" ] gigunPlugins.autoEnable;
-
-  # marketplace の外部 npm plugin (rea) は claude-code/plugins に実体が無いので、
-  # gigun-plugins の flake が包んだ agy 版を別 entry で読ませる。node と skill の分割は
-  # パッケージ側が持ち、ここは解析エンジンの環境だけを渡す (with-ghidra と同じ値)。
-  # Why not rea setup: ~/.gemini/config/ に書き、起動パスと Ghidra の store path を
-  # 実行時の値で焼き込むので、switch で動かせない。
-  ghidraRea = pkgs.callPackage ../../packages/ghidra-rea { };
-  hasGhidraRea = pkgs.stdenv.hostPlatform.isDarwin && pkgs.stdenv.hostPlatform.isAarch64;
-  agyExternalPlugins = pkgs.agy-external-plugins.override {
-    mcpEnv = lib.optionalAttrs hasGhidraRea {
-      rea.rea = {
-        GHIDRA_INSTALL_DIR = "${ghidraRea}/lib/ghidra";
-        JAVA_HOME = "${ghidraRea.passthru.jdk.home}";
-      };
-    };
-  };
-  agyExternalNames = lib.attrNames agyExternalPlugins.passthru.sources;
-
   # gigun plugin は claude/settings.json に書かず、marketplace を正本にして live へ反映する
   # (gigun-dev/claude-code todo 0070)。未記載のものだけ true で足し、GUI で切り替えた値は
   # 残す。marketplace から消えたものは落とす。deep merge は宣言から消したキーを live に
@@ -154,19 +126,7 @@ in
   # login 専用の PATH 追加も repository を正本にする（既存 .zprofile は HM が退避）。
   home.file.".zprofile".text = builtins.readFile ../../../zsh/.zprofile;
 
-  # agy は plugins.json を読むだけで書き換えない (plugin の install 状態は config.json 側)。
-  home.file.".gemini/config/plugins.json".text = builtins.toJSON {
-    entries = [
-      {
-        path = "${config.home.homeDirectory}/ghq/github.com/gigun-dev/claude-code/plugins";
-        include_only = lib.subtractLists agyExternalNames agyPlugins;
-      }
-      {
-        path = "${agyExternalPlugins}";
-        include_only = lib.intersectLists agyExternalNames agyPlugins;
-      }
-    ];
-  };
+  # ~/.gemini/config/plugins.json と REA / Ghidra は agent-plugins.nix が持つ。
 
   # agy の承認方針を Pro と mini-vm で揃える。always-proceed は terminal コマンドに加えて
   # MCP の tool 呼び出しも確認なしで通す (agy 1.5.x の changelog)。T3 Code の Antigravity
