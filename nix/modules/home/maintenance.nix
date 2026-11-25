@@ -57,7 +57,7 @@ let
     touch "$stamp"
   '';
 
-  # switch の brew_upgrade_outdated (flake.nix) が上げるものを先に download しておく。
+  # switch 後の brew-bundle (nix/modules/darwin/homebrew.nix の upgradeOutdated) が上げるものを先に download しておく。
   # 上げるのは switch のときだけで、ここは cache (~/Library/Caches/Homebrew) に置くまで。
   # 一覧の条件 (greedy なしの brew outdated) は switch 側と揃える。
   brewPrefetch = pkgs.writeShellScript "brew-prefetch" ''

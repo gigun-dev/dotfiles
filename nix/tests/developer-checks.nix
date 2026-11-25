@@ -70,6 +70,39 @@ let
         inputs.self.darwinConfigurations.gigun-aarch64-darwin.config.homebrew.onActivation.cleanup;
     }
   );
+  # Homebrew は activation (root) ではなく switch 後の brew-bundle (利用者) が揃える。
+  # 評価だけで確かめるので、darwin を作れない Linux の CI でも回る。
+  # mini (gigun-x86_64-darwin) は nixpkgs が x86_64-darwin を落としたので評価できず、含めない。
+  homebrewFailures =
+    let
+      darwin = inputs.self.darwinConfigurations;
+      pro = darwin.gigun-aarch64-darwin.config;
+      maintenance = darwin.gigun-aarch64-darwin-runtime-maintenance.config;
+      bundleOf = c: c.system.build.brewBundle;
+      # 文字列が store path の context を持つと hasInfix (builtins.match) が受け付けない。
+      has =
+        needle: text:
+        lib.hasInfix (builtins.unsafeDiscardStringContext needle) (
+          builtins.unsafeDiscardStringContext text
+        );
+      hasBundle = has "brew bundle";
+    in
+    lib.attrNames (
+      lib.filterAttrs (_: ok: !ok) {
+        "brew-bundle uses the declared Brewfile" =
+          (pro.system.build.brewfile.text == pro.homebrew.brewfile)
+          && has "brew bundle --file=${pro.system.build.brewfile} --no-upgrade --force-cleanup" (bundleOf pro)
+          .text
+          && has "bundle cleanup --file=${pro.system.build.brewfile} " (bundleOf pro).text;
+        "brew-bundle is linked into the system output" =
+          has "ln -s ${lib.getExe (bundleOf pro)} $out/brew-bundle" pro.system.systemBuilderCommands;
+        "Pro activation runs no brew bundle" = !hasBundle pro.system.activationScripts.script.text;
+        "maintenance runs no brew bundle" =
+          maintenance.system.activationScripts.homebrew.text == ""
+          && !hasBundle maintenance.system.activationScripts.script.text
+          && !hasBundle (bundleOf maintenance).text;
+      }
+    );
   run =
     name: tests: extra:
     pkgs.runCommand "${name}-tests"
@@ -174,6 +207,15 @@ in
         if grep -q 'old-launcher\|STALE\|/bin/bash\|dotfiles Codex REA' live.toml; then exit 1; fi
         touch "$out"
       '';
+  homebrew-user-bundle = pkgs.runCommand "homebrew-user-bundle-tests" { } (
+    if homebrewFailures == [ ] then
+      "touch $out"
+    else
+      ''
+        echo ${lib.escapeShellArg (lib.concatStringsSep "\n" homebrewFailures)} >&2
+        exit 1
+      ''
+  );
   setup-routing = run "setup-routing" [ "setup-routing" ] { };
   switch-routing = run "switch-routing" [ "switch-routing" ] {
     SWITCH_BODY = pkgs.writeText "apply-switch.sh" applySwitch;

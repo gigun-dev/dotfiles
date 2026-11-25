@@ -39,6 +39,7 @@ class Switch(unittest.TestCase):
                     body = body.replace('/opt/homebrew/bin/brew', str(bin / 'brew'))
                     body = body.replace('/usr/local/bin/brew', str(bin / 'brew'))
                     body = body.replace('/usr/bin/sudo', str(bin / 'sudo'))
+                    body = body.replace('/run/current-system/brew-bundle', str(bin / 'brew-bundle'))
                     transport = bin / 'git-ssh-as-user'
                     if self.darwin:
                         body = body.replace(self.transport[1], str(transport))
@@ -53,6 +54,10 @@ class Switch(unittest.TestCase):
                         self.executable(bin / command, checks +
                             'printf "%s\\n" "' + command + ':$*" >> "$CALL_LOG"\n' +
                             ('exit 99\n' if command in ('cachix', 'curl', 'nix') else 'exit "$STATUS"\n'))
+                    # Homebrew runs as the invoking user, after the system switch succeeded.
+                    self.executable(bin / 'brew-bundle', '''[ "$HOME" != "$FAKE_ROOT_HOME" ] || exit 95
+printf '%s\\n' "brew-bundle:$*" >> "$CALL_LOG"
+''')
                     self.executable(bin / 'sudo', '''printf '%s\\n' "$@" >> "$SUDO_LOG"
 preserve_socket=0
 transport=
@@ -86,6 +91,8 @@ exec "$@"
                     expected = []
                     if self.darwin:
                         expected = [f'darwin-rebuild:switch --flake .#gigun-{self.system} --option fixture value']
+                        if status == 0:
+                            expected.append('brew-bundle:')
                         self.assertEqual(sudo_log.read_text().splitlines(), [
                             '--preserve-env=SSH_AUTH_SOCK', f'GIT_SSH_COMMAND={transport}',
                             str(bin / 'darwin-rebuild'), 'switch', '--flake', f'.#gigun-{self.system}',

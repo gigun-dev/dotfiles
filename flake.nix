@@ -208,86 +208,6 @@
             }/bin/${name}";
           };
 
-          # onActivation.cleanup = "uninstall" は、適用する Brewfile に無い cask / formula / tap を
-          # switch の最中に黙って消す。何が消えるかを事前に見えるようにするため、
-          # これから適用する Brewfile に `brew bundle cleanup` (dry-run) を当て、空でなければ
-          # 一覧を出して止める。続行するなら DOTFILES_ALLOW_BREW_CLEANUP=1。
-          # 置き場所を switch app にした理由: darwin-rebuild の activation 内は sudo 下で
-          # 対話もできず、止めても switch が部分適用されるだけ。update 系も apply_switch を
-          # 通るので 1 箇所で全経路を守れる。brew の無い経路 (Linux / mini-vm / WSL) は
-          # 別の applySwitch 分岐なので何もしない。brew 自体が無い darwin も素通り。
-          # Brewfile の `trusted: true` は install 時にしか trust store へ反映されず、
-          # cleanup 単体は未 trust の tap で落ちる。本物の trust store は触らず、
-          # 一時の XDG_CONFIG_HOME へ写して同じ trust を当てた上で判定する。
-          brewCleanupGuard =
-            let
-              brewfile =
-                pkgs.writeText "Brewfile"
-                  inputs.self.darwinConfigurations."${username}-${system}".config.homebrew.brewfile;
-            in
-            ''
-              brew_cleanup_guard() {
-                local brew_bin="" tmp out
-                for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do
-                  if [ -x "$b" ]; then brew_bin="$b"; break; fi
-                done
-                [ -n "$brew_bin" ] || return 0
-                tmp=$(mktemp -d)
-                mkdir -p "$tmp/homebrew"
-                cp "''${XDG_CONFIG_HOME:+$XDG_CONFIG_HOME/homebrew}''${XDG_CONFIG_HOME:-$HOME/.homebrew}/trust.json" "$tmp/homebrew/" 2>/dev/null || true
-                sed -nE 's/^brew "([^"]+\/[^"]+)".*trusted: true.*/\1/p' ${brewfile} \
-                  | while read -r n; do XDG_CONFIG_HOME="$tmp" "$brew_bin" trust --formula "$n" >/dev/null 2>&1 || true; done
-                sed -nE 's/^cask "([^"]+\/[^"]+)".*trusted: true.*/\1/p' ${brewfile} \
-                  | while read -r n; do XDG_CONFIG_HOME="$tmp" "$brew_bin" trust --cask "$n" >/dev/null 2>&1 || true; done
-                out=$(XDG_CONFIG_HOME="$tmp" HOMEBREW_NO_AUTO_UPDATE=1 "$brew_bin" bundle cleanup --file=${brewfile} 2>&1) || true
-                rm -rf "$tmp"
-                # brew bundle cleanup の dry-run は `brew cleanup` (キャッシュ・古い portable-ruby の削除)
-                # の予定も出す。宣言外の項目ではないので、その節と末尾の案内行は判定から外す
-                # (2026-11-25 にキャッシュだけで switch が止まった)。
-                out=$(printf '%s\n' "$out" | awk '
-                  /^Would `brew cleanup`:/ { skip = 1; next }
-                  /^Would (uninstall|untap)/ { skip = 0 }
-                  /^Run `brew bundle cleanup --force`/ { next }
-                  !skip && NF { print }')
-                if [ -n "$out" ] && [ "''${DOTFILES_ALLOW_BREW_CLEANUP:-}" != 1 ]; then
-                  echo "error: この switch は Brewfile に無い brew 項目を uninstall / untap する:" >&2
-                  echo "$out" >&2
-                  echo "消してよければ DOTFILES_ALLOW_BREW_CLEANUP=1 を付けて再実行。残すなら nix/modules/darwin/homebrew.nix に宣言する。" >&2
-                  return 1
-                fi
-              }
-            '';
-
-          # switch の後に、宣言した brew 項目のうち自分で更新しないもの (azooKey・tailscale・
-          # cloudflared など) だけを上げる。`brew outdated` は greedy でなければ auto_updates 付きの
-          # cask を出さないので、その一覧を名指しで upgrade する。auto_updates 付きはアプリ自身に任せる
-          # (onActivation.upgrade が壊した経緯は nix/modules/darwin/homebrew.nix)。
-          # download は dotfiles-prefetch agent が先に済ませておく (nix/modules/home/maintenance.nix)。
-          # 失敗しても system は適用済みなので switch は失敗にせず、警告だけ出す。
-          brewUpgradeOutdated = ''
-            brew_upgrade_outdated() {
-              local brew_bin="" outdated
-              for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do
-                if [ -x "$b" ]; then brew_bin="$b"; break; fi
-              done
-              [ -n "$brew_bin" ] || return 0
-              "$brew_bin" update --quiet >/dev/null 2>&1 || true
-              outdated=$("$brew_bin" outdated --quiet 2>/dev/null) || true
-              [ -n "$outdated" ] || return 0
-              # 改行区切りの名前を 1 行に並べて出すため、ここも分割させる。
-              # shellcheck disable=SC2086
-              echo "brew upgrade:" $outdated >&2
-              # shellcheck disable=SC2086
-              if ! HOMEBREW_NO_AUTO_UPDATE=1 "$brew_bin" upgrade $outdated; then
-                echo "warning: brew upgrade が失敗した。brew outdated で残りを確かめる。" >&2
-              fi
-              if printf '%s\n' "$outdated" | grep -qx azookey; then
-                echo "azooKey を更新した。ログアウトしてログインし直すまで、アプリで入力できない。" >&2
-              fi
-              return 0
-            }
-          '';
-
           # darwin-rebuild evaluates as root; only its Git SSH transport needs the
           # invoking user's SSH config, known_hosts and agent. Keep activation and
           # profile/rollback handling in the official privileged switch command.
@@ -303,25 +223,34 @@
           #   /etc/NIXOS の有無で判別し、darwin の switch が system + home を
           #   まとめて適用するのと同じ挙動に揃える。どの機械でも
           #   `nix run .#switch` だけ覚えていれば済むようにするための分岐。
-          # 各行の `|| return`: update 系は `if ! apply_switch` で呼ぶので
+          # 各行の `|| return`: update 系は `if ! apply_system` で呼ぶので
           # 関数内では set -e が効かず、system の失敗後に home へ進んでしまう。
+          # after_switch: darwin は Homebrew を activation の後に利用者として揃える
+          # (理由は nix/modules/darwin/homebrew.nix の brewBundle)。update 系は lock を
+          # commit してから呼ぶ。system は新しい lock で適用済みなので、brew の失敗で
+          # lock を戻すと、動いている system と lock が食い違う。
           applySwitch =
             if pkgs.stdenv.hostPlatform.isDarwin then
               ''
-                ${brewCleanupGuard}
-                ${brewUpgradeOutdated}
-                apply_switch() {
-                  brew_cleanup_guard || return
+                apply_system() {
                   /usr/bin/sudo --preserve-env=SSH_AUTH_SOCK \
                     GIT_SSH_COMMAND=${darwinGitSSH} \
                     ${inputs.nix-darwin.packages.${system}.darwin-rebuild}/bin/darwin-rebuild \
                     switch --flake ".#${username}-${system}" "$@" || return
-                  brew_upgrade_outdated
+                }
+                after_switch() {
+                  /run/current-system/brew-bundle
+                }
+                apply_switch() {
+                  apply_system "$@" || return
+                  after_switch
                 }
               ''
             else
               ''
-                apply_switch() {
+                after_switch() { :; }
+                apply_switch() { apply_system "$@"; }
+                apply_system() {
                   home_target="${username}-${system}"
                   if [ -e /etc/NIXOS ]; then
                     home_target="${username}-mini-vm"
@@ -365,7 +294,7 @@
               nix flake update ${targets} 2>&1 | tee "$log"
 
               # 適用に失敗した lock は commit しない。pull 済みの版へ戻し、dirty のまま残さない。
-              if ! apply_switch "$@"; then
+              if ! apply_system "$@"; then
                 git checkout -- flake.lock
                 echo "error: switch に失敗したので flake.lock を pull 済みの版へ戻した" >&2
                 exit 1
@@ -378,6 +307,7 @@
                 git commit --quiet -m "chore(deps): flake.lock を更新 (${lane})" -m "$(cat "$log")"
                 echo "flake.lock を commit した。push は手で行う: git push"
               fi
+              after_switch
             '';
         in
         {
@@ -771,8 +701,9 @@
                   modules = [
                     ({ lib, ... }: {
                       disabledModules = [ ./nix/modules/darwin/apple-container.nix ];
-                      # Pinned nix-darwin internal module option; verify on every lock upgrade.
-                      system.activationScripts.homebrew.text = lib.mkForce "";
+                      # Homebrew activation is already empty for every Darwin output
+                      # (nix/modules/darwin/homebrew.nix); also keep brew-bundle inert here.
+                      dotfiles.homebrew.bundleAfterSwitch = false;
                       home-manager.users.${username}.home.activation = {
                         installLaunchdUI = lib.mkForce {
                           data = "";

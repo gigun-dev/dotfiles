@@ -38,7 +38,8 @@ based on its running source. Its CLI paths and normal-input
 Brotli tests passed. The permanent source must be merged into the autoswitch's
 upstream main before a later automatic activation can retain these fixes.
 
-Normal Darwin activation includes Homebrew cleanup and Apple Container actions.
+Normal Darwin activation includes Apple Container actions, and the switch app
+then runs the generation's `brew-bundle`, which includes Homebrew cleanup.
 Do not run an older candidate or replace managed profile links by hand.
 
 Already-running and embedded runtimes are not replaced by profile updates.
@@ -50,8 +51,9 @@ deploy, global switch, or restart is implied by these package definitions.
 The explicit `gigun-aarch64-darwin-runtime-maintenance` output omits Homebrew
 bundle, Apple Container activation, and unrelated app/Python downloads. Ordinary
 Darwin outputs retain their normal management behavior and patched runtimes.
-The maintenance output uses a pinned nix-darwin internal activation option;
-recheck it when changing that input. Signing and access settings are preserved.
+Its `brew-bundle` is a no-op (`dotfiles.homebrew.bundleAfterSwitch = false`), and
+every Darwin output empties nix-darwin's internal Homebrew activation option;
+the `homebrew-user-bundle` developer check pins both when changing that input. Signing and access settings are preserved.
 
 Intel remains outside the current main nix-darwin switch workflow because its
 architecture is unsupported by current nixpkgs. Its applied temporary candidate
