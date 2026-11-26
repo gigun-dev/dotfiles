@@ -22,6 +22,8 @@ Power_On_Hours 6084h に対し稼働開始は 2025-12-10 で、実質新品が 5
 
 mini の `~/` に 9 ファイル、合計 28.4GB（実データ約 53GB）。
 
+pve の廃止後も残す（2026-11-26 に本人判断、特に supabase-01 の `pve-vm-101-disk-0`）。写しはこの 1 か所だけで、mini の内蔵ディスクが壊れると失われる。
+
 | ファイル | 中身 |
 |---|---|
 | pve-config-20260801.tar.gz | /etc/pve 全体、storage.cfg、config.db、network/interfaces |
