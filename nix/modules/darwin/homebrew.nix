@@ -163,7 +163,6 @@ in
     taps = [
       "fayazara/tap" # screendrop の cask
       "k1LoW/tap"
-      "manaflow-ai/cmux"
       "rudrankriyam/tap"
     ];
 
@@ -181,7 +180,6 @@ in
       "azookey"
       "claude"
       "claude-devtools" # Claude Code のセッション transcript を可視化する Electron アプリ。実体は GUI なので nix ではなく cask
-      "cmux"
       "1password"
       "1password-cli" # 公式の macOS 配布経路。Nix の CLI は unfree。
       "discord"
