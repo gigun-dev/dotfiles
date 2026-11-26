@@ -39,6 +39,7 @@ in
     enable = true;
 
     sources = {
+      local = source ../../../agents/skills ".";
       ryoppippi = source skillSources.ryoppippi-dotfiles "agents/skills";
       # gigun-dev/claude-code が正本を持つ skill (pre-push・japanese-tech-writing)。
       gigun = source skillSources.gigun-plugins "skills";
@@ -67,6 +68,7 @@ in
       "worktree"
       "ask-other-agent"
       "review-loop"
+      "blind-test-coder"
       "edit-skills"
       # 前提の nh-clean daemon は nix/modules/darwin/nh-clean.nix。手で判断する整理は
       # docs/storage-cleanup.md。
