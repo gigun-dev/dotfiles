@@ -241,7 +241,7 @@
     "lua-lsp@claude-plugins-official": false,
     "postman@claude-plugins-official": false,
     "skill-creator@claude-plugins-official": true,
-    "stripe@claude-plugins-official": true,
+    "stripe@claude-plugins-official": false,
     "supabase@claude-plugins-official": false,
     "swift-lsp@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
