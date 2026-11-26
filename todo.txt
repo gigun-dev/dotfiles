@@ -11,7 +11,6 @@
 (C) 2026-09-10 apple/container が再起動後に手を触れず apiserver running になることを確認する @device +infra old:DF-5 id:0016
 (C) 2026-09-10 cloudflare-os へ gatekeeper-mcp の固定 client_id 対応の issue を投稿する +cloudflare-os old:DF-30 see:docs/drafts/gatekeeper-mcp-static-client-id.md id:0017
 (C) 2026-09-10 Slack 書き込み gatekeeper を、upstream PR #95 の動向を見て着手・見送り・自前実装のどれかに決める +cloudflare-os old:DF-31 see:docs/cloudflare-os.md id:0018
-(C) 2026-09-10 pve の SSD を交換するか再インストールするか決める(データは mini へ退避済み。mini のストレージ整理と連動) @device +infra id:0019
 (A) 2026-09-11 Claude から Codex への実委譲で prompt-file が選ばれ、日本語・表・引用符・バッククォートが改変されず届くことを確認する +claude @unattended see:docs/agent-execution.md id:0025
 2026-09-11 実際の並列セッションで重い検証が1枠に収まり、単独/重複時の所要時間と失敗を再測定する +claude @unattended see:docs/agent-execution.md id:0029
 2026-09-11 ESP32 ホストテストの無条件再コンパイルによる所要を測定し、対象選択や ccache の導入が必要か決める +claude @unattended see:docs/agent-execution.md id:0030
@@ -50,11 +49,8 @@
 2026-11-08 plamo-translate: Takumi Guard (pypi.flatt.tech) に 1.2.0 が出たら uv tool install --reinstall -p 3.14 --managed-python plamo-translate でパッケージ名指定に戻す (今は pypi.org の wheel をローカルパスで入れており uv tool upgrade で上がらない) by:me id:0133
 2026-11-08 +docs ADR を棚卸しし、今の意図と違うものを覆すか畳む (古く、意図と違うことがあるとユーザー談) by:me id:0135
 (C) 2026-11-08 uv cache (約 8G) を掃除できる状態に戻す。MCP を起動した uv run / uvx が実行中ずっと cache の lock を持つので、uv 側の対応を待つ間は他のエージェントが止まっているときに pkill -f 'uv run --script' してから uv cache prune を流す (再起動しても MCP が立ち上がるので条件にならない。2026-11-21 に 10.1GiB 消えた)。--force は使わない +cleanup see:docs/storage-cleanup.md by:claude id:0141
-2026-11-08 +infra pve の外部死活監視を作る: mini など外から書き込み可否を叩く (read-only に落ちると通知とログが同時に死ぬため) see:docs/pve-ssd-failure.md by:claude dep:0019 id:0145
-2026-11-08 +infra pve の vm-101 (supabase-01) が使用率 98%。ディスクを広げるか中身を整理する see:docs/pve-ssd-failure.md by:claude dep:0019 id:0146
 2026-11-08 Finder の iPhone Wi-Fi 自動バックアップが壊れたバックアップを毎日作り直す件の恒久対策 (iCloud バックアップへ切り替えるか、ケーブルで一度完走させて Wi-Fi 自動バックアップを止める)。対象が Pro か mini かも確かめる see:docs/storage-cleanup.md by:claude id:0148
 2026-11-08 +nix 長く残る gc root を整理する: ~/.local/state/esp-idf/nix-profile-1-link (3.5GiB)、direnv の cc-handson / swift-mcp-app、dotfiles と worktree の result symlink。nix run .#build の result を残さない形も検討 see:docs/storage-cleanup.md by:claude id:0155
-2026-11-09 +infra pve が tailnet から 62 日 offline で、LAN の 192.168.11.100 にも届かない (2026-11-08 確認)。電源断か孤立かを物理的に確かめる。0019 の判断の前提 @device see:docs/pve-ssd-failure.md by:claude id:0156
 2026-11-09 miniのTaildriveが現在使えるかを実機クライアントで確認し継続・廃止とtag:storageの要否を決める +tailscale see:docs/tailnet.md by:me id:0158
 2026-11-09 1Password Agentic Autofill を対応エージェントへ接続し、ログイン要求・本人承認・秘密非表示を検証する。mini は app・CLI が未導入なので、凍結 Nix 外の導入経路を確認する +security by:me id:0159
 2026-11-09 +ci 手元 (aarch64-darwin) の sh scripts/verify.sh が nix flake check で codex-agents-md (b2bdd9d で追加) を x86_64-linux 向けに build しようとして platform mismatch で落ちる。darwin で verify.sh が通るよう、Linux 構成の derivation を darwin の check から外すか docs/testing.md の手元手順を直す by:claude id:0161

@@ -124,3 +124,7 @@ x 2026-11-17 2026-11-17 セキュリティキー実認証は成功。保存済�
 x 2026-11-17 2026-11-17 セキュリティキー対応 ipatool を private 派生リポジトリへ移し、上流更新検知・CIとdotfilesのcommit固定を検証する +ios see:docs/adr/0019-private-ipatool-downstream.md by:me id:0208
 x 2026-11-17 2026-11-17 共有switchのSSHユーザー委譲は実装・テスト済み。手元の対話端末でmainのswitchを実行しprivate版の実適用を受入する +ios +nix @user see:docs/ios-re-tools.md by:codex id:0210
 x 2026-11-24 2026-10-18 JST 深夜のfast/slow timer明示とsender/hub予定枠の修正をレビューし、本番反映の承認後に自然receiptを確認する（修正・境界/重複回帰検証済み、本番未適用） +notify +mini-vm see:docs/job-heartbeat-activation.md by:me id:0103 @dropped mini-vm の lock timer と lock heartbeat sender を撤去し、確認する fast/slow の自然 receipt が無くなった
+x 2026-11-26 2026-11-08 +infra pve の外部死活監視を作る: mini など外から書き込み可否を叩く (read-only に落ちると通知とログが同時に死ぬため) see:docs/pve-ssd-failure.md by:claude dep:0019 id:0145 @dropped 2026-11-26 に pve を廃止した (本人判断)。復旧も監視もしない
+x 2026-11-26 2026-11-08 +infra pve の vm-101 (supabase-01) が使用率 98%。ディスクを広げるか中身を整理する see:docs/pve-ssd-failure.md by:claude dep:0019 id:0146 @dropped 2026-11-26 に pve を廃止した (本人判断)。復旧も監視もしない
+x 2026-11-26 2026-11-09 +infra pve が tailnet から 62 日 offline で、LAN の 192.168.11.100 にも届かない (2026-11-08 確認)。電源断か孤立かを物理的に確かめる。0019 の判断の前提 @device see:docs/pve-ssd-failure.md by:claude id:0156 @dropped 2026-11-26 に pve を廃止した (本人判断)。復旧も監視もしない
+x 2026-11-26 2026-09-10 pve の SSD を交換するか再インストールするか決める(データは mini へ退避済み。mini のストレージ整理と連動) @device +infra id:0019 @dropped 2026-11-26 に pve を廃止した (本人判断)。復旧も監視もしない

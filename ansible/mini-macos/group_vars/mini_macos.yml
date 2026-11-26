@@ -45,6 +45,8 @@ mini_casks:
   - karabiner-elements
   - monitorcontrol
   - aqua-voice
+  - figma
+  - iterm2
 # 明示更新 (update.yml) で選べるもの。auto_updates の cask を brew で上げると壊れる
 # (nix/modules/darwin/homebrew.nix の 2026-11-25 の記録) ので cask は選べない。
 # mini_tool_policy が Cellar のパスと SHA-256 で選択リンクを固定している formula
@@ -152,26 +154,6 @@ mini_tool_policy:
         force: true
       update_policy: manual
     adoption: {state: adopted, owner: ansible}
-  fd:
-    target:
-      version: "10.5.0"
-      source:
-        kind: homebrew_cellar
-        formula: fd
-        path: /usr/local/Cellar/fd/10.5.0/bin/fd
-        integrity: {kind: executable_sha256, sha256: 99d0efbc645043b6458983bb082c6a4080108d4a3c117d4e8e39a4045689be9f}
-        artifact: {kind: homebrew_bottle_sha256, platform: sonoma, sha256: c57f68964c5f724c61ab92d691e84d82123fe258e69d416bca3d58d403eeb73a}
-        archive_integrity: {kind: homebrew_source_sha256, sha256: e6d9e90730bf316101691e49d59cc02565278dc3779d33a77423801569484851}
-      selection: {mode: interactive_cli, state: pending}
-      update_policy: manual
-    adoption:
-      state: pending
-      owner: nix
-      current:
-        version: "10.4.2"
-        path: /etc/profiles/per-user/gigun/bin/fd
-        integrity: {kind: executable_sha256, sha256: a083021398fb6212798cb658b94ac912845d76f874d368a16c2bced33d644a15}
-        active_in_login_shell: true
   vivid:
     target:
       version: "0.11.1"

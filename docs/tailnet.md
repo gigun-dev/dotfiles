@@ -10,7 +10,6 @@
 | `tag:dev` | 同じtrust domainで扱う個人開発環境 |
 | `tag:storage` | file共有機能。継続判断まで独立roleとして扱う |
 | `tag:client` | 管理起点にしない一般client |
-| `tag:proxmox` | 仮想化host role |
 
 tagは権限class、hostnameは実行先の選択に使う。nodeを追加・用途変更したときは、provider上のtagと宣言の差分を確認する。
 

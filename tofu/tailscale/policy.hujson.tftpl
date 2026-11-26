@@ -3,7 +3,6 @@
 		"tag:admin-device": [${owner}],
 		"tag:client":       [${owner}],
 		"tag:storage":      [${owner}],
-		"tag:proxmox":      [${owner}],
 		"tag:dev":          [${owner}],
 	},
 
@@ -20,7 +19,6 @@
 					"tag:admin-device",
 					"tag:client",
 					"tag:storage",
-					"tag:proxmox",
 					"tag:dev",
 				],
 			"dst":
@@ -28,7 +26,6 @@
 					"tag:admin-device",
 					"tag:client",
 					"tag:storage",
-					"tag:proxmox",
 					"tag:dev",
 				],
 			"ip": ["*"],
@@ -46,13 +43,6 @@
 	],
 
 	"ssh": [
-		// admin → pve: root と ubuntu (運用必要)
-		{
-			"action": "accept",
-			"src":    ["tag:admin-device"],
-			"dst":    ["tag:proxmox"],
-			"users":  ["root", "ubuntu"],
-		},
 		// admin → 自分で使う端末: nonroot のみ (`ssh gigun@mini` 想定)
 		{
 			"action": "accept",

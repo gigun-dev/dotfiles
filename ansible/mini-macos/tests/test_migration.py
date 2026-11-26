@@ -82,7 +82,8 @@ class Migration(MigrationFixture, unittest.TestCase):
         self.assertEqual(self.variables["mini_formulae"],
                          ["lima", "tailscale", "gh", "xcodegen", "fzf", "zoxide", "ripgrep"])
         self.assertEqual(self.variables["mini_casks"],
-                         ["google-chrome", "karabiner-elements", "monitorcontrol", "aqua-voice"])
+                         ["google-chrome", "karabiner-elements", "monitorcontrol", "aqua-voice",
+                          "figma", "iterm2"])
         self.assertEqual(self.variables["mini_update_formulae"], [])
         for task in yaml.safe_load((ROOT / "tasks/homebrew.yml").read_text()):
             module = task.get("community.general.homebrew") or task.get("community.general.homebrew_cask")
@@ -300,7 +301,7 @@ class Migration(MigrationFixture, unittest.TestCase):
     def test_pending_candidates_refuse_selection(self):
         base = yaml.safe_load((ROOT / "group_vars/mini_macos.yml").read_text())
         base.update(inventory_hostname="mini", ansible_host="mini", ansible_user="gigun")
-        for name in ("fd", "vivid", "asc"):
+        for name in ("vivid", "asc"):
             with self.subTest(tool=name):
                 variables = copy.deepcopy(base)
                 variables.update(mini_targets=[name], mini_apply_ack=True)

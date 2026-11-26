@@ -14,13 +14,12 @@ apply がそれに揃えることを指す。宣言しただけで実機へ適�
 | 対象 | 所有者 | 現在地・残り |
 |---|---|---|
 | 最小 shell (`.zshenv` / `.zshrc`) | Ansible `shell` | 2026-11-12 に適用済み |
-| CLI 選択リンク (fzf / zoxide / rg / xcodegen) | Ansible (`mini_tool_policy`) | 適用済み。fd / vivid / asc は pending |
+| CLI 選択リンク (fzf / zoxide / rg / xcodegen) | Ansible (`mini_tool_policy`) | 適用済み。vivid / asc は pending |
 | user defaults 2 項目 | Ansible `defaults` | 適用済み |
 | Homebrew の formula / cask / tap | Ansible `homebrew` (宣言したものの存在だけ) | 2026-11-26 に宣言。check で変更 0。宣言外は消さない (下の一覧) |
 | formula の更新 | Ansible `update.yml` (formula を名指し) | cask は auto_updates に任せる |
 | 番人 `dev.gigun.net-watchdog` (user agent) | Ansible `net_watchdog` | 2026-11-26 に宣言。plist は稼働中と bytes 一致、script は repo 版との差 (コメント 9 行) だけ。未適用 |
 | mini-vm の起動 | Ansible `lima_daemon` (宣言) | **未切替**。実機はまだ LaunchAgent `io.lima-vm.autostart.mini-vm` (Lima が生成) で動く |
-| `com.gigun-dev.pve-watch` (user agent) | manual | 本体 `~/.local/bin/pve-watch.sh` と plist は mini にしか無い。残すなら script を repo へ取り込んでから宣言する。pve は 2026-11-09 から offline (todo 0156) |
 | `dev.gigun.ota-deploy` (user agent) | manual (asc-mcp 側の配布経路) | `~/.ota-deploy/public` を 127.0.0.1:18787 で配り、tailscale serve が tailnet にだけ出す。repo に source が無い |
 | `actions.runner.gigun-dev-asc-mcp-control.mini-asc-mcp` | manual (runner の `svc.sh`) | runner が自己更新で `bin` / `runsvc.sh` を書き換え、plist も `svc.sh install` が作る。Ansible が書くと writer が二つになる |
 | `dev.gigun.host-heartbeat` (system daemon) | manual (`scripts/install-host-heartbeat-mac.sh`) | sudo と token を扱う installer が正本。Ansible へ移すなら token の配送を別に決める |
@@ -48,24 +47,20 @@ apply がそれに揃えることを指す。宣言しただけで実機へ適�
 - formula: `lima` (mini-vm)、`tailscale` (SSH と serve の経路)、`gh` (checkout の credential helper)、
   `xcodegen`、`fzf` / `zoxide` / `ripgrep` (最小 shell。`pcre2` は ripgrep の依存として入る)
 - cask: `google-chrome` (起動中)、`karabiner-elements` (daemon が常駐)、`monitorcontrol` (起動中)、
-  `aqua-voice` (2026-11-25 に使用)
+  `aqua-voice` (2026-11-25 に使用)、`figma`・`iterm2` (mini の前に座るときに使う、本人判断)
+- Homebrew 外: `ChatGPT.app` (bundle id `com.openai.codex`、codex を同梱)。直接配布で自己更新するので宣言しない
 - tap: 無し
 
-入っているが要らないと判断したもの (消してはいない。消すかは本人が決める):
+宣言外で入っていたものは、2026-11-26 に本人の判断で消した。消したものと理由:
 
-| 種別 | 名前 | 理由 |
-|---|---|---|
-| formula | `cloudflared` | service 未登録・設定 (`~/.cloudflared`) 無し。OTA は tailscale serve で出している |
-| formula | `fd` | login shell は Nix の fd を使い、Homebrew 版は未採用の候補のまま。mini の役割で使わない |
-| formula | `mo` (`k1low/tap`) | Markdown viewer。mini の役割に無い。tap が untrusted で `brew info` も拒否される |
-| formula | `go` | gh / lima を source build したときの build 依存で、実行時には要らない。Intel bottle が無い版を再 build するときは brew が入れ直す |
-| formula | `tailscale` 1.96.4 の古い keg | 1.104.2 が link 済み。`brew cleanup tailscale` の対象 |
-| tap | `k1low/tap`、`manaflow-ai/cmux` | 要らない mo / cmux のためだけの tap |
-| cask | `cmux`、`discord`、`fork`、`postman`、`proxyman`、`slack`、`tableplus`、`ollama-app` | 一度も開かれていない (`kMDItemLastUsedDate` 無し) |
-| cask | `iterm2`、`zed`、`claude` | 最後の使用が 2026-09 / 04 / 06。mini での作業は SSH と mini-vm で行う |
-| cask | `codex` | ChatGPT.app 同梱の codex を使っており、cask の CLI は PATH に無い |
-| cask | `azookey` | 入力ソースに登録されていない (ことえりを使用) |
-| cask | `figma` | 起動しているが、デザイン作業は mini の役割に無い。本人が使うなら宣言へ移す |
+- formula: `cloudflared` (mac 側に service も設定も無い。tunnel は mini-vm の Nix が持つ)、`fd`
+  (login shell は Nix の fd で、Homebrew 版は未採用のまま)、`mo` (`k1low/tap`)、`go` (gh / lima の
+  source build 時の build 依存)、`tailscale` 1.96.4 の古い keg
+- tap: `k1low/tap`、`manaflow-ai/cmux`
+- cask: `cmux`、`discord`、`fork`、`postman`、`proxyman`、`slack`、`tableplus`、`ollama-app`
+  (一度も開かれていない)、`zed`、`claude` (最後の使用が 2026-04 / 06)、`codex` (0.118 の CLI。
+  PATH に無く、ChatGPT.app 同梱の codex を使う)
+- 残した `azookey` は入力ソースに登録されていない。使うかは本人が決める
 
 ## CLI の共通宣言
 
@@ -74,20 +69,19 @@ apply がそれに揃えることを指す。宣言しただけで実機へ適�
 実体ファイルの SHA-256 を検査してから選択リンクを作り、未知の既存ファイルやリンクを保全する。
 パッケージ導入・更新は別操作であり、各 CLI の `update_policy` は手動のまま。
 
-`fd` は Nix 10.4.2 が login shell で有効で、Homebrew Cellar の 10.5.0 は未選択の候補。
 `vivid` は現在 Nix 0.10.1 が存在し、Homebrew 0.11.1 は取得元・checksum が確認済みの未採用候補。
 `asc` は mini への read-only SSH 棚卸しで、公式 5.17.1 Intel release asset と同一 SHA-256 の
 x86_64 実行ファイルとして確認した。release の `asc_5.17.1_macOS_amd64` は圧縮 archive ではなく raw Mach-O executable なので、checksum 種別は `release_executable_sha256`。
 [公式 release assets](https://github.com/rorkai/App-Store-Connect-CLI/releases/expanded_assets/5.17.1)
 の manifest と asset SHA が一致する。現在は `~/.local/bin/asc` に手動配置され、rollback 用の 5.9.2 がある。
 2026-10-31 の SSH 確認では、対話 login shell (`zsh -lic`、TTY なし) はこの配置を選び、noninteractive shell では見つからなかった。Ansible の destination には指定しない。
-この3件は adoption / selection が `pending` なので、`mini_targets` に指定しても適用前検査で拒否する。
+この2件は adoption / selection が `pending` なので、`mini_targets` に指定しても適用前検査で拒否する。
 
 ## 凍結 generation 参照の監査境界
 
 2026-11-12 の値非表示監査では、login shell の `gh` / `fd` / `node` はいずれも
-`/etc/profiles/per-user/gigun/bin` の Nix profile を解決した。`fd` には検証済み Homebrew
-候補があるが、mini で使っていないため採用しない。`gh` は global Git credential helper の
+`/etc/profiles/per-user/gigun/bin` の Nix profile を解決した。`fd` は mini で使っていないため
+Homebrew へは移さない (2026-11-26 に Homebrew 版を削除)。`gh` は global Git credential helper の
 実体でもあり、Nix 撤去前に非 Nix の取得元へ移す必要がある。`node` を使っていた mugi-claw は未使用と確認できたため、2026-11-12 に
 LaunchAgent を unload し、plist リンクと専用 Chrome process だけを除去した。`~/.mugi-claw`
 と owning repo は保持している。
