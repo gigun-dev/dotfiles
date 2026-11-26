@@ -1,17 +1,17 @@
 {
   "schema": 1,
   "name": "fzf",
-  "version": "0.74.5",
+  "version": "0.75.0",
   "revision": 0,
-  "core_revision": "f8967c7840b2c8af6d0df4a47aaf01140307e725",
-  "formula_sha256": "f4cae1e193a4c2a5a01cbeed469f26931b3b067cf22f5f505b97de46574128d7",
-  "source_sha256": "5529d08897b85ae773695787c811ff9c9eeee32419c8a297fa1dbe586ed0a27e",
+  "core_revision": "d0a6af6128601bb3f2ba09f5aead358d8000c071",
+  "formula_sha256": "e81dc482ba88af93d2365362651e5d404af9eebe3ed09c9b59cd57fb8fbfffdb",
+  "source_sha256": "165f6e0c1b9ba082346233681e3f1d1374e37f9fd3c1d7b6dfe09659ab893faa",
   "go": {
-    "version": "1.27.3",
+    "version": "1.27.4",
     "revision": 0,
-    "formula_sha256": "60d78711c1300f95a5f3f5ef6f0a1892517e5bdff0c6068d2b0c71bd3233b1f9",
-    "source_sha256": "6e7749035cf360f06b2575d162ea79df9fda8ef671889e5c375f8e50777f26bb",
-    "build_sha256": "c845c5fcf4164856e7e4d3ddfff9615f339ffa43e9503da4179872bfc84a11e4"
+    "formula_sha256": "ae522517785418859622cc75892aba101b62b3c0db467c87f1f16e7548730179",
+    "source_sha256": "73cfb8571aec0c01177687db87163d46aa20e9779672772891aa17654d9a6099",
+    "build_sha256": "4550e0f5045fef44abb31775cf1b6b2c0c6e58e3d8fbcf98801db5ac1838f62e"
   },
   "dependencies": {
     "build": [
@@ -29,5 +29,5 @@
     "prefix": "/usr/local"
   },
   "parallelism": 2,
-  "build_sha256": "185ed8505025b4b634ef1aa0f3344ffee6af9c0abc01e494e3b2f46e1aa44d4b"
+  "build_sha256": "2a12f70f5c05e61990e46c0acee52f0970d72500a7df572970699cca50ac87c9"
 }
