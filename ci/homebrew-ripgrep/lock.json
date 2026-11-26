@@ -1,0 +1,10 @@
+{
+  "core_revision": "f8967c7840b2c8af6d0df4a47aaf01140307e725",
+  "formulae": {
+    "pcre2": "2dcb74b4bc19dc81ace51feac7bb626b679c7b730eca1d3492d73fe822134fb8",
+    "ripgrep": "2e493e50a49a37f7ed090f44019d1c58dd30c90a5c6fe1ecbcd69334dccaa60b"
+  },
+  "pcre2_version": "10.49",
+  "ripgrep_version": "15.2.0",
+  "ripgrep_bottle_sha256": "9dd76bad725daf9ad1d4c983419e79ec92aefdae0cc9c92d465b424c8aea4808"
+}
