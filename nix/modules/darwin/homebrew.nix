@@ -11,27 +11,6 @@ let
   # nix-darwin の activation と同じ derivation (同じ名前と中身) なので、宣言との食い違いは起きない。
   brewfile = pkgs.writeText "Brewfile" cfg.brewfile;
 
-  # Brewfile の `trusted: true` は install 時にしか trust store へ反映されず、
-  # 宣言した項目のうち自分で更新しないもの (azooKey・tailscale・cloudflared など) だけを上げる。
-  # `brew outdated` は greedy でなければ auto_updates 付きの cask を出さないので、その一覧を
-  # 名指しで upgrade し、auto_updates 付きはアプリ自身に任せる (onActivation.upgrade を使わない
-  # 理由は下の homebrew の冒頭)。download は brew-prefetch agent が先に済ませておく
-  # (nix/modules/home/maintenance.nix)。失敗しても system と bundle は適用済みなので、警告に留める。
-  upgradeOutdated = ''
-    brew update --quiet >/dev/null 2>&1 || true
-    outdated=$(brew outdated --quiet 2>/dev/null) || true
-    if [ -n "$outdated" ]; then
-      mapfile -t names <<<"$outdated"
-      echo "brew upgrade: ''${names[*]}" >&2
-      if ! HOMEBREW_NO_AUTO_UPDATE=1 brew upgrade "''${names[@]}"; then
-        echo "warning: brew upgrade が失敗した。brew outdated で残りを確かめる。" >&2
-      fi
-      if [[ " ''${names[*]} " == *" azookey "* ]]; then
-        echo "azooKey を更新した。ログアウトしてログインし直すまで、アプリで入力できない。" >&2
-      fi
-    fi
-  '';
-
   # nix-darwin の activation は root から `sudo --user` で brew bundle を動かす。sudo 1.9.17 の
   # use_pty で activation は新しい pty に載り、sudo の timestamp は tty ごとなので、cask の
   # installer が呼ぶ sudo は switch で通した認証を使えず、端末の無い所で聞き直す。
@@ -63,7 +42,6 @@ let
               ++ onActivation.extraFlags
             )
           }
-          ${upgradeOutdated}
         ''
       else
         ''
@@ -94,10 +72,6 @@ in
   config.homebrew = {
     enable = true;
     onActivation.cleanup = "uninstall";
-    # 更新は onActivation.upgrade ではなく brew-bundle の upgradeOutdated (上) が行う。
-    # 2026-11-25 に upgrade = true を試したところ、brew bundle が auto_updates 付きの cask
-    # (Discord・Chrome・iTerm2・Zed など 7 個) まで upgrade し、どれも中身の空な .app を残して
-    # 壊れた。auto_updates の無いもの (azooKey・1password-cli・slack-cli) と brews は無事だった。
     # Why not brew-nix (ryoppippi): azooKey は /Library/Input Methods へ入れる署名済み pkg で、
     # nix store から配る形にできない。
 

@@ -92,7 +92,9 @@ let
           (pro.system.build.brewfile.text == pro.homebrew.brewfile)
           && has "brew bundle --file=${pro.system.build.brewfile} --no-upgrade --force-cleanup" (bundleOf pro)
           .text
-          && has "bundle cleanup --file=${pro.system.build.brewfile} " (bundleOf pro).text;
+          && !has "brew bundle cleanup" (bundleOf pro).text
+          && !has "brew update" (bundleOf pro).text
+          && !has "brew upgrade" (bundleOf pro).text;
         "brew-bundle is linked into the system output" =
           has "ln -s ${lib.getExe (bundleOf pro)} $out/brew-bundle" pro.system.systemBuilderCommands;
         "Pro activation runs no brew bundle" = !hasBundle pro.system.activationScripts.script.text;

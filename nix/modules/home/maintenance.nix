@@ -57,30 +57,6 @@ let
     touch "$stamp"
   '';
 
-  # switch 後の brew-bundle (nix/modules/darwin/homebrew.nix の upgradeOutdated) が上げるものを先に download しておく。
-  # 上げるのは switch のときだけで、ここは cache (~/Library/Caches/Homebrew) に置くまで。
-  # 一覧の条件 (greedy なしの brew outdated) は switch 側と揃える。
-  brewPrefetch = pkgs.writeShellScript "brew-prefetch" ''
-    set -u
-    ${onAcPower}
-    brew=/opt/homebrew/bin/brew
-    [ -x "$brew" ] || exit 0
-    mkdir -p ${stateDir}
-    stamp=${stateDir}/brew-prefetch.stamp
-    # brew update は API の取得を伴うので 6 時間に 1 回。
-    [ -z "$(/usr/bin/find "$stamp" -mmin -360 2>/dev/null)" ] || exit 0
-    "$brew" update --quiet >/dev/null 2>&1 || exit 0
-    formulae=$("$brew" outdated --formula --quiet 2>/dev/null)
-    casks=$("$brew" outdated --cask --quiet 2>/dev/null)
-    if [ -n "$formulae$casks" ]; then
-      date
-      echo "fetch:" $formulae $casks
-      [ -z "$formulae" ] || HOMEBREW_NO_AUTO_UPDATE=1 "$brew" fetch --formula $formulae
-      [ -z "$casks" ] || HOMEBREW_NO_AUTO_UPDATE=1 "$brew" fetch --cask $casks
-    fi
-    touch "$stamp"
-  '';
-
   # 空きが急に減ったとき、どこが増えたかを前の日と比べられるよう、1 日 1 回フォルダごとの
   # 使用量 (allocated) を残す。読み方と注意 (APFS の clone を du は二重に数える) は
   # docs/storage-cleanup.md。
@@ -116,6 +92,5 @@ in
 lib.mkIf pkgs.stdenv.hostPlatform.isDarwin {
   launchd.agents.dotfiles-prefetch = hourlyAgent prefetch "dotfiles-prefetch.log";
   launchd.agents.uv-cache-prune = hourlyAgent uvCachePrune "uv-cache-prune.log";
-  launchd.agents.brew-prefetch = hourlyAgent brewPrefetch "brew-prefetch.log";
   launchd.agents.storage-usage = hourlyAgent storageUsage "storage-usage.log";
 }
