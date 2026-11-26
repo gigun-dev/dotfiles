@@ -187,9 +187,7 @@ hub キャッシュは、モデル間で blob を共有する構造（`hub/blobs
 
 ### アプリの削除
 
-`homebrew.nix` の casks で宣言したアプリは、行を消して switch すると cleanup でアンインストールされる。
-switch は system を適用した後、宣言外の brew 項目を見つけると `brew bundle` の手前で止まり、`DOTFILES_ALLOW_BREW_CLEANUP=1 /run/current-system/brew-bundle` の実行を求める（brew だけを利用者として揃え直すので、darwin-rebuild をやり直す必要は無い）。
-エージェントからの実行は Claude Code の自動許可判定が不可逆な削除として止めるので、本人がターミナルで実行する。
+Pro の switch は system の適用後に `brew bundle --force-cleanup` を実行する。Brewfile から外した cask や tap はこの段階で自動的に削除される。
 アンインストール後も常駐プロセス（Ollama の `ollama serve` など）とログイン項目が残ることがあるので、`pgrep` で確かめて止める。
 手で入れたアプリ（LM Studio など）は `.app` に加えてホーム直下のデータ（`~/.lmstudio`）も消す。
 

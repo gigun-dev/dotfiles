@@ -12,64 +12,6 @@ let
   brewfile = pkgs.writeText "Brewfile" cfg.brewfile;
 
   # Brewfile の `trusted: true` は install 時にしか trust store へ反映されず、
-  # `brew bundle cleanup` 単体は未 trust の tap の項目で落ちる。
-  trustedTapItems =
-    kind:
-    lib.concatMap (
-      line:
-      let
-        m = builtins.match "${kind} \"([^\"]+/[^\"]+)\".*trusted: true.*" line;
-      in
-      lib.optional (m != null) (builtins.head m)
-    ) (lib.splitString "\n" cfg.brewfile);
-
-  removesUndeclared = builtins.elem onActivation.cleanup [
-    "uninstall"
-    "zap"
-  ];
-
-  # onActivation.cleanup = "uninstall" は、Brewfile に無い cask / formula / tap を黙って消す。
-  # 何が消えるかを先に見せるため、bundle の直前に `brew bundle cleanup` (dry-run) を当て、
-  # 空でなければ一覧を出して止める。続行するなら DOTFILES_ALLOW_BREW_CLEANUP=1。
-  # 本物の trust store は触らず、一時の XDG_CONFIG_HOME へ写して同じ trust を当てた上で判定する。
-  cleanupPreview = ''
-    preview=$(mktemp -d)
-    trap 'rm -rf "$preview"' EXIT
-    mkdir -p "$preview/homebrew"
-    # brew (bin/brew の HOMEBREW_USER_CONFIG_HOME) と同じ優先順で本物の trust store を探す。
-    if [ -n "''${XDG_CONFIG_HOME-}" ]; then
-      config_home=$XDG_CONFIG_HOME/homebrew
-    elif [ -n "''${HOMEBREW_XDG_CONFIG_HOME-}" ]; then
-      config_home=$HOMEBREW_XDG_CONFIG_HOME/homebrew
-    else
-      config_home=$HOME/.homebrew
-    fi
-    cp "$config_home/trust.json" "$preview/homebrew/" 2>/dev/null || true
-    ${lib.concatMapStrings (
-      n:
-      "XDG_CONFIG_HOME=\"$preview\" brew trust --formula ${lib.escapeShellArg n} >/dev/null 2>&1 || true\n"
-    ) (trustedTapItems "brew")}
-    ${lib.concatMapStrings (
-      n:
-      "XDG_CONFIG_HOME=\"$preview\" brew trust --cask ${lib.escapeShellArg n} >/dev/null 2>&1 || true\n"
-    ) (trustedTapItems "cask")}
-    out=$(XDG_CONFIG_HOME="$preview" HOMEBREW_NO_AUTO_UPDATE=1 brew bundle cleanup --file=${brewfile} 2>&1) || true
-    # dry-run は `brew cleanup` (キャッシュ・古い portable-ruby の削除) の予定も出す。
-    # 宣言外の項目ではないので、その節と末尾の案内行は判定から外す
-    # (2026-11-25 にキャッシュだけで switch が止まった)。
-    out=$(printf '%s\n' "$out" | awk '
-      /^Would `brew cleanup`:/ { skip = 1; next }
-      /^Would (uninstall|untap)/ { skip = 0 }
-      /^Run `brew bundle cleanup --force`/ { next }
-      !skip && NF { print }')
-    if [ -n "$out" ] && [ "''${DOTFILES_ALLOW_BREW_CLEANUP:-}" != 1 ]; then
-      echo "error: brew bundle は Brewfile に無い次の項目を uninstall / untap する:" >&2
-      printf '%s\n' "$out" >&2
-      echo "system は適用済み。消してよければ DOTFILES_ALLOW_BREW_CLEANUP=1 /run/current-system/brew-bundle を実行する。残すなら nix/modules/darwin/homebrew.nix に宣言して switch し直す。" >&2
-      exit 1
-    fi
-  '';
-
   # 宣言した項目のうち自分で更新しないもの (azooKey・tailscale・cloudflared など) だけを上げる。
   # `brew outdated` は greedy でなければ auto_updates 付きの cask を出さないので、その一覧を
   # 名指しで upgrade し、auto_updates 付きはアプリ自身に任せる (onActivation.upgrade を使わない
@@ -110,7 +52,6 @@ let
             echo "error: Homebrew が無い (${brew})。brew bundle を飛ばす。" >&2
             exit 0
           fi
-          ${lib.optionalString removesUndeclared cleanupPreview}
           brew bundle --file=${brewfile} ${
             lib.escapeShellArgs (
               lib.optional (!onActivation.upgrade) "--no-upgrade"
