@@ -81,6 +81,26 @@ let
     touch "$stamp"
   '';
 
+  # 空きが急に減ったとき、どこが増えたかを前の日と比べられるよう、1 日 1 回フォルダごとの
+  # 使用量 (allocated) を残す。読み方と注意 (APFS の clone を du は二重に数える) は
+  # docs/storage-cleanup.md。
+  storageUsage = pkgs.writeShellScript "storage-usage" ''
+    set -u
+    ${onAcPower}
+    out=${logDir}/storage-usage
+    mkdir -p "$out"
+    today=$(date +%F)
+    [ ! -e "$out/$today.tsv" ] || exit 0
+    tmp="$out/.$today.tsv"
+    {
+      /bin/df -k /System/Volumes/Data | /usr/bin/awk 'NR==2 {print "df_avail_kb\t" $4}'
+      # 3 階層までの 500MB 以上。TCC で読めないところは数えない (stderr を捨てる)。
+      /usr/bin/du -kx -d 3 "$HOME" "$(/usr/bin/getconf DARWIN_USER_TEMP_DIR)" /private/tmp 2>/dev/null \
+        | /usr/bin/awk -F '\t' '$1 >= 512000' | /usr/bin/sort -rn
+    } > "$tmp" && mv "$tmp" "$out/$today.tsv"
+    /usr/bin/find "$out" -name '*.tsv' -mtime +180 -delete
+  '';
+
   hourlyAgent = program: log: {
     enable = true;
     config = {
@@ -97,4 +117,5 @@ lib.mkIf pkgs.stdenv.hostPlatform.isDarwin {
   launchd.agents.dotfiles-prefetch = hourlyAgent prefetch "dotfiles-prefetch.log";
   launchd.agents.uv-cache-prune = hourlyAgent uvCachePrune "uv-cache-prune.log";
   launchd.agents.brew-prefetch = hourlyAgent brewPrefetch "brew-prefetch.log";
+  launchd.agents.storage-usage = hourlyAgent storageUsage "storage-usage.log";
 }

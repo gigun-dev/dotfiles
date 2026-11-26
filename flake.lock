@@ -693,11 +693,11 @@
     "ryoppippi-dotfiles": {
       "flake": false,
       "locked": {
-        "lastModified": 1795307024,
-        "narHash": "sha256-V4Cu/+YpxnjVYUv0pqz63VlunH9pjQvvTxjQ6qV4yGY=",
+        "lastModified": 1795662852,
+        "narHash": "sha256-CkeXl6h39t6USkL/nN2GyJD8AO95hlhd1E7TrnlU1AI=",
         "owner": "ryoppippi",
         "repo": "dotfiles",
-        "rev": "6db14bdb26b1cd116d5e88e1f08fea4236042806",
+        "rev": "166e23e791065ba31dc7b0e0701f6cf7cdecb268",
         "type": "github"
       },
       "original": {

@@ -10,6 +10,10 @@ ebook2pdf の実験セッションが同じ 283MB の入力 PDF を実験ごと�
 
 2026-11-26 は 9.4GB まで減っていた（5 日で約 50GB 増）。大物は無く分散していたが、仕組みとして溜まり続けていたのは `git wt -d` の削除先だった。`wt.remover` が macOS でも trash-cli を使い、消した worktree が `.build` ごと XDG のゴミ箱（`~/.local/share/Trash`、5.1GB）に入っていた。ここは Finder に出ず自動削除も効かない。macOS は標準の `/usr/bin/trash`（Finder のゴミ箱）に替えた（ryoppippi と同じ）。測るときは `du` の見かけのサイズに注意する。SwiftPM の `CompilationCache.noindex` はスパースファイルで、`stat -f %z` では 12〜25GB に見えるが実際は数 KB。`find -newermt` で期間の増加を集計するときは `stat -f %b`（512 バイトのブロック数）で数える。
 
+APFS のクローン（`cp -c`、および既定の `ditto`）は、`du` で元と写しの両方に数えられる。df は増えない。2026-11-26 に Regrab の 8.1GB のバックアップを「重複」と誤って判断した例がある（実際は 479 ファイルすべてがブロックを共有していた）。どれだけ増えたかは `df` の差で判断し、`du` はどこにあるかを探すために使う。
+
+`~/Library/Logs/storage-usage/<日付>.tsv` に、1 日 1 回、`df` の空きと、3 階層までの 500MB 以上のフォルダが記録される（`nix/modules/home/maintenance.nix` の `storage-usage`、180 日分）。空きが急に減ったら、前の日のファイルと比べる。
+
 定型の掃除（キャッシュ、マージ済み worktree、Nix GC の確認）は ryoppippi の `clean-storage` スキルで行う（`nix/modules/home/agent-skills.nix` で配布）。この手順書は、その後に残る大物を測って判断するためのもの。
 
 ## 現状を測る
