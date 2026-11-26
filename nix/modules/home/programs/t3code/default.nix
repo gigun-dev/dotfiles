@@ -75,7 +75,8 @@ let
     # それを丸ごと上書きするので、正本を 1 つにするため null で消す。
     storageCleanup = {
       worktreeKeepWhen = "uncommitted-changes";
-      worktreeAfterDays = 14;
+      worktreeAfterDays = 2;
+      worktreeSettledAfterDays = 1;
       worktreeOnMerge = true;
       worktreeOnDelete = true;
       worktreeUnchanged = true;
