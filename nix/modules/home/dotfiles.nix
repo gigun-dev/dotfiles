@@ -160,44 +160,31 @@ in
     fi
   '';
 
-  # agy のグローバル MCP サーバー設定。agy mcp add/remove や UI 操作で追記されたサーバーを
-  # 消さないよう symlink ではなく jq の deep merge とする。T3 Code の Antigravity
-  # セッションは --gemini-dir ~/.t3/userdata/providers/antigravity/<hash> で起動して
-  # 別プロファイルの config/mcp_config.json を読むため、既存プロファイルにもマージする。
+  # agy のグローバル MCP サーバー設定。正本は ~/.gemini/config/mcp_config.json に一本化し、
+  # T3 Code の隔離プロファイルからの参照は programs/t3code/default.nix 側で symlink する。
+  # agy mcp add/remove や UI 操作で追記されたサーバーを消さないよう jq の deep merge とする。
   home.activation.configureAgyMcpConfig = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+    MCP_DIR="${config.home.homeDirectory}/.gemini/config"
+    MCP_FILE="$MCP_DIR/mcp_config.json"
     SOURCE_FILE="${pkgs.writeText "agy-mcp-config.json" (builtins.toJSON agyMcpConfig)}"
-    merge_mcp_config() {
-      local target="$1"
-      local dir
-      dir="$(dirname "$target")"
-      if [ -n "''${DRY_RUN_CMD:-}" ]; then
-        echo "would merge declarative agy MCP config into $target"
-        return 0
-      fi
-      mkdir -p "$dir"
-      local temp_file
-      temp_file="$(mktemp "$dir/.mcp_config.json.XXXXXX")"
-      local merge_input=()
-      if [ -s "$target" ]; then
-        merge_input=("$target" "$SOURCE_FILE")
+    if [ -n "''${DRY_RUN_CMD:-}" ]; then
+      echo "would merge declarative agy MCP config into $MCP_FILE"
+    else
+      mkdir -p "$MCP_DIR"
+      TEMP_FILE="$(mktemp "$MCP_DIR/.mcp_config.json.XXXXXX")"
+      if [ -s "$MCP_FILE" ]; then
+        MERGE_INPUT=("$MCP_FILE" "$SOURCE_FILE")
       else
-        merge_input=("$SOURCE_FILE")
+        MERGE_INPUT=("$SOURCE_FILE")
       fi
-      if ! ${lib.getExe pkgs.jq} -s 'reduce .[] as $x ({}; . * $x)' "''${merge_input[@]}" > "$temp_file"; then
-        rm -f "$temp_file"
-        echo "agy mcp_config: merge failed; $target is unchanged" >&2
+      if ! ${lib.getExe pkgs.jq} -s 'reduce .[] as $x ({}; . * $x)' "''${MERGE_INPUT[@]}" > "$TEMP_FILE"; then
+        rm -f "$TEMP_FILE"
+        echo "agy mcp_config: merge failed; $MCP_FILE is unchanged" >&2
         exit 1
       fi
-      chmod 600 "$temp_file"
-      mv "$temp_file" "$target"
-    }
-
-    merge_mcp_config "${config.home.homeDirectory}/.gemini/config/mcp_config.json"
-    for profile_dir in "${config.home.homeDirectory}/.t3/userdata/providers/antigravity"/*; do
-      if [ -d "$profile_dir/config" ]; then
-        merge_mcp_config "$profile_dir/config/mcp_config.json"
-      fi
-    done
+      chmod 600 "$TEMP_FILE"
+      mv "$TEMP_FILE" "$MCP_FILE"
+    fi
   '';
 
   # launchd-ui: unsigned app — download from GitHub Releases

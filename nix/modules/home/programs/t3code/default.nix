@@ -205,6 +205,20 @@ lib.mkIf (isDarwin || isLinux) {
       ${mergeSettings "client-settings.json" clientSettings}
       ${mergeKeybindings "keybindings.json" keybindings}
     ''}
+    # T3 Code は Antigravity を `--gemini-dir ~/.t3/userdata/providers/antigravity/<hash>
+    # --app-data-dir antigravity-acp` で隔離起動し、GEMINI.md / AGENTS.md / skills だけ
+    # ~/.gemini から自動リンクする。MCP 設定と OAuth トークンも ~/.gemini 側の正本を
+    # 共有できるよう、既存プロファイルに symlink を張る（正本は dotfiles.nix が管理）。
+    for profile_dir in "$SETTINGS_DIR/providers/antigravity"/*; do
+      if [ -d "$profile_dir/config" ]; then
+        ln -sfn "${config.home.homeDirectory}/.gemini/config/mcp_config.json" \
+          "$profile_dir/config/mcp_config.json"
+      fi
+      if [ -d "$profile_dir/antigravity-acp" ] && [ -e "${config.home.homeDirectory}/.gemini/antigravity-cli/mcp_oauth_tokens.json" ]; then
+        ln -sfn "${config.home.homeDirectory}/.gemini/antigravity-cli/mcp_oauth_tokens.json" \
+          "$profile_dir/antigravity-acp/mcp_oauth_tokens.json"
+      fi
+    done
     ${lib.optionalString isLinux "fi"}
   '';
 }
