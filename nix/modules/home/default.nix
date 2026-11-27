@@ -19,14 +19,10 @@
     ./programs/ssh
     ./programs/t3code
     ./programs/codex
+    ./programs/agy
   ];
 
   programs.home-manager.enable = true;
-
-  # agy (antigravity-cli) は既定でバックグラウンド自己更新するが nix store は read-only。
-  # 更新は `nix run .#update-ai-tools` に一本化する。
-  # 同じ理由で `agy install` (PATH / shell 設定の書き換え) も実行しないこと。
-  home.sessionVariables.AGY_CLI_DISABLE_AUTO_UPDATE = "1";
 
   # Slack platform CLI は起動のたびに新版を検知して「今すぐ自動更新するか」を対話で聞いてくる。
   # y を押すとバイナリ実体 (cask なら Caskroom 配下) を自力で上書きするため、brew が記録する
