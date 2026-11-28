@@ -393,11 +393,11 @@
     "modern-web-guidance": {
       "flake": false,
       "locked": {
-        "lastModified": 1794841069,
-        "narHash": "sha256-6AKPHsrv7uP0clLZaezrCP8lHXY5EB0hJwQ3gnk4+UI=",
+        "lastModified": 1795445662,
+        "narHash": "sha256-UfeLMKMpwfOvJgyuyiysQy+ExGnLEJLY1CG/y4uIJHw=",
         "owner": "GoogleChrome",
         "repo": "modern-web-guidance",
-        "rev": "64a6d708f5a43f2cd3fde5d4d7db3905ba1bdf65",
+        "rev": "2b4aa13a72dd47cd135b06ce5abfccd92e19b24f",
         "type": "github"
       },
       "original": {
