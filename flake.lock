@@ -119,11 +119,11 @@
     "cloudflare-os": {
       "flake": false,
       "locked": {
-        "lastModified": 1795282191,
-        "narHash": "sha256-+6PfSp+91wfIrIKc3UZ/2DGQwshTxE6l+/YgY7M8o5o=",
+        "lastModified": 1795561331,
+        "narHash": "sha256-gPZx6iH4i+2hJOVziW4eYfTp77P0/eeexBtvVXhMkKk=",
         "owner": "cloudflare",
         "repo": "cloudflare-os",
-        "rev": "27888f048a4278cce3a71c462924a5435dab614d",
+        "rev": "b355717f54c7c35a360107a8bee64976da7fc3c8",
         "type": "github"
       },
       "original": {
