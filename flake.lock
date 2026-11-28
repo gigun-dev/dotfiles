@@ -922,11 +922,11 @@
     "yomiyasu": {
       "flake": false,
       "locked": {
-        "lastModified": 1795141659,
-        "narHash": "sha256-R/dPOsYefAw39uvr+jUcnfk2myUryOrh4PBwKlWBPXg=",
+        "lastModified": 1795520160,
+        "narHash": "sha256-df6sdmB1n+UkpMviEhN5Y4HAFtiJPdm3Mwdx1nNtnVw=",
         "owner": "nanaism",
         "repo": "yomiyasu",
-        "rev": "c49d5f1bee91258e33e1febc3569c6c87be7669e",
+        "rev": "fbd4e420fb71a6ba90f475898cf611ccb6a08cb2",
         "type": "github"
       },
       "original": {
